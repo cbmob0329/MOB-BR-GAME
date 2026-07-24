@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * MOB BR - cpu-local-national-data.js
+ * MOB BR - cpu-local-data.js
  * Local 23チーム登録部分。
  *
  * 読み込み順:
@@ -2842,7 +2842,7 @@
       {
         replaceTier: true,
         source:
-          'cpu-local-national-data.js'
+          'cpu-local-data.js'
       }
     );
 
