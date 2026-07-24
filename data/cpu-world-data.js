@@ -2,48 +2,24 @@
 
 /**
  * MOB BR - cpu-world-data.js
- * World 43チーム・129選手の独立データ。
- *
- * 読み込み順:
- * game-data.js → ability-data.js → training-data.js → coach-data.js
- * → cpu-data.js → cpu-local-data.js → cpu-national-data.js
- * → cpu-world-data.js
- *
- * 画像:
- * IGL  = World/W{番号}B.png
- * ATK  = World/W{番号}A.png
- * SUP  = World/W{番号}C.png
- * LOGO = World/W{番号}D.png
+ * World 43チーム・129選手の短縮版。
+ * 通常は役職別標準スキル2つ＋シールドチャージを使用。
+ * 個別変更は各OVERRIDESへ追加する。
  */
 (function initializeWorldCpuData(global) {
   const MOBBR = global.MOBBR = global.MOBBR || {};
-  MOBBR.DATA = MOBBR.DATA || {};
-  MOBBR.DATA.cpu = MOBBR.DATA.cpu || {};
-  MOBBR.API = MOBBR.API || {};
+  const CPU = MOBBR.API?.cpu;
 
-  const CPU = MOBBR.API.cpu;
-
-  if (!CPU || typeof CPU.registerTeams !== 'function') {
-    throw new Error(
-      'cpu-world-data.jsより先にcpu-data.jsを読み込んでください。'
-    );
+  if (!CPU?.registerTeams) {
+    throw new Error('cpu-world-data.jsより先にcpu-data.jsを読み込んでください。');
   }
 
-  const STATS = [
-    'stamina',
-    'mind',
-    'physical',
-    'aim',
-    'agility',
-    'technique',
-    'support'
+  const STAT_KEYS = [
+    'stamina', 'mind', 'physical', 'aim',
+    'agility', 'technique', 'support'
   ];
 
-  const ROLE_SUFFIX = {
-    IGL: 'B',
-    ATK: 'A',
-    SUP: 'C'
-  };
+  const ROLE_SLOT = { IGL: 'B', ATK: 'A', SUP: 'C' };
 
   const WEAPON_RANGE = {
     'ショットガン': 'close',
@@ -119,151 +95,239 @@
     weaponMagazine: 8
   });
 
-  const RANK_TIERS = [
-    'F',
-    'E',
-    'D',
-    'C',
-    'B',
-    'A',
-    'S',
-    'SS'
-  ];
-
-  const RANK_ORDER = [
-    ...RANK_TIERS.flatMap(
-      (tier) => Array.from(
-        { length: 9 },
-        (_, index) => `${tier}${index + 1}`
-      )
-    ),
-    'MOB'
-  ];
-
+  /*
+   * team:
+   * 通常最小、通常最大、好調最小、好調最大
+   *
+   * role:
+   * 不調最小、不調最大、
+   * 通常最小、通常最大、
+   * 好調最小、好調最大
+   */
   const BANDS = {
     king: {
-      teamNormal: ['B5', 'A3'],
-      teamHot: ['A3', 'A9'],
-      roleRanks: {
-        IGL: {
-          bad: ['B4', 'A1'],
-          normal: ['B6', 'A2'],
-          hot: ['A4', 'A9']
-        },
-        ATK: {
-          bad: ['B3', 'A2'],
-          normal: ['B4', 'A4'],
-          hot: ['A3', 'S1']
-        },
-        SUP: {
-          bad: ['B4', 'A1'],
-          normal: ['B5', 'A2'],
-          hot: ['A2', 'A8']
-        }
-      },
-      statNormal: 'S2',
-      statHot: 'S8',
-      power: 6
+      team: [
+        'B5',
+        'A3',
+        'A3',
+        'A9'
+      ],
+
+      stat: [
+        'S2',
+        'S8'
+      ],
+
+      power: 6,
+
+      role: {
+        IGL: [
+          'B4',
+          'A1',
+          'B6',
+          'A2',
+          'A4',
+          'A9'
+        ],
+
+        ATK: [
+          'B3',
+          'A2',
+          'B4',
+          'A4',
+          'A3',
+          'S1'
+        ],
+
+        SUP: [
+          'B4',
+          'A1',
+          'B5',
+          'A2',
+          'A2',
+          'A8'
+        ]
+      }
     },
 
     top: {
-      teamNormal: ['B8', 'A8'],
-      teamHot: ['A5', 'S4'],
-      roleRanks: {
-        IGL: {
-          bad: ['B3', 'A3'],
-          normal: ['B9', 'A7'],
-          hot: ['A6', 'S2']
-        },
-        ATK: {
-          bad: ['B2', 'A4'],
-          normal: ['B7', 'A9'],
-          hot: ['A5', 'S3']
-        },
-        SUP: {
-          bad: ['B3', 'A2'],
-          normal: ['B8', 'A6'],
-          hot: ['A4', 'S1']
-        }
-      },
-      statNormal: 'A8',
-      statHot: 'S4',
-      power: 5
+      team: [
+        'B8',
+        'A8',
+        'A5',
+        'S4'
+      ],
+
+      stat: [
+        'A8',
+        'S4'
+      ],
+
+      power: 5,
+
+      role: {
+        IGL: [
+          'B3',
+          'A3',
+          'B9',
+          'A7',
+          'A6',
+          'S2'
+        ],
+
+        ATK: [
+          'B2',
+          'A4',
+          'B7',
+          'A9',
+          'A5',
+          'S3'
+        ],
+
+        SUP: [
+          'B3',
+          'A2',
+          'B8',
+          'A6',
+          'A4',
+          'S1'
+        ]
+      }
     },
 
     elite: {
-      teamNormal: ['B4', 'A4'],
-      teamHot: ['B9', 'A9'],
-      roleRanks: {
-        IGL: {
-          bad: ['C8', 'B8'],
-          normal: ['B5', 'A3'],
-          hot: ['A2', 'A8']
-        },
-        ATK: {
-          bad: ['C7', 'B9'],
-          normal: ['B3', 'A5'],
-          hot: ['A1', 'A9']
-        },
-        SUP: {
-          bad: ['C8', 'B7'],
-          normal: ['B4', 'A2'],
-          hot: ['B9', 'A7']
-        }
-      },
-      statNormal: 'A2',
-      statHot: 'A8',
-      power: 4
+      team: [
+        'B4',
+        'A4',
+        'B9',
+        'A9'
+      ],
+
+      stat: [
+        'A2',
+        'A8'
+      ],
+
+      power: 4,
+
+      role: {
+        IGL: [
+          'C8',
+          'B8',
+          'B5',
+          'A3',
+          'A2',
+          'A8'
+        ],
+
+        ATK: [
+          'C7',
+          'B9',
+          'B3',
+          'A5',
+          'A1',
+          'A9'
+        ],
+
+        SUP: [
+          'C8',
+          'B7',
+          'B4',
+          'A2',
+          'B9',
+          'A7'
+        ]
+      }
     },
 
     high: {
-      teamNormal: ['C9', 'B9'],
-      teamHot: ['B5', 'A5'],
-      roleRanks: {
-        IGL: {
-          bad: ['D9', 'C9'],
-          normal: ['C9', 'B9'],
-          hot: ['B8', 'A5']
-        },
-        ATK: {
-          bad: ['D8', 'B1'],
-          normal: ['C7', 'A1'],
-          hot: ['B7', 'A7']
-        },
-        SUP: {
-          bad: ['D9', 'C8'],
-          normal: ['C8', 'B8'],
-          hot: ['B6', 'A4']
-        }
-      },
-      statNormal: 'B8',
-      statHot: 'A4',
-      power: 3
+      team: [
+        'C9',
+        'B9',
+        'B5',
+        'A5'
+      ],
+
+      stat: [
+        'B8',
+        'A4'
+      ],
+
+      power: 3,
+
+      role: {
+        IGL: [
+          'D9',
+          'C9',
+          'C9',
+          'B9',
+          'B8',
+          'A5'
+        ],
+
+        ATK: [
+          'D8',
+          'B1',
+          'C7',
+          'A1',
+          'B7',
+          'A7'
+        ],
+
+        SUP: [
+          'D9',
+          'C8',
+          'C8',
+          'B8',
+          'B6',
+          'A4'
+        ]
+      }
     },
 
     standard: {
-      teamNormal: ['C5', 'B5'],
-      teamHot: ['C9', 'B9'],
-      roleRanks: {
-        IGL: {
-          bad: ['D5', 'C5'],
-          normal: ['C5', 'B5'],
-          hot: ['C9', 'A1']
-        },
-        ATK: {
-          bad: ['D4', 'C7'],
-          normal: ['C3', 'B7'],
-          hot: ['C8', 'A3']
-        },
-        SUP: {
-          bad: ['D5', 'C4'],
-          normal: ['C4', 'B4'],
-          hot: ['C7', 'B9']
-        }
-      },
-      statNormal: 'B3',
-      statHot: 'A1',
-      power: 2
+      team: [
+        'C5',
+        'B5',
+        'C9',
+        'B9'
+      ],
+
+      stat: [
+        'B3',
+        'A1'
+      ],
+
+      power: 2,
+
+      role: {
+        IGL: [
+          'D5',
+          'C5',
+          'C5',
+          'B5',
+          'C9',
+          'A1'
+        ],
+
+        ATK: [
+          'D4',
+          'C7',
+          'C3',
+          'B7',
+          'C8',
+          'A3'
+        ],
+
+        SUP: [
+          'D5',
+          'C4',
+          'C4',
+          'B4',
+          'C7',
+          'B9'
+        ]
+      }
     }
   };
 
@@ -301,9 +365,11 @@
 
   const STYLES = {
     balanced: {
-      description: '攻守のバランスと安定した連携を武器とする。',
-      mainStats: ['aim', 'mind'],
+      description:
+        '攻守のバランスと安定した連携を武器とする。',
+
       stats: {},
+
       weapons: {
         IGL: 'アサルトライフル',
         ATK: 'アサルトライフル',
@@ -312,12 +378,14 @@
     },
 
     technical: {
-      description: '高い技術と状況判断で戦闘を組み立てる。',
-      mainStats: ['technique', 'mind'],
+      description:
+        '高い技術と状況判断で戦闘を組み立てる。',
+
       stats: {
         technique: 3,
         mind: 2
       },
+
       weapons: {
         IGL: 'アサルトライフル',
         ATK: 'リボルバー',
@@ -326,12 +394,14 @@
     },
 
     control: {
-      description: '敵の流れを読み、戦闘の主導権を握る。',
-      mainStats: ['mind', 'technique'],
+      description:
+        '敵の流れを読み、戦闘の主導権を握る。',
+
       stats: {
         mind: 3,
         technique: 2
       },
+
       weapons: {
         IGL: 'アサルトライフル',
         ATK: 'リボルバー',
@@ -340,12 +410,14 @@
     },
 
     assault: {
-      description: '強力な接近戦と一気の攻めを得意とする。',
-      mainStats: ['physical', 'aim'],
+      description:
+        '強力な接近戦と一気の攻めを得意とする。',
+
       stats: {
         physical: 3,
         aim: 2
       },
+
       weapons: {
         IGL: 'アサルトライフル',
         ATK: 'ショットガン',
@@ -354,12 +426,14 @@
     },
 
     sniper: {
-      description: '遠距離からの高精度射撃で戦場を支配する。',
-      mainStats: ['aim', 'technique'],
+      description:
+        '遠距離からの高精度射撃で戦場を支配する。',
+
       stats: {
         aim: 4,
         technique: 2
       },
+
       weapons: {
         IGL: 'スナイパーライフル',
         ATK: 'スナイパーライフル',
@@ -368,12 +442,14 @@
     },
 
     support: {
-      description: '回復と味方強化を軸に長期戦を狙う。',
-      mainStats: ['support', 'mind'],
+      description:
+        '回復と味方強化を軸に長期戦を狙う。',
+
       stats: {
         support: 4,
         mind: 2
       },
+
       weapons: {
         IGL: 'ハンドガン',
         ATK: 'アサルトライフル',
@@ -382,12 +458,14 @@
     },
 
     speed: {
-      description: '高い機動力と素早いスキル回転で翻弄する。',
-      mainStats: ['agility', 'technique'],
+      description:
+        '高い機動力と素早いスキル回転で翻弄する。',
+
       stats: {
         agility: 4,
         technique: 2
       },
+
       weapons: {
         IGL: 'ハンドガン',
         ATK: 'マシンガン',
@@ -396,12 +474,14 @@
     },
 
     survival: {
-      description: '耐久と立て直し能力で終盤まで生き残る。',
-      mainStats: ['stamina', 'support'],
+      description:
+        '耐久と立て直し能力で終盤まで生き残る。',
+
       stats: {
         stamina: 4,
         support: 2
       },
+
       weapons: {
         IGL: 'アサルトライフル',
         ATK: 'アサルトライフル',
@@ -410,12 +490,14 @@
     },
 
     guard: {
-      description: '高い耐久力と防衛判断を武器とする。',
-      mainStats: ['stamina', 'physical'],
+      description:
+        '高い耐久力と防衛判断を武器とする。',
+
       stats: {
         stamina: 4,
         physical: 3
       },
+
       weapons: {
         IGL: 'ショットガン',
         ATK: 'ショットガン',
@@ -424,12 +506,14 @@
     },
 
     burst: {
-      description: '重い火力と集中攻撃で正面戦闘を押し切る。',
-      mainStats: ['physical', 'aim'],
+      description:
+        '重い火力と集中攻撃で正面戦闘を押し切る。',
+
       stats: {
         physical: 4,
         aim: 3
       },
+
       weapons: {
         IGL: 'マシンガン',
         ATK: 'マシンガン',
@@ -439,59 +523,561 @@
   };
 
   const ROSTER_ROWS = [
-    [1, 'ゴールデンテンペスト', 'king', 'balanced', 'モブミリー', 'モブトール', 'モブオマー', '世界最強のチーム。'],
-    [2, 'タロアートファッション', 'high', 'technical', 'モブポヨ', 'モブターロ', 'モブチャモロ', '独創的な戦術と個人技を融合する世界チーム。'],
-    [3, 'シャドウキングダム', 'top', 'control', 'モブアサモブ', 'モブヴァン', 'モブテラー', '闇から主導権を奪う世界トップクラスのチーム。'],
-    [4, 'アリスカンパニー', 'top', 'control', 'モブクイン', 'モブジョーカー', 'モブキング', '変則的な判断と完成度の高い連携を武器とする。'],
-    [5, 'アサシンコート', 'top', 'assault', 'モブサイレント', 'モブタゲ', 'モブガンド', '静かな接近から一気に戦闘を終わらせる。'],
-    [6, 'ネコクーバレット', 'elite', 'sniper', 'モブネコクー', 'モブククリ', 'モブテイル', '遠距離の精度と素早い射線変更に優れる。'],
-    [7, 'シャーロックターゲット', 'elite', 'control', 'モブホームズ', 'モブワトソン', 'モブアーティー', '敵の行動を読み、最適な交戦を選び続ける。'],
-    [8, 'ヨミカケノホン', 'elite', 'technical', 'モブブラック', 'モブレッド', 'モブイエロー', '多彩な特殊効果と状況対応力を持つ。'],
-    [9, 'ケロノイショウ', 'elite', 'support', 'モブミトケロ', 'モブグリケロ', 'モブサポケロ', '回復と継続戦闘を得意とする安定型チーム。'],
-    [10, 'ラビットスキルボム', 'elite', 'speed', 'モブビッツ', 'モブステッピン', 'モブジャンピン', '高い機動力と連続スキルで相手を翻弄する。'],
-    [11, 'モブメジャーズ', 'elite', 'balanced', 'モブジャイロ', 'モブワイヤー', 'モブルタ', '世界基準の基礎性能を持つバランスチーム。'],
-    [12, 'マスターオブテクニック', 'elite', 'technical', 'モブハドウ', 'モブカメハ', 'モブドドパ', '高いテクニックとスキル回転で戦闘を組み立てる。'],
-    [13, 'レトロシアター', 'elite', 'technical', 'モブドワーフ', 'モブサッケ', 'モブディア', '独自のテンポと連携で主導権を握る。'],
-    [14, 'コミックヒッターズ', 'high', 'technical', 'モブペン', 'モブインク', 'モブトーン', '技術と演出力を兼ね備えた攻撃的チーム。'],
-    [15, 'ライフナイフクルー', 'high', 'survival', 'モブライフ', 'モブブレイド', 'モブシース', '耐久と鋭い反撃を両立する。'],
-    [16, 'ウルフスノーマン', 'high', 'guard', 'モブウルフ', 'モブブリザ', 'モブスノウ', '高い耐久力と冷静な防衛判断を持つ。'],
-    [17, 'スナノクニ', 'high', 'sniper', 'モブファラオ', 'モブスフィン', 'モブオアシス', '遠距離制圧と継戦能力に優れる。'],
-    [18, 'グラスオリジン', 'high', 'technical', 'モブグラス', 'モブクリア', 'モブプリズム', '透明感のある連携と精密な技術を武器とする。'],
-    [19, 'ワールドアトリエ', 'high', 'technical', 'モブモロシャ', 'モブアミレ', 'モブピンカ', '柔軟な戦術を試合ごとに描き替える。'],
-    [20, 'ヘビィマシンガンズ', 'high', 'burst', 'モブシャボム', 'モブインバス', 'モブレージ', '圧倒的な制圧射撃で正面戦闘を押し切る。'],
-    [21, 'ニューパイレーツ', 'high', 'assault', 'モブベアー', 'モブティーロ', 'モブバッサ', '大胆な侵攻と素早い奪取を得意とする。'],
-    [22, 'ダークミュージック', 'high', 'control', 'モブスク', 'モブラッチ', 'モブラババ', '独特なリズムで敵の戦闘テンポを崩す。'],
-    [23, 'レーザーデストロイ', 'high', 'burst', 'モブヒッツメン', 'モブタクティン', 'モブディフェル', '高精度の集中攻撃で防衛線を破壊する。'],
-    [24, 'ボーンクリエイターズ', 'high', 'guard', 'モブウィッシュ', 'モブショル', 'モブハクリ', '堅牢な陣形と再構築能力で粘り強く戦う。'],
-    [25, 'ストリートダッシュ', 'high', 'speed', 'モブロード', 'モブスプリント', 'モブステップ', '高速移動と素早い接敵・離脱を繰り返す。'],
-    [26, 'オンミツサーカス', 'high', 'speed', 'モブセレモ', 'モブポンプ', 'モブトーク', '変則移動と奇襲で敵の視線を分散させる。'],
-    [27, 'デンデンオリジナル', 'standard', 'balanced', 'モブデンブー', 'モブデンロック', 'モブデンファット', '安定した基礎性能と堅実な連携を持つ。'],
-    [28, 'プニプニパーティー', 'standard', 'support', 'モブプニグリ', 'モブプニパー', 'モブプニオレ', '回復と味方強化を軸に長期戦を狙う。'],
-    [29, 'マジックショータイム', 'standard', 'technical', 'モブパンド', 'モブカード', 'モブカット', '多彩なスキルで戦況を変化させる。'],
-    [30, 'リスタートワールズ', 'standard', 'survival', 'モブクエ', 'モブダクピー', 'モブジャーミン', '立て直し能力が高く、終盤まで生き残る。'],
-    [31, 'ゴーレムロボブラスターズ', 'standard', 'guard', 'モブターミ', 'モブシュワ', 'モブタイゴン', '高い耐久力と重火力を備える。'],
-    [32, 'ユウシャノケイフ', 'standard', 'balanced', 'モブユウシャ', 'モブシソン', 'モブセンゾ', '正統派の攻守とチームワークで戦う。'],
-    [33, 'テクノロジーソルジャーズ', 'standard', 'sniper', 'モブスコープ', 'モブベアブ', 'モブランボル', '精密機器と遠距離射撃を活用する。'],
-    [34, 'マウスオブトップ', 'standard', 'speed', 'モブマイキー', 'モブリンキー', 'モブロッキー', '小回りの利く高速戦闘を得意とする。'],
-    [35, 'ヤミネコクリティカル', 'standard', 'sniper', 'モブレール', 'モブキャリー', 'モブドリフ', '暗所から高精度の一撃を狙う。'],
-    [36, 'スタイリッシュエージェント', 'standard', 'technical', 'モブカウボ', 'モブリュク', 'モブコスコ', '洗練された動きと精密な連携を持つ。'],
-    [37, 'コスモキャットロード', 'standard', 'technical', 'モブムク', 'モブヴァル', 'モブスタチュ', '宇宙的な変則戦術で敵を揺さぶる。'],
-    [38, 'ブラックホールズ', 'standard', 'control', 'モブサクル', 'モブエンド', 'モブサイン', '吸い込むような包囲と妨害を得意とする。'],
-    [39, 'ワンミニッツスプライト', 'high', 'speed', 'モブミニット', 'モブセカンド', 'モブスプラ', '短時間で戦況を変える高速チーム。'],
-    [40, 'ナチュラルエイマーズ', 'high', 'sniper', 'モブナチュラ', 'モブサイト', 'モブフォーカス', '自然な照準能力と安定した射撃精度を持つ。'],
-    [41, 'クリスマススリーサンタ', 'high', 'support', 'モブアカサンタ', 'モブピンクサンタ', 'モブブルーサンタ', '回復・支援・連携を高水準で備える特別チーム。'],
-    [42, 'モブアーティストレジェンド', 'top', 'technical', 'モブシュガペロ', 'モブカカオ', 'モブビスケット', '5年目から毎回Worldへ参戦する特別チーム。', { type: 'fromYear', year: 5, always: true }],
-    [43, 'モブアーティストクリエイト', 'top', 'technical', 'モブバター', 'モブミルキー', 'モブマーブル', '5年目から毎回Worldへ参戦する特別チーム。', { type: 'fromYear', year: 5, always: true }]
+    [
+      1,
+      'ゴールデンテンペスト',
+      'king',
+      'balanced',
+      'モブミリー',
+      'モブトール',
+      'モブオマー',
+      '世界最強のチーム。'
+    ],
+
+    [
+      2,
+      'タロアートファッション',
+      'high',
+      'technical',
+      'モブポヨ',
+      'モブターロ',
+      'モブチャモロ',
+      '独創的な戦術と個人技を融合する世界チーム。'
+    ],
+
+    [
+      3,
+      'シャドウキングダム',
+      'top',
+      'control',
+      'モブアサモブ',
+      'モブヴァン',
+      'モブテラー',
+      '闇から主導権を奪う世界トップクラスのチーム。'
+    ],
+
+    [
+      4,
+      'アリスカンパニー',
+      'top',
+      'control',
+      'モブクイン',
+      'モブジョーカー',
+      'モブキング',
+      '変則的な判断と完成度の高い連携を武器とする。'
+    ],
+
+    [
+      5,
+      'アサシンコート',
+      'top',
+      'assault',
+      'モブサイレント',
+      'モブタゲ',
+      'モブガンド',
+      '静かな接近から一気に戦闘を終わらせる。'
+    ],
+
+    [
+      6,
+      'ネコクーバレット',
+      'elite',
+      'sniper',
+      'モブネコクー',
+      'モブククリ',
+      'モブテイル',
+      '遠距離の精度と素早い射線変更に優れる。'
+    ],
+
+    [
+      7,
+      'シャーロックターゲット',
+      'elite',
+      'control',
+      'モブホームズ',
+      'モブワトソン',
+      'モブアーティー',
+      '敵の行動を読み、最適な交戦を選び続ける。'
+    ],
+
+    [
+      8,
+      'ヨミカケノホン',
+      'elite',
+      'technical',
+      'モブブラック',
+      'モブレッド',
+      'モブイエロー',
+      '多彩な特殊効果と状況対応力を持つ。'
+    ],
+
+    [
+      9,
+      'ケロノイショウ',
+      'elite',
+      'support',
+      'モブミトケロ',
+      'モブグリケロ',
+      'モブサポケロ',
+      '回復と継続戦闘を得意とする安定型チーム。'
+    ],
+
+    [
+      10,
+      'ラビットスキルボム',
+      'elite',
+      'speed',
+      'モブビッツ',
+      'モブステッピン',
+      'モブジャンピン',
+      '高い機動力と連続スキルで相手を翻弄する。'
+    ],
+
+    [
+      11,
+      'モブメジャーズ',
+      'elite',
+      'balanced',
+      'モブジャイロ',
+      'モブワイヤー',
+      'モブルタ',
+      '世界基準の基礎性能を持つバランスチーム。'
+    ],
+
+    [
+      12,
+      'マスターオブテクニック',
+      'elite',
+      'technical',
+      'モブハドウ',
+      'モブカメハ',
+      'モブドドパ',
+      '高いテクニックとスキル回転で戦闘を組み立てる。'
+    ],
+
+    [
+      13,
+      'レトロシアター',
+      'elite',
+      'technical',
+      'モブドワーフ',
+      'モブサッケ',
+      'モブディア',
+      '独自のテンポと連携で主導権を握る。'
+    ],
+
+    [
+      14,
+      'コミックヒッターズ',
+      'high',
+      'technical',
+      'モブペン',
+      'モブインク',
+      'モブトーン',
+      '技術と演出力を兼ね備えた攻撃的チーム。'
+    ],
+
+    [
+      15,
+      'ライフナイフクルー',
+      'high',
+      'survival',
+      'モブライフ',
+      'モブブレイド',
+      'モブシース',
+      '耐久と鋭い反撃を両立する。'
+    ],
+
+    [
+      16,
+      'ウルフスノーマン',
+      'high',
+      'guard',
+      'モブウルフ',
+      'モブブリザ',
+      'モブスノウ',
+      '高い耐久力と冷静な防衛判断を持つ。'
+    ],
+
+    [
+      17,
+      'スナノクニ',
+      'high',
+      'sniper',
+      'モブファラオ',
+      'モブスフィン',
+      'モブオアシス',
+      '遠距離制圧と継戦能力に優れる。'
+    ],
+
+    [
+      18,
+      'グラスオリジン',
+      'high',
+      'technical',
+      'モブグラス',
+      'モブクリア',
+      'モブプリズム',
+      '透明感のある連携と精密な技術を武器とする。'
+    ],
+
+    [
+      19,
+      'ワールドアトリエ',
+      'high',
+      'technical',
+      'モブモロシャ',
+      'モブアミレ',
+      'モブピンカ',
+      '柔軟な戦術を試合ごとに描き替える。'
+    ],
+
+    [
+      20,
+      'ヘビィマシンガンズ',
+      'high',
+      'burst',
+      'モブシャボム',
+      'モブインバス',
+      'モブレージ',
+      '圧倒的な制圧射撃で正面戦闘を押し切る。'
+    ],
+
+    [
+      21,
+      'ニューパイレーツ',
+      'high',
+      'assault',
+      'モブベアー',
+      'モブティーロ',
+      'モブバッサ',
+      '大胆な侵攻と素早い奪取を得意とする。'
+    ],
+
+    [
+      22,
+      'ダークミュージック',
+      'high',
+      'control',
+      'モブスク',
+      'モブラッチ',
+      'モブラババ',
+      '独特なリズムで敵の戦闘テンポを崩す。'
+    ],
+
+    [
+      23,
+      'レーザーデストロイ',
+      'high',
+      'burst',
+      'モブヒッツメン',
+      'モブタクティン',
+      'モブディフェル',
+      '高精度の集中攻撃で防衛線を破壊する。'
+    ],
+
+    [
+      24,
+      'ボーンクリエイターズ',
+      'high',
+      'guard',
+      'モブウィッシュ',
+      'モブショル',
+      'モブハクリ',
+      '堅牢な陣形と再構築能力で粘り強く戦う。'
+    ],
+
+    [
+      25,
+      'ストリートダッシュ',
+      'high',
+      'speed',
+      'モブロード',
+      'モブスプリント',
+      'モブステップ',
+      '高速移動と素早い接敵・離脱を繰り返す。'
+    ],
+
+    [
+      26,
+      'オンミツサーカス',
+      'high',
+      'speed',
+      'モブセレモ',
+      'モブポンプ',
+      'モブトーク',
+      '変則移動と奇襲で敵の視線を分散させる。'
+    ],
+
+    [
+      27,
+      'デンデンオリジナル',
+      'standard',
+      'balanced',
+      'モブデンブー',
+      'モブデンロック',
+      'モブデンファット',
+      '安定した基礎性能と堅実な連携を持つ。'
+    ],
+
+    [
+      28,
+      'プニプニパーティー',
+      'standard',
+      'support',
+      'モブプニグリ',
+      'モブプニパー',
+      'モブプニオレ',
+      '回復と味方強化を軸に長期戦を狙う。'
+    ],
+
+    [
+      29,
+      'マジックショータイム',
+      'standard',
+      'technical',
+      'モブパンド',
+      'モブカード',
+      'モブカット',
+      '多彩なスキルで戦況を変化させる。'
+    ],
+
+    [
+      30,
+      'リスタートワールズ',
+      'standard',
+      'survival',
+      'モブクエ',
+      'モブダクピー',
+      'モブジャーミン',
+      '立て直し能力が高く、終盤まで生き残る。'
+    ],
+
+    [
+      31,
+      'ゴーレムロボブラスターズ',
+      'standard',
+      'guard',
+      'モブターミ',
+      'モブシュワ',
+      'モブタイゴン',
+      '高い耐久力と重火力を備える。'
+    ],
+
+    [
+      32,
+      'ユウシャノケイフ',
+      'standard',
+      'balanced',
+      'モブユウシャ',
+      'モブシソン',
+      'モブセンゾ',
+      '正統派の攻守とチームワークで戦う。'
+    ],
+
+    [
+      33,
+      'テクノロジーソルジャーズ',
+      'standard',
+      'sniper',
+      'モブスコープ',
+      'モブベアブ',
+      'モブランボル',
+      '精密機器と遠距離射撃を活用する。'
+    ],
+
+    [
+      34,
+      'マウスオブトップ',
+      'standard',
+      'speed',
+      'モブマイキー',
+      'モブリンキー',
+      'モブロッキー',
+      '小回りの利く高速戦闘を得意とする。'
+    ],
+
+    [
+      35,
+      'ヤミネコクリティカル',
+      'standard',
+      'sniper',
+      'モブレール',
+      'モブキャリー',
+      'モブドリフ',
+      '暗所から高精度の一撃を狙う。'
+    ],
+
+    [
+      36,
+      'スタイリッシュエージェント',
+      'standard',
+      'technical',
+      'モブカウボ',
+      'モブリュク',
+      'モブコスコ',
+      '洗練された動きと精密な連携を持つ。'
+    ],
+
+    [
+      37,
+      'コスモキャットロード',
+      'standard',
+      'technical',
+      'モブムク',
+      'モブヴァル',
+      'モブスタチュ',
+      '宇宙的な変則戦術で敵を揺さぶる。'
+    ],
+
+    [
+      38,
+      'ブラックホールズ',
+      'standard',
+      'control',
+      'モブサクル',
+      'モブエンド',
+      'モブサイン',
+      '吸い込むような包囲と妨害を得意とする。'
+    ],
+
+    [
+      39,
+      'ワンミニッツスプライト',
+      'high',
+      'speed',
+      'モブミニット',
+      'モブセカンド',
+      'モブスプラ',
+      '短時間で戦況を変える高速チーム。'
+    ],
+
+    [
+      40,
+      'ナチュラルエイマーズ',
+      'high',
+      'sniper',
+      'モブナチュラ',
+      'モブサイト',
+      'モブフォーカス',
+      '自然な照準能力と安定した射撃精度を持つ。'
+    ],
+
+    [
+      41,
+      'クリスマススリーサンタ',
+      'high',
+      'support',
+      'モブアカサンタ',
+      'モブピンクサンタ',
+      'モブブルーサンタ',
+      '回復・支援・連携を高水準で備える特別チーム。'
+    ],
+
+    [
+      42,
+      'モブアーティストレジェンド',
+      'top',
+      'technical',
+      'モブシュガペロ',
+      'モブカカオ',
+      'モブビスケット',
+      '5年目から毎回Worldへ参戦する特別チーム。',
+
+      {
+        type: 'fromYear',
+        year: 5,
+        always: true
+      }
+    ],
+
+    [
+      43,
+      'モブアーティストクリエイト',
+      'top',
+      'technical',
+      'モブバター',
+      'モブミルキー',
+      'モブマーブル',
+      '5年目から毎回Worldへ参戦する特別チーム。',
+
+      {
+        type: 'fromYear',
+        year: 5,
+        always: true
+      }
+    ]
   ];
 
-  const PLAYER_DESCRIPTION_OVERRIDES = {
-    'world_01_igl': '抜群の安定感で常に好調を保つ世界最高峰のIGL。',
-    'world_01_atk': '不安定でも高い性能を誇り、調子のいい時は誰にも止められない。',
-    'world_01_sup': 'サポーターでありながら世界トップクラスの火力と冷静なマインドを武器とする。'
+  /* =========================================================
+     編集エリア
+
+     TEAM_OVERRIDES.W1:
+       strengthClass
+       style
+       description
+       teamRank
+       entryRule
+
+     PLAYER_OVERRIDES.W1B:
+       description
+       rank
+       stats
+       weapon
+
+     W1B = IGL
+     W1A = ATK
+     W1C = SUP
+  ========================================================= */
+
+  const TEAM_OVERRIDES = {};
+
+  const PLAYER_OVERRIDES = {
+    W1B: {
+      description:
+        '抜群の安定感で常に好調を保つ世界最高峰のIGL。'
+    },
+
+    W1A: {
+      description:
+        '不安定でも高い性能を誇り、調子のいい時は誰にも止められない。'
+    },
+
+    W1C: {
+      description:
+        'サポーターでありながら世界トップクラスの火力と冷静なマインドを武器とする。'
+    }
   };
 
+  /*
+   * CPU.skillで2つ指定。
+   * 未指定なら役職別標準スキル。
+   */
+  const CUSTOM_SKILLS = {};
+
+  /*
+   * CPU.passiveで指定。
+   * 未指定なら役職別標準特殊能力。
+   */
+  const CUSTOM_PASSIVES = {};
+
+  /*
+   * rarity
+   * description
+   * packId
+   */
+  const CARD_OVERRIDES = {};
+  const BADGE_OVERRIDES = {};
+
   function clone(value) {
-    if (typeof structuredClone === 'function') {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (
+      typeof structuredClone ===
+      'function'
+    ) {
       return structuredClone(value);
     }
 
@@ -502,69 +1088,111 @@
 
   function hash(value) {
     let result = 2166136261;
-    const source = String(value || '');
 
     for (
-      let index = 0;
-      index < source.length;
-      index += 1
+      const character of
+      String(value || '')
     ) {
-      result ^= source.charCodeAt(index);
-      result = Math.imul(
-        result,
-        16777619
-      );
+      result ^=
+        character.charCodeAt(0);
+
+      result =
+        Math.imul(
+          result,
+          16777619
+        );
     }
 
     return result >>> 0;
   }
 
-  function makeId(prefix, value) {
-    return `${prefix}_${hash(value).toString(36)}`;
-  }
-
-  function rankIndex(rank) {
-    const index = RANK_ORDER.indexOf(
-      String(rank || 'F1').toUpperCase()
+  function makeId(
+    prefix,
+    value
+  ) {
+    return (
+      `${prefix}_` +
+      hash(value)
+        .toString(36)
     );
-
-    return index >= 0
-      ? index
-      : 0;
   }
 
-  function shiftRank(rank, amount = 0) {
-    const nextIndex = Math.max(
-      0,
-      Math.min(
-        RANK_ORDER.length - 1,
-        rankIndex(rank) + Math.floor(Number(amount) || 0)
+  function shiftRank(
+    rank,
+    amount = 0
+  ) {
+    return CPU.ordinalToRank(
+      CPU.rankToOrdinal(rank) +
+      Math.floor(
+        Number(amount) || 0
       )
     );
-
-    return RANK_ORDER[nextIndex];
   }
 
-  function rangeText(range, amount = 0) {
-    return `${shiftRank(range[0], amount)}～${shiftRank(range[1], amount)}`;
+  function range(
+    min,
+    max,
+    amount = 0
+  ) {
+    return (
+      `${shiftRank(min, amount)}～` +
+      `${shiftRank(max, amount)}`
+    );
   }
 
-  function getCardPackId(teamNumber) {
+  function roleRank(values) {
+    return {
+      bad:
+        range(
+          values[0],
+          values[1]
+        ),
+
+      normal:
+        range(
+          values[2],
+          values[3]
+        ),
+
+      hot:
+        range(
+          values[4],
+          values[5]
+        )
+    };
+  }
+
+  function cardPack(number) {
     if (
-      (teamNumber >= 1 && teamNumber <= 5) ||
-      (teamNumber >= 11 && teamNumber <= 15)
+      (
+        number >= 1 &&
+        number <= 5
+      ) ||
+      (
+        number >= 11 &&
+        number <= 15
+      )
     ) {
       return 'vol6';
     }
 
     if (
-      (teamNumber >= 6 && teamNumber <= 10) ||
-      (teamNumber >= 16 && teamNumber <= 26)
+      (
+        number >= 6 &&
+        number <= 10
+      ) ||
+      (
+        number >= 16 &&
+        number <= 26
+      )
     ) {
       return 'vol7';
     }
 
-    if (teamNumber >= 27 && teamNumber <= 41) {
+    if (
+      number >= 27 &&
+      number <= 41
+    ) {
       return 'vol8';
     }
 
@@ -572,38 +1200,68 @@
   }
 
   function makeStats(
-    teamNumber,
+    number,
     role,
-    playerName,
+    name,
     styleId,
     band
   ) {
-    const style = STYLES[styleId];
+    const style =
+      STYLES[styleId];
 
     return Object.fromEntries(
-      STATS.map(
-        (statId, index) => {
-          const noise = (
-            hash(`${teamNumber}:${role}:${playerName}:${statId}:${index}`) % 3
-          ) - 1;
+      STAT_KEYS.map(
+        (
+          statId,
+          index
+        ) => {
+          const noise =
+            (
+              hash(
+                (
+                  `${number}:` +
+                  `${role}:` +
+                  `${name}:` +
+                  `${statId}:` +
+                  `${index}`
+                )
+              ) %
+              3
+            ) -
+            1;
 
           const offset =
-            (ROLE_OFFSETS[role][statId] || 0) +
-            (style.stats[statId] || 0) +
+            (
+              ROLE_OFFSETS[
+                role
+              ][
+                statId
+              ] ||
+              0
+            ) +
+            (
+              style.stats[
+                statId
+              ] ||
+              0
+            ) +
             noise;
 
           return [
             statId,
-            {
-              normal: shiftRank(
-                band.statNormal,
-                offset
-              ),
 
-              hot: shiftRank(
-                band.statHot,
-                offset
-              )
+            {
+              normal:
+                shiftRank(
+                  band.stat[0],
+                  offset
+                ),
+
+              hot:
+                shiftRank(
+                  band.stat[1],
+                  offset
+                )
             }
           ];
         }
@@ -612,541 +1270,576 @@
   }
 
   function makeWeapon(
-    teamNumber,
+    number,
     role,
-    playerName,
+    name,
     styleId,
     band
   ) {
-    const style = STYLES[styleId];
-    const type = style.weapons[role];
-    const preferredRange = WEAPON_RANGE[type] || 'mid';
-    const base = 42 + (band.power * 8);
+    const type =
+      STYLES[
+        styleId
+      ]
+        .weapons[
+          role
+        ];
+
+    const preferredRange =
+      WEAPON_RANGE[
+        type
+      ] ||
+      'mid';
+
+    const base =
+      42 +
+      (
+        band.power *
+        8
+      );
 
     return {
-      id: makeId(
-        'world_weapon',
-        `${teamNumber}:${role}:${playerName}`
-      ),
+      id:
+        makeId(
+          'world_weapon',
 
-      name: `${playerName}専用${type}`,
+          (
+            `${number}:` +
+            `${role}:` +
+            `${name}`
+          )
+        ),
+
+      name:
+        `${name}専用${type}`,
+
       type,
       preferredRange,
-      magazine: WORLD_RULES.weaponMagazine,
+
+      magazine:
+        WORLD_RULES
+          .weaponMagazine,
 
       attack:
         base +
-        (role === 'ATK' ? 8 : 0) +
-        (type === 'ショットガン' ? 3 : 0),
+        (
+          role === 'ATK'
+            ? 8
+            : 0
+        ) +
+        (
+          type ===
+          'ショットガン'
+            ? 3
+            : 0
+        ),
 
       accuracy:
         base +
-        (role === 'IGL' ? 6 : 0) +
-        (type === 'スナイパーライフル' ? 4 : 0),
-
-      speed:
-        base +
-        (styleId === 'speed' ? 8 : 0),
-
-      performance: {
-        close: shiftRank(
-          band.statNormal,
-          preferredRange === 'close' ? 4 : -1
-        ),
-
-        mid: shiftRank(
-          band.statNormal,
-          preferredRange === 'mid' ? 4 : 0
-        ),
-
-        far: shiftRank(
-          band.statNormal,
-          preferredRange === 'far' ? 4 : -2
-        ),
-
-        rapid: shiftRank(
-          band.statNormal,
-          styleId === 'speed' || type === 'マシンガン'
+        (
+          role === 'IGL'
+            ? 6
+            : 0
+        ) +
+        (
+          type ===
+          'スナイパーライフル'
             ? 4
             : 0
         ),
 
-        reload: shiftRank(
-          band.statNormal,
-          role === 'SUP' ? 3 : 0
-        )
+      speed:
+        base +
+        (
+          styleId === 'speed'
+            ? 8
+            : 0
+        ),
+
+      performance: {
+        close:
+          shiftRank(
+            band.stat[0],
+
+            preferredRange ===
+            'close'
+              ? 4
+              : -1
+          ),
+
+        mid:
+          shiftRank(
+            band.stat[0],
+
+            preferredRange ===
+            'mid'
+              ? 4
+              : 0
+          ),
+
+        far:
+          shiftRank(
+            band.stat[0],
+
+            preferredRange ===
+            'far'
+              ? 4
+              : -2
+          ),
+
+        rapid:
+          shiftRank(
+            band.stat[0],
+
+            (
+              styleId ===
+              'speed'
+            ) ||
+            (
+              type ===
+              'マシンガン'
+            )
+              ? 4
+              : 0
+          ),
+
+        reload:
+          shiftRank(
+            band.stat[0],
+
+            role === 'SUP'
+              ? 3
+              : 0
+          )
       }
     };
   }
 
-  function makeSkills(
-    teamNumber,
-    role,
-    playerName,
-    styleId,
-    band
-  ) {
-    const style = STYLES[styleId];
-    const strength = band.power;
-    const primary = style.mainStats[0];
-    const secondary = style.mainStats[1];
-
-    if (role === 'IGL') {
-      return [
-        {
-          id: makeId(
-            'world_skill',
-            `${teamNumber}:${role}:${playerName}:1`
-          ),
-
-          name: `${playerName}ワールドコール`,
-          type: 'teamStatBuff',
-          target: 'allyAll',
-          ct: 6,
-
-          effects: [
-            {
-              code: 'TEAM_STAT_BUFF',
-              stats: {
-                [primary]: strength,
-                [secondary]: Math.max(
-                  1,
-                  strength - 1
-                )
-              },
-              durationSeconds: 5
-            }
-          ]
-        },
-
-        {
-          id: makeId(
-            'world_skill',
-            `${teamNumber}:${role}:${playerName}:2`
-          ),
-
-          name: `${playerName}タクティクス`,
-          type: 'teamCtBoost',
-          target: 'allyAll',
-          ct: 7,
-
-          effects: [
-            {
-              code: 'CPU_TEAM_CT_REDUCTION',
-              rate:
-                0.08 +
-                (strength * 0.015)
-            }
-          ]
-        }
-      ];
-    }
-
-    if (role === 'ATK') {
-      return [
-        {
-          id: makeId(
-            'world_skill',
-            `${teamNumber}:${role}:${playerName}:1`
-          ),
-
-          name: `${playerName}ワールドバースト`,
-          type: 'singleDamage',
-          target: 'lowestHpEnemy',
-          power:
-            1.8 +
-            (strength * 0.30),
-          hit:
-            0.76 +
-            (strength * 0.025),
-          ct: 5.5,
-
-          effects: [
-            {
-              code: 'CPU_SINGLE_DAMAGE',
-              power:
-                1.8 +
-                (strength * 0.30)
-            }
-          ]
-        },
-
-        {
-          id: makeId(
-            'world_skill',
-            `${teamNumber}:${role}:${playerName}:2`
-          ),
-
-          name: `${playerName}ラッシュ`,
-          type: 'multiSingleDamage',
-          target: 'randomEnemy',
-          shots:
-            styleId === 'speed'
-              ? 4
-              : 3,
-          power:
-            0.65 +
-            (strength * 0.08),
-          hit: 0.74,
-          ct: 6.5,
-
-          effects: [
-            {
-              code: 'CPU_MULTI_DAMAGE',
-              shots:
-                styleId === 'speed'
-                  ? 4
-                  : 3,
-              power:
-                0.65 +
-                (strength * 0.08)
-            }
-          ]
-        }
-      ];
-    }
-
-    return [
-      {
-        id: makeId(
-          'world_skill',
-          `${teamNumber}:${role}:${playerName}:1`
-        ),
-
-        name: `${playerName}ワールドヒール`,
-        type: 'teamHeal',
-        target: 'allyAll',
-        healRate:
-          0.10 +
-          (strength * 0.018),
-        ct: 6,
-
-        effects: [
-          {
-            code: 'TEAM_HEAL_FORMULA',
-            baseRate:
-              0.10 +
-              (strength * 0.018),
-            maximumRate:
-              0.10 +
-              (strength * 0.018)
-          }
-        ]
-      },
-
-      teamNumber % 3 === 0
-        ? {
-            id: makeId(
-              'world_skill',
-              `${teamNumber}:${role}:${playerName}:2`
-            ),
-
-            name: `${playerName}リスポーン`,
-            type: 'reviveAll',
-            target: 'allyDown',
-            ct: 9,
-
-            conditions: [
-              {
-                code: 'ALLY_DOWN_EXISTS'
-              }
-            ],
-
-            effects: [
-              {
-                code: 'REVIVE_ALL',
-                reviveHpRate:
-                  0.18 +
-                  (strength * 0.02)
-              }
-            ]
-          }
-        : {
-            id: makeId(
-              'world_skill',
-              `${teamNumber}:${role}:${playerName}:2`
-            ),
-
-            name: `${playerName}リカバー`,
-            type: 'teamCtBoost',
-            target: 'allyAll',
-            ct: 7,
-
-            effects: [
-              {
-                code: 'CPU_TEAM_CT_REDUCTION',
-                rate:
-                  0.07 +
-                  (strength * 0.015)
-              }
-            ]
-          }
-    ];
-  }
-
-  function makePassive(
-    teamNumber,
-    role,
-    playerName,
-    styleId,
-    band
-  ) {
-    const style = STYLES[styleId];
-    const strength = band.power;
-
-    if (role === 'IGL') {
-      return {
-        id: makeId(
-          'world_passive',
-          `${teamNumber}:${role}:${playerName}`
-        ),
-
-        name: `${playerName}の世界指揮`,
-        description:
-          `味方全体の${styleId}性能を上げる。`,
-
-        effects: [
-          {
-            code: 'TEAM_STAT_BUFF',
-            stats: {
-              [style.mainStats[0]]:
-                Math.max(
-                  1,
-                  strength - 1
-                )
-            }
-          }
-        ]
-      };
-    }
-
-    if (role === 'ATK') {
-      return {
-        id: makeId(
-          'world_passive',
-          `${teamNumber}:${role}:${playerName}`
-        ),
-
-        name: `${playerName}の世界決定力`,
-        description:
-          'HP50％以下の敵へのダメージを上げる。',
-
-        effects: [
-          {
-            code: 'DAMAGE_MODIFIER',
-            condition: 'targetHpLte',
-            threshold: 0.50,
-            rate:
-              0.02 +
-              (strength * 0.008)
-          }
-        ]
-      };
-    }
-
-    return {
-      id: makeId(
-        'world_passive',
-        `${teamNumber}:${role}:${playerName}`
-      ),
-
-      name: `${playerName}の世界支援`,
-      description:
-        '自身が行う回復量を上げる。',
-
-      effects: [
-        {
-          code: 'HEAL_RATE_POINTS',
-          target: 'allHeals',
-          points: strength
-        }
-      ]
-    };
-  }
-
   function makeCard(
-    teamNumber,
+    number,
     role,
-    playerName
+    name
   ) {
     return {
-      id: `world_card_${String(teamNumber).padStart(2, '0')}_${role.toLowerCase()}`,
-      sourceType: 'cpuPlayer',
-      sourceTeamId: `world_${String(teamNumber).padStart(2, '0')}`,
-      sourceRole: role,
-      name: playerName,
-      rarity: '',
-      description: '',
-      packId: getCardPackId(teamNumber),
-      duplicateMaximumPlus: 9,
+      id:
+        (
+          'world_card_' +
+          String(number)
+            .padStart(
+              2,
+              '0'
+            ) +
+          '_' +
+          role.toLowerCase()
+        ),
+
+      sourceType:
+        'cpuPlayer',
+
+      sourceTeamId:
+        (
+          'world_' +
+          String(number)
+            .padStart(
+              2,
+              '0'
+            )
+        ),
+
+      sourceRole:
+        role,
+
+      name,
+
+      rarity:
+        '',
+
+      description:
+        '',
+
+      packId:
+        cardPack(number),
+
+      duplicateMaximumPlus:
+        9,
+
       duplicateOverflowReward: {
-        coin: 10000,
-        diamond: 1
+        coin:
+          10000,
+
+        diamond:
+          1
       }
     };
   }
 
   function makeBadge(
-    teamNumber,
-    teamName
+    number,
+    name
   ) {
     return {
-      id: `world_badge_${String(teamNumber).padStart(2, '0')}`,
-      sourceType: 'cpuTeam',
-      sourceTeamId: `world_${String(teamNumber).padStart(2, '0')}`,
-      name: `${teamName}バッジ`,
-      rarity: '',
+      id:
+        (
+          'world_badge_' +
+          String(number)
+            .padStart(
+              2,
+              '0'
+            )
+        ),
+
+      sourceType:
+        'cpuTeam',
+
+      sourceTeamId:
+        (
+          'world_' +
+          String(number)
+            .padStart(
+              2,
+              '0'
+            )
+        ),
+
+      name:
+        `${name}バッジ`,
+
+      rarity:
+        '',
+
       description:
-        `${teamName}のWorldバッジ。`,
-      packId: 'wb',
-      duplicateMaximumPlus: 9,
+        `${name}のWorldバッジ。`,
+
+      packId:
+        'wb',
+
+      duplicateMaximumPlus:
+        9,
+
       duplicateOverflowReward: {
-        coin: 10000,
-        diamond: 1
+        coin:
+          10000,
+
+        diamond:
+          1
+      }
+    };
+  }
+
+  function mergePlayer(
+    base,
+    override = {}
+  ) {
+    const stats =
+      typeof override.stats ===
+      'string'
+        ? override.stats
+            .trim()
+            .split(
+              /[\s,]+/
+            )
+        : clone(
+            override.stats
+          );
+
+    return {
+      ...base,
+      ...clone(override),
+
+      rank: {
+        ...base.rank,
+        ...clone(
+          override.rank ||
+          {}
+        )
+      },
+
+      stats:
+        override.stats ===
+        undefined
+          ? base.stats
+          : stats,
+
+      weapon: {
+        ...base.weapon,
+
+        ...clone(
+          override.weapon ||
+          {}
+        ),
+
+        performance: {
+          ...base
+            .weapon
+            .performance,
+
+          ...clone(
+            override
+              .weapon
+              ?.performance ||
+            {}
+          )
+        }
+      },
+
+      battleAI: {
+        ...base.battleAI,
+
+        ...clone(
+          override.battleAI ||
+          {}
+        )
       }
     };
   }
 
   function makePlayer(
-    teamNumber,
+    number,
     role,
-    playerName,
+    name,
     styleId,
     band
   ) {
-    const teamId =
-      `world_${String(teamNumber).padStart(2, '0')}`;
+    const code =
+      `W${number}${ROLE_SLOT[role]}`;
 
-    const playerId =
-      `${teamId}_${role.toLowerCase()}`;
+    const rank =
+      roleRank(
+        band.role[
+          role
+        ]
+      );
 
-    const roleRanks =
-      band.roleRanks[role];
-
-    return {
-      id: playerId,
-      role,
-      name: playerName,
-
-      description:
-        PLAYER_DESCRIPTION_OVERRIDES[playerId] || '',
-
-      image:
-        `World/W${teamNumber}${ROLE_SUFFIX[role]}.png`,
-
-      rank: {
-        normal: rangeText(
-          roleRanks.normal
-        ),
-
-        hot: rangeText(
-          roleRanks.hot
-        )
-      },
-
-      stats: makeStats(
-        teamNumber,
-        role,
-        playerName,
-        styleId,
-        band
-      ),
-
-      weapon: makeWeapon(
-        teamNumber,
-        role,
-        playerName,
-        styleId,
-        band
-      ),
-
-      skills: makeSkills(
-        teamNumber,
-        role,
-        playerName,
-        styleId,
-        band
-      ),
-
-      specialAbilities: [
-        makePassive(
-          teamNumber,
+    const player =
+      mergePlayer(
+        {
+          code,
           role,
-          playerName,
-          styleId,
-          band
-        )
-      ],
+          name,
 
-      battleAI: {
-        badRank: rangeText(
-          roleRanks.bad
-        ),
+          description:
+            '',
 
-        normalRank: rangeText(
-          roleRanks.normal
-        ),
+          rank,
 
-        hotRank: rangeText(
-          roleRanks.hot
-        ),
+          stats:
+            makeStats(
+              number,
+              role,
+              name,
+              styleId,
+              band
+            ),
 
-        preferredStyle: styleId,
-        ultimateEnabled: false
-      },
+          weapon:
+            makeWeapon(
+              number,
+              role,
+              name,
+              styleId,
+              band
+            ),
 
-      card: makeCard(
-        teamNumber,
-        role,
-        playerName
-      ),
+          battleAI: {
+            badRank:
+              rank.bad,
 
-      tags: [
-        'World',
-        role,
-        styleId
+            normalRank:
+              rank.normal,
+
+            hotRank:
+              rank.hot,
+
+            preferredStyle:
+              styleId,
+
+            ultimateEnabled:
+              false
+          },
+
+          card: {
+            ...makeCard(
+              number,
+              role,
+              name
+            ),
+
+            ...clone(
+              CARD_OVERRIDES[
+                code
+              ] ||
+              {}
+            )
+          },
+
+          tags: [
+            'World',
+            role,
+            styleId
+          ]
+        },
+
+        PLAYER_OVERRIDES[
+          code
+        ]
+      );
+
+    if (
+      CUSTOM_SKILLS[
+        code
       ]
+    ) {
+      player.skills =
+        clone(
+          CUSTOM_SKILLS[
+            code
+          ]
+        );
+    }
+
+    if (
+      CUSTOM_PASSIVES[
+        code
+      ]
+    ) {
+      player.passive =
+        clone(
+          CUSTOM_PASSIVES[
+            code
+          ]
+        );
+    }
+
+    player.battleAI = {
+      ...player.battleAI,
+
+      badRank:
+        player.rank.bad,
+
+      normalRank:
+        player.rank.normal,
+
+      hotRank:
+        player.rank.hot,
+
+      ultimateEnabled:
+        false
     };
+
+    return player;
   }
 
   function makeTeam(row) {
     const [
       number,
-      name,
-      strengthClass,
-      styleId,
+      sourceName,
+      sourceClass,
+      sourceStyle,
       iglName,
       atkName,
       supName,
-      description,
-      entryRule = null
+      sourceDescription,
+      sourceEntryRule = null
     ] = row;
 
-    const band = BANDS[strengthClass];
-    const style = STYLES[styleId];
-    const teamId =
-      `world_${String(number).padStart(2, '0')}`;
+    const code =
+      `W${number}`;
+
+    const override =
+      TEAM_OVERRIDES[
+        code
+      ] ||
+      {};
+
+    const name =
+      override.name ||
+      sourceName;
+
+    const strengthClass =
+      override.strengthClass ||
+      sourceClass;
+
+    const styleId =
+      override.style ||
+      sourceStyle;
+
+    const band =
+      BANDS[
+        strengthClass
+      ];
+
+    const style =
+      STYLES[
+        styleId
+      ];
+
+    if (!band) {
+      throw new Error(
+        (
+          `${code}の` +
+          'strengthClassが不正です: ' +
+          strengthClass
+        )
+      );
+    }
+
+    if (!style) {
+      throw new Error(
+        (
+          `${code}の` +
+          'styleが不正です: ' +
+          styleId
+        )
+      );
+    }
 
     return {
-      id: teamId,
-      code: `W${number}`,
+      id:
+        (
+          'world_' +
+          String(number)
+            .padStart(
+              2,
+              '0'
+            )
+        ),
+
+      code,
       number,
       name,
 
-      logo:
-        `World/W${number}D.png`,
-
       description:
-        description || style.description,
+        override.description ||
+        sourceDescription ||
+        style.description,
 
       teamRank: {
-        normal: rangeText(
-          band.teamNormal
-        ),
+        bad:
+          override
+            .teamRank
+            ?.bad ||
+          range(
+            band.team[0],
+            band.team[1],
+            -4
+          ),
 
-        hot: rangeText(
-          band.teamHot
-        )
+        normal:
+          override
+            .teamRank
+            ?.normal ||
+          range(
+            band.team[0],
+            band.team[1]
+          ),
+
+        hot:
+          override
+            .teamRank
+            ?.hot ||
+          range(
+            band.team[2],
+            band.team[3]
+          )
       },
 
       members: [
@@ -1176,159 +1869,186 @@
       ],
 
       strength: {
-        class: strengthClass,
-        style: styleId,
-        nativeWorldTeam: true
+        class:
+          strengthClass,
+
+        style:
+          styleId,
+
+        nativeWorldTeam:
+          true,
+
+        ...clone(
+          override.strength ||
+          {}
+        )
       },
 
-      entryRule,
+      entryRule:
+        override.entryRule ===
+        undefined
+          ? clone(
+              sourceEntryRule
+            )
+          : clone(
+              override.entryRule
+            ),
 
-      badge: makeBadge(
-        number,
-        name
-      ),
+      mandatory:
+        Boolean(
+          override.mandatory
+        ),
+
+      badge: {
+        ...makeBadge(
+          number,
+          name
+        ),
+
+        ...clone(
+          BADGE_OVERRIDES[
+            code
+          ] ||
+          {}
+        ),
+
+        ...clone(
+          override.badge ||
+          {}
+        )
+      },
 
       tags: [
         'World',
         strengthClass,
-        styleId
+        styleId,
+
+        ...(
+          override.tags ||
+          []
+        )
       ]
     };
   }
 
   const WORLD_TEAMS =
-    ROSTER_ROWS.map(makeTeam);
+    ROSTER_ROWS.map(
+      makeTeam
+    );
 
   function validateWorldTeams() {
-    const errors = [];
-    const teamIds = new Set();
-    const teamCodes = new Set();
-    const playerIds = new Set();
-    const skillIds = new Set();
-    const passiveIds = new Set();
+    const errors =
+      [];
+
+    const teamIds =
+      new Set();
+
+    const playerCodes =
+      new Set();
 
     if (
       WORLD_TEAMS.length !==
-      WORLD_RULES.registeredCpuTeams
+      WORLD_RULES
+        .registeredCpuTeams
     ) {
       errors.push(
-        `Worldチーム数が${WORLD_RULES.registeredCpuTeams}ではありません: ${WORLD_TEAMS.length}`
+        (
+          'Worldチーム数が43ではありません: ' +
+          WORLD_TEAMS.length
+        )
       );
     }
 
-    WORLD_TEAMS.forEach(
-      (team) => {
-        if (teamIds.has(team.id)) {
-          errors.push(
-            `チームID重複: ${team.id}`
-          );
-        }
+    for (
+      const team of
+      WORLD_TEAMS
+    ) {
+      if (
+        teamIds.has(
+          team.id
+        )
+      ) {
+        errors.push(
+          `チームID重複: ${team.id}`
+        );
+      }
 
-        if (teamCodes.has(team.code)) {
-          errors.push(
-            `チームコード重複: ${team.code}`
-          );
-        }
+      teamIds.add(
+        team.id
+      );
 
-        teamIds.add(team.id);
-        teamCodes.add(team.code);
+      if (
+        team.members.length !==
+        3
+      ) {
+        errors.push(
+          `${team.name}の選手数が3人ではありません。`
+        );
+      }
 
-        if (team.members.length !== 3) {
-          errors.push(
-            `${team.name}の選手数が3人ではありません。`
-          );
-        }
-
-        const roles = new Set(
+      const roles =
+        new Set(
           team.members.map(
-            (member) => member.role
+            (member) =>
+              member.role
           )
         );
 
+      for (
+        const role of
         [
           'IGL',
           'ATK',
           'SUP'
-        ].forEach(
-          (role) => {
-            if (!roles.has(role)) {
-              errors.push(
-                `${team.name}に${role}がいません。`
-              );
-            }
-          }
-        );
-
-        team.members.forEach(
-          (member) => {
-            if (playerIds.has(member.id)) {
-              errors.push(
-                `選手ID重複: ${member.id}`
-              );
-            }
-
-            playerIds.add(member.id);
-
-            if (
-              member.skills.length !==
-              WORLD_RULES.dedicatedSkillsPerPlayer
-            ) {
-              errors.push(
-                `${team.name}/${member.name}の専用スキル数が${WORLD_RULES.dedicatedSkillsPerPlayer}ではありません。`
-              );
-            }
-
-            if (
-              member.specialAbilities.length !== 1
-            ) {
-              errors.push(
-                `${team.name}/${member.name}の特殊能力数が1ではありません。`
-              );
-            }
-
-            member.skills.forEach(
-              (skill) => {
-                if (skillIds.has(skill.id)) {
-                  errors.push(
-                    `スキルID重複: ${skill.id}`
-                  );
-                }
-
-                skillIds.add(skill.id);
-              }
-            );
-
-            member.specialAbilities.forEach(
-              (ability) => {
-                if (
-                  passiveIds.has(ability.id)
-                ) {
-                  errors.push(
-                    `特殊能力ID重複: ${ability.id}`
-                  );
-                }
-
-                passiveIds.add(ability.id);
-              }
-            );
-
-            STATS.forEach(
-              (statId) => {
-                if (!member.stats[statId]) {
-                  errors.push(
-                    `${team.name}/${member.name}/${statId}がありません。`
-                  );
-                }
-              }
-            );
-          }
-        );
+        ]
+      ) {
+        if (
+          !roles.has(role)
+        ) {
+          errors.push(
+            `${team.name}に${role}がいません。`
+          );
+        }
       }
-    );
+
+      for (
+        const member of
+        team.members
+      ) {
+        if (
+          playerCodes.has(
+            member.code
+          )
+        ) {
+          errors.push(
+            `選手コード重複: ${member.code}`
+          );
+        }
+
+        playerCodes.add(
+          member.code
+        );
+
+        if (
+          member.skills
+            ?.length >
+          2
+        ) {
+          errors.push(
+            (
+              `${team.name}/` +
+              `${member.name}` +
+              'の固有スキルが2つを超えています。'
+            )
+          );
+        }
+      }
+    }
 
     return {
       valid:
-        errors.length === 0,
+        errors.length ===
+        0,
 
       errors,
 
@@ -1337,56 +2057,105 @@
           WORLD_TEAMS.length,
 
         players:
-          playerIds.size,
+          playerCodes.size,
 
-        dedicatedSkills:
-          skillIds.size,
+        customSkills:
+          WORLD_TEAMS.reduce(
+            (
+              total,
+              team
+            ) =>
+              total +
+              team.members.reduce(
+                (
+                  sum,
+                  member
+                ) =>
+                  sum +
+                  (
+                    member
+                      .skills
+                      ?.length ||
+                    0
+                  ),
 
-        specialAbilities:
-          passiveIds.size
+                0
+              ),
+
+            0
+          )
       }
     };
   }
 
-  const validation =
+  const sourceValidation =
     validateWorldTeams();
 
-  if (!validation.valid) {
+  if (
+    !sourceValidation.valid
+  ) {
     throw new Error(
-      validation.errors.join('\n')
+      sourceValidation
+        .errors
+        .join('\n')
     );
   }
 
   if (
-    MOBBR.DATA.cpu.expectedTeamCounts
+    MOBBR.DATA.cpu
+      ?.expectedTeamCounts
   ) {
     MOBBR.DATA.cpu
       .expectedTeamCounts
       .world =
-      WORLD_RULES.registeredCpuTeams;
+      WORLD_RULES
+        .registeredCpuTeams;
   }
 
   const registration =
     CPU.registerTeams(
       'world',
       WORLD_TEAMS,
+
       {
-        replaceTier: true,
+        replaceTier:
+          true,
+
         source:
           'cpu-world-data.js'
       }
     );
 
-  function getWorldTeams() {
-    return WORLD_TEAMS.map(clone);
+  const validation =
+    CPU.validate(
+      'world'
+    );
+
+  if (
+    !validation.valid
+  ) {
+    throw new Error(
+      validation
+        .reports
+        .flatMap(
+          (report) =>
+            report.errors
+        )
+        .join('\n')
+    );
   }
 
-  function getWorldTeam(
-    teamIdOrCodeOrNumber
-  ) {
+  function getWorldTeams() {
+    return CPU.getTeams(
+      'world'
+    );
+  }
+
+  function getWorldTeam(value) {
     const source =
       String(
-        teamIdOrCodeOrNumber ?? ''
+        value ??
+        ''
       ).trim();
 
     const number =
@@ -1395,9 +2164,12 @@
     const team =
       WORLD_TEAMS.find(
         (entry) =>
-          entry.id === source ||
-          entry.code === source.toUpperCase() ||
-          entry.number === number
+          entry.id ===
+            source ||
+          entry.code ===
+            source.toUpperCase() ||
+          entry.number ===
+            number
       );
 
     return team
@@ -1405,30 +2177,90 @@
       : null;
   }
 
+  function shuffle(
+    source,
+    random = Math.random
+  ) {
+    const result =
+      [...source];
+
+    for (
+      let index =
+        result.length -
+        1;
+
+      index > 0;
+
+      index -= 1
+    ) {
+      const next =
+        Math.floor(
+          Math.max(
+            0,
+
+            Math.min(
+              0.999999999,
+
+              Number(
+                random()
+              ) ||
+              0
+            )
+          ) *
+          (
+            index +
+            1
+          )
+        );
+
+      [
+        result[index],
+        result[next]
+      ] = [
+        result[next],
+        result[index]
+      ];
+    }
+
+    return result;
+  }
+
   function selectWorldField({
     year = 1,
-    count = WORLD_RULES.tournamentTeams,
+    count =
+      WORLD_RULES
+        .tournamentTeams,
     excludeTeamIds = [],
     random = Math.random
   } = {}) {
-    const excluded = new Set(
-      excludeTeamIds
-    );
+    const excluded =
+      new Set(
+        excludeTeamIds
+      );
 
     const eligible =
       WORLD_TEAMS.filter(
         (team) => {
-          if (excluded.has(team.id)) {
+          if (
+            excluded.has(
+              team.id
+            )
+          ) {
             return false;
           }
 
           if (
-            team.entryRule?.type ===
+            team.entryRule
+              ?.type ===
             'fromYear'
           ) {
             return (
               Number(year) >=
-              Number(team.entryRule.year)
+              Number(
+                team
+                  .entryRule
+                  .year
+              )
             );
           }
 
@@ -1436,9 +2268,11 @@
         }
       );
 
-    const mandatoryIds =
+    const fixedIds =
       Number(year) >=
-      WORLD_RULES.specialEntry.fromYear
+      WORLD_RULES
+        .specialEntry
+        .fromYear
         ? new Set(
             WORLD_RULES
               .specialEntry
@@ -1446,147 +2280,205 @@
           )
         : new Set();
 
-    const mandatory =
+    const fixed =
       eligible.filter(
         (team) =>
-          mandatoryIds.has(team.id)
+          team.mandatory ||
+          fixedIds.has(
+            team.id
+          )
       );
 
-    const pool =
-      eligible.filter(
-        (team) =>
-          !mandatoryIds.has(team.id)
-      );
-
-    for (
-      let index = pool.length - 1;
-      index > 0;
-      index -= 1
-    ) {
-      const randomValue = Math.max(
-        0,
-        Math.min(
-          0.999999999,
-          Number(random()) || 0
+    const fixedSet =
+      new Set(
+        fixed.map(
+          (team) =>
+            team.id
         )
       );
 
-      const nextIndex = Math.floor(
-        randomValue *
-        (index + 1)
+    const pool =
+      shuffle(
+        eligible.filter(
+          (team) =>
+            !fixedSet.has(
+              team.id
+            )
+        ),
+
+        random
       );
 
-      [
-        pool[index],
-        pool[nextIndex]
-      ] = [
-        pool[nextIndex],
-        pool[index]
-      ];
-    }
-
     return [
-      ...mandatory,
+      ...fixed,
       ...pool
     ]
       .slice(
         0,
+
         Math.max(
           0,
+
           Math.min(
             count,
             eligible.length
           )
         )
       )
-      .map(clone);
+      .map(
+        clone
+      );
   }
 
   function getLastChanceTeams(
-    preliminaryStandings
+    standings
   ) {
     return [
-      ...(preliminaryStandings || [])
+      ...(
+        standings ||
+        []
+      )
     ]
       .sort(
-        (left, right) =>
-          Number(left.placement) -
-          Number(right.placement)
+        (
+          left,
+          right
+        ) =>
+          Number(
+            left.placement
+          ) -
+          Number(
+            right.placement
+          )
       )
       .filter(
         (entry) =>
-          Number(entry.placement) >=
-            WORLD_RULES.lastChance
+          Number(
+            entry.placement
+          ) >=
+            WORLD_RULES
+              .lastChance
               .sourcePlacementMin &&
-          Number(entry.placement) <=
-            WORLD_RULES.lastChance
+          Number(
+            entry.placement
+          ) <=
+            WORLD_RULES
+              .lastChance
               .sourcePlacementMax
       )
-      .map(clone);
+      .map(
+        clone
+      );
   }
 
   function getLastChanceAdvancers(
-    lastChanceStandings
+    standings
   ) {
     return [
-      ...(lastChanceStandings || [])
+      ...(
+        standings ||
+        []
+      )
     ]
       .sort(
-        (left, right) =>
-          Number(left.placement) -
-          Number(right.placement)
+        (
+          left,
+          right
+        ) =>
+          Number(
+            left.placement
+          ) -
+          Number(
+            right.placement
+          )
       )
       .slice(
         0,
-        WORLD_RULES.lastChance.advance
+
+        WORLD_RULES
+          .lastChance
+          .advance
       )
-      .map(clone);
+      .map(
+        clone
+      );
   }
 
   function createWorldFinalField({
     preliminaryStandings,
     lastChanceStandings
   } = {}) {
-    const direct = [
-      ...(preliminaryStandings || [])
-    ]
-      .sort(
-        (left, right) =>
-          Number(left.placement) -
-          Number(right.placement)
-      )
-      .slice(
-        0,
-        WORLD_RULES
-          .preliminaryDirectFinalists
-      );
+    const direct =
+      [
+        ...(
+          preliminaryStandings ||
+          []
+        )
+      ]
+        .sort(
+          (
+            left,
+            right
+          ) =>
+            Number(
+              left.placement
+            ) -
+            Number(
+              right.placement
+            )
+        )
+        .slice(
+          0,
+
+          WORLD_RULES
+            .preliminaryDirectFinalists
+        );
 
     return [
       ...direct,
+
       ...getLastChanceAdvancers(
         lastChanceStandings
       )
-    ].map(clone);
+    ].map(
+      clone
+    );
   }
 
   function getMatchPointEligibleIds(
     totals
   ) {
-    return Object.entries(
-      totals || {}
-    )
+    return Object
+      .entries(
+        totals ||
+        {}
+      )
       .filter(
-        ([, score]) =>
+        ([
+          ,
+          score
+        ]) =>
           (
-            Number(score?.placePt) || 0
+            Number(
+              score?.placePt
+            ) ||
+            0
           ) +
           (
-            Number(score?.kp) || 0
+            Number(
+              score?.kp
+            ) ||
+            0
           ) >=
-          WORLD_RULES.final.threshold
+          WORLD_RULES
+            .final
+            .threshold
       )
       .map(
-        ([teamId]) => teamId
+        ([
+          teamId
+        ]) =>
+          teamId
       );
   }
 
@@ -1594,13 +2486,17 @@
     eligibleAtMatchStart,
     championTeamId
   } = {}) {
-    const eligible = new Set(
-      eligibleAtMatchStart || []
-    );
+    const eligible =
+      new Set(
+        eligibleAtMatchStart ||
+        []
+      );
 
     return (
       championTeamId &&
-      eligible.has(championTeamId)
+      eligible.has(
+        championTeamId
+      )
     )
       ? championTeamId
       : null;
@@ -1613,98 +2509,165 @@
       WORLD_RULES
         .championship
         .pointsByWorldFinalPlacement[
-          Number(placement)
-        ] || 0
+          Number(
+            placement
+          )
+        ] ||
+      0
     );
   }
 
   function isChampionshipYear(year) {
-    const value = Math.floor(
-      Number(year)
-    );
-
-    if (
-      !Number.isFinite(value) ||
-      value <
-        WORLD_RULES.championship.firstYear
-    ) {
-      return false;
-    }
+    const value =
+      Math.floor(
+        Number(year)
+      );
 
     return (
+      Number.isFinite(
+        value
+      ) &&
+      value >=
+        WORLD_RULES
+          .championship
+          .firstYear &&
       (
         value -
-        WORLD_RULES.championship.firstYear
+        WORLD_RULES
+          .championship
+          .firstYear
       ) %
-      WORLD_RULES.championship.everyYears
-    ) === 0;
+        WORLD_RULES
+          .championship
+          .everyYears ===
+      0
+    );
   }
 
   function getChampionshipField(
     standings
   ) {
     return [
-      ...(standings || [])
+      ...(
+        standings ||
+        []
+      )
     ]
       .sort(
-        (left, right) => {
-          const pointDifference =
-            (Number(right.points) || 0) -
-            (Number(left.points) || 0);
-
-          if (pointDifference !== 0) {
-            return pointDifference;
-          }
-
-          return (
-            (Number(right.worldWins) || 0) -
-            (Number(left.worldWins) || 0)
-          );
-        }
+        (
+          left,
+          right
+        ) =>
+          (
+            Number(
+              right.points
+            ) ||
+            0
+          ) -
+          (
+            Number(
+              left.points
+            ) ||
+            0
+          ) ||
+          (
+            Number(
+              right.worldWins
+            ) ||
+            0
+          ) -
+          (
+            Number(
+              left.worldWins
+            ) ||
+            0
+          )
       )
       .slice(
         0,
+
         WORLD_RULES
           .championship
           .teams
       )
-      .map(clone);
+      .map(
+        clone
+      );
   }
 
-  const WORLD_DATA = Object.freeze({
-    version: '1.1.0',
-    rules: WORLD_RULES,
-    rankOrder: RANK_ORDER,
-    bands: BANDS,
-    styles: STYLES,
-    rosterRows: ROSTER_ROWS,
-    teams: WORLD_TEAMS,
-    validation
-  });
+  const WORLD_DATA =
+    Object.freeze({
+      version:
+        '2.1.0-compact-role-skills',
 
-  const WORLD_API = Object.freeze({
-    getWorldTeams,
-    getWorldTeam,
-    selectWorldField,
+      rules:
+        WORLD_RULES,
 
-    getLastChanceTeams,
-    getLastChanceAdvancers,
-    createWorldFinalField,
+      bands:
+        BANDS,
 
-    getMatchPointEligibleIds,
-    resolveMatchPointChampion,
+      roleOffsets:
+        ROLE_OFFSETS,
 
-    calculateChampionshipPoints,
-    isChampionshipYear,
-    getChampionshipField,
+      styles:
+        STYLES,
 
-    validateWorldTeams
-  });
+      rosterRows:
+        ROSTER_ROWS,
 
-  MOBBR.DATA.cpu.worldRules =
+      teamOverrides:
+        TEAM_OVERRIDES,
+
+      playerOverrides:
+        PLAYER_OVERRIDES,
+
+      customSkills:
+        CUSTOM_SKILLS,
+
+      customPassives:
+        CUSTOM_PASSIVES,
+
+      cardOverrides:
+        CARD_OVERRIDES,
+
+      badgeOverrides:
+        BADGE_OVERRIDES,
+
+      teams:
+        WORLD_TEAMS,
+
+      validation
+    });
+
+  const WORLD_API =
+    Object.freeze({
+      getWorldTeams,
+      getWorldTeam,
+      selectWorldField,
+
+      getLastChanceTeams,
+      getLastChanceAdvancers,
+      createWorldFinalField,
+
+      getMatchPointEligibleIds,
+      resolveMatchPointChampion,
+
+      calculateChampionshipPoints,
+      isChampionshipYear,
+      getChampionshipField,
+
+      validateWorldTeams
+    });
+
+  MOBBR.DATA.cpuWorld =
+    WORLD_DATA;
+
+  MOBBR.DATA.cpu
+    .worldRules =
     WORLD_RULES;
 
-  MOBBR.DATA.cpu.worldSource =
+  MOBBR.DATA.cpu
+    .worldSource =
     WORLD_DATA;
 
   MOBBR.API.cpuWorld =
