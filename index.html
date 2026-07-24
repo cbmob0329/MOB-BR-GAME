@@ -1,1 +1,2230 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
 
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover"
+  >
+
+  <meta
+    name="theme-color"
+    content="#12151d"
+  >
+
+  <meta
+    name="apple-mobile-web-app-capable"
+    content="yes"
+  >
+
+  <meta
+    name="apple-mobile-web-app-status-bar-style"
+    content="black-translucent"
+  >
+
+  <title>MOB BR</title>
+
+  <link
+    rel="stylesheet"
+    href="./style.css?v=1.0.0"
+  >
+</head>
+
+<body>
+  <div
+    id="app"
+    class="app-shell"
+  >
+    <!-- =========================================================
+         固定背景
+         ========================================================= -->
+
+    <div
+      class="app-background"
+      aria-hidden="true"
+    ></div>
+
+    <!-- =========================================================
+         上部ステータス
+         ========================================================= -->
+
+    <header class="top-status">
+      <div class="top-status__identity">
+        <button
+          type="button"
+          class="company-badge"
+          data-action="navigate"
+          data-screen-target="home"
+          aria-label="ホームへ戻る"
+        >
+          <span class="company-badge__label">
+            COMPANY
+          </span>
+
+          <strong
+            class="company-badge__name"
+            data-company-name
+          >
+            MOB
+          </strong>
+
+          <span class="company-badge__rank">
+            RANK
+            <b data-company-rank>1</b>
+          </span>
+        </button>
+
+        <div class="player-summary">
+          <span
+            class="player-summary__name"
+            data-player-name
+          >
+            PLAYER
+          </span>
+
+          <span class="player-summary__meta">
+            PLAYER RANK
+            <b data-player-rank>1</b>
+            /
+            <b data-player-role>IGL</b>
+          </span>
+        </div>
+      </div>
+
+      <div class="top-status__currencies">
+        <div
+          class="currency-pill"
+          title="コイン"
+        >
+          <span class="currency-pill__icon">
+            G
+          </span>
+
+          <strong data-currency="coin">
+            10,000
+          </strong>
+        </div>
+
+        <div
+          class="currency-pill"
+          title="ダイヤ"
+        >
+          <span class="currency-pill__icon">
+            D
+          </span>
+
+          <strong data-currency="diamond">
+            100
+          </strong>
+        </div>
+
+        <div
+          class="currency-pill"
+          title="ルビー"
+        >
+          <span class="currency-pill__icon">
+            R
+          </span>
+
+          <strong data-currency="ruby">
+            0
+          </strong>
+        </div>
+      </div>
+
+      <div class="energy-bar">
+        <div class="energy-bar__head">
+          <span>
+            ENERGY
+          </span>
+
+          <strong data-energy-text>
+            100 / 100
+          </strong>
+        </div>
+
+        <div
+          class="energy-bar__track"
+          data-energy-progress
+        >
+          <div class="energy-bar__fill"></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- =========================================================
+         メイン表示領域
+         ========================================================= -->
+
+    <main class="screen-stage">
+      <!-- =======================================================
+           HOME
+           ======================================================= -->
+
+      <section
+        id="screen-home"
+        class="screen screen-home is-active"
+        data-screen="home"
+      >
+        <div class="screen-heading">
+          <div>
+            <span class="screen-heading__eyebrow">
+              MOB BR
+            </span>
+
+            <h1>
+              COACH ROOM
+            </h1>
+          </div>
+
+          <button
+            type="button"
+            class="icon-button"
+            data-action="save"
+            aria-label="セーブ"
+          >
+            SAVE
+          </button>
+        </div>
+
+        <div
+          class="home-room"
+          data-room-background
+        >
+          <div class="home-room__shade"></div>
+
+          <div class="home-room__content">
+            <div class="team-panel">
+              <span class="team-panel__label">
+                ACTIVE TEAM
+              </span>
+
+              <h2 data-team-name>
+                MOB TEAM
+              </h2>
+
+              <div class="team-panel__members">
+                <article class="member-chip">
+                  <span>IGL</span>
+                  <strong data-team-member="IGL">
+                    PLAYER IGL
+                  </strong>
+                </article>
+
+                <article class="member-chip">
+                  <span>ATK</span>
+                  <strong data-team-member="ATK">
+                    PLAYER ATK
+                  </strong>
+                </article>
+
+                <article class="member-chip">
+                  <span>SUP</span>
+                  <strong data-team-member="SUP">
+                    PLAYER SUP
+                  </strong>
+                </article>
+              </div>
+            </div>
+
+            <div class="home-room__quick-stats">
+              <article class="quick-stat">
+                <span>
+                  ROOM
+                </span>
+
+                <strong data-selected-room>
+                  DEFAULT ROOM
+                </strong>
+              </article>
+
+              <article class="quick-stat">
+                <span>
+                  COACH
+                </span>
+
+                <strong data-selected-coach>
+                  未設定
+                </strong>
+              </article>
+
+              <article class="quick-stat">
+                <span>
+                  COLLECTION BONUS
+                </span>
+
+                <strong data-collection-bonus>
+                  0.0%
+                </strong>
+              </article>
+
+              <article class="quick-stat">
+                <span>
+                  TRAINING
+                </span>
+
+                <strong data-training-total>
+                  0
+                </strong>
+              </article>
+
+              <article class="quick-stat">
+                <span>
+                  WINS
+                </span>
+
+                <strong data-tournament-wins>
+                  0
+                </strong>
+              </article>
+            </div>
+          </div>
+        </div>
+
+        <div class="home-menu-grid">
+          <button
+            type="button"
+            class="home-menu-card home-menu-card--large"
+            data-screen-target="tournament"
+          >
+            <span class="home-menu-card__tag">
+              MAIN
+            </span>
+
+            <strong>
+              TOURNAMENT
+            </strong>
+
+            <small>
+              大会へ参加
+            </small>
+          </button>
+
+          <button
+            type="button"
+            class="home-menu-card"
+            data-screen-target="training"
+          >
+            <strong>
+              TRAINING
+            </strong>
+
+            <small>
+              ポイント獲得
+            </small>
+          </button>
+
+          <button
+            type="button"
+            class="home-menu-card"
+            data-screen-target="ability"
+          >
+            <strong>
+              ABILITY
+            </strong>
+
+            <small>
+              能力強化
+            </small>
+          </button>
+
+          <button
+            type="button"
+            class="home-menu-card"
+            data-screen-target="team"
+          >
+            <strong>
+              TEAM
+            </strong>
+
+            <small>
+              メンバー確認
+            </small>
+          </button>
+
+          <button
+            type="button"
+            class="home-menu-card"
+            data-screen-target="coach"
+          >
+            <strong>
+              COACH
+            </strong>
+
+            <small>
+              コーチ設定
+            </small>
+          </button>
+
+          <button
+            type="button"
+            class="home-menu-card"
+            data-screen-target="collection"
+          >
+            <strong>
+              COLLECTION
+            </strong>
+
+            <small>
+              カード・バッジ
+            </small>
+          </button>
+
+          <button
+            type="button"
+            class="home-menu-card"
+            data-screen-target="shop"
+          >
+            <strong>
+              SHOP
+            </strong>
+
+            <small>
+              商品購入
+            </small>
+          </button>
+
+          <button
+            type="button"
+            class="home-menu-card"
+            data-screen-target="room"
+          >
+            <strong>
+              ROOM
+            </strong>
+
+            <small>
+              家具・背景
+            </small>
+          </button>
+
+          <button
+            type="button"
+            class="home-menu-card"
+            data-screen-target="equipment"
+          >
+            <strong>
+              EQUIPMENT
+            </strong>
+
+            <small>
+              バッグ・スキン
+            </small>
+          </button>
+        </div>
+      </section>
+
+      <!-- =======================================================
+           TRAINING
+           ======================================================= -->
+
+      <section
+        id="screen-training"
+        class="screen"
+        data-screen="training"
+        hidden
+      >
+        <div class="screen-heading">
+          <div>
+            <span class="screen-heading__eyebrow">
+              PLAYER DEVELOPMENT
+            </span>
+
+            <h1>
+              TRAINING
+            </h1>
+          </div>
+
+          <button
+            type="button"
+            class="back-button"
+            data-action="back"
+          >
+            BACK
+          </button>
+        </div>
+
+        <div class="point-wallet">
+          <article class="point-wallet__item">
+            <span>
+              POWER
+            </span>
+
+            <strong data-training-point="power">
+              0
+            </strong>
+          </article>
+
+          <article class="point-wallet__item">
+            <span>
+              TECHNIQUE
+            </span>
+
+            <strong data-training-point="technique">
+              0
+            </strong>
+          </article>
+
+          <article class="point-wallet__item">
+            <span>
+              MENTAL
+            </span>
+
+            <strong data-training-point="mental">
+              0
+            </strong>
+          </article>
+
+          <article class="point-wallet__item">
+            <span>
+              SHOOTING
+            </span>
+
+            <strong data-training-point="shooting">
+              0
+            </strong>
+          </article>
+        </div>
+
+        <div class="training-grid">
+          <article
+            class="training-card"
+            data-training-id="shooting"
+          >
+            <div class="training-card__visual">
+              <span>
+                AIM
+              </span>
+            </div>
+
+            <div class="training-card__body">
+              <h2>
+                射撃訓練
+              </h2>
+
+              <p>
+                射撃と技術を中心に獲得する。
+              </p>
+
+              <div class="training-card__rewards">
+                <span>
+                  SHOOTING +4
+                </span>
+
+                <span>
+                  TECHNIQUE +1
+                </span>
+              </div>
+
+              <button
+                type="button"
+                data-action="start-training"
+                data-training-id="shooting"
+              >
+                START
+                <small>
+                  ENERGY
+                  <b data-training-energy-cost>
+                    10
+                  </b>
+                </small>
+              </button>
+            </div>
+          </article>
+
+          <article
+            class="training-card"
+            data-training-id="dash"
+          >
+            <div class="training-card__visual">
+              <span>
+                RUN
+              </span>
+            </div>
+
+            <div class="training-card__body">
+              <h2>
+                ダッシュ
+              </h2>
+
+              <p>
+                パワーと技術を鍛える基礎訓練。
+              </p>
+
+              <div class="training-card__rewards">
+                <span>
+                  POWER +4
+                </span>
+
+                <span>
+                  TECHNIQUE +1
+                </span>
+              </div>
+
+              <button
+                type="button"
+                data-action="start-training"
+                data-training-id="dash"
+              >
+                START
+                <small>
+                  ENERGY
+                  <b data-training-energy-cost>
+                    10
+                  </b>
+                </small>
+              </button>
+            </div>
+          </article>
+
+          <article
+            class="training-card"
+            data-training-id="puzzle"
+          >
+            <div class="training-card__visual">
+              <span>
+                THINK
+              </span>
+            </div>
+
+            <div class="training-card__body">
+              <h2>
+                パズル
+              </h2>
+
+              <p>
+                技術とメンタルを鍛える。
+              </p>
+
+              <div class="training-card__rewards">
+                <span>
+                  TECHNIQUE +4
+                </span>
+
+                <span>
+                  MENTAL +1
+                </span>
+              </div>
+
+              <button
+                type="button"
+                data-action="start-training"
+                data-training-id="puzzle"
+              >
+                START
+                <small>
+                  ENERGY
+                  <b data-training-energy-cost>
+                    10
+                  </b>
+                </small>
+              </button>
+            </div>
+          </article>
+
+          <article
+            class="training-card"
+            data-training-id="battle"
+          >
+            <div class="training-card__visual">
+              <span>
+                FIGHT
+              </span>
+            </div>
+
+            <div class="training-card__body">
+              <h2>
+                実戦訓練
+              </h2>
+
+              <p>
+                射撃、パワー、判断力を鍛える。
+              </p>
+
+              <div class="training-card__rewards">
+                <span>
+                  SHOOTING +3
+                </span>
+
+                <span>
+                  POWER +2
+                </span>
+              </div>
+
+              <button
+                type="button"
+                data-action="start-training"
+                data-training-id="battle"
+              >
+                START
+                <small>
+                  ENERGY
+                  <b data-training-energy-cost>
+                    14
+                  </b>
+                </small>
+              </button>
+            </div>
+          </article>
+
+          <article
+            class="training-card"
+            data-training-id="waterfall"
+          >
+            <div class="training-card__visual">
+              <span>
+                MIND
+              </span>
+            </div>
+
+            <div class="training-card__body">
+              <h2>
+                滝行
+              </h2>
+
+              <p>
+                メンタルを大きく鍛える。
+              </p>
+
+              <div class="training-card__rewards">
+                <span>
+                  MENTAL +5
+                </span>
+              </div>
+
+              <button
+                type="button"
+                data-action="start-training"
+                data-training-id="waterfall"
+              >
+                START
+                <small>
+                  ENERGY
+                  <b data-training-energy-cost>
+                    12
+                  </b>
+                </small>
+              </button>
+            </div>
+          </article>
+
+          <article
+            class="training-card"
+            data-training-id="research"
+          >
+            <div class="training-card__visual">
+              <span>
+                LAB
+              </span>
+            </div>
+
+            <div class="training-card__body">
+              <h2>
+                研究
+              </h2>
+
+              <p>
+                技術を中心に多用途ポイントを得る。
+              </p>
+
+              <div class="training-card__rewards">
+                <span>
+                  TECHNIQUE +4
+                </span>
+
+                <span>
+                  SHOOTING +1
+                </span>
+              </div>
+
+              <button
+                type="button"
+                data-action="start-training"
+                data-training-id="research"
+              >
+                START
+                <small>
+                  ENERGY
+                  <b data-training-energy-cost>
+                    10
+                  </b>
+                </small>
+              </button>
+            </div>
+          </article>
+
+          <article
+            class="training-card training-card--wide"
+            data-training-id="general"
+          >
+            <div class="training-card__visual">
+              <span>
+                ALL
+              </span>
+            </div>
+
+            <div class="training-card__body">
+              <h2>
+                総合トレーニング
+              </h2>
+
+              <p>
+                4種類のポイントをバランスよく獲得する。
+              </p>
+
+              <div class="training-card__rewards">
+                <span>
+                  POWER +2
+                </span>
+
+                <span>
+                  TECHNIQUE +2
+                </span>
+
+                <span>
+                  MENTAL +2
+                </span>
+
+                <span>
+                  SHOOTING +2
+                </span>
+              </div>
+
+              <button
+                type="button"
+                data-action="start-training"
+                data-training-id="general"
+              >
+                START
+                <small>
+                  ENERGY
+                  <b data-training-energy-cost>
+                    18
+                  </b>
+                </small>
+              </button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- =======================================================
+           ABILITY
+           ======================================================= -->
+
+      <section
+        id="screen-ability"
+        class="screen"
+        data-screen="ability"
+        hidden
+      >
+        <div class="screen-heading">
+          <div>
+            <span class="screen-heading__eyebrow">
+              RANK UP
+            </span>
+
+            <h1>
+              ABILITY
+            </h1>
+          </div>
+
+          <button
+            type="button"
+            class="back-button"
+            data-action="back"
+          >
+            BACK
+          </button>
+        </div>
+
+        <div class="point-wallet">
+          <article class="point-wallet__item">
+            <span>POWER</span>
+            <strong data-ability-point="power">0</strong>
+          </article>
+
+          <article class="point-wallet__item">
+            <span>TECHNIQUE</span>
+            <strong data-ability-point="technique">0</strong>
+          </article>
+
+          <article class="point-wallet__item">
+            <span>MENTAL</span>
+            <strong data-ability-point="mental">0</strong>
+          </article>
+
+          <article class="point-wallet__item">
+            <span>SHOOTING</span>
+            <strong data-ability-point="shooting">0</strong>
+          </article>
+        </div>
+
+        <div class="ability-list">
+          <article class="ability-card">
+            <div class="ability-card__icon">
+              STA
+            </div>
+
+            <div class="ability-card__info">
+              <span>
+                STAMINA
+              </span>
+
+              <h2>
+                スタミナ
+              </h2>
+
+              <p>
+                生存力と長期戦への耐久力。
+              </p>
+            </div>
+
+            <div class="ability-card__rank">
+              <span>
+                RANK
+              </span>
+
+              <strong data-stat-rank="stamina">
+                F1
+              </strong>
+
+              <small>
+                VALUE
+                <b data-stat-value="stamina">1</b>
+              </small>
+            </div>
+
+            <div class="ability-card__upgrade">
+              <small data-stat-cost="stamina">
+                POWER 5
+              </small>
+
+              <button
+                type="button"
+                data-action="upgrade-ability"
+                data-ability-upgrade="stamina"
+              >
+                RANK UP
+              </button>
+            </div>
+          </article>
+
+          <article class="ability-card">
+            <div class="ability-card__icon">
+              MND
+            </div>
+
+            <div class="ability-card__info">
+              <span>
+                MIND
+              </span>
+
+              <h2>
+                マインド
+              </h2>
+
+              <p>
+                緊張、劣勢、終盤での安定性。
+              </p>
+            </div>
+
+            <div class="ability-card__rank">
+              <span>RANK</span>
+              <strong data-stat-rank="mind">F1</strong>
+
+              <small>
+                VALUE
+                <b data-stat-value="mind">1</b>
+              </small>
+            </div>
+
+            <div class="ability-card__upgrade">
+              <small data-stat-cost="mind">
+                MENTAL 5
+              </small>
+
+              <button
+                type="button"
+                data-action="upgrade-ability"
+                data-ability-upgrade="mind"
+              >
+                RANK UP
+              </button>
+            </div>
+          </article>
+
+          <article class="ability-card">
+            <div class="ability-card__icon">
+              PHY
+            </div>
+
+            <div class="ability-card__info">
+              <span>
+                PHYSICAL
+              </span>
+
+              <h2>
+                フィジカル
+              </h2>
+
+              <p>
+                接近戦とダメージ交換の強さ。
+              </p>
+            </div>
+
+            <div class="ability-card__rank">
+              <span>RANK</span>
+              <strong data-stat-rank="physical">F1</strong>
+
+              <small>
+                VALUE
+                <b data-stat-value="physical">1</b>
+              </small>
+            </div>
+
+            <div class="ability-card__upgrade">
+              <small data-stat-cost="physical">
+                POWER 5
+              </small>
+
+              <button
+                type="button"
+                data-action="upgrade-ability"
+                data-ability-upgrade="physical"
+              >
+                RANK UP
+              </button>
+            </div>
+          </article>
+
+          <article class="ability-card">
+            <div class="ability-card__icon">
+              AIM
+            </div>
+
+            <div class="ability-card__info">
+              <span>
+                AIM
+              </span>
+
+              <h2>
+                エイム
+              </h2>
+
+              <p>
+                射撃命中率と撃ち合い性能。
+              </p>
+            </div>
+
+            <div class="ability-card__rank">
+              <span>RANK</span>
+              <strong data-stat-rank="aim">F1</strong>
+
+              <small>
+                VALUE
+                <b data-stat-value="aim">1</b>
+              </small>
+            </div>
+
+            <div class="ability-card__upgrade">
+              <small data-stat-cost="aim">
+                SHOOTING 5
+              </small>
+
+              <button
+                type="button"
+                data-action="upgrade-ability"
+                data-ability-upgrade="aim"
+              >
+                RANK UP
+              </button>
+            </div>
+          </article>
+
+          <article class="ability-card">
+            <div class="ability-card__icon">
+              AGI
+            </div>
+
+            <div class="ability-card__info">
+              <span>
+                AGILITY
+              </span>
+
+              <h2>
+                アジリティ
+              </h2>
+
+              <p>
+                移動、回避、ポジション変更速度。
+              </p>
+            </div>
+
+            <div class="ability-card__rank">
+              <span>RANK</span>
+              <strong data-stat-rank="agility">F1</strong>
+
+              <small>
+                VALUE
+                <b data-stat-value="agility">1</b>
+              </small>
+            </div>
+
+            <div class="ability-card__upgrade">
+              <small data-stat-cost="agility">
+                POWER 3 / TECHNIQUE 4
+              </small>
+
+              <button
+                type="button"
+                data-action="upgrade-ability"
+                data-ability-upgrade="agility"
+              >
+                RANK UP
+              </button>
+            </div>
+          </article>
+
+          <article class="ability-card">
+            <div class="ability-card__icon">
+              TEC
+            </div>
+
+            <div class="ability-card__info">
+              <span>
+                TECHNIQUE
+              </span>
+
+              <h2>
+                テクニック
+              </h2>
+
+              <p>
+                戦術理解と行動精度。
+              </p>
+            </div>
+
+            <div class="ability-card__rank">
+              <span>RANK</span>
+              <strong data-stat-rank="technique">F1</strong>
+
+              <small>
+                VALUE
+                <b data-stat-value="technique">1</b>
+              </small>
+            </div>
+
+            <div class="ability-card__upgrade">
+              <small data-stat-cost="technique">
+                TECHNIQUE 5
+              </small>
+
+              <button
+                type="button"
+                data-action="upgrade-ability"
+                data-ability-upgrade="technique"
+              >
+                RANK UP
+              </button>
+            </div>
+          </article>
+
+          <article class="ability-card">
+            <div class="ability-card__icon">
+              SUP
+            </div>
+
+            <div class="ability-card__info">
+              <span>
+                SUPPORT
+              </span>
+
+              <h2>
+                サポート
+              </h2>
+
+              <p>
+                味方補助、報告、連携能力。
+              </p>
+            </div>
+
+            <div class="ability-card__rank">
+              <span>RANK</span>
+              <strong data-stat-rank="support">F1</strong>
+
+              <small>
+                VALUE
+                <b data-stat-value="support">1</b>
+              </small>
+            </div>
+
+            <div class="ability-card__upgrade">
+              <small data-stat-cost="support">
+                MENTAL 4 / TECHNIQUE 4
+              </small>
+
+              <button
+                type="button"
+                data-action="upgrade-ability"
+                data-ability-upgrade="support"
+              >
+                RANK UP
+              </button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- =======================================================
+           TEAM
+           ======================================================= -->
+
+      <section
+        id="screen-team"
+        class="screen"
+        data-screen="team"
+        hidden
+      >
+        <div class="screen-heading">
+          <div>
+            <span class="screen-heading__eyebrow">
+              SQUAD MANAGEMENT
+            </span>
+
+            <h1>
+              TEAM
+            </h1>
+          </div>
+
+          <button
+            type="button"
+            class="back-button"
+            data-action="back"
+          >
+            BACK
+          </button>
+        </div>
+
+        <section class="team-overview">
+          <div class="team-overview__logo">
+            MOB
+          </div>
+
+          <div class="team-overview__text">
+            <span>
+              TEAM NAME
+            </span>
+
+            <h2 data-team-name>
+              MOB TEAM
+            </h2>
+
+            <p>
+              IGL・ATK・SUPの3人で構成されるプレイヤーチーム。
+            </p>
+          </div>
+        </section>
+
+        <div class="member-list">
+          <article class="member-card">
+            <div class="member-card__role">
+              IGL
+            </div>
+
+            <div class="member-card__portrait">
+              IGL
+            </div>
+
+            <div class="member-card__body">
+              <span>
+                IN-GAME LEADER
+              </span>
+
+              <h2 data-team-member="IGL">
+                PLAYER IGL
+              </h2>
+
+              <p>
+                判断、指示、ポジション管理を担当。
+              </p>
+            </div>
+          </article>
+
+          <article class="member-card">
+            <div class="member-card__role">
+              ATK
+            </div>
+
+            <div class="member-card__portrait">
+              ATK
+            </div>
+
+            <div class="member-card__body">
+              <span>
+                ATTACKER
+              </span>
+
+              <h2 data-team-member="ATK">
+                PLAYER ATK
+              </h2>
+
+              <p>
+                火力、突破、キル獲得を担当。
+              </p>
+            </div>
+          </article>
+
+          <article class="member-card">
+            <div class="member-card__role">
+              SUP
+            </div>
+
+            <div class="member-card__portrait">
+              SUP
+            </div>
+
+            <div class="member-card__body">
+              <span>
+                SUPPORT
+              </span>
+
+              <h2 data-team-member="SUP">
+                PLAYER SUP
+              </h2>
+
+              <p>
+                回復、索敵、援護を担当。
+              </p>
+            </div>
+          </article>
+        </div>
+
+        <section class="strategy-panel">
+          <div class="section-title">
+            <span>
+              TEAM STYLE
+            </span>
+
+            <h2>
+              STRATEGY
+            </h2>
+          </div>
+
+          <div class="strategy-grid">
+            <label class="strategy-control">
+              <span>
+                AGGRESSION
+              </span>
+
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value="50"
+                data-bind-live="team.strategy.aggression"
+              >
+            </label>
+
+            <label class="strategy-control">
+              <span>
+                ROTATION
+              </span>
+
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value="50"
+                data-bind-live="team.strategy.rotation"
+              >
+            </label>
+
+            <label class="strategy-control">
+              <span>
+                SUPPORT
+              </span>
+
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value="50"
+                data-bind-live="team.strategy.support"
+              >
+            </label>
+          </div>
+        </section>
+      </section>
+
+      <!-- =======================================================
+           COACH
+           ======================================================= -->
+
+      <section
+        id="screen-coach"
+        class="screen"
+        data-screen="coach"
+        hidden
+      >
+        <div class="screen-heading">
+          <div>
+            <span class="screen-heading__eyebrow">
+              TACTICAL STAFF
+            </span>
+
+            <h1>
+              COACH
+            </h1>
+          </div>
+
+          <button
+            type="button"
+            class="back-button"
+            data-action="back"
+          >
+            BACK
+          </button>
+        </div>
+
+        <section class="selection-summary">
+          <span>
+            SELECTED COACH
+          </span>
+
+          <strong data-selected-coach>
+            未設定
+          </strong>
+        </section>
+
+        <div
+          class="coach-list"
+          data-coach-list
+        ></div>
+      </section>
+
+      <!-- =======================================================
+           COLLECTION
+           ======================================================= -->
+
+      <section
+        id="screen-collection"
+        class="screen"
+        data-screen="collection"
+        hidden
+      >
+        <div class="screen-heading">
+          <div>
+            <span class="screen-heading__eyebrow">
+              ARCHIVE
+            </span>
+
+            <h1>
+              COLLECTION
+            </h1>
+          </div>
+
+          <button
+            type="button"
+            class="back-button"
+            data-action="back"
+          >
+            BACK
+          </button>
+        </div>
+
+        <div class="collection-summary">
+          <article>
+            <span>
+              OWNED
+            </span>
+
+            <strong>
+              <b data-collection-owned>0</b>
+              /
+              <b data-collection-total>0</b>
+            </strong>
+          </article>
+
+          <article>
+            <span>
+              TOTAL BONUS
+            </span>
+
+            <strong data-collection-bonus>
+              0.0%
+            </strong>
+          </article>
+        </div>
+
+        <div class="segmented-tabs">
+          <button
+            type="button"
+            class="is-active"
+            data-action="collection-type"
+            data-collection-type="cards"
+          >
+            CARDS
+          </button>
+
+          <button
+            type="button"
+            data-action="collection-type"
+            data-collection-type="badges"
+          >
+            BADGES
+          </button>
+        </div>
+
+        <div
+          class="collection-grid"
+          data-collection-list
+        ></div>
+      </section>
+
+      <!-- =======================================================
+           SHOP
+           ======================================================= -->
+
+      <section
+        id="screen-shop"
+        class="screen"
+        data-screen="shop"
+        hidden
+      >
+        <div class="screen-heading">
+          <div>
+            <span class="screen-heading__eyebrow">
+              MARKET
+            </span>
+
+            <h1>
+              SHOP
+            </h1>
+          </div>
+
+          <button
+            type="button"
+            class="back-button"
+            data-action="back"
+          >
+            BACK
+          </button>
+        </div>
+
+        <div class="segmented-tabs segmented-tabs--scroll">
+          <button
+            type="button"
+            class="is-active"
+            data-action="shop-category"
+            data-shop-category="all"
+          >
+            ALL
+          </button>
+
+          <button
+            type="button"
+            data-action="shop-category"
+            data-shop-category="goods"
+          >
+            GOODS
+          </button>
+
+          <button
+            type="button"
+            data-action="shop-category"
+            data-shop-category="furniture"
+          >
+            FURNITURE
+          </button>
+
+          <button
+            type="button"
+            data-action="shop-category"
+            data-shop-category="skin"
+          >
+            SKIN
+          </button>
+
+          <button
+            type="button"
+            data-action="shop-category"
+            data-shop-category="badge"
+          >
+            BADGE
+          </button>
+
+          <button
+            type="button"
+            data-action="shop-category"
+            data-shop-category="pack"
+          >
+            PACK
+          </button>
+        </div>
+
+        <section class="shop-feature">
+          <div>
+            <span>
+              WEAPON SKIN
+            </span>
+
+            <h2>
+              SKIN GACHA
+            </h2>
+
+            <p>
+              武器スキンをランダムで獲得。
+            </p>
+          </div>
+
+          <button
+            type="button"
+            data-action="draw-weapon-skin"
+          >
+            DRAW
+          </button>
+        </section>
+
+        <div
+          class="shop-grid"
+          data-shop-list
+        ></div>
+      </section>
+
+      <!-- =======================================================
+           ROOM
+           ======================================================= -->
+
+      <section
+        id="screen-room"
+        class="screen"
+        data-screen="room"
+        hidden
+      >
+        <div class="screen-heading">
+          <div>
+            <span class="screen-heading__eyebrow">
+              INTERIOR
+            </span>
+
+            <h1>
+              ROOM
+            </h1>
+          </div>
+
+          <button
+            type="button"
+            class="back-button"
+            data-action="back"
+          >
+            BACK
+          </button>
+        </div>
+
+        <div
+          class="room-preview"
+          data-room-background
+        >
+          <div class="room-preview__overlay">
+            <span>
+              SELECTED
+            </span>
+
+            <strong data-selected-room>
+              DEFAULT ROOM
+            </strong>
+          </div>
+        </div>
+
+        <div
+          class="room-grid"
+          data-room-list
+        ></div>
+      </section>
+
+      <!-- =======================================================
+           EQUIPMENT
+           ======================================================= -->
+
+      <section
+        id="screen-equipment"
+        class="screen"
+        data-screen="equipment"
+        hidden
+      >
+        <div class="screen-heading">
+          <div>
+            <span class="screen-heading__eyebrow">
+              INVENTORY
+            </span>
+
+            <h1>
+              EQUIPMENT
+            </h1>
+          </div>
+
+          <button
+            type="button"
+            class="back-button"
+            data-action="back"
+          >
+            BACK
+          </button>
+        </div>
+
+        <section class="equipment-summary">
+          <span>
+            EQUIPPED
+          </span>
+
+          <strong data-equipment-count>
+            0 / 10
+          </strong>
+        </section>
+
+        <div class="equipment-grid">
+          <article
+            class="equipment-item"
+            data-equipment-item="stamina-item"
+          >
+            <div class="equipment-item__icon">
+              STA
+            </div>
+
+            <div class="equipment-item__body">
+              <h2>
+                スタミナ強化
+              </h2>
+
+              <p>
+                所持数
+                <b data-item-count>0</b>
+              </p>
+
+              <button
+                type="button"
+                data-action="equip-item"
+                data-item-id="stamina-item"
+              >
+                EQUIP
+              </button>
+            </div>
+          </article>
+
+          <article
+            class="equipment-item"
+            data-equipment-item="mental-item"
+          >
+            <div class="equipment-item__icon">
+              MND
+            </div>
+
+            <div class="equipment-item__body">
+              <h2>
+                メンタル強化
+              </h2>
+
+              <p>
+                所持数
+                <b data-item-count>0</b>
+              </p>
+
+              <button
+                type="button"
+                data-action="equip-item"
+                data-item-id="mental-item"
+              >
+                EQUIP
+              </button>
+            </div>
+          </article>
+
+          <article
+            class="equipment-item"
+            data-equipment-item="aim-item"
+          >
+            <div class="equipment-item__icon">
+              AIM
+            </div>
+
+            <div class="equipment-item__body">
+              <h2>
+                エイム強化
+              </h2>
+
+              <p>
+                所持数
+                <b data-item-count>0</b>
+              </p>
+
+              <button
+                type="button"
+                data-action="equip-item"
+                data-item-id="aim-item"
+              >
+                EQUIP
+              </button>
+            </div>
+          </article>
+
+          <article
+            class="equipment-item"
+            data-equipment-item="support-item"
+          >
+            <div class="equipment-item__icon">
+              SUP
+            </div>
+
+            <div class="equipment-item__body">
+              <h2>
+                サポート強化
+              </h2>
+
+              <p>
+                所持数
+                <b data-item-count>0</b>
+              </p>
+
+              <button
+                type="button"
+                data-action="equip-item"
+                data-item-id="support-item"
+              >
+                EQUIP
+              </button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- =======================================================
+           TOURNAMENT
+           ======================================================= -->
+
+      <section
+        id="screen-tournament"
+        class="screen"
+        data-screen="tournament"
+        hidden
+      >
+        <div class="screen-heading">
+          <div>
+            <span class="screen-heading__eyebrow">
+              COMPETITION
+            </span>
+
+            <h1>
+              TOURNAMENT
+            </h1>
+          </div>
+
+          <button
+            type="button"
+            class="back-button"
+            data-action="back"
+          >
+            BACK
+          </button>
+        </div>
+
+        <div class="record-grid">
+          <article>
+            <span>
+              ENTRY
+            </span>
+
+            <strong data-tournament-record="entries">
+              0
+            </strong>
+          </article>
+
+          <article>
+            <span>
+              WIN
+            </span>
+
+            <strong data-tournament-record="wins">
+              0
+            </strong>
+          </article>
+
+          <article>
+            <span>
+              TOP 3
+            </span>
+
+            <strong data-tournament-record="top3">
+              0
+            </strong>
+          </article>
+
+          <article>
+            <span>
+              KILLS
+            </span>
+
+            <strong data-tournament-record="kills">
+              0
+            </strong>
+          </article>
+
+          <article>
+            <span>
+              ASSISTS
+            </span>
+
+            <strong data-tournament-record="assists">
+              0
+            </strong>
+          </article>
+
+          <article>
+            <span>
+              BEST
+            </span>
+
+            <strong data-tournament-record="bestPlacement">
+              -
+            </strong>
+          </article>
+        </div>
+
+        <div class="tournament-list">
+          <article class="tournament-card tournament-card--local">
+            <div class="tournament-card__badge">
+              LOCAL
+            </div>
+
+            <div class="tournament-card__body">
+              <span>
+                FIRST STAGE
+              </span>
+
+              <h2>
+                LOCAL TOURNAMENT
+              </h2>
+
+              <p>
+                ローカルチームと競う最初の大会。
+              </p>
+
+              <button
+                type="button"
+                data-action="start-tournament"
+                data-tournament-id="local"
+              >
+                ENTRY
+              </button>
+            </div>
+          </article>
+
+          <article class="tournament-card tournament-card--national">
+            <div class="tournament-card__badge">
+              NATIONAL
+            </div>
+
+            <div class="tournament-card__body">
+              <span>
+                SECOND STAGE
+              </span>
+
+              <h2>
+                NATIONAL TOURNAMENT
+              </h2>
+
+              <p>
+                全国の強豪チームが参加する大会。
+              </p>
+
+              <button
+                type="button"
+                data-action="start-tournament"
+                data-tournament-id="national"
+              >
+                ENTRY
+              </button>
+            </div>
+          </article>
+
+          <article class="tournament-card tournament-card--world">
+            <div class="tournament-card__badge">
+              WORLD
+            </div>
+
+            <div class="tournament-card__body">
+              <span>
+                FINAL STAGE
+              </span>
+
+              <h2>
+                WORLD TOURNAMENT
+              </h2>
+
+              <p>
+                世界最高峰のチームが集結。
+              </p>
+
+              <button
+                type="button"
+                data-action="start-tournament"
+                data-tournament-id="world"
+              >
+                ENTRY
+              </button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- =======================================================
+           SETTINGS
+           ======================================================= -->
+
+      <section
+        id="screen-settings"
+        class="screen"
+        data-screen="settings"
+        hidden
+      >
+        <div class="screen-heading">
+          <div>
+            <span class="screen-heading__eyebrow">
+              OPTIONS
+            </span>
+
+            <h1>
+              SETTINGS
+            </h1>
+          </div>
+
+          <button
+            type="button"
+            class="back-button"
+            data-action="back"
+          >
+            BACK
+          </button>
+        </div>
+
+        <div class="settings-list">
+          <label class="setting-row">
+            <span>
+              SOUND
+            </span>
+
+            <input
+              type="checkbox"
+              data-setting="soundEnabled"
+              checked
+            >
+          </label>
+
+          <label class="setting-row">
+            <span>
+              MUSIC
+            </span>
+
+            <input
+              type="checkbox"
+              data-setting="musicEnabled"
+              checked
+            >
+          </label>
+
+          <label class="setting-row">
+            <span>
+              VIBRATION
+            </span>
+
+            <input
+              type="checkbox"
+              data-setting="vibrationEnabled"
+              checked
+            >
+          </label>
+
+          <label class="setting-row">
+            <span>
+              REDUCED MOTION
+            </span>
+
+            <input
+              type="checkbox"
+              data-setting="reducedMotion"
+            >
+          </label>
+
+          <label class="setting-row">
+            <span>
+              AUTO SAVE
+            </span>
+
+            <input
+              type="checkbox"
+              data-setting="autoSave"
+              checked
+            >
+          </label>
+
+          <label class="setting-row">
+            <span>
+              TEXT SPEED
+            </span>
+
+            <select data-setting="textSpeed">
+              <option value="slow">
+                SLOW
+              </option>
+
+              <option
+                value="normal"
+                selected
+              >
+                NORMAL
+              </option>
+
+              <option value="fast">
+                FAST
+              </option>
+            </select>
+          </label>
+        </div>
+
+        <div class="save-actions">
+          <button
+            type="button"
+            data-action="save"
+          >
+            SAVE
+          </button>
+
+          <button
+            type="button"
+            data-action="load"
+          >
+            LOAD
+          </button>
+
+          <button
+            type="button"
+            data-action="export-save"
+          >
+            EXPORT
+          </button>
+
+          <button
+            type="button"
+            data-action="import-save"
+          >
+            IMPORT
+          </button>
+
+          <button
+            type="button"
+            class="danger-button"
+            data-action="reset-save"
+          >
+            DELETE SAVE DATA
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <!-- =========================================================
+         下部ナビゲーション
+         ========================================================= -->
+
+    <nav class="bottom-nav">
+      <button
+        type="button"
+        class="bottom-nav__item is-active"
+        data-nav="home"
+      >
+        <span class="bottom-nav__icon">
+          H
+        </span>
+
+        <small>
+          HOME
+        </small>
+      </button>
+
+      <button
+        type="button"
+        class="bottom-nav__item"
+        data-nav="training"
+      >
+        <span class="bottom-nav__icon">
+          T
+        </span>
+
+        <small>
+          TRAINING
+        </small>
+      </button>
+
+      <button
+        type="button"
+        class="bottom-nav__item bottom-nav__item--main"
+        data-nav="tournament"
+      >
+        <span class="bottom-nav__icon">
+          B
+        </span>
+
+        <small>
+          BATTLE
+        </small>
+      </button>
+
+      <button
+        type="button"
+        class="bottom-nav__item"
+        data-nav="shop"
+      >
+        <span class="bottom-nav__icon">
+          S
+        </span>
+
+        <small>
+          SHOP
+        </small>
+      </button>
+
+      <button
+        type="button"
+        class="bottom-nav__item"
+        data-nav="settings"
+      >
+        <span class="bottom-nav__icon">
+          O
+        </span>
+
+        <small>
+          OPTION
+        </small>
+      </button>
+    </nav>
+  </div>
+
+  <!-- ===========================================================
+       データファイル
+       =========================================================== -->
+
+  <script src="./data/game-data.js?v=1.0.0"></script>
+  <script src="./data/ability-data.js?v=1.0.0"></script>
+  <script src="./data/training-data.js?v=1.0.0"></script>
+  <script src="./data/coach-data.js?v=1.0.0"></script>
+  <script src="./data/cpu-data.js?v=1.0.0"></script>
+  <script src="./data/cpu-local-data.js?v=1.0.0"></script>
+  <script src="./data/cpu-national-data.js?v=1.0.0"></script>
+  <script src="./data/cpu-world-data.js?v=1.0.0"></script>
+  <script src="./data/card-data.js?v=1.0.0"></script>
+  <script src="./data/shop-data.js?v=1.0.0"></script>
+
+  <!-- 必ずデータファイルより後に読み込む -->
+  <script src="./data/app.js?v=1.0.0"></script>
+</body>
+</html>
