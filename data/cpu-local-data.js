@@ -18,7 +18,7 @@
 
   if (!CPU) {
     throw new Error(
-      'cpu-local-national-data.jsより先にcpu-data.jsを読み込んでください。'
+      'cpu-local-data.jsより先にcpu-data.jsを読み込んでください。'
     );
   }
 
