@@ -1,0 +1,1523 @@
+/**
+ * MOB BR tournament runtime and resume-state manager.
+ *
+ * The main system is the only persistent save owner. This module clones the
+ * validated TournamentEntryData into an isolated, temporary runtime and stores
+ * only resumable tournament progress in the tournament resume key.
+ */
+
+import {
+  STORAGE_KEYS,
+  calculateChecksum,
+} from "../main/state.js";
+import {
+  TOURNAMENT_BRIDGE_VERSION,
+  TOURNAMENT_ENTRY_SCHEMA_VERSION,
+  TOURNAMENT_RESUME_SCHEMA_VERSION,
+  readTournamentEntryFromStorage,
+  validateTournamentEntryData,
+} from "../main/tournament-bridge.js";
+
+export const TOURNAMENT_RUNTIME_VERSION =
+  "mobbr-tournament-runtime-1.0.0";
+
+export const TOURNAMENT_PHASES = Object.freeze([
+  "IDLE",
+  "ENTRY_VALIDATION",
+  "LOADING",
+  "OPENING",
+  "TEAM_INTRO",
+  "DEPLOYMENT",
+  "INITIAL_EXPLORATION",
+  "MATCH_START",
+  "ROUND_INTRO",
+  "ROUND_EXPLORATION",
+  "ENCOUNTER_PREVIEW",
+  "STRATEGY_SELECT",
+  "BATTLE_COUNTDOWN",
+  "BATTLE",
+  "BATTLE_OUTCOME",
+  "ROUND_RESULT",
+  "ROUND_ADVANCE",
+  "MATCH_CHAMPION",
+  "MATCH_RESULT",
+  "NEXT_MATCH_WAIT",
+  "TOURNAMENT_AWARDS",
+  "TOURNAMENT_RESULT",
+  "RETURNING_RESULT",
+  "COMPLETE",
+  "SUSPENDED",
+  "ERROR",
+]);
+
+const PHASE_SET = new Set(TOURNAMENT_PHASES);
+
+export const SAFE_RESUME_PHASES = Object.freeze([
+  "LOADING",
+  "OPENING",
+  "TEAM_INTRO",
+  "DEPLOYMENT",
+  "INITIAL_EXPLORATION",
+  "MATCH_START",
+  "ROUND_INTRO",
+  "ROUND_EXPLORATION",
+  "ENCOUNTER_PREVIEW",
+  "STRATEGY_SELECT",
+  "BATTLE_COUNTDOWN",
+  "BATTLE_OUTCOME",
+  "ROUND_RESULT",
+  "ROUND_ADVANCE",
+  "MATCH_CHAMPION",
+  "MATCH_RESULT",
+  "NEXT_MATCH_WAIT",
+  "TOURNAMENT_AWARDS",
+  "TOURNAMENT_RESULT",
+  "RETURNING_RESULT",
+]);
+
+const SAFE_RESUME_SET = new Set(SAFE_RESUME_PHASES);
+
+export const PHASE_TRANSITIONS = Object.freeze({
+  IDLE: Object.freeze(["ENTRY_VALIDATION", "ERROR"]),
+  ENTRY_VALIDATION: Object.freeze(["LOADING", "ERROR"]),
+  LOADING: Object.freeze(["OPENING", "SUSPENDED", "ERROR"]),
+  OPENING: Object.freeze(["TEAM_INTRO", "SUSPENDED", "ERROR"]),
+  TEAM_INTRO: Object.freeze(["DEPLOYMENT", "SUSPENDED", "ERROR"]),
+  DEPLOYMENT: Object.freeze([
+    "INITIAL_EXPLORATION",
+    "SUSPENDED",
+    "ERROR",
+  ]),
+  INITIAL_EXPLORATION: Object.freeze([
+    "MATCH_START",
+    "SUSPENDED",
+    "ERROR",
+  ]),
+  MATCH_START: Object.freeze(["ROUND_INTRO", "SUSPENDED", "ERROR"]),
+  ROUND_INTRO: Object.freeze([
+    "ROUND_EXPLORATION",
+    "ENCOUNTER_PREVIEW",
+    "ROUND_ADVANCE",
+    "SUSPENDED",
+    "ERROR",
+  ]),
+  ROUND_EXPLORATION: Object.freeze([
+    "ENCOUNTER_PREVIEW",
+    "ROUND_ADVANCE",
+    "SUSPENDED",
+    "ERROR",
+  ]),
+  ENCOUNTER_PREVIEW: Object.freeze([
+    "STRATEGY_SELECT",
+    "ROUND_ADVANCE",
+    "SUSPENDED",
+    "ERROR",
+  ]),
+  STRATEGY_SELECT: Object.freeze([
+    "BATTLE_COUNTDOWN",
+    "SUSPENDED",
+    "ERROR",
+  ]),
+  BATTLE_COUNTDOWN: Object.freeze(["BATTLE", "SUSPENDED", "ERROR"]),
+  BATTLE: Object.freeze(["BATTLE_OUTCOME", "ERROR"]),
+  BATTLE_OUTCOME: Object.freeze([
+    "ROUND_RESULT",
+    "SUSPENDED",
+    "ERROR",
+  ]),
+  ROUND_RESULT: Object.freeze([
+    "ROUND_ADVANCE",
+    "SUSPENDED",
+    "ERROR",
+  ]),
+  ROUND_ADVANCE: Object.freeze([
+    "ROUND_INTRO",
+    "MATCH_CHAMPION",
+    "SUSPENDED",
+    "ERROR",
+  ]),
+  MATCH_CHAMPION: Object.freeze([
+    "MATCH_RESULT",
+    "SUSPENDED",
+    "ERROR",
+  ]),
+  MATCH_RESULT: Object.freeze([
+    "NEXT_MATCH_WAIT",
+    "TOURNAMENT_AWARDS",
+    "SUSPENDED",
+    "ERROR",
+  ]),
+  NEXT_MATCH_WAIT: Object.freeze([
+    "MATCH_START",
+    "TOURNAMENT_AWARDS",
+    "SUSPENDED",
+    "ERROR",
+  ]),
+  TOURNAMENT_AWARDS: Object.freeze([
+    "TOURNAMENT_RESULT",
+    "SUSPENDED",
+    "ERROR",
+  ]),
+  TOURNAMENT_RESULT: Object.freeze([
+    "RETURNING_RESULT",
+    "SUSPENDED",
+    "ERROR",
+  ]),
+  RETURNING_RESULT: Object.freeze(["COMPLETE", "ERROR"]),
+  COMPLETE: Object.freeze([]),
+  SUSPENDED: Object.freeze([
+    ...SAFE_RESUME_PHASES,
+    "ERROR",
+  ]),
+  ERROR: Object.freeze(["ENTRY_VALIDATION", "LOADING"]),
+});
+
+export const OPENING_THEME_ASSETS = Object.freeze({
+  local: Object.freeze({
+    backgroundImage: "back/local.png",
+    logoImage: "icon/local.png",
+  }),
+  national: Object.freeze({
+    backgroundImage: "back/national.png",
+    logoImage: "icon/national.png",
+  }),
+  world: Object.freeze({
+    backgroundImage: "back/world.png",
+    logoImage: "icon/world.png",
+  }),
+  championship: Object.freeze({
+    backgroundImage: "back/champ.png",
+    logoImage: "icon/champ.png",
+  }),
+});
+
+export const TOURNAMENT_MAP_ASSETS = Object.freeze([
+  Object.freeze({ mapId: "neon", name: "ネオン街", image: "back/neon.png" }),
+  Object.freeze({ mapId: "desert", name: "砂漠", image: "back/sabak.png" }),
+  Object.freeze({ mapId: "magma", name: "マグマ", image: "back/magma.png" }),
+  Object.freeze({ mapId: "country", name: "田舎町", image: "back/inaka.png" }),
+]);
+
+const ROLE_ORDER = Object.freeze(["IGL", "ATK", "SUP"]);
+const RUNTIME_HISTORY_LIMIT = 250;
+
+function deepClone(value) {
+  if (typeof globalThis.structuredClone === "function") {
+    return globalThis.structuredClone(value);
+  }
+  return JSON.parse(JSON.stringify(value));
+}
+
+function deepFreeze(value) {
+  if (value && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const child of Object.values(value)) {
+      deepFreeze(child);
+    }
+  }
+  return value;
+}
+
+function isPlainObject(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function assertPlainObject(value, label) {
+  if (!isPlainObject(value)) {
+    throw new TournamentRuntimeError(`${label} must be a plain object.`, {
+      code: "INVALID_RUNTIME_OBJECT",
+    });
+  }
+  return value;
+}
+
+function assertNonEmptyString(value, label, maximumLength = 300) {
+  if (typeof value !== "string") {
+    throw new TournamentRuntimeError(`${label} must be a string.`, {
+      code: "INVALID_RUNTIME_STRING",
+    });
+  }
+  const normalized = value.trim();
+  if (!normalized || normalized.length > maximumLength) {
+    throw new TournamentRuntimeError(
+      `${label} must contain 1-${maximumLength} characters.`,
+      { code: "INVALID_RUNTIME_STRING_LENGTH" },
+    );
+  }
+  return normalized;
+}
+
+function assertNonNegativeInteger(value, label) {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new TournamentRuntimeError(
+      `${label} must be a non-negative integer.`,
+      { code: "INVALID_RUNTIME_INTEGER" },
+    );
+  }
+  return value;
+}
+
+function assertPositiveInteger(value, label) {
+  if (!Number.isInteger(value) || value < 1) {
+    throw new TournamentRuntimeError(`${label} must be a positive integer.`, {
+      code: "INVALID_RUNTIME_INTEGER",
+    });
+  }
+  return value;
+}
+
+function normalizeStorage(storage) {
+  if (
+    !storage ||
+    typeof storage.getItem !== "function" ||
+    typeof storage.setItem !== "function" ||
+    typeof storage.removeItem !== "function"
+  ) {
+    throw new TypeError(
+      "Storage must implement getItem, setItem, and removeItem.",
+    );
+  }
+  return storage;
+}
+
+function nowIso(clock) {
+  const value = clock();
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new TournamentRuntimeError("Clock returned an invalid date.", {
+      code: "INVALID_RUNTIME_CLOCK",
+    });
+  }
+  return date.toISOString();
+}
+
+function createGeneratedId(prefix = "runtime") {
+  if (
+    globalThis.crypto &&
+    typeof globalThis.crypto.randomUUID === "function"
+  ) {
+    return `${prefix}-${globalThis.crypto.randomUUID()}`;
+  }
+  return `${prefix}-${Date.now().toString(36)}-${Math.random()
+    .toString(36)
+    .slice(2)}`;
+}
+
+function getThemeAssets(entry) {
+  const themeId = entry.tournament.openingThemeId;
+  return OPENING_THEME_ASSETS[themeId] ?? OPENING_THEME_ASSETS.local;
+}
+
+function chooseTournamentMap(entry) {
+  const checksum = String(entry.checksum ?? entry.entryId);
+  let value = 0;
+  for (let index = 0; index < checksum.length; index += 1) {
+    value = (value + checksum.charCodeAt(index) * (index + 1)) >>> 0;
+  }
+  return TOURNAMENT_MAP_ASSETS[value % TOURNAMENT_MAP_ASSETS.length];
+}
+
+function createOpeningCommentary(entry, role = null) {
+  const team = entry.playerTeam;
+  const member = role
+    ? team.members.find((candidate) => candidate.role === role)
+    : null;
+
+  if (role && member) {
+    return `${role}は${member.name}！武器は${member.weapon.weaponName}！`;
+  }
+  return `${entry.company.companyName}の${team.teamName}、3人がステージへ入ります！`;
+}
+
+export function createOpeningScenes(entry) {
+  validateTournamentEntryData(entry);
+  const theme = getThemeAssets(entry);
+  const map = chooseTournamentMap(entry);
+  const members = [...entry.playerTeam.members].sort(
+    (left, right) =>
+      ROLE_ORDER.indexOf(left.role) - ROLE_ORDER.indexOf(right.role),
+  );
+  const coachNames = entry.coaches
+    .map((coach) => coach.name ?? "初期コーチ")
+    .join(" / ");
+  const ownedStrategyCount = entry.strategyInventory.filter(
+    (strategy) => strategy.unlimited || strategy.tournamentRemaining > 0,
+  ).length;
+
+  const scenes = [
+    {
+      sceneId: "opening-title",
+      type: "TOURNAMENT_TITLE",
+      duration: 1800,
+      backgroundImage: theme.backgroundImage,
+      foregroundImages: [theme.logoImage],
+      text: entry.tournament.tournamentName,
+      subtext: entry.tournament.stageName,
+      commentary: `${entry.tournament.tournamentName}、ついに開幕です！`,
+      soundId: "opening_title",
+      animationId: "logo_fade_in",
+      canSkip: true,
+    },
+    {
+      sceneId: "opening-stage",
+      type: "STAGE_INTRO",
+      duration: 1600,
+      backgroundImage: map.image,
+      foregroundImages: [],
+      text: map.name,
+      subtext: `${entry.gameDate.year} / ${entry.gameDate.seasonId}`,
+      commentary: `今大会の舞台は${map.name}です！`,
+      soundId: "stage_intro",
+      animationId: "stage_pan",
+      canSkip: true,
+    },
+    {
+      sceneId: "opening-team-count",
+      type: "TEAM_COUNT",
+      duration: 1500,
+      backgroundImage: theme.backgroundImage,
+      foregroundImages: [],
+      text: `${entry.tournament.totalTeams} TEAMS`,
+      subtext: entry.tournament.stageName,
+      commentary: `全${entry.tournament.totalTeams}チームが頂点を争います！`,
+      soundId: "team_count",
+      animationId: "number_reveal",
+      canSkip: true,
+    },
+    {
+      sceneId: "opening-player-company",
+      type: "PLAYER_COMPANY",
+      duration: 1800,
+      backgroundImage: theme.backgroundImage,
+      foregroundImages: [entry.company.badgeImage, entry.playerTeam.teamLogo],
+      text: entry.company.companyName,
+      subtext: entry.playerTeam.teamName,
+      commentary: createOpeningCommentary(entry),
+      soundId: "player_company",
+      animationId: "company_reveal",
+      canSkip: true,
+    },
+    {
+      sceneId: "opening-player-members",
+      type: "PLAYER_MEMBERS",
+      duration: 2600,
+      backgroundImage: theme.backgroundImage,
+      foregroundImages: members.map((member) => member.image),
+      teamDataBindings: members.map((member) => ({
+        playerId: member.playerId,
+        role: member.role,
+        name: member.name,
+        rank: member.characterRank,
+        weaponName: member.weapon.weaponName,
+      })),
+      text: entry.playerTeam.teamName,
+      subtext: members.map((member) => `${member.role} ${member.name}`).join(" / "),
+      commentary: members
+        .map((member) => createOpeningCommentary(entry, member.role))
+        .join(" "),
+      soundId: "player_members",
+      animationId: "member_lineup",
+      canSkip: true,
+    },
+    {
+      sceneId: "opening-featured-cpu",
+      type: "FEATURED_CPU",
+      duration: 1500,
+      backgroundImage: theme.backgroundImage,
+      foregroundImages: [],
+      text: "CPU ROSTER CONNECTING",
+      subtext: `${entry.tournament.cpuPoolId} / Generation 10`,
+      commentary: "注目CPUチームの正式データを照合しています。",
+      soundId: "cpu_spotlight",
+      animationId: "data_scan",
+      canSkip: true,
+    },
+    {
+      sceneId: "opening-coach-strategy",
+      type: "COACH_STRATEGY",
+      duration: 1600,
+      backgroundImage: theme.backgroundImage,
+      foregroundImages: entry.coaches.map((coach) => coach.image),
+      text: `${ownedStrategyCount} STRATEGIES READY`,
+      subtext: coachNames,
+      commentary: `コーチ陣と全${entry.strategyInventory.length}作戦が大会へ持ち込まれました！`,
+      soundId: "strategy_ready",
+      animationId: "strategy_cards",
+      canSkip: true,
+    },
+    {
+      sceneId: "opening-dropship",
+      type: "DROPSHIP",
+      duration: 1600,
+      backgroundImage: map.image,
+      foregroundImages: [],
+      text: "DROPSHIP READY",
+      subtext: entry.tournament.tournamentName,
+      commentary: `全${entry.tournament.totalTeams}チーム、降下準備に入ります！`,
+      soundId: "dropship",
+      animationId: "dropship_flyby",
+      canSkip: true,
+    },
+    {
+      sceneId: "opening-deployment",
+      type: "DEPLOYMENT",
+      duration: 1500,
+      backgroundImage: map.image,
+      foregroundImages: members.map((member) => member.image),
+      text: "DEPLOYMENT",
+      subtext: entry.playerTeam.teamName,
+      commentary: `全${entry.tournament.totalTeams}チーム、降下開始です！`,
+      soundId: "deployment",
+      animationId: "team_drop",
+      canSkip: true,
+    },
+    {
+      sceneId: "opening-landing",
+      type: "LANDING",
+      duration: 1300,
+      backgroundImage: map.image,
+      foregroundImages: [],
+      text: "LANDING",
+      subtext: map.name,
+      commentary: `${entry.playerTeam.teamName}、無事に着地しました！`,
+      soundId: "landing",
+      animationId: "landing_impact",
+      canSkip: true,
+    },
+    {
+      sceneId: "opening-search",
+      type: "INITIAL_SEARCH",
+      duration: 1400,
+      backgroundImage: map.image,
+      foregroundImages: [],
+      text: "INITIAL EXPLORATION",
+      subtext: `${entry.carryItems.filter(Boolean).length} CARRY ITEMS`,
+      commentary: "初動探索が始まります。物資と施設を見逃せません！",
+      soundId: "exploration",
+      animationId: "radar_scan",
+      canSkip: true,
+    },
+    {
+      sceneId: "opening-weapon-ready",
+      type: "WEAPON_READY",
+      duration: 1700,
+      backgroundImage: map.image,
+      foregroundImages: members.map((member) => member.weapon.image),
+      teamDataBindings: members.map((member) => ({
+        playerId: member.playerId,
+        weaponId: member.weapon.weaponId,
+        weaponName: member.weapon.weaponName,
+      })),
+      text: "WEAPONS READY",
+      subtext: members.map((member) => member.weapon.weaponName).join(" / "),
+      commentary: "3選手の固有武器、準備完了です！",
+      soundId: "weapon_ready",
+      animationId: "weapon_lineup",
+      canSkip: true,
+    },
+    {
+      sceneId: "opening-match-start",
+      type: "MATCH_START",
+      duration: 1600,
+      backgroundImage: map.image,
+      foregroundImages: [theme.logoImage],
+      text: "MATCH START",
+      subtext: `${entry.tournament.matches} MATCH SESSION`,
+      commentary: `${entry.tournament.tournamentName}、MATCH開始です！`,
+      soundId: "match_start",
+      animationId: "match_start_flash",
+      canSkip: false,
+    },
+  ];
+
+  return deepFreeze(
+    scenes.map((scene, index) => ({
+      ...scene,
+      nextSceneId: scenes[index + 1]?.sceneId ?? null,
+    })),
+  );
+}
+
+function createPlayerTeamRecord(entry) {
+  return {
+    teamId: entry.playerTeam.teamId,
+    teamName: entry.playerTeam.teamName,
+    companyName: entry.company.companyName,
+    teamLogo: entry.playerTeam.teamLogo,
+    groupId: entry.tournament.groupId,
+    isPlayer: true,
+    isPlaceholder: false,
+    source: "entry_data",
+    members: deepClone(entry.playerTeam.members),
+  };
+}
+
+function createPendingCpuSlots(entry) {
+  const count = Math.max(0, entry.tournament.totalTeams - 1);
+  return Array.from({ length: count }, (_, index) => ({
+    teamId: `pending-cpu-${String(index + 1).padStart(2, "0")}`,
+    teamName: null,
+    companyName: null,
+    teamLogo: null,
+    groupId: null,
+    isPlayer: false,
+    isPlaceholder: true,
+    source: entry.tournament.cpuPoolId,
+    slotNumber: index + 1,
+    members: [],
+  }));
+}
+
+export function createTournamentTeamSlots(entry) {
+  validateTournamentEntryData(entry);
+  return deepFreeze([
+    createPlayerTeamRecord(entry),
+    ...createPendingCpuSlots(entry),
+  ]);
+}
+
+function createPlayerMemberRuntime(member) {
+  return {
+    playerId: member.playerId,
+    teamId: null,
+    role: member.role,
+    hp: member.currentHp,
+    maxHp: member.maxHp,
+    combatState: member.currentHp > 0 ? "alive" : "down",
+    downCount: 0,
+    deathCount: 0,
+    reviveCount: 0,
+    shots: 0,
+    hits: 0,
+    damage: 0,
+    damageTaken: 0,
+    kills: 0,
+    assists: 0,
+    healing: 0,
+    skillUses: 0,
+    weaponShots: 0,
+    weaponHits: 0,
+    weaponDamage: 0,
+    weaponReloads: 0,
+    currentAmmo: member.weapon.ammoCurrent,
+    reloadRemaining: 0,
+    skillCt: Object.fromEntries(
+      member.skills.map((skill) => [skill.skillId, 0]),
+    ),
+    temporaryEffects: [],
+  };
+}
+
+function createPlayerTeamRuntime(entry) {
+  const members = entry.playerTeam.members.map((member) => ({
+    playerId: member.playerId,
+    maxHp: member.maxHp,
+    currentHp: member.currentHp,
+    combatState: member.currentHp > 0 ? "alive" : "down",
+  }));
+  return {
+    teamId: entry.playerTeam.teamId,
+    matchHp: members.map((member) => member.currentHp),
+    persistentHp: members.map((member) => member.currentHp),
+    combatState: members.map((member) => member.combatState),
+    skillCt: entry.playerTeam.members.map((member) =>
+      Object.fromEntries(member.skills.map((skill) => [skill.skillId, 0])),
+    ),
+    temporaryBuffs: [],
+    matchBuffs: [],
+    currentStrategyId: "D-01",
+    strategyConsumed: false,
+    kills: 0,
+    assists: 0,
+    damage: 0,
+    damageTaken: 0,
+    wins: 0,
+    bestPlace: null,
+    points: 0,
+    condition: entry.playerTeam.currentForm ?? "normal",
+  };
+}
+
+function createInventoryRuntime(entry) {
+  const slots = entry.carryItems.map((item, slotIndex) =>
+    item === null
+      ? null
+      : {
+          slotIndex,
+          itemId: item.itemId,
+          name: item.name,
+          image: item.image ?? null,
+          source: item.source,
+          quantity: item.quantity,
+          initialQuantity: item.quantity,
+          acquiredDuringTournament: false,
+        },
+  );
+  return {
+    capacity: entry.carryBag.capacity,
+    slots,
+    consumedCarryItems: {},
+    acquiredItemIds: [],
+  };
+}
+
+function createStrategyRuntime(entry) {
+  return Object.fromEntries(
+    entry.strategyInventory.map((strategy) => [
+      strategy.strategyId,
+      {
+        strategyId: strategy.strategyId,
+        name: strategy.name,
+        rank: strategy.rank,
+        effect: deepClone(strategy.effect),
+        unlimited: strategy.unlimited === true,
+        persistentOwnedCount: strategy.persistentOwnedCount,
+        tournamentRemaining: strategy.unlimited
+          ? null
+          : strategy.tournamentRemaining,
+        uses: 0,
+      },
+    ]),
+  );
+}
+
+function createEmptyTotals(entry) {
+  return {
+    teamId: entry.playerTeam.teamId,
+    placementPoint: 0,
+    kp: 0,
+    ap: 0,
+    damage: 0,
+    damageTaken: 0,
+    wins: 0,
+    bestPlace: null,
+    matchCount: 0,
+    roundCount: 0,
+  };
+}
+
+function appendPhaseHistory(runtime, phase, timestamp, reason = null) {
+  runtime.phaseHistory.push({
+    phase,
+    at: timestamp,
+    reason,
+  });
+  if (runtime.phaseHistory.length > RUNTIME_HISTORY_LIMIT) {
+    runtime.phaseHistory.splice(
+      0,
+      runtime.phaseHistory.length - RUNTIME_HISTORY_LIMIT,
+    );
+  }
+}
+
+function runtimeChecksumPayload(runtime) {
+  const clone = deepClone(runtime);
+  delete clone.runtimeChecksum;
+  return clone;
+}
+
+export function calculateTournamentRuntimeChecksum(runtime) {
+  return calculateChecksum(runtimeChecksumPayload(runtime));
+}
+
+export function createTournamentRuntime(
+  entry,
+  {
+    clock = () => new Date(),
+    idFactory = createGeneratedId,
+  } = {},
+) {
+  validateTournamentEntryData(entry);
+  const timestamp = nowIso(clock);
+  const teams = createTournamentTeamSlots(entry);
+  const map = chooseTournamentMap(entry);
+  const openingScenes = createOpeningScenes(entry);
+  const memberRuntime = Object.fromEntries(
+    entry.playerTeam.members.map((member) => {
+      const runtimeMember = createPlayerMemberRuntime(member);
+      runtimeMember.teamId = entry.playerTeam.teamId;
+      return [member.playerId, runtimeMember];
+    }),
+  );
+
+  const runtime = {
+    runtimeVersion: TOURNAMENT_RUNTIME_VERSION,
+    runtimeId: idFactory("runtime"),
+    entrySchemaVersion: TOURNAMENT_ENTRY_SCHEMA_VERSION,
+    entryId: entry.entryId,
+    entrySnapshotHash: entry.entrySnapshotHash,
+    entryChecksum: entry.checksum,
+    entryData: deepClone(entry),
+    revision: 0,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    phase: "LOADING",
+    previousPhase: "ENTRY_VALIDATION",
+    resumeTargetPhase: "LOADING",
+    phaseHistory: [
+      { phase: "ENTRY_VALIDATION", at: timestamp, reason: "entry_loaded" },
+      { phase: "LOADING", at: timestamp, reason: "runtime_created" },
+    ],
+    tournamentId: entry.tournament.tournamentId,
+    sessionId: entry.tournament.sessionId,
+    seasonId: entry.gameDate.seasonId,
+    match: 0,
+    round: 0,
+    playerTeamId: entry.playerTeam.teamId,
+    teams: deepClone(teams),
+    activeTeamIds: teams.map((team) => team.teamId),
+    eliminated: [],
+    currentPairs: [],
+    currentOpponentId: null,
+    lockedOpponentId: null,
+    teamRuntime: {
+      [entry.playerTeam.teamId]: createPlayerTeamRuntime(entry),
+    },
+    memberRuntime,
+    totals: createEmptyTotals(entry),
+    matchTotals: [],
+    roundTotals: [],
+    inventory: createInventoryRuntime(entry),
+    strategyRuntime: createStrategyRuntime(entry),
+    explorationRuntime: {
+      maximumPerMatch: 3,
+      completedKeys: [],
+      currentExploreIndex: 0,
+      currentExploreKey: null,
+      pendingExploreItem: null,
+      deterministicChoices: {},
+    },
+    facilityRuntime: {
+      usedByExploreKey: {},
+      deterministicOutcomes: {},
+    },
+    commentaryHistory: [],
+    awardRuntime: {
+      awards: [],
+      mvpCandidates: [],
+    },
+    opening: {
+      scenes: deepClone(openingScenes),
+      sceneIndex: 0,
+      sceneId: openingScenes[0].sceneId,
+      completed: false,
+      skipped: false,
+    },
+    map: deepClone(map),
+    randomState: {
+      seed: entry.playerTeam.tournamentSeed,
+      cursor: 0,
+      finalizedDraws: {},
+    },
+    pendingVisualId: "opening-title",
+    resultSignature: null,
+    returnStatus: "pending",
+    suspendReason: null,
+    error: null,
+    runtimeChecksum: null,
+  };
+
+  runtime.runtimeChecksum = calculateTournamentRuntimeChecksum(runtime);
+  validateTournamentRuntime(runtime, entry);
+  return deepFreeze(runtime);
+}
+
+export function validateTournamentRuntime(runtime, entry = null) {
+  assertPlainObject(runtime, "Tournament runtime");
+  if (runtime.runtimeVersion !== TOURNAMENT_RUNTIME_VERSION) {
+    throw new TournamentRuntimeValidationError(
+      `Unsupported runtime version: ${runtime.runtimeVersion}`,
+      "UNSUPPORTED_RUNTIME_VERSION",
+    );
+  }
+  assertNonEmptyString(runtime.runtimeId, "Runtime ID", 300);
+  assertNonEmptyString(runtime.entryId, "Runtime entry ID", 300);
+  assertNonEmptyString(
+    runtime.entrySnapshotHash,
+    "Runtime entry snapshot hash",
+    100,
+  );
+  if (!PHASE_SET.has(runtime.phase)) {
+    throw new TournamentRuntimeValidationError(
+      `Unknown tournament phase: ${runtime.phase}`,
+      "INVALID_RUNTIME_PHASE",
+    );
+  }
+  assertNonNegativeInteger(runtime.revision, "Runtime revision");
+  assertNonNegativeInteger(runtime.match, "Runtime match");
+  assertNonNegativeInteger(runtime.round, "Runtime round");
+  if (!Array.isArray(runtime.teams) || runtime.teams.length < 1) {
+    throw new TournamentRuntimeValidationError(
+      "Runtime teams must be a non-empty array.",
+      "INVALID_RUNTIME_TEAMS",
+    );
+  }
+  if (!Array.isArray(runtime.activeTeamIds)) {
+    throw new TournamentRuntimeValidationError(
+      "Active team IDs must be an array.",
+      "INVALID_ACTIVE_TEAMS",
+    );
+  }
+  assertPlainObject(runtime.teamRuntime, "Team runtime");
+  assertPlainObject(runtime.memberRuntime, "Member runtime");
+  assertPlainObject(runtime.inventory, "Inventory runtime");
+  assertPlainObject(runtime.strategyRuntime, "Strategy runtime");
+  assertPlainObject(runtime.explorationRuntime, "Exploration runtime");
+  assertPlainObject(runtime.facilityRuntime, "Facility runtime");
+  if (
+    !Array.isArray(runtime.opening?.scenes) ||
+    runtime.opening.scenes.length !== 13
+  ) {
+    throw new TournamentRuntimeValidationError(
+      "Opening runtime must contain 13 independent scenes.",
+      "INVALID_OPENING_SCENES",
+    );
+  }
+  if (Object.keys(runtime.strategyRuntime).length !== 50) {
+    throw new TournamentRuntimeValidationError(
+      "Tournament runtime must contain all 50 strategies.",
+      "INVALID_STRATEGY_RUNTIME",
+    );
+  }
+  if (
+    runtime.inventory.capacity < 5 ||
+    runtime.inventory.capacity > 10 ||
+    runtime.inventory.slots.length !== runtime.inventory.capacity
+  ) {
+    throw new TournamentRuntimeValidationError(
+      "Tournament inventory capacity is invalid.",
+      "INVALID_RUNTIME_INVENTORY",
+    );
+  }
+  const actualChecksum = calculateTournamentRuntimeChecksum(runtime);
+  if (actualChecksum !== runtime.runtimeChecksum) {
+    throw new TournamentRuntimeValidationError(
+      "Tournament runtime checksum does not match.",
+      "RUNTIME_CHECKSUM_MISMATCH",
+    );
+  }
+
+  if (entry) {
+    validateTournamentEntryData(entry);
+    if (
+      runtime.entryId !== entry.entryId ||
+      runtime.entrySnapshotHash !== entry.entrySnapshotHash ||
+      runtime.entryChecksum !== entry.checksum
+    ) {
+      throw new TournamentRuntimeValidationError(
+        "Tournament runtime belongs to a different entry.",
+        "RUNTIME_ENTRY_MISMATCH",
+      );
+    }
+    if (runtime.teams.length !== entry.tournament.totalTeams) {
+      throw new TournamentRuntimeValidationError(
+        "Tournament team-slot count does not match entry data.",
+        "RUNTIME_TEAM_COUNT_MISMATCH",
+      );
+    }
+  }
+  return true;
+}
+
+function refreshRuntimeChecksum(runtime) {
+  runtime.runtimeChecksum = null;
+  runtime.runtimeChecksum = calculateTournamentRuntimeChecksum(runtime);
+  return runtime;
+}
+
+export function canTransitionTournamentPhase(fromPhase, toPhase) {
+  if (!PHASE_SET.has(fromPhase) || !PHASE_SET.has(toPhase)) {
+    return false;
+  }
+  return PHASE_TRANSITIONS[fromPhase].includes(toPhase);
+}
+
+export function transitionTournamentRuntime(
+  runtime,
+  nextPhase,
+  {
+    clock = () => new Date(),
+    reason = null,
+    patch = {},
+  } = {},
+) {
+  validateTournamentRuntime(runtime);
+  if (!PHASE_SET.has(nextPhase)) {
+    throw new TournamentPhaseTransitionError(
+      `Unknown destination phase: ${nextPhase}`,
+      runtime.phase,
+      nextPhase,
+    );
+  }
+  if (!canTransitionTournamentPhase(runtime.phase, nextPhase)) {
+    throw new TournamentPhaseTransitionError(
+      `Cannot transition from ${runtime.phase} to ${nextPhase}.`,
+      runtime.phase,
+      nextPhase,
+    );
+  }
+  assertPlainObject(patch, "Runtime transition patch");
+
+  const next = deepClone(runtime);
+  const timestamp = nowIso(clock);
+  next.previousPhase = next.phase;
+  next.phase = nextPhase;
+  next.revision += 1;
+  next.updatedAt = timestamp;
+  Object.assign(next, deepClone(patch));
+  appendPhaseHistory(next, nextPhase, timestamp, reason);
+  refreshRuntimeChecksum(next);
+  validateTournamentRuntime(next);
+  return deepFreeze(next);
+}
+
+export function resolveSafeResumePhase(phase, previousPhase = null) {
+  if (SAFE_RESUME_SET.has(phase)) {
+    return phase;
+  }
+  if (phase === "BATTLE") {
+    return "BATTLE_COUNTDOWN";
+  }
+  if (phase === "SUSPENDED" && SAFE_RESUME_SET.has(previousPhase)) {
+    return previousPhase;
+  }
+  if (phase === "ERROR") {
+    return "LOADING";
+  }
+  if (phase === "COMPLETE") {
+    return "TOURNAMENT_RESULT";
+  }
+  return "LOADING";
+}
+
+function serializeTransferPayload(payload) {
+  return JSON.stringify({
+    bridgeVersion: TOURNAMENT_BRIDGE_VERSION,
+    schemaVersion: payload.schemaVersion,
+    checksum: calculateChecksum(payload),
+    payload,
+  });
+}
+
+function deserializeTransferPayload(serialized, expectedSchema, label) {
+  if (typeof serialized !== "string" || !serialized) {
+    throw new TournamentResumeValidationError(`${label} is empty.`, {
+      code: "EMPTY_RESUME_DATA",
+    });
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(serialized);
+  } catch (error) {
+    throw new TournamentResumeValidationError(
+      `${label} is not valid JSON.`,
+      { code: "INVALID_RESUME_JSON", cause: error },
+    );
+  }
+  if (!parsed?.payload || !parsed?.checksum) {
+    throw new TournamentResumeValidationError(
+      `${label} envelope is invalid.`,
+      { code: "INVALID_RESUME_ENVELOPE" },
+    );
+  }
+  const actual = calculateChecksum(parsed.payload);
+  if (actual !== parsed.checksum) {
+    throw new TournamentResumeValidationError(
+      `${label} checksum does not match.`,
+      { code: "RESUME_ENVELOPE_CHECKSUM_MISMATCH" },
+    );
+  }
+  if (parsed.payload.schemaVersion !== expectedSchema) {
+    throw new TournamentResumeValidationError(
+      `${label} schema is not supported: ${parsed.payload.schemaVersion}`,
+      { code: "UNSUPPORTED_RESUME_SCHEMA" },
+    );
+  }
+  return parsed.payload;
+}
+
+export function createTournamentResumeData(
+  runtime,
+  {
+    clock = () => new Date(),
+    reason = "manual_checkpoint",
+  } = {},
+) {
+  validateTournamentRuntime(runtime);
+  const safePhase = resolveSafeResumePhase(
+    runtime.phase,
+    runtime.previousPhase,
+  );
+  const resumeRuntime = deepClone(runtime);
+  resumeRuntime.resumeTargetPhase = safePhase;
+  refreshRuntimeChecksum(resumeRuntime);
+
+  return deepFreeze({
+    schemaVersion: TOURNAMENT_RESUME_SCHEMA_VERSION,
+    runtimeVersion: TOURNAMENT_RUNTIME_VERSION,
+    entryId: runtime.entryId,
+    entrySnapshotHash: runtime.entrySnapshotHash,
+    entryChecksum: runtime.entryChecksum,
+    tournamentId: runtime.tournamentId,
+    sessionId: runtime.sessionId,
+    phase: runtime.phase,
+    safePhase,
+    previousPhase: runtime.previousPhase,
+    match: runtime.match,
+    round: runtime.round,
+    activeTeamIds: deepClone(runtime.activeTeamIds),
+    teamRuntime: deepClone(runtime.teamRuntime),
+    memberRuntime: deepClone(runtime.memberRuntime),
+    totals: deepClone(runtime.totals),
+    inventory: deepClone(runtime.inventory),
+    strategyRuntime: deepClone(runtime.strategyRuntime),
+    explorationRuntime: deepClone(runtime.explorationRuntime),
+    facilityRuntime: deepClone(runtime.facilityRuntime),
+    randomState: deepClone(runtime.randomState),
+    pendingVisualId: runtime.pendingVisualId,
+    resultSignature: runtime.resultSignature,
+    reason,
+    savedAt: nowIso(clock),
+    runtime: resumeRuntime,
+    runtimeChecksum: resumeRuntime.runtimeChecksum,
+  });
+}
+
+export function validateTournamentResumeDataForEntry(resume, entry) {
+  assertPlainObject(resume, "Tournament resume data");
+  validateTournamentEntryData(entry);
+  if (resume.schemaVersion !== TOURNAMENT_RESUME_SCHEMA_VERSION) {
+    throw new TournamentResumeValidationError(
+      `Unsupported resume schema: ${resume.schemaVersion}`,
+      { code: "UNSUPPORTED_RESUME_SCHEMA" },
+    );
+  }
+  if (resume.runtimeVersion !== TOURNAMENT_RUNTIME_VERSION) {
+    throw new TournamentResumeValidationError(
+      `Unsupported runtime version: ${resume.runtimeVersion}`,
+      { code: "UNSUPPORTED_RESUME_RUNTIME" },
+    );
+  }
+  for (const field of [
+    "entryId",
+    "entrySnapshotHash",
+    "entryChecksum",
+    "phase",
+    "safePhase",
+    "savedAt",
+  ]) {
+    assertNonEmptyString(resume[field], `Resume ${field}`, 300);
+  }
+  if (
+    resume.entryId !== entry.entryId ||
+    resume.entrySnapshotHash !== entry.entrySnapshotHash ||
+    resume.entryChecksum !== entry.checksum
+  ) {
+    throw new TournamentResumeValidationError(
+      "Resume data belongs to a different tournament entry.",
+      { code: "RESUME_ENTRY_MISMATCH" },
+    );
+  }
+  if (!PHASE_SET.has(resume.phase) || !SAFE_RESUME_SET.has(resume.safePhase)) {
+    throw new TournamentResumeValidationError(
+      "Resume phase is invalid.",
+      { code: "INVALID_RESUME_PHASE" },
+    );
+  }
+  validateTournamentRuntime(resume.runtime, entry);
+  if (resume.runtimeChecksum !== resume.runtime.runtimeChecksum) {
+    throw new TournamentResumeValidationError(
+      "Resume runtime checksum does not match.",
+      { code: "RESUME_RUNTIME_CHECKSUM_MISMATCH" },
+    );
+  }
+  return true;
+}
+
+export function saveTournamentResumeData(
+  storage,
+  runtime,
+  options = {},
+) {
+  const validStorage = normalizeStorage(storage);
+  const resume = createTournamentResumeData(runtime, options);
+  validStorage.setItem(
+    STORAGE_KEYS.tournamentResume,
+    serializeTransferPayload(resume),
+  );
+  return resume;
+}
+
+export function readTournamentResumeDataForEntry(storage, entry) {
+  const validStorage = normalizeStorage(storage);
+  const serialized = validStorage.getItem(STORAGE_KEYS.tournamentResume);
+  if (serialized === null) {
+    return null;
+  }
+  const resume = deserializeTransferPayload(
+    serialized,
+    TOURNAMENT_RESUME_SCHEMA_VERSION,
+    "Tournament resume data",
+  );
+  validateTournamentResumeDataForEntry(resume, entry);
+  return deepFreeze(resume);
+}
+
+export function clearTournamentResumeData(storage) {
+  const validStorage = normalizeStorage(storage);
+  validStorage.removeItem(STORAGE_KEYS.tournamentResume);
+  return true;
+}
+
+export class TournamentRuntimeError extends Error {
+  constructor(message, { code = "TOURNAMENT_RUNTIME_ERROR", cause } = {}) {
+    super(message, { cause });
+    this.name = "TournamentRuntimeError";
+    this.code = code;
+  }
+}
+
+export class TournamentRuntimeValidationError extends TournamentRuntimeError {
+  constructor(message, code = "INVALID_TOURNAMENT_RUNTIME") {
+    super(message, { code });
+    this.name = "TournamentRuntimeValidationError";
+  }
+}
+
+export class TournamentResumeValidationError extends TournamentRuntimeError {
+  constructor(message, { code = "INVALID_TOURNAMENT_RESUME", cause } = {}) {
+    super(message, { code, cause });
+    this.name = "TournamentResumeValidationError";
+  }
+}
+
+export class TournamentPhaseTransitionError extends TournamentRuntimeError {
+  constructor(message, fromPhase, toPhase) {
+    super(message, { code: "INVALID_PHASE_TRANSITION" });
+    this.name = "TournamentPhaseTransitionError";
+    this.fromPhase = fromPhase;
+    this.toPhase = toPhase;
+  }
+}
+
+export function createTournamentRuntimeManager({
+  storage = globalThis.localStorage,
+  clock = () => new Date(),
+  idFactory = createGeneratedId,
+} = {}) {
+  const validStorage = normalizeStorage(storage);
+  const listeners = new Set();
+  let entry = null;
+  let runtime = null;
+  let operationLocked = false;
+
+  function emit(type, detail = {}) {
+    const snapshot = runtime ? deepFreeze(deepClone(runtime)) : null;
+    for (const listener of listeners) {
+      listener(snapshot, { type, ...detail });
+    }
+  }
+
+  function replaceRuntime(nextRuntime, type, detail = {}) {
+    validateTournamentRuntime(nextRuntime, entry);
+    runtime = deepClone(nextRuntime);
+    emit(type, detail);
+    return getSnapshot();
+  }
+
+  function requireRuntime() {
+    if (!runtime) {
+      throw new TournamentRuntimeError("Tournament runtime is not loaded.", {
+        code: "RUNTIME_NOT_LOADED",
+      });
+    }
+    return runtime;
+  }
+
+  function withOperationLock(operation) {
+    if (operationLocked) {
+      throw new TournamentRuntimeError(
+        "Another tournament operation is already running.",
+        { code: "TOURNAMENT_OPERATION_LOCKED" },
+      );
+    }
+    operationLocked = true;
+    try {
+      return operation();
+    } finally {
+      operationLocked = false;
+    }
+  }
+
+  function boot({ preferResume = true } = {}) {
+    return withOperationLock(() => {
+      entry = readTournamentEntryFromStorage(validStorage);
+      if (!entry) {
+        throw new TournamentRuntimeError(
+          "大会参加データが見つかりません。メイン画面から大会へ参加してください。",
+          { code: "MISSING_TOURNAMENT_ENTRY" },
+        );
+      }
+      validateTournamentEntryData(entry);
+
+      if (preferResume) {
+        const resume = readTournamentResumeDataForEntry(validStorage, entry);
+        if (resume) {
+          const restored = deepClone(resume.runtime);
+          restored.previousPhase = restored.phase;
+          restored.phase = resume.safePhase;
+          restored.resumeTargetPhase = resume.safePhase;
+          restored.suspendReason = null;
+          restored.error = null;
+          restored.revision += 1;
+          restored.updatedAt = nowIso(clock);
+          appendPhaseHistory(
+            restored,
+            restored.phase,
+            restored.updatedAt,
+            "resume_loaded",
+          );
+          refreshRuntimeChecksum(restored);
+          runtime = restored;
+          emit("resumed", { resume });
+          return getSnapshot();
+        }
+      }
+
+      runtime = deepClone(
+        createTournamentRuntime(entry, { clock, idFactory }),
+      );
+      emit("booted", { entry: deepFreeze(deepClone(entry)) });
+      return getSnapshot();
+    });
+  }
+
+  function getSnapshot() {
+    return runtime ? deepFreeze(deepClone(runtime)) : null;
+  }
+
+  function getEntry() {
+    return entry ? deepFreeze(deepClone(entry)) : null;
+  }
+
+  function transition(nextPhase, options = {}) {
+    return withOperationLock(() => {
+      const next = transitionTournamentRuntime(
+        requireRuntime(),
+        nextPhase,
+        { ...options, clock },
+      );
+      return replaceRuntime(next, "phase_changed", {
+        fromPhase: next.previousPhase,
+        toPhase: next.phase,
+      });
+    });
+  }
+
+  function update(label, mutator) {
+    return withOperationLock(() => {
+      assertNonEmptyString(label, "Runtime update label", 120);
+      if (typeof mutator !== "function") {
+        throw new TypeError("Runtime mutator must be a function.");
+      }
+      const draft = deepClone(requireRuntime());
+      const result = mutator(draft);
+      if (result?.then && typeof result.then === "function") {
+        throw new TypeError("Asynchronous runtime updates are not supported.");
+      }
+      draft.revision += 1;
+      draft.updatedAt = nowIso(clock);
+      refreshRuntimeChecksum(draft);
+      replaceRuntime(draft, "runtime_updated", { label });
+      return deepFreeze({
+        state: getSnapshot(),
+        result: deepClone(result),
+      });
+    });
+  }
+
+  function setOpeningScene(sceneIndex) {
+    return update("opening_scene_changed", (draft) => {
+      if (
+        !Number.isInteger(sceneIndex) ||
+        sceneIndex < 0 ||
+        sceneIndex >= draft.opening.scenes.length
+      ) {
+        throw new RangeError("Opening scene index is invalid.");
+      }
+      draft.opening.sceneIndex = sceneIndex;
+      draft.opening.sceneId = draft.opening.scenes[sceneIndex].sceneId;
+      draft.pendingVisualId = draft.opening.sceneId;
+      return deepClone(draft.opening.scenes[sceneIndex]);
+    });
+  }
+
+  function completeOpening({ skipped = false } = {}) {
+    return withOperationLock(() => {
+      const draft = deepClone(requireRuntime());
+      if (draft.phase !== "OPENING") {
+        throw new TournamentPhaseTransitionError(
+          "Opening can only be completed from OPENING phase.",
+          draft.phase,
+          "TEAM_INTRO",
+        );
+      }
+      draft.opening.completed = true;
+      draft.opening.skipped = skipped === true;
+      draft.opening.sceneIndex = draft.opening.scenes.length - 1;
+      draft.opening.sceneId = draft.opening.scenes.at(-1).sceneId;
+      draft.pendingVisualId = "team-intro";
+      refreshRuntimeChecksum(draft);
+      const next = transitionTournamentRuntime(draft, "TEAM_INTRO", {
+        clock,
+        reason: skipped ? "opening_skipped" : "opening_completed",
+      });
+      return replaceRuntime(next, "opening_completed", { skipped });
+    });
+  }
+
+  function checkpoint(reason = "auto_checkpoint") {
+    const current = requireRuntime();
+    const resume = saveTournamentResumeData(validStorage, current, {
+      clock,
+      reason,
+    });
+    emit("checkpoint_saved", { reason, resume });
+    return resume;
+  }
+
+  function suspend(reason = "manual_suspend") {
+    return withOperationLock(() => {
+      const current = requireRuntime();
+      const safePhase = resolveSafeResumePhase(
+        current.phase,
+        current.previousPhase,
+      );
+      let next;
+      if (current.phase === "SUSPENDED") {
+        next = deepClone(current);
+      } else if (canTransitionTournamentPhase(current.phase, "SUSPENDED")) {
+        next = deepClone(
+          transitionTournamentRuntime(current, "SUSPENDED", {
+            clock,
+            reason,
+            patch: {
+              resumeTargetPhase: safePhase,
+              suspendReason: reason,
+            },
+          }),
+        );
+      } else {
+        throw new TournamentPhaseTransitionError(
+          `Cannot suspend from ${current.phase}.`,
+          current.phase,
+          "SUSPENDED",
+        );
+      }
+      refreshRuntimeChecksum(next);
+      runtime = next;
+      const resume = saveTournamentResumeData(validStorage, runtime, {
+        clock,
+        reason,
+      });
+      emit("suspended", { reason, resume });
+      return getSnapshot();
+    });
+  }
+
+  function resume() {
+    return withOperationLock(() => {
+      const current = requireRuntime();
+      if (current.phase !== "SUSPENDED") {
+        throw new TournamentPhaseTransitionError(
+          "Runtime is not suspended.",
+          current.phase,
+          current.resumeTargetPhase,
+        );
+      }
+      const nextPhase = resolveSafeResumePhase(
+        current.resumeTargetPhase,
+        current.previousPhase,
+      );
+      const next = transitionTournamentRuntime(current, nextPhase, {
+        clock,
+        reason: "manual_resume",
+        patch: { suspendReason: null },
+      });
+      clearTournamentResumeData(validStorage);
+      return replaceRuntime(next, "resumed", { nextPhase });
+    });
+  }
+
+  function resetFromEntry() {
+    return withOperationLock(() => {
+      if (!entry) {
+        entry = readTournamentEntryFromStorage(validStorage);
+      }
+      if (!entry) {
+        throw new TournamentRuntimeError("Tournament entry is missing.", {
+          code: "MISSING_TOURNAMENT_ENTRY",
+        });
+      }
+      clearTournamentResumeData(validStorage);
+      runtime = deepClone(
+        createTournamentRuntime(entry, { clock, idFactory }),
+      );
+      emit("reset");
+      return getSnapshot();
+    });
+  }
+
+  function markError(error) {
+    const current = requireRuntime();
+    const normalizedError = {
+      code: error?.code ?? error?.name ?? "TOURNAMENT_RUNTIME_ERROR",
+      message: error?.message ?? String(error),
+      at: nowIso(clock),
+    };
+    const draft = deepClone(current);
+    const sourcePhase = draft.phase;
+    draft.previousPhase = sourcePhase;
+    draft.phase = "ERROR";
+    draft.error = normalizedError;
+    draft.updatedAt = normalizedError.at;
+    draft.revision += 1;
+    appendPhaseHistory(
+      draft,
+      "ERROR",
+      normalizedError.at,
+      normalizedError.code,
+    );
+    refreshRuntimeChecksum(draft);
+    return replaceRuntime(draft, "error", { error: normalizedError });
+  }
+
+  function subscribe(listener) {
+    if (typeof listener !== "function") {
+      throw new TypeError("Runtime listener must be a function.");
+    }
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  }
+
+  return Object.freeze({
+    boot,
+    getSnapshot,
+    getEntry,
+    transition,
+    update,
+    setOpeningScene,
+    completeOpening,
+    checkpoint,
+    suspend,
+    resume,
+    resetFromEntry,
+    markError,
+    subscribe,
+    clearResume: () => clearTournamentResumeData(validStorage),
+  });
+}
