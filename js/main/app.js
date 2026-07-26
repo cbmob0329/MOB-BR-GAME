@@ -1,0 +1,1759 @@
+/**
+ * MOB BR main-screen application shell.
+ *
+ * Generation 5 scope:
+ * - TITLE / NEW GAME / CONTINUE / SETTINGS
+ * - HOME / TEAM hub / bottom navigation
+ * - common modal, toast, and loading overlay
+ * - connection to state.js
+ *
+ * Training, equipment, shop, collection, room, coach, scout, records, news,
+ * ability, and tournament execution remain placeholders for later generations.
+ */
+
+import {
+  SaveError,
+  SaveNotFoundError,
+  createGameStateManager,
+} from "./state.js";
+import {
+  changeWeaponSkinToDraft,
+  getSelectedPlayerId,
+  learnSpecialAbilityToDraft,
+  renameWeaponToDraft,
+  renderAbilityUpSection,
+  renderEquipmentSection,
+  renderSpecialAbilitySection,
+  renderTeamDetailsSection,
+  upgradePlayerStatToDraft,
+  upgradeWeaponStatToDraft,
+} from "./team.js";
+import {
+  createManagementController,
+  renderManagementSection,
+} from "./management.js";
+
+export const APP_VERSION = "mobbr-main-app-0.3.0";
+
+export const ROUTES = Object.freeze({
+  title: "title",
+  home: "home",
+  team: "team",
+  train: "train",
+  collection: "collection",
+  shop: "shop",
+  settings: "settings",
+  room: "room",
+  coach: "coach",
+  scout: "scout",
+  schedule: "schedule",
+  equipment: "equipment",
+  record: "record",
+  news: "news",
+  items: "items",
+  ability: "ability",
+  specialAbility: "specialAbility",
+});
+
+const MANAGEMENT_ROUTES = Object.freeze([
+  ROUTES.train,
+  ROUTES.collection,
+  ROUTES.shop,
+  ROUTES.room,
+  ROUTES.coach,
+  ROUTES.scout,
+  ROUTES.record,
+  ROUTES.news,
+  ROUTES.items,
+]);
+
+const ROUTE_META = Object.freeze({
+  [ROUTES.home]: {
+    title: "HOME",
+    description: "企業とチームの現在状況",
+    backgroundClass: "screen--home",
+    icon: "menu/home.png",
+  },
+  [ROUTES.team]: {
+    title: "TEAM",
+    description: "チーム管理ハブ",
+    backgroundClass: "screen--sub",
+    icon: "menu/team.png",
+  },
+  [ROUTES.train]: {
+    title: "TRAINING",
+    description: "3選手の1週間トレーニング",
+    backgroundClass: "screen--coh",
+    icon: "menu/traning.png",
+  },
+  [ROUTES.collection]: {
+    title: "COLLECTION",
+    description: "カード・バッジ・その他コレクション",
+    backgroundClass: "screen--sub",
+    icon: "menu/COL.png",
+  },
+  [ROUTES.shop]: {
+    title: "SHOP",
+    description: "アイテム・カードパック・武器スキン",
+    backgroundClass: "screen--sub",
+    icon: "menu/mobshopt.png",
+  },
+  [ROUTES.settings]: {
+    title: "SETTING",
+    description: "音量・演出・表示設定",
+    backgroundClass: "screen--coh",
+    icon: "menu/setting.png",
+  },
+  [ROUTES.room]: {
+    title: "ROOM",
+    description: "コレクションを飾る企業ルーム",
+    backgroundClass: "screen--sub",
+    icon: "menu/room.png",
+  },
+  [ROUTES.coach]: {
+    title: "COACH",
+    description: "コーチ管理と作戦会議",
+    backgroundClass: "screen--coh",
+    icon: "menu/coach.png",
+  },
+  [ROUTES.scout]: {
+    title: "SCOUT",
+    description: "コーチ専用スカウト",
+    backgroundClass: "screen--coh",
+    icon: "menu/scout.png",
+  },
+  [ROUTES.schedule]: {
+    title: "SCHEDULE",
+    description: "年間大会スケジュール",
+    backgroundClass: "screen--sub",
+    icon: "menu/sc.png",
+  },
+  [ROUTES.equipment]: {
+    title: "EQUIPMENT",
+    description: "武器・スキン・持ち込みバッグ",
+    backgroundClass: "screen--sub",
+    icon: "menu/eq.png",
+  },
+  [ROUTES.record]: {
+    title: "RECORD",
+    description: "大会・個人・企業の通算記録",
+    backgroundClass: "screen--sub",
+    icon: "menu/record.png",
+  },
+  [ROUTES.news]: {
+    title: "NEWS",
+    description: "大会結果と企業ニュース",
+    backgroundClass: "screen--sub",
+    icon: "icon/news.png",
+  },
+  [ROUTES.items]: {
+    title: "ITEMS",
+    description: "所持アイテムとバッグ編成",
+    backgroundClass: "screen--sub",
+    icon: "menu/item.png",
+  },
+  [ROUTES.ability]: {
+    title: "ABILITY UP",
+    description: "7能力の強化",
+    backgroundClass: "screen--sub",
+    icon: "icon/ab.png",
+  },
+  [ROUTES.specialAbility]: {
+    title: "SPECIAL ABILITY",
+    description: "青・金・赤の特殊能力",
+    backgroundClass: "screen--sub",
+    icon: "icon/sp.png",
+  },
+});
+
+const HOME_MENU = Object.freeze([
+  {
+    route: ROUTES.team,
+    name: "TEAM",
+    note: "選手・装備・記録",
+    icon: "menu/team.png",
+  },
+  {
+    route: ROUTES.room,
+    name: "ROOM",
+    note: "コレクション配置",
+    icon: "menu/room.png",
+  },
+  {
+    route: ROUTES.shop,
+    name: "SHOP",
+    note: "商品とパック",
+    icon: "menu/mobshopt.png",
+  },
+  {
+    route: ROUTES.collection,
+    name: "COLLECTION",
+    note: "カード・バッジ",
+    icon: "menu/COL.png",
+  },
+  {
+    route: ROUTES.coach,
+    name: "COACH",
+    note: "コーチ・作戦会議",
+    icon: "menu/coach.png",
+  },
+  {
+    route: ROUTES.scout,
+    name: "SCOUT",
+    note: "コーチ専用",
+    icon: "menu/scout.png",
+  },
+  {
+    route: ROUTES.settings,
+    name: "SETTING",
+    note: "音量・表示",
+    icon: "menu/setting.png",
+  },
+]);
+
+const TEAM_MENU = Object.freeze([
+  {
+    route: ROUTES.schedule,
+    name: "Schedule",
+    note: "大会予定",
+    icon: "menu/sc.png",
+  },
+  {
+    route: ROUTES.train,
+    name: "Training",
+    note: "週間育成",
+    icon: "menu/traning.png",
+  },
+  {
+    route: ROUTES.equipment,
+    name: "Equipment",
+    note: "武器とバッグ",
+    icon: "menu/eq.png",
+  },
+  {
+    route: ROUTES.record,
+    name: "Record",
+    note: "通算記録",
+    icon: "menu/record.png",
+  },
+  {
+    route: ROUTES.news,
+    name: "News",
+    note: "大会ニュース",
+    icon: "icon/news.png",
+  },
+  {
+    route: ROUTES.items,
+    name: "Items",
+    note: "所持アイテム",
+    icon: "menu/item.png",
+  },
+  {
+    route: ROUTES.ability,
+    name: "Ability Up",
+    note: "7能力強化",
+    icon: "icon/ab.png",
+  },
+  {
+    route: ROUTES.specialAbility,
+    name: "Special Ability",
+    note: "特殊能力",
+    icon: "icon/sp.png",
+  },
+]);
+
+const BOTTOM_NAV = Object.freeze([
+  { route: ROUTES.home, name: "HOME", icon: "menu/home.png" },
+  { route: ROUTES.train, name: "TRAIN", icon: "menu/traning.png" },
+  { route: ROUTES.collection, name: "COL", icon: "menu/colbr.png" },
+  { route: ROUTES.shop, name: "SHOP", icon: "menu/shop.png" },
+  { route: ROUTES.settings, name: "SET", icon: "menu/setting.png" },
+]);
+
+const NEW_GAME_STEPS = Object.freeze([
+  {
+    key: "companyBaseName",
+    title: "企業名を決める",
+    description:
+      "入力した名前の前に「MOB BR」が付き、正式企業名になります。",
+    label: "企業名のベース名",
+    placeholder: "例：STORY",
+    maximumLength: 50,
+  },
+  {
+    key: "IGL",
+    group: "playerNames",
+    title: "IGL名を決める",
+    description: "チームを指揮するIGL選手の名前を入力してください。",
+    label: "IGL選手名",
+    placeholder: "IGL選手名",
+    maximumLength: 50,
+  },
+  {
+    key: "ATK",
+    group: "playerNames",
+    title: "ATK名を決める",
+    description: "攻撃を担うATK選手の名前を入力してください。",
+    label: "ATK選手名",
+    placeholder: "ATK選手名",
+    maximumLength: 50,
+  },
+  {
+    key: "SUP",
+    group: "playerNames",
+    title: "SUP名を決める",
+    description: "回復と復活を担うSUP選手の名前を入力してください。",
+    label: "SUP選手名",
+    placeholder: "SUP選手名",
+    maximumLength: 50,
+  },
+  {
+    key: "IGL",
+    group: "weaponNames",
+    title: "IGL武器名を決める",
+    description: "初期スキンはエメラルドガンです。",
+    label: "IGL武器名",
+    placeholder: "エメラルドガン",
+    maximumLength: 60,
+  },
+  {
+    key: "ATK",
+    group: "weaponNames",
+    title: "ATK武器名を決める",
+    description: "初期スキンはグリーンバッシュです。",
+    label: "ATK武器名",
+    placeholder: "グリーンバッシュ",
+    maximumLength: 60,
+  },
+  {
+    key: "SUP",
+    group: "weaponNames",
+    title: "SUP武器名を決める",
+    description: "初期スキンはパープルバレットです。",
+    label: "SUP武器名",
+    placeholder: "パープルバレット",
+    maximumLength: 60,
+  },
+  {
+    key: "complete",
+    title: "セットアップ完了",
+    description:
+      "キャラクターを育ててチャンピオンシップを目指しましょう！",
+  },
+]);
+
+function formatNumber(value) {
+  return new Intl.NumberFormat("ja-JP").format(value);
+}
+
+export function formatGameDate(gameDate) {
+  return `${gameDate.year}年 ${gameDate.month}月 第${gameDate.week}週`;
+}
+
+export function getRouteBackgroundClass(route) {
+  return ROUTE_META[route]?.backgroundClass ?? "screen--sub";
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value).replaceAll("`", "&#096;");
+}
+
+function getErrorCode(error) {
+  return error?.code ?? error?.name ?? "UNKNOWN_ERROR";
+}
+
+function createInitialWizardData() {
+  return {
+    companyBaseName: "",
+    playerNames: {
+      IGL: "",
+      ATK: "",
+      SUP: "",
+    },
+    weaponNames: {
+      IGL: "エメラルドガン",
+      ATK: "グリーンバッシュ",
+      SUP: "パープルバレット",
+    },
+  };
+}
+
+function menuCardTemplate(item, wide = false) {
+  return `
+    <button
+      type="button"
+      class="menu-card${wide ? " menu-card--wide" : ""}"
+      data-action="navigate"
+      data-route="${escapeAttribute(item.route)}"
+    >
+      <img
+        class="menu-card__icon"
+        src="${escapeAttribute(item.icon)}"
+        alt=""
+        aria-hidden="true"
+      >
+      <span class="menu-card__name">${escapeHtml(item.name)}</span>
+      <span class="menu-card__note">${escapeHtml(item.note)}</span>
+    </button>
+  `;
+}
+
+function playerRowTemplate(player) {
+  return `
+    <article class="player-row">
+      <img
+        class="player-row__image"
+        src="${escapeAttribute(player.image)}"
+        alt="${escapeAttribute(player.name)}"
+      >
+      <div class="player-row__main">
+        <div class="player-row__name">${escapeHtml(player.name)}</div>
+        <div class="player-row__weapon">
+          ${escapeHtml(player.weapon.weaponName)} / ${escapeHtml(player.characterRank)}
+        </div>
+      </div>
+      <span class="role-badge">${escapeHtml(player.role)}</span>
+    </article>
+  `;
+}
+
+function topStatusTemplate(snapshot) {
+  return `
+    <header class="top-status">
+      <div class="top-status__panel">
+        <div class="top-status__line">
+          <div class="top-status__company">
+            ${escapeHtml(snapshot.company.companyName)}
+          </div>
+          <div class="top-status__date">
+            ${escapeHtml(formatGameDate(snapshot.gameDate))}
+          </div>
+        </div>
+        <div class="resource-list" aria-label="所持通貨">
+          <div class="resource-chip">
+            <img src="icon/coin.png" alt="">
+            <span class="resource-chip__value">
+              ${formatNumber(snapshot.resources.coin)}
+            </span>
+          </div>
+          <div class="resource-chip">
+            <img src="icon/daia.png" alt="">
+            <span class="resource-chip__value">
+              ${formatNumber(snapshot.resources.diamond)}
+            </span>
+          </div>
+          <div class="resource-chip">
+            <img src="icon/rubi.png" alt="">
+            <span class="resource-chip__value">
+              ${formatNumber(snapshot.resources.ruby)}
+            </span>
+          </div>
+        </div>
+      </div>
+    </header>
+  `;
+}
+
+function bottomNavTemplate(currentRoute) {
+  return `
+    <nav class="bottom-nav" aria-label="メインナビゲーション">
+      <div class="bottom-nav__inner">
+        ${BOTTOM_NAV.map(
+          (item) => `
+            <button
+              type="button"
+              class="nav-button"
+              data-action="navigate"
+              data-route="${escapeAttribute(item.route)}"
+              ${
+                currentRoute === item.route
+                  ? 'aria-current="page"'
+                  : ""
+              }
+            >
+              <img src="${escapeAttribute(item.icon)}" alt="">
+              <span>${escapeHtml(item.name)}</span>
+            </button>
+          `,
+        ).join("")}
+      </div>
+    </nav>
+  `;
+}
+
+function titleTemplate(hasSave, saveSummary = null) {
+  const saveStatus = hasSave && saveSummary
+    ? `${saveSummary.company.companyName} / ${formatGameDate(saveSummary.gameDate)}`
+    : "セーブデータはありません";
+
+  return `
+    <main class="screen screen--title title-screen">
+      <section class="title-card" aria-labelledby="gameTitle">
+        <p class="title-card__eyebrow">MOB BR PROJECT</p>
+        <h1 id="gameTitle" class="title-card__title">MOB BR</h1>
+        <p class="title-card__subtitle">ALL PLAYERS ARE THE STORY</p>
+
+        <div class="title-actions">
+          <button
+            type="button"
+            class="primary-button"
+            data-action="new-game"
+          >
+            NEW GAME
+          </button>
+          <button
+            type="button"
+            class="secondary-button"
+            data-action="continue"
+            ${hasSave ? "" : "disabled"}
+          >
+            CONTINUE
+          </button>
+          <button
+            type="button"
+            class="secondary-button"
+            data-action="open-settings"
+          >
+            SETTINGS
+          </button>
+        </div>
+
+        <p class="title-card__save-status">${escapeHtml(saveStatus)}</p>
+      </section>
+    </main>
+  `;
+}
+
+function homeTemplate(snapshot, currentRoute) {
+  return `
+    <main class="screen screen--home app-layout">
+      ${topStatusTemplate(snapshot)}
+      <div class="page-content">
+        <section class="hero-panel">
+          <p class="hero-panel__label">COMPANY STATUS</p>
+          <h1 class="hero-panel__title">
+            ${escapeHtml(snapshot.company.companyName)}
+          </h1>
+          <div class="hero-panel__meta">
+            <span class="meta-chip">
+              企業RANK ${escapeHtml(snapshot.company.rank)}
+            </span>
+            <span class="meta-chip">
+              EXP ${formatNumber(snapshot.company.exp)}
+            </span>
+            <span class="meta-chip">
+              ROOM ${escapeHtml(snapshot.company.activeRoomId)}
+            </span>
+          </div>
+        </section>
+
+        <div class="section-heading">
+          <h2>MAIN MENU</h2>
+          <p>企業運営</p>
+        </div>
+        <section class="menu-grid">
+          ${HOME_MENU.map((item, index) =>
+            menuCardTemplate(item, index === HOME_MENU.length - 1),
+          ).join("")}
+        </section>
+
+        <div class="section-heading">
+          <h2>TEAM MEMBERS</h2>
+          <p>IGL / ATK / SUP</p>
+        </div>
+        ${renderTeamDetailsSection(snapshot)}
+      </div>
+      ${bottomNavTemplate(currentRoute)}
+    </main>
+  `;
+}
+
+function teamTemplate(snapshot, currentRoute) {
+  return `
+    <main class="screen screen--sub app-layout">
+      ${topStatusTemplate(snapshot)}
+      <div class="page-content">
+        <div class="back-row">
+          <button
+            type="button"
+            class="back-button"
+            data-action="navigate"
+            data-route="${ROUTES.home}"
+          >
+            ← HOME
+          </button>
+        </div>
+
+        <section class="hero-panel">
+          <p class="hero-panel__label">TEAM MANAGEMENT</p>
+          <h1 class="hero-panel__title">
+            ${escapeHtml(snapshot.playerTeam.teamName)}
+          </h1>
+          <div class="hero-panel__meta">
+            <span class="meta-chip">3 MEMBERS</span>
+            <span class="meta-chip">
+              企業RANK ${escapeHtml(snapshot.company.rank)}
+            </span>
+          </div>
+        </section>
+
+        <section class="content-panel team-summary">
+          ${snapshot.playerTeam.members.map(playerRowTemplate).join("")}
+        </section>
+
+        <div class="section-heading">
+          <h2>TEAM MENU</h2>
+          <p>管理項目</p>
+        </div>
+        <section class="menu-grid">
+          ${TEAM_MENU.map((item) => menuCardTemplate(item)).join("")}
+        </section>
+      </div>
+      ${bottomNavTemplate(currentRoute)}
+    </main>
+  `;
+}
+
+function settingsTemplate(snapshot, currentRoute, fromTitle = false) {
+  const settings = snapshot?.settings ?? {
+    soundEnabled: true,
+    reducedMotion: false,
+    autoAdvanceOpening: false,
+    commentarySpeed: 1,
+  };
+
+  return `
+    <main class="screen screen--coh ${fromTitle ? "" : "app-layout"}">
+      ${fromTitle ? "" : topStatusTemplate(snapshot)}
+      <div class="page-content">
+        <div class="back-row">
+          <button
+            type="button"
+            class="back-button"
+            data-action="${fromTitle ? "return-title" : "navigate"}"
+            ${fromTitle ? "" : `data-route="${ROUTES.home}"`}
+          >
+            ← ${fromTitle ? "TITLE" : "HOME"}
+          </button>
+        </div>
+
+        <section class="hero-panel">
+          <p class="hero-panel__label">SYSTEM SETTINGS</p>
+          <h1 class="hero-panel__title">SETTING</h1>
+          <p class="placeholder-panel__text">
+            設定はセーブデータがある場合だけ保存されます。
+          </p>
+        </section>
+
+        <form class="content-panel settings-list" data-form="settings">
+          <div class="setting-row">
+            <div>
+              <div class="setting-row__label">サウンド</div>
+              <div class="setting-row__note">BGMとSEの有効・無効</div>
+            </div>
+            <label class="toggle">
+              <input
+                type="checkbox"
+                name="soundEnabled"
+                ${settings.soundEnabled ? "checked" : ""}
+              >
+              <span aria-hidden="true"></span>
+            </label>
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <div class="setting-row__label">動きを減らす</div>
+              <div class="setting-row__note">大きな演出を簡略化</div>
+            </div>
+            <label class="toggle">
+              <input
+                type="checkbox"
+                name="reducedMotion"
+                ${settings.reducedMotion ? "checked" : ""}
+              >
+              <span aria-hidden="true"></span>
+            </label>
+          </div>
+
+          <div class="setting-row">
+            <div>
+              <div class="setting-row__label">オープニング自動進行</div>
+              <div class="setting-row__note">大会オープニングの進行設定</div>
+            </div>
+            <label class="toggle">
+              <input
+                type="checkbox"
+                name="autoAdvanceOpening"
+                ${settings.autoAdvanceOpening ? "checked" : ""}
+              >
+              <span aria-hidden="true"></span>
+            </label>
+          </div>
+
+          <div class="form-field">
+            <label for="commentarySpeed">実況速度</label>
+            <select id="commentarySpeed" name="commentarySpeed">
+              <option value="0.75" ${settings.commentarySpeed === 0.75 ? "selected" : ""}>
+                ゆっくり
+              </option>
+              <option value="1" ${settings.commentarySpeed === 1 ? "selected" : ""}>
+                標準
+              </option>
+              <option value="1.25" ${settings.commentarySpeed === 1.25 ? "selected" : ""}>
+                速い
+              </option>
+            </select>
+          </div>
+
+          <button type="submit" class="primary-button">
+            設定を保存
+          </button>
+        </form>
+      </div>
+      ${fromTitle ? "" : bottomNavTemplate(currentRoute)}
+    </main>
+  `;
+}
+
+function teamFeatureTemplate(
+  snapshot,
+  route,
+  currentRoute,
+  {
+    selectedPlayerId = null,
+    abilityColor = "blue",
+  } = {},
+) {
+  const meta = ROUTE_META[route];
+  const playerId = getSelectedPlayerId(snapshot, selectedPlayerId);
+  let content = "";
+
+  if (route === ROUTES.ability) {
+    content = renderAbilityUpSection(snapshot, playerId);
+  } else if (route === ROUTES.equipment) {
+    content = renderEquipmentSection(snapshot, playerId);
+  } else if (route === ROUTES.specialAbility) {
+    content = renderSpecialAbilitySection(
+      snapshot,
+      playerId,
+      abilityColor,
+    );
+  }
+
+  return `
+    <main class="screen ${escapeAttribute(meta.backgroundClass)} app-layout">
+      ${topStatusTemplate(snapshot)}
+      <div class="page-content">
+        <div class="back-row">
+          <button
+            type="button"
+            class="back-button"
+            data-action="navigate"
+            data-route="${ROUTES.team}"
+          >
+            ← TEAM
+          </button>
+        </div>
+
+        <section class="hero-panel">
+          <p class="hero-panel__label">PLAYER DEVELOPMENT</p>
+          <h1 class="hero-panel__title">${escapeHtml(meta.title)}</h1>
+          <p class="placeholder-panel__text">
+            ${escapeHtml(meta.description)}
+          </p>
+        </section>
+
+        ${content}
+      </div>
+      ${bottomNavTemplate(currentRoute)}
+    </main>
+  `;
+}
+
+function managementFeatureTemplate(snapshot, route, currentRoute) {
+  const meta = ROUTE_META[route];
+  const teamParent = [ROUTES.record, ROUTES.news, ROUTES.items].includes(route);
+  return `
+    <main class="screen ${escapeAttribute(meta.backgroundClass)} app-layout">
+      ${topStatusTemplate(snapshot)}
+      <div class="page-content">
+        <div class="back-row">
+          <button type="button" class="back-button" data-action="navigate" data-route="${teamParent ? ROUTES.team : ROUTES.home}">
+            ← ${teamParent ? "TEAM" : "HOME"}
+          </button>
+        </div>
+        <section class="hero-panel">
+          <p class="hero-panel__label">COMPANY MANAGEMENT</p>
+          <h1 class="hero-panel__title">${escapeHtml(meta.title)}</h1>
+          <p class="placeholder-panel__text">${escapeHtml(meta.description)}</p>
+        </section>
+        ${renderManagementSection(snapshot, route)}
+      </div>
+      ${bottomNavTemplate(currentRoute)}
+    </main>
+  `;
+}
+
+function placeholderTemplate(snapshot, route, currentRoute) {
+  const meta = ROUTE_META[route] ?? {
+    title: route.toUpperCase(),
+    description: "今後の工程で実装します。",
+    icon: "icon/back.png",
+    backgroundClass: "screen--sub",
+  };
+
+  const parentRoute = [
+    ROUTES.schedule,
+    ROUTES.equipment,
+    ROUTES.record,
+    ROUTES.news,
+    ROUTES.items,
+    ROUTES.ability,
+    ROUTES.specialAbility,
+  ].includes(route)
+    ? ROUTES.team
+    : ROUTES.home;
+
+  return `
+    <main class="screen ${escapeAttribute(meta.backgroundClass)} app-layout">
+      ${topStatusTemplate(snapshot)}
+      <div class="page-content">
+        <div class="back-row">
+          <button
+            type="button"
+            class="back-button"
+            data-action="navigate"
+            data-route="${escapeAttribute(parentRoute)}"
+          >
+            ← ${parentRoute === ROUTES.team ? "TEAM" : "HOME"}
+          </button>
+        </div>
+
+        <section class="content-panel placeholder-panel">
+          <img
+            class="placeholder-panel__icon"
+            src="${escapeAttribute(meta.icon)}"
+            alt=""
+          >
+          <h1 class="placeholder-panel__title">
+            ${escapeHtml(meta.title)}
+          </h1>
+          <p class="placeholder-panel__text">
+            ${escapeHtml(meta.description)}
+          </p>
+          <p class="placeholder-panel__text">
+            この入口は生成5で接続済みです。本機能は制作進行表の対応工程で実装します。
+          </p>
+        </section>
+      </div>
+      ${bottomNavTemplate(currentRoute)}
+    </main>
+  `;
+}
+
+function wizardTemplate(stepIndex, data, errorMessage = "") {
+  const step = NEW_GAME_STEPS[stepIndex];
+  const isComplete = step.key === "complete";
+  const currentValue = step.group
+    ? data[step.group][step.key]
+    : data[step.key] ?? "";
+
+  return `
+    <main class="screen screen--coh wizard-shell">
+      <section class="wizard-card">
+        <div class="wizard-progress" aria-label="セットアップ進行">
+          ${NEW_GAME_STEPS.map(
+            (_, index) =>
+              `<span class="${index <= stepIndex ? "is-active" : ""}"></span>`,
+          ).join("")}
+        </div>
+
+        <p class="wizard-card__step">
+          STEP ${stepIndex + 1} / ${NEW_GAME_STEPS.length}
+        </p>
+        <h1 class="wizard-card__title">${escapeHtml(step.title)}</h1>
+        <p class="wizard-card__description">
+          ${escapeHtml(step.description)}
+        </p>
+
+        ${
+          isComplete
+            ? `
+              <section class="content-panel">
+                <p>
+                  正式企業名：
+                  <strong>MOB BR ${escapeHtml(data.companyBaseName)}</strong>
+                </p>
+                <p>
+                  IGL：${escapeHtml(data.playerNames.IGL)}<br>
+                  ATK：${escapeHtml(data.playerNames.ATK)}<br>
+                  SUP：${escapeHtml(data.playerNames.SUP)}
+                </p>
+              </section>
+            `
+            : `
+              <form data-form="wizard-step">
+                <div class="form-field">
+                  <label for="wizardInput">${escapeHtml(step.label)}</label>
+                  <input
+                    id="wizardInput"
+                    name="wizardInput"
+                    type="text"
+                    maxlength="${step.maximumLength}"
+                    value="${escapeAttribute(currentValue)}"
+                    placeholder="${escapeAttribute(step.placeholder)}"
+                    autocomplete="off"
+                    required
+                  >
+                </div>
+                <p class="form-error">${escapeHtml(errorMessage)}</p>
+              </form>
+            `
+        }
+
+        <div class="wizard-actions">
+          <button
+            type="button"
+            class="secondary-button"
+            data-action="${stepIndex === 0 ? "cancel-new-game" : "wizard-back"}"
+          >
+            ${stepIndex === 0 ? "CANCEL" : "BACK"}
+          </button>
+          <button
+            type="button"
+            class="primary-button"
+            data-action="${isComplete ? "finish-new-game" : "wizard-next"}"
+          >
+            ${isComplete ? "START" : "NEXT"}
+          </button>
+        </div>
+      </section>
+    </main>
+  `;
+}
+
+function normaliseRoute(route) {
+  return Object.values(ROUTES).includes(route) ? route : ROUTES.home;
+}
+
+export function createMainApp({
+  root,
+  modalRoot,
+  toastRoot,
+  loadingOverlay,
+  loadingMessage,
+  storage = globalThis.localStorage,
+} = {}) {
+  if (!root || !modalRoot || !toastRoot || !loadingOverlay || !loadingMessage) {
+    throw new Error("Main application DOM roots are missing.");
+  }
+
+  const stateManager = createGameStateManager({ storage });
+  let route = ROUTES.title;
+  let titleSettingsOpen = false;
+  let wizardStep = 0;
+  let wizardData = createInitialWizardData();
+  let wizardError = "";
+  let selectedTeamPlayerId = null;
+  let selectedAbilityColor = "blue";
+  let toastTimer = null;
+  let modalResolver = null;
+
+  function showLoading(message = "LOADING...") {
+    loadingMessage.textContent = message;
+    loadingOverlay.setAttribute("aria-hidden", "false");
+  }
+
+  function hideLoading() {
+    loadingOverlay.setAttribute("aria-hidden", "true");
+  }
+
+  function showToast(message) {
+    if (toastTimer) {
+      clearTimeout(toastTimer);
+    }
+    toastRoot.innerHTML = `<div class="toast">${escapeHtml(message)}</div>`;
+    toastTimer = setTimeout(() => {
+      toastRoot.innerHTML = "";
+    }, 2200);
+  }
+
+  function closeModal(value = false) {
+    modalRoot.classList.remove("is-open");
+    modalRoot.innerHTML = "";
+    if (modalResolver) {
+      const resolver = modalResolver;
+      modalResolver = null;
+      resolver(value);
+    }
+  }
+
+  function openAlert({ title, body, code = null, buttonLabel = "OK" }) {
+    if (modalResolver) {
+      closeModal(false);
+    }
+
+    return new Promise((resolve) => {
+      modalResolver = resolve;
+      modalRoot.classList.add("is-open");
+      modalRoot.innerHTML = `
+        <div class="modal-backdrop" data-action="dismiss-alert">
+          <section
+            class="modal-card"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="modalTitle"
+          >
+            <p class="modal-card__eyebrow">MOB BR</p>
+            <h2 id="modalTitle" class="modal-card__title">
+              ${escapeHtml(title)}
+            </h2>
+            <div class="modal-card__body">
+              ${body}
+              ${code ? `<span class="error-code">${escapeHtml(code)}</span>` : ""}
+            </div>
+            <div class="modal-card__actions modal-card__actions--single">
+              <button
+                type="button"
+                class="primary-button"
+                data-action="modal-confirm"
+              >
+                ${escapeHtml(buttonLabel)}
+              </button>
+            </div>
+          </section>
+        </div>
+      `;
+    });
+  }
+
+  function openConfirm({
+    title,
+    body,
+    confirmLabel = "はい",
+    cancelLabel = "いいえ",
+    danger = false,
+  }) {
+    if (modalResolver) {
+      closeModal(false);
+    }
+
+    return new Promise((resolve) => {
+      modalResolver = resolve;
+      modalRoot.classList.add("is-open");
+      modalRoot.innerHTML = `
+        <div class="modal-backdrop">
+          <section
+            class="modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modalTitle"
+          >
+            <p class="modal-card__eyebrow">CONFIRM</p>
+            <h2 id="modalTitle" class="modal-card__title">
+              ${escapeHtml(title)}
+            </h2>
+            <div class="modal-card__body">${body}</div>
+            <div class="modal-card__actions">
+              <button
+                type="button"
+                class="secondary-button"
+                data-action="modal-cancel"
+              >
+                ${escapeHtml(cancelLabel)}
+              </button>
+              <button
+                type="button"
+                class="${danger ? "danger-button" : "primary-button"}"
+                data-action="modal-confirm"
+              >
+                ${escapeHtml(confirmLabel)}
+              </button>
+            </div>
+          </section>
+        </div>
+      `;
+    });
+  }
+
+  function openTextPrompt({
+    title,
+    body,
+    initialValue = "",
+    maximumLength = 60,
+    confirmLabel = "変更",
+    cancelLabel = "戻る",
+  }) {
+    if (modalResolver) {
+      closeModal(false);
+    }
+
+    return new Promise((resolve) => {
+      modalResolver = resolve;
+      modalRoot.classList.add("is-open");
+      modalRoot.innerHTML = `
+        <div class="modal-backdrop">
+          <section
+            class="modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modalTitle"
+          >
+            <p class="modal-card__eyebrow">INPUT</p>
+            <h2 id="modalTitle" class="modal-card__title">
+              ${escapeHtml(title)}
+            </h2>
+            <div class="modal-card__body">
+              ${body}
+              <div class="form-field">
+                <input
+                  id="modalTextInput"
+                  type="text"
+                  maxlength="${maximumLength}"
+                  value="${escapeAttribute(initialValue)}"
+                >
+              </div>
+            </div>
+            <div class="modal-card__actions">
+              <button
+                type="button"
+                class="secondary-button"
+                data-action="modal-cancel"
+              >
+                ${escapeHtml(cancelLabel)}
+              </button>
+              <button
+                type="button"
+                class="primary-button"
+                data-action="modal-text-confirm"
+              >
+                ${escapeHtml(confirmLabel)}
+              </button>
+            </div>
+          </section>
+        </div>
+      `;
+      queueMicrotask(() => {
+        const input = modalRoot.querySelector("#modalTextInput");
+        input?.focus();
+        input?.select();
+      });
+    });
+  }
+
+  function getSafeSnapshot() {
+    return stateManager.getSnapshot();
+  }
+
+  function inspectSaveSummary() {
+    if (!stateManager.hasSave()) {
+      return null;
+    }
+
+    try {
+      return stateManager.load();
+    } catch (error) {
+      return {
+        corrupted: true,
+        error,
+      };
+    }
+  }
+
+  function render() {
+    const snapshot = getSafeSnapshot();
+
+    if (route === ROUTES.title) {
+      if (titleSettingsOpen) {
+        root.innerHTML = settingsTemplate(snapshot, ROUTES.settings, true);
+        return;
+      }
+
+      if (wizardStep >= 0 && root.dataset.mode === "new-game") {
+        root.innerHTML = wizardTemplate(
+          wizardStep,
+          wizardData,
+          wizardError,
+        );
+        queueMicrotask(() => {
+          root.querySelector("#wizardInput")?.focus();
+        });
+        return;
+      }
+
+      const summary = inspectSaveSummary();
+      root.innerHTML = titleTemplate(
+        Boolean(summary && !summary.corrupted),
+        summary && !summary.corrupted ? summary : null,
+      );
+
+      if (summary?.corrupted) {
+        queueMicrotask(() => {
+          openAlert({
+            title: "セーブデータを読み込めません",
+            body:
+              "<p>セーブデータが破損しているか、対応していない形式です。</p>",
+            code: getErrorCode(summary.error),
+          });
+        });
+      }
+      return;
+    }
+
+    if (!snapshot) {
+      route = ROUTES.title;
+      render();
+      return;
+    }
+
+    if (route === ROUTES.home) {
+      root.innerHTML = homeTemplate(snapshot, route);
+      return;
+    }
+    if (route === ROUTES.team) {
+      root.innerHTML = teamTemplate(snapshot, route);
+      return;
+    }
+    if (route === ROUTES.settings) {
+      root.innerHTML = settingsTemplate(snapshot, route, false);
+      return;
+    }
+    if (MANAGEMENT_ROUTES.includes(route)) {
+      root.innerHTML = managementFeatureTemplate(snapshot, route, route);
+      queueMicrotask(() => managementController.afterRender(route));
+      return;
+    }
+    if (
+      route === ROUTES.ability ||
+      route === ROUTES.equipment ||
+      route === ROUTES.specialAbility
+    ) {
+      selectedTeamPlayerId = getSelectedPlayerId(
+        snapshot,
+        selectedTeamPlayerId,
+      );
+      root.innerHTML = teamFeatureTemplate(snapshot, route, route, {
+        selectedPlayerId: selectedTeamPlayerId,
+        abilityColor: selectedAbilityColor,
+      });
+      return;
+    }
+
+    root.innerHTML = placeholderTemplate(snapshot, route, route);
+  }
+
+  async function beginNewGame() {
+    if (stateManager.hasSave()) {
+      const overwrite = await openConfirm({
+        title: "現在のセーブを上書きしますか？",
+        body:
+          "<p>現在の進行状況は削除され、元に戻せません。</p>",
+        confirmLabel: "上書きする",
+        cancelLabel: "戻る",
+        danger: true,
+      });
+      if (!overwrite) {
+        return;
+      }
+    }
+
+    wizardStep = 0;
+    wizardData = createInitialWizardData();
+    wizardError = "";
+    root.dataset.mode = "new-game";
+    render();
+  }
+
+  function readWizardInput() {
+    const input = root.querySelector("#wizardInput");
+    return input?.value.trim() ?? "";
+  }
+
+  function storeWizardValue(value) {
+    const step = NEW_GAME_STEPS[wizardStep];
+    if (step.group) {
+      wizardData[step.group][step.key] = value;
+    } else {
+      wizardData[step.key] = value;
+    }
+  }
+
+  function moveWizardNext() {
+    const step = NEW_GAME_STEPS[wizardStep];
+    if (step.key === "complete") {
+      return;
+    }
+
+    const value = readWizardInput();
+    if (!value) {
+      wizardError = "入力してください。";
+      render();
+      return;
+    }
+
+    storeWizardValue(value);
+    wizardError = "";
+    wizardStep += 1;
+    render();
+  }
+
+  async function finishNewGame() {
+    showLoading("NEW GAMEを作成しています");
+
+    try {
+      stateManager.createNewGame(wizardData, {
+        overwrite: stateManager.hasSave(),
+      });
+      root.dataset.mode = "";
+      wizardStep = 0;
+      wizardData = createInitialWizardData();
+      route = ROUTES.home;
+      render();
+      hideLoading();
+
+      const snapshot = stateManager.getSnapshot();
+      const firstBonus = snapshot.weeklyBonus.history[0];
+
+      await openAlert({
+        title: "週間企業ボーナス",
+        body: `
+          <p>${escapeHtml(formatGameDate(firstBonus.gameDate))}</p>
+          <p>
+            COIN ${formatNumber(firstBonus.granted.coin)}<br>
+            DIAMOND ${formatNumber(firstBonus.granted.diamond)}<br>
+            RUBY ${formatNumber(firstBonus.granted.ruby)}
+          </p>
+        `,
+        buttonLabel: "HOMEへ",
+      });
+    } catch (error) {
+      hideLoading();
+      await openAlert({
+        title: "NEW GAMEを作成できません",
+        body: `<p>${escapeHtml(error.message)}</p>`,
+        code: getErrorCode(error),
+      });
+    }
+  }
+
+  async function continueGame() {
+    showLoading("セーブデータを読み込んでいます");
+    try {
+      stateManager.load();
+      route = normaliseRoute(
+        stateManager.getSnapshot().ui?.lastScreen ?? ROUTES.home,
+      );
+      if (route === ROUTES.title) {
+        route = ROUTES.home;
+      }
+      hideLoading();
+      render();
+    } catch (error) {
+      hideLoading();
+      await openAlert({
+        title: "CONTINUEできません",
+        body: `<p>${escapeHtml(error.message)}</p>`,
+        code: getErrorCode(error),
+      });
+    }
+  }
+
+  function navigate(nextRoute) {
+    const normalized = normaliseRoute(nextRoute);
+    const snapshot = stateManager.getSnapshot();
+
+    if (!snapshot) {
+      route = ROUTES.title;
+      render();
+      return;
+    }
+
+    try {
+      stateManager.transact("ui_route_changed", (draft) => {
+        draft.ui.lastScreen = normalized;
+        draft.ui.lastSubScreen = null;
+      });
+    } catch (error) {
+      showToast("画面位置を保存できませんでした");
+    }
+
+    route = normalized;
+    render();
+  }
+
+  async function saveSettings(form) {
+    const formData = new FormData(form);
+    const settings = {
+      soundEnabled: formData.get("soundEnabled") === "on",
+      reducedMotion: formData.get("reducedMotion") === "on",
+      autoAdvanceOpening:
+        formData.get("autoAdvanceOpening") === "on",
+      commentarySpeed: Number(formData.get("commentarySpeed")),
+    };
+
+    if (!stateManager.getSnapshot()) {
+      showToast("セーブ開始後に設定を保存できます");
+      titleSettingsOpen = false;
+      render();
+      return;
+    }
+
+    try {
+      stateManager.transact("settings_updated", (draft) => {
+        draft.settings.soundEnabled = settings.soundEnabled;
+        draft.settings.reducedMotion = settings.reducedMotion;
+        draft.settings.autoAdvanceOpening =
+          settings.autoAdvanceOpening;
+        draft.settings.commentarySpeed = settings.commentarySpeed;
+      });
+      document.documentElement.dataset.reducedMotion =
+        settings.reducedMotion ? "true" : "false";
+      showToast("設定を保存しました");
+      render();
+    } catch (error) {
+      await openAlert({
+        title: "設定を保存できません",
+        body: `<p>${escapeHtml(error.message)}</p>`,
+        code: getErrorCode(error),
+      });
+    }
+  }
+
+  const managementController = createManagementController({
+    stateManager,
+    root,
+    openConfirm,
+    openAlert,
+    showToast,
+    render,
+  });
+
+  root.addEventListener("error", (event) => {
+    if (event.target instanceof HTMLImageElement) {
+      event.target.hidden = true;
+    }
+  }, true);
+
+  root.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    if (event.target.matches('[data-form="wizard-step"]')) {
+      moveWizardNext();
+      return;
+    }
+
+    if (event.target.matches('[data-form="settings"]')) {
+      saveSettings(event.target);
+    }
+  });
+
+  root.addEventListener("click", async (event) => {
+    const actionElement = event.target.closest("[data-action]");
+    if (!actionElement) {
+      return;
+    }
+
+    const action = actionElement.dataset.action;
+
+    if (action === "new-game") {
+      await beginNewGame();
+      return;
+    }
+    if (action === "continue") {
+      await continueGame();
+      return;
+    }
+    if (action === "open-settings") {
+      titleSettingsOpen = true;
+      render();
+      return;
+    }
+    if (action === "return-title") {
+      titleSettingsOpen = false;
+      route = ROUTES.title;
+      render();
+      return;
+    }
+    if (action === "navigate") {
+      navigate(actionElement.dataset.route);
+      return;
+    }
+    if (action === "cancel-new-game") {
+      root.dataset.mode = "";
+      wizardStep = 0;
+      wizardData = createInitialWizardData();
+      wizardError = "";
+      render();
+      return;
+    }
+    if (action === "wizard-back") {
+      wizardStep = Math.max(0, wizardStep - 1);
+      wizardError = "";
+      render();
+      return;
+    }
+    if (action === "wizard-next") {
+      moveWizardNext();
+      return;
+    }
+    if (action === "finish-new-game") {
+      await finishNewGame();
+      return;
+    }
+    if (action === "select-team-player") {
+      selectedTeamPlayerId = actionElement.dataset.playerId;
+      render();
+      return;
+    }
+    if (action === "select-ability-color") {
+      selectedAbilityColor = actionElement.dataset.abilityColor;
+      render();
+      return;
+    }
+    if (action === "upgrade-player-stat") {
+      const playerId = actionElement.dataset.playerId;
+      const statId = actionElement.dataset.statId;
+      const confirmed = await openConfirm({
+        title: "能力を1段階強化しますか？",
+        body: "<p>主ポイントと副ポイントを同時に消費します。</p>",
+        confirmLabel: "強化する",
+      });
+      if (!confirmed) {
+        return;
+      }
+      try {
+        const transaction = stateManager.transact(
+          "player_stat_upgraded",
+          (draft) =>
+            upgradePlayerStatToDraft(draft, playerId, statId),
+        );
+        showToast(
+          `${transaction.result.previousRank} → ${transaction.result.currentRank}`,
+        );
+        render();
+      } catch (error) {
+        await openAlert({
+          title: "能力を強化できません",
+          body: `<p>${escapeHtml(error.message)}</p>`,
+          code: getErrorCode(error),
+        });
+      }
+      return;
+    }
+    if (action === "upgrade-weapon-stat") {
+      const playerId = actionElement.dataset.playerId;
+      const weaponStatId = actionElement.dataset.weaponStatId;
+      const confirmed = await openConfirm({
+        title: "武器能力を強化しますか？",
+        body: "<p>COINとRUBYを消費します。</p>",
+        confirmLabel: "強化する",
+      });
+      if (!confirmed) {
+        return;
+      }
+      try {
+        const transaction = stateManager.transact(
+          "weapon_stat_upgraded",
+          (draft) =>
+            upgradeWeaponStatToDraft(
+              draft,
+              playerId,
+              weaponStatId,
+            ),
+        );
+        showToast(
+          `${transaction.result.previousRank} → ${transaction.result.currentRank}`,
+        );
+        render();
+      } catch (error) {
+        await openAlert({
+          title: "武器を強化できません",
+          body: `<p>${escapeHtml(error.message)}</p>`,
+          code: getErrorCode(error),
+        });
+      }
+      return;
+    }
+    if (action === "rename-weapon") {
+      const playerId = actionElement.dataset.playerId;
+      const snapshot = stateManager.getSnapshot();
+      const player = snapshot.playerTeam.members.find(
+        (member) => member.playerId === playerId,
+      );
+      const weaponName = await openTextPrompt({
+        title: "武器名を変更",
+        body: "<p>大会・実況・記録でもこの名称を使用します。</p>",
+        initialValue: player.weapon.weaponName,
+        maximumLength: 60,
+      });
+      if (weaponName === false) {
+        return;
+      }
+      try {
+        stateManager.transact("weapon_renamed", (draft) =>
+          renameWeaponToDraft(draft, playerId, weaponName),
+        );
+        showToast("武器名を変更しました");
+        render();
+      } catch (error) {
+        await openAlert({
+          title: "武器名を変更できません",
+          body: `<p>${escapeHtml(error.message)}</p>`,
+          code: getErrorCode(error),
+        });
+      }
+      return;
+    }
+    if (action === "change-weapon-skin") {
+      const playerId = actionElement.dataset.playerId;
+      const select = root.querySelector("#weaponSkinSelect");
+      const skinId = select?.value;
+      try {
+        stateManager.transact("weapon_skin_changed", (draft) =>
+          changeWeaponSkinToDraft(draft, playerId, skinId),
+        );
+        showToast("武器スキンを変更しました");
+        render();
+      } catch (error) {
+        await openAlert({
+          title: "スキンを変更できません",
+          body: `<p>${escapeHtml(error.message)}</p>`,
+          code: getErrorCode(error),
+        });
+      }
+      return;
+    }
+    if (action === "learn-special-ability") {
+      const playerId = actionElement.dataset.playerId;
+      const abilityKey = actionElement.dataset.abilityKey;
+      const confirmed = await openConfirm({
+        title: "特殊能力を習得しますか？",
+        body:
+          "<p>4種類のトレーニングポイントを消費します。習得後は装備不要で常時有効です。</p>",
+        confirmLabel: "習得する",
+      });
+      if (!confirmed) {
+        return;
+      }
+      try {
+        const transaction = stateManager.transact(
+          "special_ability_learned",
+          (draft) =>
+            learnSpecialAbilityToDraft(
+              draft,
+              playerId,
+              abilityKey,
+            ),
+        );
+        showToast(`${transaction.result.name}を習得しました`);
+        render();
+      } catch (error) {
+        await openAlert({
+          title: "特殊能力を習得できません",
+          body: `<p>${escapeHtml(error.message)}</p>`,
+          code: getErrorCode(error),
+        });
+      }
+      return;
+    }
+
+    if (await managementController.handleAction(actionElement)) {
+      return;
+    }
+  });
+
+  modalRoot.addEventListener("click", (event) => {
+    const actionElement = event.target.closest("[data-action]");
+    if (!actionElement) {
+      return;
+    }
+
+    if (actionElement.dataset.action === "modal-confirm") {
+      closeModal(true);
+    } else if (
+      actionElement.dataset.action === "modal-text-confirm"
+    ) {
+      const value =
+        modalRoot.querySelector("#modalTextInput")?.value.trim() ?? "";
+      closeModal(value);
+    } else if (actionElement.dataset.action === "modal-cancel") {
+      closeModal(false);
+    } else if (
+      actionElement.dataset.action === "dismiss-alert" &&
+      event.target === actionElement
+    ) {
+      closeModal(true);
+    }
+  });
+
+  function start() {
+    showLoading("起動しています");
+
+    try {
+      const summary = inspectSaveSummary();
+      if (summary && !summary.corrupted) {
+        stateManager.load();
+      }
+    } catch (error) {
+      if (!(error instanceof SaveNotFoundError)) {
+        console.error(error);
+      }
+    } finally {
+      route = ROUTES.title;
+      titleSettingsOpen = false;
+      root.dataset.mode = "";
+      render();
+      hideLoading();
+    }
+  }
+
+  return Object.freeze({
+    start,
+    render,
+    navigate,
+    showToast,
+    openAlert,
+    openConfirm,
+    getSnapshot: () => stateManager.getSnapshot(),
+  });
+}
+
+function bootstrap() {
+  const root = document.querySelector("#app");
+  const modalRoot = document.querySelector("#modalRoot");
+  const toastRoot = document.querySelector("#toastRoot");
+  const loadingOverlay = document.querySelector("#loadingOverlay");
+  const loadingMessage = document.querySelector("#loadingMessage");
+
+  const app = createMainApp({
+    root,
+    modalRoot,
+    toastRoot,
+    loadingOverlay,
+    loadingMessage,
+    storage: window.localStorage,
+  });
+
+  app.start();
+  globalThis.mobBrApp = app;
+}
+
+if (typeof document !== "undefined") {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bootstrap, {
+      once: true,
+    });
+  } else {
+    bootstrap();
+  }
+}
