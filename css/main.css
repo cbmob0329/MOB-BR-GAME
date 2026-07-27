@@ -3948,3 +3948,18 @@ body {
   letter-spacing: .12em;
   pointer-events: none;
 }
+
+
+/* Generation 20: GitHub asset path fallback */
+
+img.asset-missing {
+  visibility: hidden !important;
+}
+
+.loading-overlay {
+  background-image:
+    url("../back/Load.png"),
+    url("../../back/Load.png") !important;
+  background-position: center, center !important;
+  background-size: cover, cover !important;
+}

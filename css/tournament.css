@@ -5537,3 +5537,251 @@ body {
   transform: none !important;
   scale: 1 !important;
 }
+
+
+/* Generation 20: GitHub asset path fallback and exploration safety */
+
+.exploration-radar__rings,
+.exploration-radar__rings::before,
+.exploration-radar__rings::after {
+  pointer-events: none !important;
+}
+
+.exploration-search-node {
+  z-index: 3;
+  pointer-events: auto;
+}
+
+.exploration-search-node em {
+  display: block;
+  margin-top: 4px;
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: rgb(5 15 30 / 86%);
+  color: #fff;
+  font-size: .43rem;
+  font-style: normal;
+  font-weight: 950;
+}
+
+img.asset-missing {
+  visibility: hidden !important;
+}
+
+.exploration-mini-header img.asset-missing,
+.exploration-page-tabs img.asset-missing {
+  visibility: visible !important;
+  opacity: 0 !important;
+}
+
+/* These layers support both /MOB-BR/back and repository-root /back. */
+.tournament-loading-overlay {
+  background-image:
+    url("../back/Load.png"),
+    url("../../back/Load.png") !important;
+  background-position: center, center !important;
+  background-size: cover, cover !important;
+}
+
+html[data-asset-prefix="../"] .tournament-loading-overlay,
+html[data-asset-prefix="../../"] .tournament-loading-overlay {
+  background-image:
+    url("../../back/Load.png"),
+    url("../../../back/Load.png") !important;
+}
+
+
+/* Generation 21: three exploration points with hidden random rewards */
+
+.exploration-page--search {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-height: 100%;
+}
+
+.exploration-page-note--search {
+  margin: 0;
+  border-radius: 12px;
+  padding: 9px 10px;
+  background: rgb(5 15 30 / 88%);
+  color: #fff;
+  text-align: center;
+  font-size: .54rem;
+  line-height: 1.55;
+}
+
+.exploration-search-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  align-items: stretch;
+}
+
+.exploration-search-point {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 176px;
+  justify-items: center;
+  align-content: center;
+  gap: 6px;
+  overflow: hidden;
+  border: 3px solid rgb(255 255 255 / 24%);
+  border-radius: 17px;
+  padding: 9px 5px;
+  background:
+    linear-gradient(180deg, rgb(17 31 51 / 94%), rgb(5 13 26 / 97%));
+  color: #fff;
+  box-shadow: 0 10px 22px rgb(0 0 0 / 30%);
+  touch-action: manipulation;
+}
+
+.exploration-search-point::after {
+  position: absolute;
+  inset: auto 10% 7px;
+  height: 3px;
+  content: "";
+  border-radius: 999px;
+  background: rgb(245 215 94 / 28%);
+}
+
+.exploration-search-point:disabled {
+  opacity: .62;
+}
+
+.exploration-search-point.is-selected {
+  border-color: var(--tournament-gold);
+  background:
+    linear-gradient(180deg, rgb(61 55 27 / 96%), rgb(17 21 30 / 98%));
+  box-shadow:
+    0 0 0 3px rgb(245 215 94 / 16%),
+    0 10px 24px rgb(0 0 0 / 36%);
+}
+
+.exploration-search-point__number {
+  color: var(--tournament-gold);
+  font-size: .44rem;
+  font-weight: 1000;
+  letter-spacing: .08em;
+}
+
+.exploration-search-point img {
+  width: min(23vw, 92px);
+  height: min(23vw, 92px);
+  max-width: 92px;
+  max-height: 92px;
+  object-fit: contain;
+  filter: drop-shadow(0 7px 8px rgb(0 0 0 / 36%));
+}
+
+.exploration-search-point img.asset-missing {
+  visibility: hidden !important;
+  min-height: 70px;
+}
+
+.exploration-search-point strong {
+  width: 100%;
+  overflow: hidden;
+  font-size: .57rem;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.exploration-search-point small {
+  color: rgb(255 255 255 / 70%);
+  font-size: .45rem;
+}
+
+.exploration-random-result {
+  display: grid;
+  gap: 7px;
+  border: 3px solid var(--tournament-gold);
+  border-radius: 16px;
+  padding: 10px;
+  background: rgb(5 15 30 / 94%);
+  color: #fff;
+  box-shadow: 0 12px 28px rgb(0 0 0 / 34%);
+}
+
+.exploration-random-result > span {
+  color: var(--tournament-gold);
+  font-size: .5rem;
+  font-weight: 1000;
+  letter-spacing: .1em;
+}
+
+.exploration-random-result > div {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+}
+
+.exploration-random-result img {
+  width: 68px;
+  height: 68px;
+  object-fit: contain;
+}
+
+.exploration-random-result section {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.exploration-random-result small {
+  color: rgb(255 255 255 / 68%);
+  font-size: .45rem;
+}
+
+.exploration-random-result strong {
+  overflow: hidden;
+  font-size: .7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.exploration-random-result p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: rgb(255 255 255 / 78%);
+  font-size: .48rem;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.exploration-random-result > em {
+  border-radius: 8px;
+  padding: 5px 7px;
+  background: rgb(245 215 94 / 14%);
+  color: var(--tournament-gold);
+  font-size: .49rem;
+  font-style: normal;
+  font-weight: 900;
+  text-align: center;
+}
+
+@media (max-width: 360px) {
+  .exploration-search-grid {
+    gap: 5px;
+  }
+
+  .exploration-search-point {
+    min-height: 152px;
+    padding-inline: 3px;
+  }
+
+  .exploration-search-point img {
+    width: 64px;
+    height: 64px;
+  }
+
+  .exploration-search-point strong {
+    font-size: .5rem;
+  }
+}
