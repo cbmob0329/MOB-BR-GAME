@@ -61,7 +61,7 @@ import {
 } from "./state.js";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-0.5.0";
+  "mobbr-management-feature-0.6.0";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -1666,7 +1666,7 @@ export function renderRoomManagement(snapshot) {
         const active =
           snapshot.company.activeRoomId === room.roomId;
         return `
-          <article class="room-list-card ${active ? "is-active" : ""}">
+          <article class="room-list-card ${active ? "is-active" : ""} ${owned ? "is-owned" : "is-locked"}">
             <div>
               <span>${escapeHtml(room.roomId)}</span>
               <h3>${escapeHtml(room.name)}</h3>
@@ -2011,37 +2011,27 @@ export function createManagementController({
               <strong>${escapeHtml(player.name)}</strong>
               <span>${escapeHtml(program.name)}</span>
               <small>P+${memberResult.gain.power} T+${memberResult.gain.tech} M+${memberResult.gain.mental} S+${memberResult.gain.shoot}</small>
-            </article>
-          `;
+            </article>`;
         }).join("");
+
         await openAlert({
           title: "TRAINING COMPLETE",
-          body: `
-            <section class="training-result-show">
-              <div class="week-transition-show" aria-label="週の進行">
-                <div class="week-transition-show__step"><span>BEFORE</span><div><strong>${beforeTrainingDate.year}年 ${beforeTrainingDate.month}月 第${beforeTrainingDate.week}週</strong><span>トレーニング開始</span></div></div>
-                <div class="week-transition-show__step"><span>NEXT</span><div><strong>WEEK ADVANCE</strong><span>結果と企業ボーナスを集計</span></div></div>
-                <div class="week-transition-show__step"><span>START</span><div><strong>${latest.gameDate.year}年 ${latest.gameDate.month}月 第${latest.gameDate.week}週</strong><span>新しい週が始まりました</span></div></div>
-              </div>
-              <div class="training-result-members">${memberRows}</div>
-              <div class="training-result-total">
-                <span>POWER <strong>+${formatNumber(total.power)}</strong></span>
-                <span>TECH <strong>+${formatNumber(total.tech)}</strong></span>
-                <span>MENTAL <strong>+${formatNumber(total.mental)}</strong></span>
-                <span>SHOOT <strong>+${formatNumber(total.shoot)}</strong></span>
-              </div>
-              ${bonusRecord ? `
-                <div class="weekly-bonus-inline">
-                  <span>WEEK START BONUS</span>
-                  <strong><img src="icon/coin.png" alt="">${formatNumber(bonusRecord.granted.coin)}</strong>
-                  <strong><img src="icon/daia.png" alt="">${formatNumber(bonusRecord.granted.diamond)}</strong>
-                  <strong><img src="icon/rubi.png" alt="">${formatNumber(bonusRecord.granted.ruby)}</strong>
-                </div>
-              ` : ""}
-            </section>
-          `,
+          body: `<section class="training-result-show training-result-show--complete"><span>TRAINING FINISHED</span><h3>${escapeHtml(formatGameDate(beforeTrainingDate))}</h3><div class="training-result-members">${memberRows}</div></section>`,
+          buttonLabel: "能力ポイント確認",
         });
-        render();
+
+        await openAlert({
+          title: "ABILITY POINT GET",
+          body: `<section class="ability-point-notice"><span>各選手へ個別に加算されました</span><div class="training-result-total"><span>POWER <strong>+${formatNumber(total.power)}</strong></span><span>TECH <strong>+${formatNumber(total.tech)}</strong></span><span>MENTAL <strong>+${formatNumber(total.mental)}</strong></span><span>SHOOT <strong>+${formatNumber(total.shoot)}</strong></span></div><p>TEAM画面の選手TAP、またはチームラボのABILITY UPから強化できます。</p></section>`,
+          buttonLabel: "新しい週へ",
+        });
+
+        await openAlert({
+          title: "NEW WEEK START",
+          body: `<section class="week-start-screen"><span>WEEK START</span><h3>${latest.gameDate.year}年 ${latest.gameDate.month}月 第${latest.gameDate.week}週</h3><p>${escapeHtml(formatGameDate(beforeTrainingDate))}のトレーニングを終え、新しい週が始まりました。</p>${bonusRecord ? `<div class="weekly-bonus-inline"><span>WEEK START BONUS</span><strong><img src="icon/coin.png" alt="">${formatNumber(bonusRecord.granted.coin)}</strong><strong><img src="icon/daia.png" alt="">${formatNumber(bonusRecord.granted.diamond)}</strong><strong><img src="icon/rubi.png" alt="">${formatNumber(bonusRecord.granted.ruby)}</strong></div>` : ""}</section>`,
+          buttonLabel: "今週を始める",
+        });
+        renderPreservingScroll();
       } catch (error) { await showError("トレーニングできません", error); }
       return true;
     }
@@ -2065,7 +2055,7 @@ export function createManagementController({
       try {
         const tx = stateManager.transact("item_purchased", (draft) => purchaseConsumableToDraft(draft, item.itemId, quantity));
         showToast(`${tx.result.name}を${quantity}個購入しました`);
-        render();
+        renderPreservingScroll();
       } catch (error) { await showError("購入できません", error); }
       return true;
     }
@@ -2089,7 +2079,7 @@ export function createManagementController({
       try {
         const tx = stateManager.transact("card_pack_purchased", (draft) => purchaseCardPackToDraft(draft, pack.packId, quantity));
         showToast(`${tx.result.name}を${quantity}個購入しました`);
-        render();
+        renderPreservingScroll();
       } catch (error) { await showError("購入できません", error); }
       return true;
     }
@@ -2105,7 +2095,7 @@ export function createManagementController({
           purchaseConsumableToDraft(draft, actionElement.dataset.itemId, 1),
         );
         showToast(`${tx.result.name}を購入しました`);
-        render();
+        renderPreservingScroll();
       } catch (error) { await showError("購入できません", error); }
       return true;
     }
@@ -2121,7 +2111,7 @@ export function createManagementController({
           purchaseCardPackToDraft(draft, actionElement.dataset.packId, 1),
         );
         showToast(`${tx.result.name}を購入しました`);
-        render();
+        renderPreservingScroll();
       } catch (error) { await showError("購入できません", error); }
       return true;
     }
@@ -2139,7 +2129,7 @@ export function createManagementController({
           }
         });
         showToast("バッグ編成を保存しました");
-        render();
+        renderPreservingScroll();
       } catch (error) { await showError("バッグを保存できません", error); }
       return true;
     }
@@ -2158,7 +2148,7 @@ export function createManagementController({
           title: "NEW WEAPON SKIN",
           body: `<p><strong>${escapeHtml(tx.result.name)}</strong></p><img src="${escapeAttribute(tx.result.image)}" alt="" style="width:140px;margin:12px auto;object-fit:contain">`,
         });
-        render();
+        renderPreservingScroll();
       } catch (error) { await showError("ガチャを実行できません", error); }
       return true;
     }
@@ -2178,7 +2168,7 @@ export function createManagementController({
           title: `${result.selectedRank} RANK STRATEGY`,
           body: `<section class="strategy-meeting-show"><div class="strategy-meeting-show__board"><span>TACTICAL BRIEFING</span><strong>${escapeHtml(result.strategyName)}</strong><small>${escapeHtml(result.selectedRank)} RANK / ${escapeHtml(result.acquisitionType)} / 所持 ${result.quantity}</small></div><div class="strategy-meeting-show__board"><span>COACH REVIEW</span><strong>${result.coachResults.filter((coach) => coach.success).length} / ${result.coachResults.length} RANK UP</strong><small>会議内容を各コーチの成長判定へ反映しました</small></div></section>`,
         });
-        render();
+        renderPreservingScroll();
       } catch (error) { await showError("作戦会議を実行できません", error); }
       return true;
     }
@@ -2214,7 +2204,7 @@ export function createManagementController({
           purchaseRoomToDraft(draft, actionElement.dataset.roomId),
         );
         showToast(`${tx.result.name}を購入しました`);
-        render();
+        renderPreservingScroll();
       } catch (error) { await showError("ROOMを購入できません", error); }
       return true;
     }
@@ -2224,7 +2214,7 @@ export function createManagementController({
         stateManager.transact("room_activated", (draft) =>
           activateRoomToDraft(draft, actionElement.dataset.roomId),
         );
-        render();
+        renderPreservingScroll();
       } catch (error) { await showError("ROOMへ入室できません", error); }
       return true;
     }
@@ -2240,7 +2230,7 @@ export function createManagementController({
             JSON.parse(value),
           ),
         );
-        render();
+        renderPreservingScroll();
       } catch (error) { await showError("ROOMへ配置できません", error); }
       return true;
     }
@@ -2268,7 +2258,7 @@ export function createManagementController({
           }
           return removeRoomPlacementToDraft(draft, roomId, placementId);
         });
-        render();
+        renderPreservingScroll();
       } catch (error) { await showError("ROOM配置を変更できません", error); }
       return true;
     }

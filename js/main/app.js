@@ -44,11 +44,12 @@ import {
   renderTournamentSchedule,
 } from "./tournament-bridge.js";
 
-export const APP_VERSION = "mobbr-main-app-0.9.0";
+export const APP_VERSION = "mobbr-main-app-1.0.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
   home: "home",
+  facility: "facility",
   team: "team",
   train: "train",
   collection: "collection",
@@ -84,6 +85,12 @@ const ROUTE_META = Object.freeze({
     description: "企業とチームの現在状況",
     backgroundClass: "screen--home",
     icon: "menu/home.png",
+  },
+  [ROUTES.facility]: {
+    title: "FACILITY",
+    description: "施設を選択して機能を利用",
+    backgroundClass: "screen--sub",
+    icon: "menu/team.png",
   },
   [ROUTES.team]: {
     title: "TEAM",
@@ -177,50 +184,36 @@ const ROUTE_META = Object.freeze({
   },
 });
 
-const HOME_MENU = Object.freeze([
-  {
-    route: ROUTES.team,
-    name: "TEAM",
-    note: "選手・装備・記録",
-    icon: "menu/team.png",
-  },
-  {
-    route: ROUTES.room,
-    name: "ROOM",
-    note: "コレクション配置",
-    icon: "menu/room.png",
-  },
-  {
-    route: ROUTES.shop,
-    name: "SHOP",
-    note: "商品とパック",
-    icon: "menu/mobshopt.png",
-  },
-  {
-    route: ROUTES.collection,
-    name: "COLLECTION",
-    note: "カード・バッジ",
-    icon: "menu/COL.png",
-  },
-  {
-    route: ROUTES.coach,
-    name: "COACH",
-    note: "コーチ・作戦会議",
-    icon: "menu/coach.png",
-  },
-  {
-    route: ROUTES.scout,
-    name: "SCOUT",
-    note: "コーチ専用",
-    icon: "menu/scout.png",
-  },
-  {
-    route: ROUTES.settings,
-    name: "SETTING",
-    note: "音量・表示",
-    icon: "menu/setting.png",
-  },
+const FACILITY_DEFINITIONS = Object.freeze([
+  { facilityId: "team_lab", name: "TEAM LAB", japaneseName: "チームラボ", note: "チーム育成・装備・コレクション", status: "OPEN", accent: "LAB" },
+  { facilityId: "mob_shop", name: "MOB SHOP", japaneseName: "MOB SHOP", note: "ショップ・パック・商品購入", status: "OPEN", accent: "SHOP" },
+  { facilityId: "cooking", name: "COOKING", japaneseName: "料理", note: "食材購入とキッチン機能", status: "LOCKED", accent: "COMING SOON" },
+  { facilityId: "mob_room", name: "MOB ROOM", japaneseName: "モブルーム", note: "部屋を選択してコレクションを配置", status: "OPEN", accent: "ROOM" },
 ]);
+
+const FACILITY_MENUS = Object.freeze({
+  team_lab: Object.freeze([
+    { route: ROUTES.team, name: "TEAM", note: "選手ステータス", icon: "menu/team.png" },
+    { route: ROUTES.train, name: "TRAINING", note: "週間育成", icon: "menu/traning.png" },
+    { route: ROUTES.equipment, name: "EQUIPMENT", note: "武器・バッグ", icon: "menu/eq.png" },
+    { route: ROUTES.ability, name: "ABILITY UP", note: "7能力強化", icon: "icon/ab.png" },
+    { route: ROUTES.specialAbility, name: "SPECIAL", note: "特殊能力", icon: "icon/sp.png" },
+    { route: ROUTES.collection, name: "COLLECTION", note: "カード・バッジ", icon: "menu/COL.png" },
+    { route: ROUTES.coach, name: "COACH", note: "作戦会議", icon: "menu/coach.png" },
+    { route: ROUTES.scout, name: "SCOUT", note: "コーチ獲得", icon: "menu/scout.png" },
+    { route: ROUTES.items, name: "ITEMS", note: "所持品", icon: "menu/item.png" },
+    { route: ROUTES.record, name: "RECORD", note: "通算記録", icon: "menu/record.png" },
+    { route: ROUTES.news, name: "NEWS", note: "大会新聞", icon: "icon/news.png" },
+    { route: ROUTES.schedule, name: "SCHEDULE", note: "大会予定", icon: "menu/sc.png" },
+  ]),
+  mob_shop: Object.freeze([
+    { route: ROUTES.shop, name: "MOB SHOP", note: "商品カテゴリを開く", icon: "menu/mobshopt.png" },
+  ]),
+  cooking: Object.freeze([]),
+  mob_room: Object.freeze([
+    { route: ROUTES.room, name: "ROOM SELECT", note: "部屋を選択・編集", icon: "menu/room.png" },
+  ]),
+});
 
 const TEAM_MENU = Object.freeze([
   {
@@ -275,9 +268,9 @@ const TEAM_MENU = Object.freeze([
 
 const BOTTOM_NAV = Object.freeze([
   { route: ROUTES.home, name: "HOME", icon: "menu/home.png" },
-  { route: ROUTES.train, name: "TRAIN", icon: "menu/traning.png" },
-  { route: ROUTES.collection, name: "COL", icon: "menu/colbr.png" },
-  { route: ROUTES.shop, name: "SHOP", icon: "menu/shop.png" },
+  { route: ROUTES.facility, name: "FACILITY", icon: "menu/team.png" },
+  { route: ROUTES.schedule, name: "SCHEDULE", icon: "menu/sc.png" },
+  { route: ROUTES.team, name: "TEAM", icon: "menu/team.png" },
   { route: ROUTES.settings, name: "SET", icon: "menu/setting.png" },
 ]);
 
@@ -600,13 +593,19 @@ function homeTemplate(snapshot, currentRoute) {
         </section>
 
         <div class="section-heading">
-          <h2>MAIN MENU</h2>
-          <p>企業運営</p>
+          <h2>FACILITIES</h2>
+          <p>左右へスワイプして施設を選択</p>
         </div>
-        <section class="menu-grid">
-          ${HOME_MENU.map((item, index) =>
-            menuCardTemplate(item, index === HOME_MENU.length - 1),
-          ).join("")}
+        <section class="facility-carousel" aria-label="施設一覧">
+          ${FACILITY_DEFINITIONS.map((facility) => `
+            <button type="button" class="facility-square ${facility.status === "LOCKED" ? "is-locked" : ""}" data-action="open-facility" data-facility-id="${escapeAttribute(facility.facilityId)}" ${facility.status === "LOCKED" ? "disabled" : ""}>
+              <span>${escapeHtml(facility.accent)}</span>
+              <div class="facility-square__building" aria-hidden="true"><i></i><i></i><i></i></div>
+              <strong>${escapeHtml(facility.japaneseName)}</strong>
+              <small>${escapeHtml(facility.note)}</small>
+              <em>${escapeHtml(facility.status)}</em>
+            </button>
+          `).join("")}
         </section>
 
         <div class="section-heading">
@@ -618,6 +617,27 @@ function homeTemplate(snapshot, currentRoute) {
       ${bottomNavTemplate(currentRoute)}
     </main>
   `;
+}
+
+function facilityTemplate(snapshot, currentRoute, selectedFacilityId) {
+  const selected = FACILITY_DEFINITIONS.find((facility) => facility.facilityId === selectedFacilityId) ?? FACILITY_DEFINITIONS[0];
+  const menu = FACILITY_MENUS[selected.facilityId] ?? [];
+  return `
+    <main class="screen screen--sub app-layout">
+      ${topStatusTemplate(snapshot)}
+      <div class="page-content">
+        <div class="back-row"><button type="button" class="back-button" data-action="navigate" data-route="${ROUTES.home}">← HOME</button></div>
+        <section class="facility-hub-hero"><span>FACILITY SELECT</span><h1>${escapeHtml(selected.japaneseName)}</h1><p>${escapeHtml(selected.note)}</p></section>
+        <section class="facility-carousel facility-carousel--hub" aria-label="施設選択">
+          ${FACILITY_DEFINITIONS.map((facility) => `
+            <button type="button" class="facility-square facility-square--small ${facility.facilityId === selected.facilityId ? "is-selected" : ""} ${facility.status === "LOCKED" ? "is-locked" : ""}" data-action="select-facility" data-facility-id="${escapeAttribute(facility.facilityId)}" ${facility.status === "LOCKED" ? "disabled" : ""}>
+              <span>${escapeHtml(facility.accent)}</span><div class="facility-square__building" aria-hidden="true"><i></i><i></i><i></i></div><strong>${escapeHtml(facility.japaneseName)}</strong><em>${escapeHtml(facility.status)}</em>
+            </button>`).join("")}
+        </section>
+        ${selected.status === "LOCKED" ? `<section class="facility-locked-panel"><strong>LOCKED</strong><p>料理機能は今後のアップデートで追加予定です。</p></section>` : `<div class="section-heading"><h2>${escapeHtml(selected.name)} MENU</h2><p>利用する機能を選択</p></div><section class="facility-menu-grid">${menu.map((item) => menuCardTemplate(item)).join("")}</section>`}
+      </div>
+      ${bottomNavTemplate(currentRoute)}
+    </main>`;
 }
 
 function teamTemplate(snapshot, currentRoute) {
@@ -844,14 +864,18 @@ function teamFeatureTemplate(
 
 function managementFeatureTemplate(snapshot, route, currentRoute) {
   const meta = ROUTE_META[route];
-  const teamParent = [ROUTES.record, ROUTES.news, ROUTES.items].includes(route);
+  const parentFacility = route === ROUTES.shop
+    ? "mob_shop"
+    : route === ROUTES.room
+      ? "mob_room"
+      : "team_lab";
   return `
     <main class="screen ${escapeAttribute(meta.backgroundClass)} app-layout">
       ${topStatusTemplate(snapshot)}
       <div class="page-content">
         <div class="back-row">
-          <button type="button" class="back-button" data-action="navigate" data-route="${teamParent ? ROUTES.team : ROUTES.home}">
-            ← ${teamParent ? "TEAM" : "HOME"}
+          <button type="button" class="back-button" data-action="open-facility" data-facility-id="${parentFacility}">
+            ← FACILITY
           </button>
         </div>
         <section class="hero-panel">
@@ -1076,6 +1100,7 @@ export function createMainApp({
   let wizardData = createInitialWizardData();
   let wizardError = "";
   let selectedTeamPlayerId = null;
+  let selectedFacilityId = "team_lab";
   let selectedAbilityColor = "blue";
   let abilityUpgradePlan = {};
   let abilityPlanPlayerId = null;
@@ -1102,13 +1127,19 @@ export function createMainApp({
   }
 
   function renderPreservingPageScroll() {
-    const page = root.querySelector(".page-content");
-    const scrollTop = page?.scrollTop ?? 0;
+    const currentRoute = route;
+    const positions = new Map();
+    for (const element of root.querySelectorAll(".page-content, [data-scroll-memory]")) {
+      const key = element.dataset.scrollMemory ?? (element.classList.contains("page-content") ? "page-content" : null);
+      if (key) positions.set(key, { top: element.scrollTop, left: element.scrollLeft });
+    }
     render();
-    queueMicrotask(() => {
-      const nextPage = root.querySelector(".page-content");
-      if (nextPage) nextPage.scrollTop = scrollTop;
-    });
+    if (route !== currentRoute) return;
+    for (const element of root.querySelectorAll(".page-content, [data-scroll-memory]")) {
+      const key = element.dataset.scrollMemory ?? (element.classList.contains("page-content") ? "page-content" : null);
+      const position = key ? positions.get(key) : null;
+      if (position) { element.scrollTop = position.top; element.scrollLeft = position.left; }
+    }
   }
 
   function closeModal(value = false) {
@@ -1341,6 +1372,10 @@ export function createMainApp({
 
     if (route === ROUTES.home) {
       root.innerHTML = homeTemplate(snapshot, route);
+      return;
+    }
+    if (route === ROUTES.facility) {
+      root.innerHTML = facilityTemplate(snapshot, route, selectedFacilityId);
       return;
     }
     if (route === ROUTES.team) {
@@ -1649,6 +1684,16 @@ export function createMainApp({
       navigate(actionElement.dataset.route);
       return;
     }
+    if (action === "open-facility") {
+      selectedFacilityId = actionElement.dataset.facilityId ?? "team_lab";
+      navigate(ROUTES.facility);
+      return;
+    }
+    if (action === "select-facility") {
+      selectedFacilityId = actionElement.dataset.facilityId ?? "team_lab";
+      renderPreservingPageScroll();
+      return;
+    }
     if (action === "cancel-new-game") {
       root.dataset.mode = "";
       wizardStep = 0;
@@ -1703,6 +1748,7 @@ export function createMainApp({
             <div class="player-status-modal__points">
               <span>POWER ${formatNumber(pointPool.power)}</span><span>TECH ${formatNumber(pointPool.tech)}</span><span>MENTAL ${formatNumber(pointPool.mental)}</span><span>SHOOT ${formatNumber(pointPool.shoot)}</span>
             </div>
+            <button type="button" class="primary-button player-status-modal__ability" data-action="modal-open-player-ability" data-player-id="${escapeAttribute(player.playerId)}">この選手を能力アップ</button>
           </section>
         `,
         buttonLabel: "閉じる",
@@ -2016,7 +2062,21 @@ export function createMainApp({
       return;
     }
 
-    if (actionElement.dataset.action === "modal-confirm") {
+    if (actionElement.dataset.action === "modal-open-player-ability") {
+      const playerId = actionElement.dataset.playerId;
+      closeModal("ability");
+      selectedTeamPlayerId = playerId;
+      abilityPlanPlayerId = playerId;
+      abilityUpgradePlan = {};
+      route = ROUTES.ability;
+      try {
+        stateManager.transact("ui_route_changed", (draft) => {
+          draft.ui.lastScreen = ROUTES.ability;
+          draft.ui.lastSubScreen = null;
+        });
+      } catch (_error) {}
+      render();
+    } else if (actionElement.dataset.action === "modal-confirm") {
       closeModal(true);
     } else if (
       actionElement.dataset.action === "modal-text-confirm"
