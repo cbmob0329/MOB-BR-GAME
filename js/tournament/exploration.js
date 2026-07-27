@@ -16,6 +16,9 @@ import {
   STRATEGY_RANKS,
   STRATEGY_RULES,
 } from "../../data/strategy-data.js";
+import {
+  getPlayableRoundCount,
+} from "./round.js";
 
 export const EXPLORATION_VERSION =
   "mobbr-tournament-exploration-1.0.0";
@@ -178,7 +181,7 @@ export function calculateExplorationSchedule(totalRounds) {
   if (!Number.isInteger(totalRounds) || totalRounds < 1) {
     throw new RangeError("Total rounds must be a positive integer.");
   }
-  if (totalRounds === 6) {
+  if (totalRounds === 5 || totalRounds === 6) {
     return deepFreeze({
       initial: true,
       afterRounds: [2, 4],
@@ -204,7 +207,7 @@ export function calculateExplorationSchedule(totalRounds) {
 }
 
 export function getDueRoundExplorationIndex(runtime) {
-  const totalRounds = runtime.entryData.tournament.roundTargets.length;
+  const totalRounds = getPlayableRoundCount(runtime);
   const schedule = calculateExplorationSchedule(totalRounds);
   const completedRound = runtime.round - 1;
   const scheduleIndex = schedule.afterRounds.indexOf(completedRound);

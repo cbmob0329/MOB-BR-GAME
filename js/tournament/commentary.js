@@ -292,6 +292,7 @@ function commentaryDefinition(event, context) {
         tags: ["reload"],
       };
     case "skill_area_attack":
+    case "skill_area_debuff":
       return {
         category: "area_skill",
         priority: COMMENTARY_PRIORITIES.skill,

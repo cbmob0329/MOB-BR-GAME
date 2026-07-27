@@ -1,0 +1,775 @@
+/**
+ * MOB BR full-round integration.
+ *
+ * This module resolves encounter rolls, CPU-only fast simulation, round target
+ * reduction, final-three/final-two/final-one announcements, and spectator
+ * progression after the player team is eliminated.
+ */
+
+import {
+  clamp,
+} from "../../data/game-data.js";
+
+export const ROUND_INTEGRATION_VERSION =
+  "mobbr-tournament-round-1.0.0";
+
+export const ROUND_INTEGRATION_RULES = Object.freeze({
+  encounterRate: 0.75,
+  announcementCounts: Object.freeze([3, 2, 1]),
+  cpuFastDamageScale: 6.5,
+  playerBattleWinBonus: 600,
+  playerBattleLossPenalty: 420,
+});
+
+function deepClone(value) {
+  if (typeof globalThis.structuredClone === "function") {
+    return globalThis.structuredClone(value);
+  }
+  return JSON.parse(JSON.stringify(value));
+}
+
+function deepFreeze(value) {
+  if (value && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const child of Object.values(value)) {
+      deepFreeze(child);
+    }
+  }
+  return value;
+}
+
+function hashText(value) {
+  const text = String(value);
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0 || 0x9e3779b9;
+}
+
+function stableUnit(seed) {
+  return hashText(seed) / 0x1_0000_0000;
+}
+
+function assertRuntime(draft) {
+  if (!draft || typeof draft !== "object") {
+    throw new TypeError(
+      "Tournament runtime draft must be an object.",
+    );
+  }
+  if (!Array.isArray(draft.activeTeamIds)) {
+    throw new TypeError(
+      "Tournament active teams are missing.",
+    );
+  }
+  draft.roundIntegration ??= {
+    encounterRate:
+      ROUND_INTEGRATION_RULES.encounterRate,
+    encounters: {},
+    cpuFastHistory: [],
+    remainingAnnouncements: [],
+    playerEliminatedAt: null,
+    matchPlacements: {},
+  };
+  return draft;
+}
+
+export function getPlayableRoundCount(runtime) {
+  const targets =
+    runtime.entryData.tournament.roundTargets;
+  if (!Array.isArray(targets) || targets.length === 0) {
+    return 0;
+  }
+  return targets[0] === runtime.teams.length
+    ? Math.max(1, targets.length - 1)
+    : targets.length;
+}
+
+export function getRoundTarget(runtime, round) {
+  const targets =
+    runtime.entryData.tournament.roundTargets;
+  if (
+    !Number.isInteger(round) ||
+    round < 1
+  ) {
+    throw new RangeError(
+      "Round must be a positive integer.",
+    );
+  }
+  const includesStartCount =
+    targets[0] === runtime.teams.length;
+  const index =
+    includesStartCount
+      ? round
+      : round - 1;
+  return targets[
+    Math.min(index, targets.length - 1)
+  ];
+}
+
+function teamRecord(runtime, teamId) {
+  const team = runtime.teams.find(
+    (candidate) =>
+      candidate.teamId === teamId,
+  );
+  if (!team) {
+    throw new RangeError(
+      `Unknown tournament team: ${teamId}`,
+    );
+  }
+  return team;
+}
+
+function teamMembers(runtime, teamId) {
+  return teamRecord(runtime, teamId)
+    .members.map(
+      (member) =>
+        runtime.memberRuntime[member.playerId],
+    );
+}
+
+function teamPower(runtime, teamId) {
+  const source = teamRecord(runtime, teamId);
+  return source.members.reduce(
+    (sum, member) => {
+      const stats =
+        member.stats ??
+        member.battleStats ??
+        {};
+      const base = Object.values(stats).reduce(
+        (statSum, value) =>
+          statSum +
+          (Number.isFinite(value) ? value : 0),
+        0,
+      );
+      const runtimeMember =
+        runtime.memberRuntime[member.playerId];
+      const hpRate =
+        runtimeMember.maxHp > 0
+          ? runtimeMember.hp /
+            runtimeMember.maxHp
+          : 0;
+      const stateRate =
+        runtimeMember.combatState === "alive"
+          ? 1
+          : runtimeMember.combatState === "down"
+            ? 0.25
+            : 0;
+      return (
+        sum +
+        base *
+          (0.55 + hpRate * 0.35 + stateRate * 0.1)
+      );
+    },
+    0,
+  );
+}
+
+function recentOpponentIds(runtime) {
+  return runtime.battleHistory
+    .filter(
+      (record) =>
+        record.match === runtime.match,
+    )
+    .slice(-2)
+    .map((record) => record.opponentTeamId);
+}
+
+export function resolveRoundEncounterToDraft(
+  draft,
+  {
+    force = null,
+  } = {},
+) {
+  assertRuntime(draft);
+  const key =
+    `${draft.entryId}:${draft.match}:${draft.round}`;
+  const existing =
+    draft.roundIntegration.encounters[key];
+  if (existing) {
+    draft.currentOpponentId =
+      existing.opponentTeamId;
+    draft.lockedOpponentId =
+      existing.opponentTeamId;
+    draft.currentPairs =
+      existing.opponentTeamId
+        ? [[draft.playerTeamId, existing.opponentTeamId]]
+        : [];
+    return deepFreeze(deepClone(existing));
+  }
+
+  const playerActive =
+    draft.activeTeamIds.includes(
+      draft.playerTeamId,
+    );
+  const roll = stableUnit(`${key}:encounter`);
+  const encountered =
+    playerActive &&
+    (
+      force === true ||
+      (
+        force !== false &&
+        roll <
+          ROUND_INTEGRATION_RULES.encounterRate
+      )
+    );
+
+  let opponentTeamId = null;
+  if (encountered) {
+    const recent =
+      new Set(recentOpponentIds(draft));
+    const candidates =
+      draft.activeTeamIds.filter(
+        (teamId) =>
+          teamId !== draft.playerTeamId,
+      );
+    const preferred =
+      candidates.filter(
+        (teamId) => !recent.has(teamId),
+      );
+    const source =
+      preferred.length > 0
+        ? preferred
+        : candidates;
+    if (source.length > 0) {
+      const index = Math.floor(
+        stableUnit(`${key}:opponent`) *
+          source.length,
+      );
+      opponentTeamId =
+        source[
+          Math.min(
+            source.length - 1,
+            index,
+          )
+        ];
+    }
+  }
+
+  const result = {
+    encounterKey: key,
+    match: draft.match,
+    round: draft.round,
+    playerActive,
+    roll,
+    encounterRate:
+      ROUND_INTEGRATION_RULES.encounterRate,
+    encountered:
+      encountered &&
+      opponentTeamId !== null,
+    opponentTeamId,
+    reason:
+      !playerActive
+        ? "player_eliminated_spectator"
+        : opponentTeamId === null
+          ? "no_cpu_opponent"
+          : encountered
+            ? "encounter_success"
+            : "encounter_roll_failed",
+  };
+  draft.roundIntegration.encounters[key] =
+    deepClone(result);
+  draft.currentOpponentId = opponentTeamId;
+  draft.lockedOpponentId = opponentTeamId;
+  draft.currentPairs =
+    opponentTeamId
+      ? [[draft.playerTeamId, opponentTeamId]]
+      : [];
+  return deepFreeze(result);
+}
+
+function actualBattleSummary(
+  runtime,
+  teamId,
+) {
+  return runtime.lastBattleResult
+    ?.teamSummaries?.[teamId] ??
+    null;
+}
+
+function createFastStats(
+  runtime,
+  teamId,
+) {
+  const power = teamPower(runtime, teamId);
+  const seed =
+    `${runtime.entryId}:${runtime.match}:${runtime.round}:${teamId}:fast`;
+  const variation = stableUnit(seed);
+  const hpRate =
+    teamMembers(runtime, teamId).reduce(
+      (sum, member) =>
+        sum +
+        (
+          member.maxHp > 0
+            ? member.hp / member.maxHp
+            : 0
+        ),
+      0,
+    ) / 3;
+  const damage = Math.max(
+    0,
+    Math.round(
+      power *
+        (
+          ROUND_INTEGRATION_RULES
+            .cpuFastDamageScale +
+          variation * 2.5
+        ),
+    ),
+  );
+  const kp = Math.max(
+    0,
+    Math.round(
+      power / 120 +
+      variation * 5 +
+      hpRate * 2,
+    ),
+  );
+  const ap = Math.max(
+    0,
+    Math.round(
+      kp *
+        (
+          0.25 +
+          stableUnit(`${seed}:ap`) * 0.7
+        ),
+    ),
+  );
+  const damageTaken = Math.max(
+    0,
+    Math.round(
+      damage *
+        (
+          0.55 +
+          stableUnit(`${seed}:taken`) * 0.9
+        ),
+    ),
+  );
+  return {
+    kp,
+    ap,
+    damage,
+    damageTaken,
+    downs: Math.max(
+      kp,
+      Math.round(kp * 1.4),
+    ),
+    confirmedKills: kp,
+    hpRate,
+    aliveCount:
+      teamMembers(runtime, teamId)
+        .filter(
+          (member) =>
+            member.combatState === "alive",
+        ).length,
+    battlePower: power,
+    source: "cpu_fast_round",
+  };
+}
+
+function scoreTeam(
+  runtime,
+  teamId,
+  stats,
+) {
+  const actual =
+    actualBattleSummary(runtime, teamId);
+  const battleBonus =
+    actual
+      ? runtime.lastBattleResult.winnerTeamId ===
+        teamId
+        ? ROUND_INTEGRATION_RULES
+            .playerBattleWinBonus
+        : runtime.lastBattleResult.loserTeamId ===
+            teamId
+          ? -ROUND_INTEGRATION_RULES
+              .playerBattleLossPenalty
+          : 0
+      : 0;
+  return (
+    stats.battlePower * 7 +
+    stats.hpRate * 500 +
+    stats.aliveCount * 160 +
+    stats.kp * 90 +
+    stats.damage / 25 -
+    stats.damageTaken / 40 +
+    battleBonus +
+    stableUnit(
+      `${runtime.entryId}:${runtime.match}:${runtime.round}:${teamId}:score`,
+    ) * 480
+  );
+}
+
+function applyCpuRoundState(
+  runtime,
+  teamId,
+  {
+    eliminated,
+    score,
+  },
+) {
+  const members = teamMembers(runtime, teamId);
+  if (eliminated) {
+    for (const member of members) {
+      member.hp = 0;
+      member.combatState = "dead";
+      member.currentAmmo = 8;
+      member.reloadRemaining = 0;
+    }
+  } else if (
+    teamId !== runtime.playerTeamId &&
+    teamId !== runtime.currentOpponentId
+  ) {
+    for (const [index, member] of members.entries()) {
+      const unit = stableUnit(
+        `${runtime.entryId}:${runtime.match}:${runtime.round}:${teamId}:${member.playerId}:hp`,
+      );
+      const hpRate = clamp(
+        0.12 +
+          unit * 0.78 +
+          Math.min(0.1, score / 20000),
+        0.08,
+        1,
+      );
+      member.hp = Math.max(
+        10,
+        Math.round(member.maxHp * hpRate),
+      );
+      member.combatState = "alive";
+      member.currentAmmo = 8;
+      member.reloadRemaining = 0;
+      if (index === 2 && hpRate < 0.2) {
+        member.hp = 10;
+      }
+    }
+  }
+
+  const teamRuntime =
+    runtime.teamRuntime[teamId];
+  teamRuntime.matchHp =
+    members.map((member) => member.hp);
+  teamRuntime.persistentHp =
+    [...teamRuntime.matchHp];
+  teamRuntime.combatState =
+    members.map(
+      (member) => member.combatState,
+    );
+}
+
+function baseRoundRecord(runtime) {
+  const existing =
+    runtime.roundTotals.find(
+      (record) =>
+        record.match === runtime.match &&
+        record.round === runtime.round,
+    );
+  return existing
+    ? deepClone(existing)
+    : {
+        match: runtime.match,
+        round: runtime.round,
+        provisional: false,
+        resultCalculated: true,
+        battleId: null,
+        opponentTeamId:
+          runtime.currentOpponentId,
+        winnerTeamId: null,
+        loserTeamId: null,
+        draw: false,
+        endReason: "field_round",
+        elapsedSeconds: 0,
+        damage: 0,
+        damageTaken: 0,
+        kills: 0,
+        assists: 0,
+        downs: 0,
+        kp: 0,
+        memberResults: [],
+      };
+}
+
+export function finalizeRoundFieldToDraft(
+  draft,
+  {
+    source = "round_flow",
+  } = {},
+) {
+  assertRuntime(draft);
+  const existing = draft.roundTotals.find(
+    (record) =>
+      record.match === draft.match &&
+      record.round === draft.round &&
+      record.fieldResolved === true,
+  );
+  if (existing) {
+    return deepFreeze(deepClone(existing));
+  }
+
+  const activeBefore =
+    [...draft.activeTeamIds];
+  const targetCount = Math.max(
+    1,
+    Math.min(
+      activeBefore.length,
+      getRoundTarget(draft, draft.round),
+    ),
+  );
+
+  const teamResults = activeBefore.map(
+    (teamId) => {
+      const actual =
+        actualBattleSummary(draft, teamId);
+      const stats =
+        actual
+          ? {
+              kp: actual.kp ?? 0,
+              ap: actual.assists ?? 0,
+              damage: actual.damage ?? 0,
+              damageTaken:
+                actual.damageTaken ?? 0,
+              downs:
+                actual.downsGiven ?? 0,
+              confirmedKills:
+                actual.confirmedKills ?? 0,
+              hpRate:
+                actual.hpRate ?? 0,
+              aliveCount:
+                actual.aliveCount ?? 0,
+              battlePower:
+                actual.battlePower ??
+                teamPower(draft, teamId),
+              source: "player_visible_battle",
+            }
+          : createFastStats(draft, teamId);
+      return {
+        teamId,
+        teamName:
+          teamRecord(draft, teamId)
+            .teamName,
+        teamLogo:
+          teamRecord(draft, teamId)
+            .teamLogo,
+        isPlayer:
+          teamId === draft.playerTeamId,
+        ...stats,
+        score:
+          scoreTeam(draft, teamId, stats),
+      };
+    },
+  );
+
+  teamResults.sort((left, right) => {
+    if (right.score !== left.score) {
+      return right.score - left.score;
+    }
+    if (right.aliveCount !== left.aliveCount) {
+      return right.aliveCount - left.aliveCount;
+    }
+    if (right.hpRate !== left.hpRate) {
+      return right.hpRate - left.hpRate;
+    }
+    if (right.kp !== left.kp) {
+      return right.kp - left.kp;
+    }
+    return left.teamId.localeCompare(
+      right.teamId,
+    );
+  });
+
+  const survivors =
+    teamResults
+      .slice(0, targetCount)
+      .map((row) => row.teamId);
+  const eliminatedRows =
+    teamResults.slice(targetCount);
+  const eliminatedIds =
+    eliminatedRows.map((row) => row.teamId);
+
+  for (const row of teamResults) {
+    const eliminated =
+      eliminatedIds.includes(row.teamId);
+    row.roundPlace =
+      teamResults.findIndex(
+        (candidate) =>
+          candidate.teamId === row.teamId,
+      ) + 1;
+    row.survived = !eliminated;
+    applyCpuRoundState(
+      draft,
+      row.teamId,
+      {
+        eliminated,
+        score: row.score,
+      },
+    );
+  }
+
+  const previousCount =
+    activeBefore.length;
+  draft.activeTeamIds = survivors;
+  for (const row of eliminatedRows) {
+    if (
+      !draft.eliminated.some(
+        (record) =>
+          record.teamId === row.teamId &&
+          record.match === draft.match,
+      )
+    ) {
+      draft.eliminated.push({
+        teamId: row.teamId,
+        teamName: row.teamName,
+        match: draft.match,
+        round: draft.round,
+        score: row.score,
+        fieldPlace: row.roundPlace,
+        source,
+      });
+    }
+  }
+
+  const playerSurvived =
+    survivors.includes(draft.playerTeamId);
+  if (
+    !playerSurvived &&
+    draft.roundIntegration
+      .playerEliminatedAt === null
+  ) {
+    draft.roundIntegration.playerEliminatedAt = {
+      match: draft.match,
+      round: draft.round,
+    };
+  }
+
+  const newAnnouncements =
+    ROUND_INTEGRATION_RULES
+      .announcementCounts
+      .filter(
+        (count) =>
+          survivors.length === count &&
+          previousCount > count &&
+          !draft.roundIntegration
+            .remainingAnnouncements
+            .includes(
+              `${draft.match}:${count}`,
+            ),
+      );
+  for (const count of newAnnouncements) {
+    draft.roundIntegration
+      .remainingAnnouncements.push(
+        `${draft.match}:${count}`,
+      );
+  }
+
+  const record = {
+    ...baseRoundRecord(draft),
+    fieldResolved: true,
+    source,
+    activeTeamsBefore: activeBefore,
+    activeTeamsAfter: survivors,
+    activeTeams:
+      survivors.length,
+    targetCount,
+    eliminatedTeamIds: eliminatedIds,
+    remainingCount:
+      survivors.length,
+    remainingAnnouncements:
+      newAnnouncements,
+    playerSurvived,
+    playerEliminatedThisRound:
+      !playerSurvived &&
+      activeBefore.includes(
+        draft.playerTeamId,
+      ),
+    teamResults:
+      teamResults.map((row) => ({
+        ...row,
+        score:
+          Math.round(row.score * 100) / 100,
+      })),
+    cpuFastCount:
+      teamResults.filter(
+        (row) =>
+          row.source === "cpu_fast_round",
+      ).length,
+  };
+
+  draft.roundTotals =
+    draft.roundTotals.filter(
+      (candidate) =>
+        !(
+          candidate.match ===
+            draft.match &&
+          candidate.round ===
+            draft.round
+        ),
+    );
+  draft.roundTotals.push(record);
+  draft.roundTotals.sort(
+    (left, right) =>
+      left.match - right.match ||
+      left.round - right.round,
+  );
+  draft.roundIntegration
+    .cpuFastHistory.push({
+      match: draft.match,
+      round: draft.round,
+      activeBefore: previousCount,
+      activeAfter: survivors.length,
+      cpuFastCount:
+        record.cpuFastCount,
+      checksumSeed:
+        hashText(
+          JSON.stringify(
+            record.teamResults.map(
+              (row) => [
+                row.teamId,
+                row.score,
+                row.survived,
+              ],
+            ),
+          ),
+        ).toString(16),
+    });
+  draft.pendingVisualId =
+    `round-result:${draft.match}:${draft.round}`;
+
+  return deepFreeze(deepClone(record));
+}
+
+export function getCurrentRoundRecord(runtime) {
+  return runtime.roundTotals.find(
+    (record) =>
+      record.match === runtime.match &&
+      record.round === runtime.round,
+  ) ?? null;
+}
+
+export function isPlayerActive(runtime) {
+  return runtime.activeTeamIds.includes(
+    runtime.playerTeamId,
+  );
+}
+
+export function validateRoundIntegration(runtime) {
+  assertRuntime(runtime);
+  const playable =
+    getPlayableRoundCount(runtime);
+  if (playable < 1) {
+    throw new Error(
+      "Tournament playable round count is invalid.",
+    );
+  }
+  for (const record of runtime.roundTotals) {
+    if (
+      record.fieldResolved === true &&
+      record.activeTeamsAfter.length !==
+        record.targetCount
+    ) {
+      throw new Error(
+        "Resolved round survivor count does not match the round target.",
+      );
+    }
+  }
+  return true;
+}

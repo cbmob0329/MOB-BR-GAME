@@ -15,13 +15,16 @@ import {
   STRATEGY_RULES,
 } from "../../data/strategy-data.js";
 import {
+  getPlayableRoundCount,
+} from "./round.js";
+import {
   finalizeTournamentResultData,
   resolvePlacementRewards,
   writeTournamentResultToStorage,
 } from "../main/tournament-bridge.js";
 
 export const RESULTS_VERSION =
-  "mobbr-tournament-results-1.0.0";
+  "mobbr-tournament-results-1.1.0";
 
 export const RESULT_RULES = Object.freeze({
   defaultMatchPointThreshold: 50,
@@ -145,149 +148,128 @@ function matchBattleRecords(runtime, match) {
   );
 }
 
-function aggregatePlayerMatchStats(runtime, match) {
-  const records = matchBattleRecords(runtime, match);
-  return records.reduce(
-    (total, record) => {
-      const summary = record.result?.teamSummaries?.[runtime.playerTeamId];
-      if (!summary) return total;
-      total.kp += summary.kp ?? 0;
-      total.ap += summary.assists ?? 0;
-      total.damage += summary.damage ?? 0;
-      total.damageTaken += summary.damageTaken ?? 0;
-      total.downs += summary.downsGiven ?? 0;
-      total.wins +=
-        record.winnerTeamId === runtime.playerTeamId ? 1 : 0;
-      total.losses +=
-        record.winnerTeamId &&
-        record.winnerTeamId !== runtime.playerTeamId
-          ? 1
-          : 0;
-      return total;
-    },
-    {
-      kp: 0,
-      ap: 0,
-      damage: 0,
-      damageTaken: 0,
-      downs: 0,
-      wins: 0,
-      losses: 0,
-      rounds: records.length,
-    },
-  );
+function matchRoundRecords(runtime, match) {
+  return runtime.roundTotals
+    .filter(
+      (record) =>
+        record.match === match &&
+        record.fieldResolved === true,
+    )
+    .sort(
+      (left, right) =>
+        left.round - right.round,
+    );
 }
 
-function createCpuMatchStats(runtime, team, match) {
+function createFormalMatchStats(runtime, teamId, match) {
+  const records = matchRoundRecords(runtime, match);
+  const aggregate = {
+    kp: 0,
+    ap: 0,
+    damage: 0,
+    damageTaken: 0,
+    downs: 0,
+    wins: 0,
+    losses: 0,
+    rounds: records.length,
+    lastActiveRound: 0,
+    eliminatedRound: null,
+    lastScore: Number.NEGATIVE_INFINITY,
+    finalSurvivor: false,
+  };
+
+  for (const record of records) {
+    const row = record.teamResults?.find(
+      (candidate) => candidate.teamId === teamId,
+    );
+    if (!row) continue;
+    aggregate.kp += row.kp ?? 0;
+    aggregate.ap += row.ap ?? 0;
+    aggregate.damage += row.damage ?? 0;
+    aggregate.damageTaken += row.damageTaken ?? 0;
+    aggregate.downs += row.downs ?? 0;
+    aggregate.lastScore = row.score ?? aggregate.lastScore;
+    if (row.survived) {
+      aggregate.lastActiveRound = record.round;
+      aggregate.wins += 1;
+    } else if (aggregate.eliminatedRound === null) {
+      aggregate.eliminatedRound = record.round;
+      aggregate.losses += 1;
+    }
+  }
+
+  const finalRecord = records.at(-1);
+  aggregate.finalSurvivor =
+    finalRecord?.activeTeamsAfter?.includes(teamId) === true;
+  if (!Number.isFinite(aggregate.lastScore)) {
+    aggregate.lastScore =
+      stableUnit(
+        `${runtime.entryId}|${match}|${teamId}|legacy-formal-score`,
+      ) * teamBattlePower(teamById(runtime, teamId));
+  }
+  return aggregate;
+}
+
+function createLegacyMatchStats(runtime, team, match) {
   const power = teamBattlePower(team);
   const variation = stableUnit(
-    `${runtime.entryId}|${team.teamId}|${match}|match-stats`,
+    `${runtime.entryId}|${team.teamId}|${match}|legacy-match-stats`,
   );
-  const rounds = runtime.entryData.tournament.roundTargets.length;
-  const kp = Math.max(
-    0,
-    Math.round((power / 180) + variation * 5 + rounds * 0.25),
-  );
-  const ap = Math.max(
-    0,
-    Math.round(kp * (0.3 + variation * 0.7)),
-  );
-  const damage = Math.max(
-    0,
-    Math.round(power * (2.2 + variation * 1.9)),
-  );
-  const damageTaken = Math.max(
-    0,
-    Math.round(power * (1.5 + (1 - variation) * 1.7)),
-  );
+  const rounds = getPlayableRoundCount(runtime);
   return {
-    kp,
-    ap,
-    damage,
-    damageTaken,
-    downs: Math.max(kp, Math.round(kp * 1.5)),
+    kp: Math.max(0, Math.round(power / 180 + variation * 5)),
+    ap: Math.max(0, Math.round(power / 260 + variation * 3)),
+    damage: Math.max(0, Math.round(power * (2.2 + variation * 1.9))),
+    damageTaken: Math.max(0, Math.round(power * (1.5 + (1 - variation) * 1.7))),
+    downs: Math.max(0, Math.round(power / 170 + variation * 4)),
     wins: 0,
     losses: 0,
     rounds,
+    lastActiveRound: Math.floor(variation * rounds),
+    eliminatedRound: null,
+    lastScore: power + variation * 100,
+    finalSurvivor: false,
   };
 }
 
-function resolveMatchChampion(runtime, playerStats) {
-  const finalRecord = matchBattleRecords(runtime, runtime.match).at(-1);
-  const allRoundsWon =
-    playerStats.rounds > 0 &&
-    playerStats.wins === playerStats.rounds;
-  if (
-    allRoundsWon &&
-    finalRecord?.winnerTeamId === runtime.playerTeamId
-  ) {
-    return runtime.playerTeamId;
-  }
-
-  return runtime.teams
-    .filter((team) => team.teamId !== runtime.playerTeamId)
-    .map((team) => ({
-      teamId: team.teamId,
-      score:
-        teamBattlePower(team) +
-        stableUnit(
-          `${runtime.entryId}|${runtime.match}|${team.teamId}|champion`,
-        ) *
-          140,
-    }))
-    .sort((left, right) => {
-      if (right.score !== left.score) {
-        return right.score - left.score;
-      }
-      return left.teamId.localeCompare(right.teamId);
-    })[0].teamId;
-}
-
 function createMatchRankingRows(runtime) {
-  const playerStats = aggregatePlayerMatchStats(
+  const formalRecords = matchRoundRecords(
     runtime,
     runtime.match,
   );
-  const championTeamId = resolveMatchChampion(
-    runtime,
-    playerStats,
-  );
+  const finalRecord = formalRecords.at(-1);
+  const championTeamId =
+    finalRecord?.activeTeamsAfter?.length === 1
+      ? finalRecord.activeTeamsAfter[0]
+      : runtime.activeTeamIds.length === 1
+        ? runtime.activeTeamIds[0]
+        : null;
 
   const scored = runtime.teams.map((team) => {
-    const stats =
-      team.teamId === runtime.playerTeamId
-        ? playerStats
-        : createCpuMatchStats(runtime, team, runtime.match);
-    const actualBoost =
-      team.teamId === runtime.playerTeamId
-        ? playerStats.wins * 850 -
-          playerStats.losses * 260 +
-          playerStats.kp * 105 +
-          playerStats.damage / 24
-        : 0;
-    const score =
-      teamBattlePower(team) * 7 +
-      stats.kp * 110 +
-      stats.damage / 18 +
-      actualBoost +
-      stableUnit(
-        `${runtime.entryId}|${runtime.match}|${team.teamId}|ranking`,
-      ) *
-        780;
-
+    const stats = formalRecords.length > 0
+      ? createFormalMatchStats(runtime, team.teamId, runtime.match)
+      : createLegacyMatchStats(runtime, team, runtime.match);
     return {
       team,
       stats,
-      score:
-        team.teamId === championTeamId
-          ? Number.POSITIVE_INFINITY
-          : score,
+      champion: team.teamId === championTeamId,
     };
   });
 
   scored.sort((left, right) => {
-    if (right.score !== left.score) {
-      return right.score - left.score;
+    if (left.champion !== right.champion) {
+      return left.champion ? -1 : 1;
+    }
+    if (right.stats.lastActiveRound !== left.stats.lastActiveRound) {
+      return right.stats.lastActiveRound - left.stats.lastActiveRound;
+    }
+    const leftElimination = left.stats.eliminatedRound ?? Number.MAX_SAFE_INTEGER;
+    const rightElimination = right.stats.eliminatedRound ?? Number.MAX_SAFE_INTEGER;
+    if (rightElimination !== leftElimination) {
+      return rightElimination - leftElimination;
+    }
+    if (right.stats.lastScore !== left.stats.lastScore) {
+      return right.stats.lastScore - left.stats.lastScore;
     }
     if (right.stats.kp !== left.stats.kp) {
       return right.stats.kp - left.stats.kp;
@@ -321,16 +303,17 @@ function createMatchRankingRows(runtime) {
       damage: entry.stats.damage,
       damageTaken: entry.stats.damageTaken,
       downs: entry.stats.downs,
+      survivedRounds: entry.stats.lastActiveRound,
+      eliminatedRound: entry.stats.eliminatedRound,
       total,
       cumulativeTotal: previous.sumTotal + total,
-      cumulativePlacement:
-        previous.sumPlacementPoint + placementPoint,
+      cumulativePlacement: previous.sumPlacementPoint + placementPoint,
       cumulativeKp: previous.sumKp + entry.stats.kp,
       status:
         place === 1
           ? "CHAMPION"
-          : place <= 10
-            ? "CONTENDER"
+          : entry.stats.finalSurvivor
+            ? "FINALIST"
             : "ELIMINATED",
     };
   });
@@ -435,20 +418,25 @@ function updateMatchPointToDraft(draft, matchRecord) {
         ? rule.threshold
         : RESULT_RULES.defaultMatchPointThreshold,
     eligibleTeamIds: [],
+    newEligibleTeamIds: [],
     matchPointReachedAt: {},
     mpWinner: null,
+    winnerConfirmedAtMatch: null,
     completedMatches: 0,
     maxMatches: draft.entryData.tournament.matches,
+    suddenDeath: false,
     suddenDeathRule: "highest_total_after_max_matches",
   };
 
   const state = draft.matchPointRuntime;
   const eligibleBefore = new Set(state.eligibleTeamIds);
+  state.newEligibleTeamIds = [];
   if (
     state.mpWinner === null &&
     eligibleBefore.has(matchRecord.championTeamId)
   ) {
     state.mpWinner = matchRecord.championTeamId;
+    state.winnerConfirmedAtMatch = matchRecord.match;
   }
 
   state.completedMatches = draft.matchTotals.length;
@@ -459,11 +447,22 @@ function updateMatchPointToDraft(draft, matchRecord) {
       !state.eligibleTeamIds.includes(total.teamId)
     ) {
       state.eligibleTeamIds.push(total.teamId);
-      state.matchPointReachedAt[total.teamId] =
-        matchRecord.match;
+      state.newEligibleTeamIds.push(total.teamId);
+      state.matchPointReachedAt[total.teamId] = matchRecord.match;
     }
   }
   state.eligibleTeamIds.sort();
+  state.newEligibleTeamIds.sort();
+
+  if (
+    state.mpWinner === null &&
+    state.completedMatches >= state.maxMatches
+  ) {
+    const rankings = createFinalRankings(draft);
+    state.mpWinner = rankings[0]?.teamId ?? null;
+    state.winnerConfirmedAtMatch = matchRecord.match;
+    state.suddenDeath = state.mpWinner !== null;
+  }
   return deepClone(state);
 }
 
@@ -516,13 +515,12 @@ export function finalizeCurrentMatchToDraft(draft) {
       ? playerRow.place
       : Math.min(draft.totals.bestPlace, playerRow.place);
   draft.totals.matchCount += 1;
-  draft.totals.roundCount += matchBattleRecords(
+  draft.totals.roundCount += matchRoundRecords(
     draft,
     draft.match,
   ).length;
 
   updateMatchPointToDraft(draft, record);
-  draft.activeTeamIds = rankings.map((row) => row.teamId);
   draft.pendingVisualId = `match-champion:${champion.teamId}`;
   return deepFreeze(deepClone(record));
 }
@@ -538,6 +536,7 @@ function resetMemberForNextMatch(runtimeMember) {
     ),
   );
   runtimeMember.temporaryEffects = [];
+  runtimeMember.nextBattleOpeningEffects = [];
   runtimeMember.lifeSerial =
     (runtimeMember.lifeSerial ?? 1) + 1;
   runtimeMember.lifeId =
@@ -568,6 +567,8 @@ export function prepareNextMatchToDraft(draft) {
   draft.explorationRuntime.pendingExploreItem = null;
   draft.explorationRuntime.pendingItemUse = null;
   draft.strategyUi.confirmedId = null;
+  draft.roundIntegration.playerEliminatedAt = null;
+  draft.roundIntegration.matchPlacements[draft.match] = {};
 
   for (const member of Object.values(draft.memberRuntime)) {
     resetMemberForNextMatch(member);
@@ -1341,6 +1342,11 @@ export function renderMatchResultScreen(runtime) {
     runtime.entryData.tournament.matches;
   const matchPointWinner =
     runtime.matchPointRuntime?.mpWinner ?? null;
+  const newMatchPoint =
+    (runtime.matchPointRuntime?.newEligibleTeamIds?.length ?? 0) > 0;
+  const showMatchPoint =
+    runtime.matchPointRuntime?.enabled &&
+    (newMatchPoint || matchPointWinner !== null);
   const isFinal =
     runtime.match >= totalMatches ||
     matchPointWinner !== null;
@@ -1399,7 +1405,63 @@ export function renderMatchResultScreen(runtime) {
           class="tournament-button tournament-button--primary"
           data-action="match-result-next"
         >
-          ${isFinal ? "AWARDS" : "NEXT MATCH"}
+          ${showMatchPoint ? "MATCH POINT" : isFinal ? "AWARDS" : "NEXT MATCH"}
+        </button>
+      </div>
+    </main>
+  `;
+}
+
+export function renderMatchPointScreen(runtime) {
+  const state = runtime.matchPointRuntime;
+  if (!state?.enabled) {
+    throw new RangeError("MATCH POINT runtime is not active.");
+  }
+  const winner = state.mpWinner
+    ? teamById(runtime, state.mpWinner)
+    : null;
+  const newlyEligible = state.newEligibleTeamIds.map(
+    (teamId) => teamById(runtime, teamId),
+  );
+  const isWinner = winner !== null;
+  return `
+    <main class="tournament-screen tournament-screen--match-point ${isWinner ? "is-winner" : "is-eligible"}">
+      <div class="match-point-rays" aria-hidden="true"></div>
+      <section class="match-point-stage">
+        <span>${isWinner ? "MATCH POINT WINNER" : "MATCH POINT REACHED"}</span>
+        <h1>${isWinner ? "CHAMPION" : state.threshold}</h1>
+        ${
+          isWinner
+            ? `
+              <img src="${escapeAttribute(winner.teamLogo)}" alt="">
+              <h2>${escapeHtml(winner.teamName)}</h2>
+              <p>${state.suddenDeath ? "最終MATCH終了時の総合首位により決着しました。" : `MATCH ${state.winnerConfirmedAtMatch}でMATCH POINT勝利を確定しました。`}</p>
+            `
+            : `
+              <p>累計${state.threshold}ポイントへ到達。次のMATCHで優勝すると大会王者です。</p>
+              <div class="match-point-team-list">
+                ${newlyEligible.map((team) => `
+                  <article>
+                    <img src="${escapeAttribute(team.teamLogo)}" alt="">
+                    <strong>${escapeHtml(team.teamName)}</strong>
+                  </article>
+                `).join("")}
+              </div>
+            `
+        }
+      </section>
+      <div class="tournament-bottom-area result-fixed-bottom">
+        ${commentator(
+          isWinner
+            ? `${winner.teamName}がMATCH POINTを制し、大会王者に決定しました！`
+            : `${newlyEligible.map((team) => team.teamName).join("、")}がMATCH POINTへ到達しました！`,
+        )}
+        <button
+          type="button"
+          class="tournament-button tournament-button--primary"
+          data-action="match-point-next"
+        >
+          ${isWinner ? "AWARDS" : "NEXT MATCH"}
         </button>
       </div>
     </main>

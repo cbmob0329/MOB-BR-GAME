@@ -46,13 +46,22 @@ import {
   renderAwardScreen,
   renderMatchChampionScreen,
   renderMatchResultScreen,
+  renderMatchPointScreen,
   renderNextMatchWaitScreen,
   renderReturningResultScreen,
   renderTournamentResultScreen,
   writePreparedResultToStorage,
 } from "./results.js";
 
-export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-1.5.0";
+import {
+  finalizeRoundFieldToDraft,
+  getCurrentRoundRecord,
+  getPlayableRoundCount,
+  getRoundTarget,
+  resolveRoundEncounterToDraft,
+} from "./round.js";
+
+export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-1.6.0";
 
 const PHASE_LABELS = Object.freeze({
   IDLE: "待機",
@@ -74,6 +83,7 @@ const PHASE_LABELS = Object.freeze({
   ROUND_ADVANCE: "ROUND進行",
   MATCH_CHAMPION: "MATCH CHAMPION",
   MATCH_RESULT: "MATCH結果",
+  MATCH_POINT: "MATCH POINT",
   NEXT_MATCH_WAIT: "次MATCH待機",
   TOURNAMENT_AWARDS: "個人表彰",
   TOURNAMENT_RESULT: "大会総合結果",
@@ -480,7 +490,7 @@ function matchStartTemplate(runtime) {
     content: `
       <div class="runtime-ready-grid">
         <article><span>ACTIVE</span><strong>${runtime.activeTeamIds.length}</strong></article>
-        <article><span>ROUND TARGETS</span><strong>${runtime.entryData.tournament.roundTargets.length}</strong></article>
+        <article><span>ROUNDS</span><strong>${getPlayableRoundCount(runtime)}</strong></article>
         <article><span>HP STATE</span><strong>READY</strong></article>
         <article><span>SKILL CT</span><strong>0 START</strong></article>
       </div>
@@ -489,21 +499,25 @@ function matchStartTemplate(runtime) {
 }
 
 function roundIntroTemplate(runtime) {
+  const target = getRoundTarget(runtime, runtime.round);
   return provisionalPhaseTemplate(runtime, {
     eyebrow: "ROUND INTRO",
     title: `ROUND ${runtime.round}`,
     description:
-      "生存チーム・探索済みキー・接敵状態を確認するフェーズです。",
-    commentary: `ROUND ${runtime.round}、接敵データを確認します！`,
+      `残存${runtime.activeTeamIds.length}チームから${target}チームへ絞り込みます。接敵率は75%です。`,
+    commentary: `ROUND ${runtime.round}開始！生存目標は${target}チームです！`,
     primaryAction: "round-intro-next",
-    primaryLabel: "ENCOUNTER",
+    primaryLabel: "ENCOUNTER CHECK",
     content: `
       <div class="round-target-line">
-        ${runtime.entryData.tournament.roundTargets.map((target, index) => `
-          <span class="${index === runtime.round - 1 ? "is-current" : ""}">
-            ${target}
-          </span>
-        `).join("")}
+        ${Array.from({ length: getPlayableRoundCount(runtime) }, (_value, index) => {
+          const round = index + 1;
+          return `
+            <span class="${round === runtime.round ? "is-current" : ""}">
+              R${round} → ${getRoundTarget(runtime, round)}
+            </span>
+          `;
+        }).join("")}
       </div>
     `,
   });
@@ -591,53 +605,77 @@ function battleOutcomeTemplate(runtime) {
 }
 
 function roundResultTemplate(runtime) {
-  const result = runtime.lastBattleResult;
-  const members = result?.participantResults.filter(
-    (member) => member.teamId === runtime.playerTeamId,
-  ) ?? [];
-  const sourceById = new Map(
-    runtime.entryData.playerTeam.members.map(
-      (member) => [member.playerId, member],
-    ),
+  const record = getCurrentRoundRecord(runtime);
+  if (!record) {
+    throw new RangeError("Formal round result is missing.");
+  }
+  const playerRow = record.teamResults.find(
+    (row) => row.teamId === runtime.playerTeamId,
   );
+  const playerMembers = runtime.entryData.playerTeam.members;
+  const battleMembers = new Map(
+    (runtime.lastBattleResult?.participantResults ?? [])
+      .filter((member) => member.teamId === runtime.playerTeamId)
+      .map((member) => [member.playerId, member]),
+  );
+  const announcement = record.remainingAnnouncements.at(-1);
+  const topRows = record.teamResults.slice(0, Math.min(10, record.teamResults.length));
 
   return provisionalPhaseTemplate(runtime, {
     eyebrow: "ROUND RESULT",
-    title: `MATCH ${runtime.match} / ROUND ${runtime.round}`,
+    title: announcement
+      ? `残り ${announcement} チーム`
+      : `MATCH ${runtime.match} / ROUND ${runtime.round}`,
     description:
-      result
-        ? `勝者 ${escapeHtml(runtime.teams.find((team) => team.teamId === result.winnerTeamId)?.teamName ?? (result.draw ? "DRAW" : "未確定"))}`
-        : "戦闘結果なし",
-    commentary: "選手別の戦闘成績と次戦へ持ち越す状態を確認します。",
+      `${record.activeTeamsBefore.length} → ${record.activeTeamsAfter.length}チーム / ` +
+      `${record.cpuFastCount}チームを高速処理 / ` +
+      `${playerRow?.survived ? "PLAYER SURVIVED" : "PLAYER ELIMINATED"}`,
+    commentary: announcement
+      ? `残り${announcement}チーム！決着が近づいてきました！`
+      : record.playerSurvived
+        ? `ROUND ${runtime.round}を突破！次の生存目標へ進みます！`
+        : "プレイヤーチームは脱落しました。大会結果は最後まで進行します。",
     primaryAction: "round-result-next",
-    primaryLabel: "MATCH判定",
+    primaryLabel:
+      record.activeTeamsAfter.length <= 1 ||
+      runtime.round >= getPlayableRoundCount(runtime)
+        ? "MATCH CHAMPION"
+        : "NEXT ROUND",
     content: `
-      <div class="provisional-result-list actual-round-result-list">
-        ${members.map((member) => {
-          const source = sourceById.get(member.playerId);
-          const postBattle =
-            runtime.memberRuntime[member.playerId];
-          return `
-            <article data-combat-state="${escapeAttribute(member.combatState)}">
-              <img src="${escapeAttribute(source?.image ?? "")}" alt="">
+      <div class="round-field-summary">
+        <div class="remaining-team-cut ${announcement ? "is-announcement" : ""}">
+          <span>ALIVE TEAMS</span>
+          <strong>${record.remainingCount}</strong>
+        </div>
+        <div class="round-field-ranking">
+          ${topRows.map((row, index) => `
+            <article class="${row.isPlayer ? "is-player" : ""} ${row.survived ? "is-survivor" : "is-eliminated"}">
+              <span>${index + 1}</span>
+              <img src="${escapeAttribute(row.teamLogo)}" alt="">
               <div>
-                <strong>${escapeHtml(member.role)} ${escapeHtml(source?.name ?? member.name)}</strong>
-                <small>
-                  戦闘終了 ${member.combatState.toUpperCase()} /
-                  次戦HP ${postBattle.hp} / ${postBattle.maxHp}
-                </small>
+                <strong>${escapeHtml(row.teamName)}</strong>
+                <small>KP ${row.kp} / DMG ${formatNumber(row.damage)} / SCORE ${formatNumber(Math.round(row.score))}</small>
+              </div>
+              <em>${row.survived ? "ALIVE" : "OUT"}</em>
+            </article>
+          `).join("")}
+        </div>
+      </div>
+      <div class="provisional-result-list actual-round-result-list">
+        ${playerMembers.map((source) => {
+          const battle = battleMembers.get(source.playerId);
+          const state = runtime.memberRuntime[source.playerId];
+          return `
+            <article data-combat-state="${escapeAttribute(state.combatState)}">
+              <img src="${escapeAttribute(source.image)}" alt="">
+              <div>
+                <strong>${escapeHtml(source.role)} ${escapeHtml(source.name)}</strong>
+                <small>${battle ? "VISIBLE BATTLE" : "FIELD / SPECTATOR"} / HP ${state.hp} / ${state.maxHp}</small>
               </div>
               <span>
-                DMG ${formatNumber(member.stats.damage)} /
-                TAKEN ${formatNumber(member.stats.damageTaken)} /
-                HEAL ${formatNumber(member.stats.healing)}<br>
-                K ${member.stats.kills} /
-                A ${member.stats.assists} /
-                DOWN ${member.stats.downsGiven}<br>
-                SHOT ${member.stats.shots} /
-                HIT ${member.stats.hits} /
-                ${Math.round(member.stats.accuracy * 100)}% /
-                RELOAD ${member.stats.weaponReloads}
+                ${battle
+                  ? `DMG ${formatNumber(battle.stats.damage)} / K ${battle.stats.kills} / A ${battle.stats.assists}`
+                  : `ROUND FIELD ${playerRow?.survived ? "SURVIVED" : "ELIMINATED"}`}
               </span>
             </article>
           `;
@@ -732,27 +770,6 @@ function errorTemplate(error, runtime = null) {
       </section>
     </main>
   `;
-}
-
-function lockRoundOpponentToDraft(draft) {
-  const cpuTeamIds = draft.activeTeamIds.filter(
-    (teamId) => teamId !== draft.playerTeamId,
-  );
-  if (cpuTeamIds.length === 0) {
-    throw new Error("対戦可能なCPUチームがありません。");
-  }
-  const recentOpponents = draft.battleHistory
-    .slice(-2)
-    .map((record) => record.opponentTeamId);
-  const preferred = cpuTeamIds.filter(
-    (teamId) => !recentOpponents.includes(teamId),
-  );
-  const source = preferred.length > 0 ? preferred : cpuTeamIds;
-  const opponentId = source[(draft.round - 1) % source.length];
-  draft.currentOpponentId = opponentId;
-  draft.lockedOpponentId = opponentId;
-  draft.currentPairs = [[draft.playerTeamId, opponentId]];
-  return opponentId;
 }
 
 export function createTournamentFlowController({
@@ -1035,9 +1052,10 @@ export function createTournamentFlowController({
         root.innerHTML = roundResultTemplate(runtime);
         break;
       case "ROUND_ADVANCE": {
-        const totalRounds =
-          runtime.entryData.tournament.roundTargets.length;
-        const hasNextRound = runtime.round < totalRounds;
+        const totalRounds = getPlayableRoundCount(runtime);
+        const hasNextRound =
+          runtime.round < totalRounds &&
+          runtime.activeTeamIds.length > 1;
         root.innerHTML = provisionalPhaseTemplate(runtime, {
           eyebrow: "ROUND ADVANCE",
           title: hasNextRound
@@ -1071,6 +1089,9 @@ export function createTournamentFlowController({
         break;
       case "MATCH_RESULT":
         root.innerHTML = renderMatchResultScreen(runtime);
+        break;
+      case "MATCH_POINT":
+        root.innerHTML = renderMatchPointScreen(runtime);
         break;
       case "NEXT_MATCH_WAIT":
         root.innerHTML = renderNextMatchWaitScreen(runtime);
@@ -1259,7 +1280,9 @@ export function createTournamentFlowController({
         if (action === "round-intro-next") {
           const snapshot = runtimeManager.getSnapshot();
           const dueExploreIndex =
-            getDueRoundExplorationIndex(snapshot);
+            snapshot.activeTeamIds.includes(snapshot.playerTeamId)
+              ? getDueRoundExplorationIndex(snapshot)
+              : null;
           if (dueExploreIndex !== null) {
             runtimeManager.update(
               "round_exploration_created",
@@ -1279,14 +1302,26 @@ export function createTournamentFlowController({
               `round_exploration_${dueExploreIndex}`,
             );
           } else {
-            runtimeManager.update(
-              "cpu_opponent_locked",
-              lockRoundOpponentToDraft,
-            );
-            runtimeManager.transition("ENCOUNTER_PREVIEW", {
-              reason: "formal_cpu_opponent_locked",
-              patch: { pendingVisualId: "encounter-preview" },
-            });
+            const encounter = runtimeManager.update(
+              "round_encounter_resolved",
+              resolveRoundEncounterToDraft,
+            ).result;
+            if (encounter.encountered) {
+              runtimeManager.transition("ENCOUNTER_PREVIEW", {
+                reason: "encounter_roll_success",
+                patch: { pendingVisualId: "encounter-preview" },
+              });
+            } else {
+              runtimeManager.update(
+                "round_field_fast_resolved",
+                finalizeRoundFieldToDraft,
+              );
+              runtimeManager.transition("ROUND_RESULT", {
+                reason: encounter.reason,
+                patch: { pendingVisualId: "round-result" },
+              });
+              runtimeManager.checkpoint("round_without_visible_battle");
+            }
           }
           render();
           return;
@@ -1452,16 +1487,27 @@ export function createTournamentFlowController({
               "initial_exploration_completed",
             );
           } else {
-            runtimeManager.update(
-              "post_exploration_opponent_locked",
-              lockRoundOpponentToDraft,
-            );
-            runtimeManager.transition("ENCOUNTER_PREVIEW", {
-              reason: "round_exploration_completed",
-              patch: {
-                pendingVisualId: "encounter-preview",
-              },
-            });
+            const encounter = runtimeManager.update(
+              "post_exploration_encounter_resolved",
+              resolveRoundEncounterToDraft,
+            ).result;
+            if (encounter.encountered) {
+              runtimeManager.transition("ENCOUNTER_PREVIEW", {
+                reason: "round_exploration_encounter_success",
+                patch: {
+                  pendingVisualId: "encounter-preview",
+                },
+              });
+            } else {
+              runtimeManager.update(
+                "post_exploration_field_resolved",
+                finalizeRoundFieldToDraft,
+              );
+              runtimeManager.transition("ROUND_RESULT", {
+                reason: encounter.reason,
+                patch: { pendingVisualId: "round-result" },
+              });
+            }
             runtimeManager.checkpoint(
               "round_exploration_completed",
             );
@@ -1519,6 +1565,10 @@ export function createTournamentFlowController({
           return;
         }
         if (action === "battle-outcome-next") {
+          runtimeManager.update(
+            "visible_battle_field_resolved",
+            finalizeRoundFieldToDraft,
+          );
           runtimeManager.transition("ROUND_RESULT", {
             reason: "battle_round_result_ready",
             patch: { pendingVisualId: "round-result" },
@@ -1529,7 +1579,7 @@ export function createTournamentFlowController({
         }
         if (action === "round-result-next") {
           runtimeManager.transition("ROUND_ADVANCE", {
-            reason: "provisional_round_result_confirmed",
+            reason: "formal_round_result_confirmed",
             patch: { pendingVisualId: "round-advance" },
           });
           render();
@@ -1537,9 +1587,11 @@ export function createTournamentFlowController({
         }
         if (action === "round-advance-next") {
           const snapshot = runtimeManager.getSnapshot();
-          const totalRounds =
-            snapshot.entryData.tournament.roundTargets.length;
-          if (snapshot.round < totalRounds) {
+          const totalRounds = getPlayableRoundCount(snapshot);
+          if (
+            snapshot.round < totalRounds &&
+            snapshot.activeTeamIds.length > 1
+          ) {
             runtimeManager.update(
               "next_round_initialized",
               (draft) => {
@@ -1582,34 +1634,66 @@ export function createTournamentFlowController({
         }
         if (action === "match-result-next") {
           const snapshot = runtimeManager.getSnapshot();
-          const matchPointWinner =
-            snapshot.matchPointRuntime?.mpWinner ?? null;
+          const matchPoint = snapshot.matchPointRuntime;
+          const showMatchPoint =
+            matchPoint?.enabled &&
+            (
+              matchPoint.mpWinner !== null ||
+              (matchPoint.newEligibleTeamIds?.length ?? 0) > 0
+            );
           const allMatchesComplete =
             snapshot.match >=
             snapshot.entryData.tournament.matches;
-          if (matchPointWinner !== null || allMatchesComplete) {
+          if (showMatchPoint) {
+            runtimeManager.transition("MATCH_POINT", {
+              reason: matchPoint.mpWinner
+                ? "match_point_winner_confirmed"
+                : "match_point_threshold_reached",
+              patch: { pendingVisualId: "match-point" },
+            });
+          } else if (allMatchesComplete) {
             runtimeManager.update(
               "tournament_awards_prepared",
               prepareAwardsToDraft,
             );
             runtimeManager.transition("TOURNAMENT_AWARDS", {
-              reason:
-                matchPointWinner !== null
-                  ? "match_point_winner_confirmed"
-                  : "all_matches_completed",
+              reason: "all_matches_completed",
               patch: {
                 pendingVisualId: "tournament-awards:0",
               },
             });
-            runtimeManager.checkpoint(
-              "tournament_awards_ready",
-            );
+            runtimeManager.checkpoint("tournament_awards_ready");
           } else {
             runtimeManager.transition("NEXT_MATCH_WAIT", {
               reason: "next_match_wait",
-              patch: {
-                pendingVisualId: "next-match-wait",
-              },
+              patch: { pendingVisualId: "next-match-wait" },
+            });
+            runtimeManager.checkpoint("next_match_wait");
+          }
+          render();
+          return;
+        }
+        if (action === "match-point-next") {
+          const snapshot = runtimeManager.getSnapshot();
+          const winner = snapshot.matchPointRuntime?.mpWinner ?? null;
+          const allMatchesComplete =
+            snapshot.match >= snapshot.entryData.tournament.matches;
+          if (winner !== null || allMatchesComplete) {
+            runtimeManager.update(
+              "tournament_awards_prepared",
+              prepareAwardsToDraft,
+            );
+            runtimeManager.transition("TOURNAMENT_AWARDS", {
+              reason: winner !== null
+                ? "match_point_tournament_winner"
+                : "all_matches_completed",
+              patch: { pendingVisualId: "tournament-awards:0" },
+            });
+            runtimeManager.checkpoint("tournament_awards_ready");
+          } else {
+            runtimeManager.transition("NEXT_MATCH_WAIT", {
+              reason: "match_point_next_match",
+              patch: { pendingVisualId: "next-match-wait" },
             });
             runtimeManager.checkpoint("next_match_wait");
           }

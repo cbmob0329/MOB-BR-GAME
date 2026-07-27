@@ -41,7 +41,7 @@ import {
 } from "../../data/battle-config.js";
 
 export const TOURNAMENT_RUNTIME_VERSION =
-  "mobbr-tournament-runtime-1.4.0";
+  "mobbr-tournament-runtime-1.5.0";
 
 export const TOURNAMENT_PHASES = Object.freeze([
   "IDLE",
@@ -63,6 +63,7 @@ export const TOURNAMENT_PHASES = Object.freeze([
   "ROUND_ADVANCE",
   "MATCH_CHAMPION",
   "MATCH_RESULT",
+  "MATCH_POINT",
   "NEXT_MATCH_WAIT",
   "TOURNAMENT_AWARDS",
   "TOURNAMENT_RESULT",
@@ -91,6 +92,7 @@ export const SAFE_RESUME_PHASES = Object.freeze([
   "ROUND_ADVANCE",
   "MATCH_CHAMPION",
   "MATCH_RESULT",
+  "MATCH_POINT",
   "NEXT_MATCH_WAIT",
   "TOURNAMENT_AWARDS",
   "TOURNAMENT_RESULT",
@@ -119,12 +121,14 @@ export const PHASE_TRANSITIONS = Object.freeze({
   ROUND_INTRO: Object.freeze([
     "ROUND_EXPLORATION",
     "ENCOUNTER_PREVIEW",
+    "ROUND_RESULT",
     "ROUND_ADVANCE",
     "SUSPENDED",
     "ERROR",
   ]),
   ROUND_EXPLORATION: Object.freeze([
     "ENCOUNTER_PREVIEW",
+    "ROUND_RESULT",
     "ROUND_ADVANCE",
     "SUSPENDED",
     "ERROR",
@@ -164,6 +168,13 @@ export const PHASE_TRANSITIONS = Object.freeze({
     "ERROR",
   ]),
   MATCH_RESULT: Object.freeze([
+    "MATCH_POINT",
+    "NEXT_MATCH_WAIT",
+    "TOURNAMENT_AWARDS",
+    "SUSPENDED",
+    "ERROR",
+  ]),
+  MATCH_POINT: Object.freeze([
     "NEXT_MATCH_WAIT",
     "TOURNAMENT_AWARDS",
     "SUSPENDED",
@@ -1191,6 +1202,14 @@ export function createTournamentRuntime(
       completed: false,
     },
     matchPointRuntime: null,
+    roundIntegration: {
+      encounterRate: 0.75,
+      encounters: {},
+      cpuFastHistory: [],
+      remainingAnnouncements: [],
+      playerEliminatedAt: null,
+      matchPlacements: {},
+    },
     finalRankings: null,
     tournamentResultData: null,
     rewardPreview: null,
@@ -1329,6 +1348,19 @@ export function validateTournamentRuntime(runtime, entry = null) {
   assertPlainObject(runtime.facilityRuntime, "Facility runtime");
   assertPlainObject(runtime.strategyUi, "Strategy UI runtime");
   assertPlainObject(runtime.awardRuntime, "Award runtime");
+  assertPlainObject(runtime.roundIntegration, "Round integration runtime");
+  if (
+    !Number.isFinite(runtime.roundIntegration.encounterRate) ||
+    runtime.roundIntegration.encounterRate < 0 ||
+    runtime.roundIntegration.encounterRate > 1 ||
+    !Array.isArray(runtime.roundIntegration.cpuFastHistory) ||
+    !Array.isArray(runtime.roundIntegration.remainingAnnouncements)
+  ) {
+    throw new TournamentRuntimeValidationError(
+      "Tournament round integration state is invalid.",
+      "INVALID_ROUND_INTEGRATION",
+    );
+  }
   if (
     !Array.isArray(runtime.awardRuntime.awards) ||
     !Number.isInteger(runtime.awardRuntime.currentIndex) ||

@@ -22,11 +22,13 @@ import {
   nextBattleRandom,
   processParticipantTurn,
   recoverDownedAfterBattle,
+  initializeBattleSpecialAbilities,
+  prepareParticipantSpecialAfterBattle,
   updateParticipantTimers,
 } from "./battle-actions.js";
 
 export const BATTLE_CORE_VERSION =
-  "mobbr-battle-core-1.1.0";
+  "mobbr-battle-core-1.2.0";
 export const BATTLE_STATE_SCHEMA_VERSION =
   "mobbr-battle-state-1.0.0";
 
@@ -247,6 +249,8 @@ function initialCombatants(
       side,
       strategyEffect,
       index,
+      tournamentType:
+        runtime.entryData.tournament.tournamentType,
     });
   });
 }
@@ -307,6 +311,8 @@ export function createBattleFromTournamentRuntime(
     runtimeId: runtime.runtimeId,
     entryId: runtime.entryId,
     tournamentId: runtime.tournamentId,
+    tournamentType:
+      runtime.entryData.tournament.tournamentType,
     sessionId: runtime.sessionId,
     match: runtime.match,
     round: runtime.round,
@@ -358,6 +364,14 @@ export function createBattleFromTournamentRuntime(
     result: null,
     checksum: null,
   };
+
+  initializeBattleSpecialAbilities(
+    battle,
+  );
+  battle.initialParticipantStates =
+    createInitialParticipantStates(
+      Object.values(battle.participants),
+    );
 
   appendBattleEvent(battle, "battle_start", {
     leftTeamId,
@@ -756,6 +770,14 @@ export function prepareBattleForNextRound(
     next.participants,
   )) {
     recoverDownedAfterBattle(participant);
+    const specialRecovery =
+      prepareParticipantSpecialAfterBattle(
+        participant,
+      );
+    if (specialRecovery > 0) {
+      participant.stats.healing +=
+        specialRecovery;
+    }
     participant.weapon.ammo =
       participant.weapon.ammoMax;
     participant.reloadRemaining = 0;
@@ -891,6 +913,8 @@ export function applyBattleResultToTournamentRuntime(
       preparedParticipant.hp;
     runtimeMember.maxHp =
       preparedParticipant.maxHp;
+    runtimeMember.specialMaxHpBonusApplied =
+      preparedParticipant.specialMaxHpBonusApplied ?? 0;
     runtimeMember.combatState =
       preparedParticipant.combatState;
     runtimeMember.currentAmmo =
@@ -904,6 +928,11 @@ export function applyBattleResultToTournamentRuntime(
       preparedParticipant.lifeId;
     runtimeMember.lifeSerial =
       preparedParticipant.lifeSerial;
+    runtimeMember.nextBattleOpeningEffects =
+      deepClone(
+        preparedParticipant
+          .nextBattleOpeningEffects ?? [],
+      );
     addMemberStats(
       runtimeMember,
       participantResult,
