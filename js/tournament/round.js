@@ -11,7 +11,7 @@ import {
 } from "../../data/game-data.js";
 
 export const ROUND_INTEGRATION_VERSION =
-  "mobbr-tournament-round-1.1.0";
+  "mobbr-tournament-round-1.2.0";
 
 export const ROUND_INTEGRATION_RULES = Object.freeze({
   encounterRate: 0.75,
@@ -758,9 +758,43 @@ export function getCurrentRoundRecord(runtime) {
 }
 
 export function isPlayerActive(runtime) {
-  return runtime.activeTeamIds.includes(
-    runtime.playerTeamId,
+  if (!runtime.activeTeamIds.includes(runtime.playerTeamId)) {
+    return false;
+  }
+  return teamMembers(runtime, runtime.playerTeamId).some(
+    (member) => member.combatState !== "dead" && member.hp > 0,
   );
+}
+
+export function fastForwardMatchToChampionToDraft(draft) {
+  assertRuntime(draft);
+  const records = [];
+  const current = getCurrentRoundRecord(draft);
+  if (!current?.fieldResolved) {
+    records.push(finalizeRoundFieldToDraft(draft, {
+      source: "spectator_fast_forward_current_round",
+    }));
+  }
+  const totalRounds = getPlayableRoundCount(draft);
+  while (draft.activeTeamIds.length > 1 && draft.round < totalRounds) {
+    draft.round += 1;
+    draft.activeBattle = null;
+    draft.lastBattleResult = null;
+    draft.lastBattleEvents = [];
+    draft.currentOpponentId = null;
+    draft.lockedOpponentId = null;
+    draft.currentPairs = [];
+    records.push(finalizeRoundFieldToDraft(draft, {
+      source: "spectator_fast_forward",
+    }));
+  }
+  draft.pendingVisualId = `spectator-fast-forward:${draft.match}`;
+  return deepFreeze({
+    match: draft.match,
+    completedRounds: records.map((record) => record.round),
+    championTeamId: draft.activeTeamIds[0] ?? null,
+    remainingTeams: draft.activeTeamIds.length,
+  });
 }
 
 export function validateRoundIntegration(runtime) {

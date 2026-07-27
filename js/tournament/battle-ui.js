@@ -13,7 +13,7 @@ import {
   createCommentaryDirector,
 } from "./commentary.js";
 
-export const BATTLE_UI_VERSION = "mobbr-battle-ui-1.2.0";
+export const BATTLE_UI_VERSION = "mobbr-battle-ui-1.3.0";
 export const BATTLE_REPLAY_SCHEMA_VERSION =
   "mobbr-battle-replay-1.0.0";
 
@@ -218,6 +218,9 @@ function transientForEvent(event, model) {
     skillName: event.skillName ?? event.sourceName ?? null,
     actorName: actor?.name ?? null,
     actorImage: actor?.image ?? null,
+    actorTeamName: actor ? model.teams[actor.teamId]?.teamName ?? null : null,
+    targetName: target?.name ?? null,
+    targetTeamName: target ? model.teams[target.teamId]?.teamName ?? null : null,
   };
 
   if (
@@ -523,15 +526,25 @@ function fxLayerTemplate(transient) {
   } else if (
     ["down", "confirmed_kill", "revive"].includes(transient.effect)
   ) {
+    const stateLabel =
+      transient.effect === "down"
+        ? "DOWN"
+        : transient.effect === "confirmed_kill"
+          ? "CONFIRMED KILL"
+          : "REVIVE";
+    const stateCommentary =
+      transient.effect === "down"
+        ? `${transient.targetName ?? "選手"}がダウン！まだ確キルではありません！`
+        : transient.effect === "confirmed_kill"
+          ? `${transient.targetName ?? "選手"}を確キル！${transient.actorTeamName ?? "攻撃側"}にKP！`
+          : `${transient.targetName ?? "選手"}が戦線復帰！`;
     effect = `
       <div class="battle-state-cut battle-state-cut--${escapeAttribute(transient.effect)}">
-        ${escapeHtml(
-          transient.effect === "down"
-            ? "DOWN"
-            : transient.effect === "confirmed_kill"
-              ? "CONFIRMED KILL"
-              : "REVIVE",
-        )}
+        <img src="icon/mic.png" alt="モブマイク">
+        <div>
+          <strong>${escapeHtml(stateLabel)}</strong>
+          <span>${escapeHtml(stateCommentary)}</span>
+        </div>
       </div>
     `;
   }
@@ -762,7 +775,7 @@ export function createBattlePlaybackController({
       ? previousEvent.type.startsWith("skill_")
         ? 720
         : ["down", "confirmed_kill", "revive"].includes(previousEvent.type)
-          ? 540
+          ? 1050
           : previousEvent.type === "underdog_momentum"
             ? 620
             : 0

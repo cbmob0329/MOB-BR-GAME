@@ -41,7 +41,7 @@ import {
 } from "../../data/battle-config.js";
 
 export const TOURNAMENT_RUNTIME_VERSION =
-  "mobbr-tournament-runtime-1.6.0";
+  "mobbr-tournament-runtime-1.7.0";
 
 export const TOURNAMENT_PHASES = Object.freeze([
   "IDLE",
@@ -60,10 +60,12 @@ export const TOURNAMENT_PHASES = Object.freeze([
   "BATTLE",
   "BATTLE_OUTCOME",
   "ROUND_RESULT",
+  "SPECTATOR_FAST_FORWARD",
   "ROUND_ADVANCE",
   "MATCH_CHAMPION",
   "MATCH_RESULT",
   "MATCH_POINT",
+  "SESSION_COMPLETE",
   "NEXT_MATCH_WAIT",
   "TOURNAMENT_AWARDS",
   "TOURNAMENT_RESULT",
@@ -89,10 +91,12 @@ export const SAFE_RESUME_PHASES = Object.freeze([
   "BATTLE_COUNTDOWN",
   "BATTLE_OUTCOME",
   "ROUND_RESULT",
+  "SPECTATOR_FAST_FORWARD",
   "ROUND_ADVANCE",
   "MATCH_CHAMPION",
   "MATCH_RESULT",
   "MATCH_POINT",
+  "SESSION_COMPLETE",
   "NEXT_MATCH_WAIT",
   "TOURNAMENT_AWARDS",
   "TOURNAMENT_RESULT",
@@ -148,11 +152,18 @@ export const PHASE_TRANSITIONS = Object.freeze({
   BATTLE: Object.freeze(["BATTLE_OUTCOME", "ERROR"]),
   BATTLE_OUTCOME: Object.freeze([
     "ROUND_RESULT",
+    "SPECTATOR_FAST_FORWARD",
     "SUSPENDED",
     "ERROR",
   ]),
   ROUND_RESULT: Object.freeze([
     "ROUND_ADVANCE",
+    "SPECTATOR_FAST_FORWARD",
+    "SUSPENDED",
+    "ERROR",
+  ]),
+  SPECTATOR_FAST_FORWARD: Object.freeze([
+    "MATCH_CHAMPION",
     "SUSPENDED",
     "ERROR",
   ]),
@@ -169,18 +180,26 @@ export const PHASE_TRANSITIONS = Object.freeze({
   ]),
   MATCH_RESULT: Object.freeze([
     "MATCH_POINT",
+    "SESSION_COMPLETE",
     "NEXT_MATCH_WAIT",
     "TOURNAMENT_AWARDS",
     "SUSPENDED",
     "ERROR",
   ]),
   MATCH_POINT: Object.freeze([
+    "SESSION_COMPLETE",
     "NEXT_MATCH_WAIT",
     "TOURNAMENT_AWARDS",
     "SUSPENDED",
     "ERROR",
   ]),
+  SESSION_COMPLETE: Object.freeze([
+    "TOURNAMENT_AWARDS",
+    "SUSPENDED",
+    "ERROR",
+  ]),
   NEXT_MATCH_WAIT: Object.freeze([
+    "DEPLOYMENT",
     "MATCH_START",
     "TOURNAMENT_AWARDS",
     "SUSPENDED",
@@ -392,7 +411,7 @@ export function createOpeningScenes(entry, teams = null) {
       type: "TOURNAMENT_TITLE",
       duration: 1800,
       backgroundImage: theme.backgroundImage,
-      foregroundImages: [theme.logoImage],
+      foregroundImages: [],
       text: entry.tournament.tournamentName,
       subtext: entry.tournament.stageName,
       commentary: `${entry.tournament.tournamentName}、開幕です！${entry.company.companyName}の挑戦がここから始まります！`,
@@ -527,7 +546,7 @@ export function createOpeningScenes(entry, teams = null) {
       type: "MATCH_START",
       duration: 2100,
       backgroundImage: map.image,
-      foregroundImages: [theme.logoImage],
+      foregroundImages: [],
       text: "MATCH START",
       subtext: `${entry.tournament.matches} MATCH SESSION`,
       commentary: `${entry.tournament.tournamentName}、MATCH開始！生存、KP、順位、そのすべてを奪い合います！`,

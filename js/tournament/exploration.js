@@ -21,7 +21,7 @@ import {
 } from "./round.js";
 
 export const EXPLORATION_VERSION =
-  "mobbr-tournament-exploration-1.2.0";
+  "mobbr-tournament-exploration-1.3.0";
 
 export const EXPLORATION_PAGES = Object.freeze([
   "SEARCH",
@@ -1308,8 +1308,10 @@ export function renderExplorationScreen(runtime) {
       style="--map-background:url('${escapeAttribute(runtime.map.image)}')"
       data-exploration-swipe
     >
-      ${topStatusTemplate(runtime, choice.areaName)}
-      <section class="exploration-shell">
+      <header class="exploration-mini-header">
+        <img src="icon/ex.png" alt=""><div><span>EXPLORE ${runtime.explorationRuntime.currentExploreIndex}/3</span><strong>${escapeHtml(choice.areaName)}</strong></div><em>ALIVE ${runtime.activeTeamIds.length}</em>
+      </header>
+      <section class="exploration-shell exploration-shell--compact">
         ${pageTabsTemplate(page)}
         <div class="exploration-page-viewport" data-exploration-viewport>
           ${pageContent}
@@ -1404,8 +1406,7 @@ export function renderStrategySelectionScreen(runtime) {
                   data-strategy-id="${escapeAttribute(strategy.strategyId)}"
                   ${disabled ? "disabled" : ""}
                 >
-                  <img src="${escapeAttribute(master.icon)}" alt="">
-                  <span>${escapeHtml(strategy.rank)}</span>
+                  <span class="strategy-list-card__rank">${escapeHtml(strategy.rank)}</span>
                   <div>
                     <strong>${escapeHtml(strategy.name)}</strong>
                     <small>${escapeHtml(master.description)}</small>
@@ -1416,7 +1417,6 @@ export function renderStrategySelectionScreen(runtime) {
             }).join("")}
           </div>
           <article class="strategy-detail-card">
-            <img src="${escapeAttribute(selectedMaster.icon)}" alt="">
             <span>${escapeHtml(selectedRuntime.rank)} / ${escapeHtml(selectedRuntime.strategyId)}</span>
             <h2>${escapeHtml(selectedRuntime.name)}</h2>
             <p>${escapeHtml(selectedMaster.description)}</p>

@@ -54,6 +54,7 @@ import {
 } from "./results.js";
 
 import {
+  fastForwardMatchToChampionToDraft,
   finalizeRoundFieldToDraft,
   getCurrentRoundRecord,
   getPlayableRoundCount,
@@ -62,7 +63,7 @@ import {
   resolveRoundEncounterToDraft,
 } from "./round.js";
 
-export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-1.8.0";
+export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-1.9.0";
 
 const PHASE_LABELS = Object.freeze({
   IDLE: "待機",
@@ -81,10 +82,12 @@ const PHASE_LABELS = Object.freeze({
   BATTLE: "戦闘",
   BATTLE_OUTCOME: "戦闘決着",
   ROUND_RESULT: "ROUND結果",
+  SPECTATOR_FAST_FORWARD: "高速大会進行",
   ROUND_ADVANCE: "ROUND進行",
   MATCH_CHAMPION: "MATCH CHAMPION",
   MATCH_RESULT: "MATCH結果",
   MATCH_POINT: "MATCH POINT",
+  SESSION_COMPLETE: "全MATCH終了",
   NEXT_MATCH_WAIT: "次MATCH待機",
   TOURNAMENT_AWARDS: "個人表彰",
   TOURNAMENT_RESULT: "大会総合結果",
@@ -246,15 +249,16 @@ function openingTemplate(runtime) {
   const scene = runtime.opening.scenes[runtime.opening.sceneIndex];
   const sceneNumber = runtime.opening.sceneIndex + 1;
   const isLast = sceneNumber === runtime.opening.scenes.length;
-  const background = tournamentThemeBackground(runtime);
+  const background = scene.backgroundImage ?? tournamentThemeBackground(runtime);
   const logo = tournamentThemeLogo(runtime);
+  const showLogo = scene.type === "TOURNAMENT_TITLE";
   return `
     <main
       class="tournament-screen tournament-screen--opening"
       style="--opening-background:url('${escapeAttribute(background)}')"
     >
       <section class="opening-stage opening-stage--${escapeAttribute(scene.type.toLowerCase())}">
-        <img class="opening-event-logo" src="${escapeAttribute(logo)}" alt="">
+        ${showLogo ? `<img class="opening-event-logo" src="${escapeAttribute(logo)}" alt="">` : ""}
         <div class="opening-stage__accent" aria-hidden="true"></div>
         ${sceneForegroundTemplate(scene)}
         <div class="opening-stage__copy">
@@ -495,6 +499,33 @@ function matchStartTemplate(runtime) {
       </div>
     `,
   });
+}
+
+function spectatorFastForwardTemplate(runtime) {
+  return `
+    <main class="tournament-screen tournament-screen--spectator-fast" style="--map-background:url('${escapeAttribute(runtime.map.image)}')">
+      <section class="spectator-fast-card">
+        <div class="spectator-fast-loader" aria-hidden="true"><i></i><i></i><i></i></div>
+        <span>MATCH ${runtime.match}</span>
+        <h1>CHAMPION CALCULATION</h1>
+        <p>プレイヤーチームは脱落しました。残り${runtime.activeTeamIds.length}チームのROUNDを高速処理しています。</p>
+        <strong>チャンピオン決定まで進行中</strong>
+      </section>
+    </main>`;
+}
+
+function sessionCompleteTemplate(runtime) {
+  return `
+    <main class="tournament-screen tournament-screen--session-complete" style="--map-background:url('${escapeAttribute(runtime.map.image)}')">
+      <section class="session-complete-stage">
+        <img src="icon/mic.png" alt="モブマイク">
+        <span>ALL MATCHES COMPLETE</span>
+        <h1>全MATCH終了</h1>
+        <p>${escapeHtml(runtime.entryData.tournament.tournamentName)}の全${runtime.matchTotals.length}MATCHが終了しました。</p>
+        <blockquote>「${escapeHtml(runtime.entryData.playerTeam.teamName)}のみなさん、お疲れさまでした！勝敗だけでなく、すべての戦いが次の大会へつながります。個人表彰と最終結果を確認しましょう！」</blockquote>
+        <button type="button" class="tournament-button tournament-button--primary" data-action="session-complete-next">個人表彰へ</button>
+      </section>
+    </main>`;
 }
 
 function roundIntroTemplate(runtime) {
@@ -1036,12 +1067,34 @@ export function createTournamentFlowController({
         root.innerHTML = battleOutcomeTemplate(runtime);
         break;
       case "ROUND_RESULT":
-        root.innerHTML = roundResultTemplate(runtime);
-        if (!isPlayerActive(runtime)) {
-          scheduleAction(() => {
-            root.querySelector('[data-action="round-result-next"]')?.click();
-          }, runtime.entryData.settings.reducedMotion ? 80 : 520);
+        if (!isPlayerActive(runtime) && runtime.activeTeamIds.length > 1) {
+          runtimeManager.transition("SPECTATOR_FAST_FORWARD", {
+            reason: "player_eliminated_fast_forward",
+            patch: { pendingVisualId: "spectator-fast-forward" },
+          });
+          render();
+          return;
         }
+        root.innerHTML = roundResultTemplate(runtime);
+        break;
+      case "SPECTATOR_FAST_FORWARD":
+        root.innerHTML = spectatorFastForwardTemplate(runtime);
+        scheduleAction(() => {
+          try {
+            runtimeManager.update(
+              "spectator_match_fast_forwarded",
+              fastForwardMatchToChampionToDraft,
+            );
+            runtimeManager.transition("MATCH_CHAMPION", {
+              reason: "spectator_fast_forward_completed",
+              patch: { pendingVisualId: "match-champion-check" },
+            });
+            runtimeManager.checkpoint("spectator_fast_forward_completed");
+            render();
+          } catch (error) {
+            handleRuntimeError(error);
+          }
+        }, runtime.entryData.settings.reducedMotion ? 120 : 1050);
         break;
       case "ROUND_ADVANCE": {
         const totalRounds = getPlayableRoundCount(runtime);
@@ -1089,6 +1142,9 @@ export function createTournamentFlowController({
         break;
       case "MATCH_POINT":
         root.innerHTML = renderMatchPointScreen(runtime);
+        break;
+      case "SESSION_COMPLETE":
+        root.innerHTML = sessionCompleteTemplate(runtime);
         break;
       case "NEXT_MATCH_WAIT":
         root.innerHTML = renderNextMatchWaitScreen(runtime);
@@ -1243,21 +1299,22 @@ export function createTournamentFlowController({
           return;
         }
         if (action === "deployment-next") {
+          const currentMatch = Math.max(1, runtimeManager.getSnapshot().match || 1);
           runtimeManager.update(
             "initial_exploration_created",
             (draft) => {
-              draft.match = 1;
+              draft.match = currentMatch;
               draft.round = 0;
               return beginExplorationToDraft(draft, {
                 exploreIndex: 1,
-                source: "initial",
+                source: `match_${currentMatch}_initial`,
               });
             },
           );
           runtimeManager.transition("INITIAL_EXPLORATION", {
             reason: "deployment_completed",
             patch: {
-              match: 1,
+              match: currentMatch,
               round: 0,
               pendingVisualId: "initial-exploration",
             },
@@ -1475,7 +1532,7 @@ export function createTournamentFlowController({
             runtimeManager.transition("MATCH_START", {
               reason: "initial_exploration_completed",
               patch: {
-                match: 1,
+                match: runtimeManager.getSnapshot().match,
                 round: 0,
                 pendingVisualId: "match-start",
               },
@@ -1566,10 +1623,18 @@ export function createTournamentFlowController({
             "visible_battle_field_resolved",
             finalizeRoundFieldToDraft,
           );
-          runtimeManager.transition("ROUND_RESULT", {
-            reason: "battle_round_result_ready",
-            patch: { pendingVisualId: "round-result" },
-          });
+          const afterBattle = runtimeManager.getSnapshot();
+          runtimeManager.transition(
+            !isPlayerActive(afterBattle) && afterBattle.activeTeamIds.length > 1
+              ? "SPECTATOR_FAST_FORWARD"
+              : "ROUND_RESULT",
+            {
+              reason: !isPlayerActive(afterBattle)
+                ? "player_eliminated_after_battle"
+                : "battle_round_result_ready",
+              patch: { pendingVisualId: !isPlayerActive(afterBattle) ? "spectator-fast-forward" : "round-result" },
+            },
+          );
           runtimeManager.checkpoint("battle_round_result");
           render();
           return;
@@ -1649,17 +1714,11 @@ export function createTournamentFlowController({
               patch: { pendingVisualId: "match-point" },
             });
           } else if (allMatchesComplete) {
-            runtimeManager.update(
-              "tournament_awards_prepared",
-              prepareAwardsToDraft,
-            );
-            runtimeManager.transition("TOURNAMENT_AWARDS", {
+            runtimeManager.transition("SESSION_COMPLETE", {
               reason: "all_matches_completed",
-              patch: {
-                pendingVisualId: "tournament-awards:0",
-              },
+              patch: { pendingVisualId: "session-complete" },
             });
-            runtimeManager.checkpoint("tournament_awards_ready");
+            runtimeManager.checkpoint("session_complete");
           } else {
             runtimeManager.transition("NEXT_MATCH_WAIT", {
               reason: "next_match_wait",
@@ -1676,17 +1735,13 @@ export function createTournamentFlowController({
           const allMatchesComplete =
             snapshot.match >= snapshot.entryData.tournament.matches;
           if (winner !== null || allMatchesComplete) {
-            runtimeManager.update(
-              "tournament_awards_prepared",
-              prepareAwardsToDraft,
-            );
-            runtimeManager.transition("TOURNAMENT_AWARDS", {
+            runtimeManager.transition("SESSION_COMPLETE", {
               reason: winner !== null
                 ? "match_point_tournament_winner"
                 : "all_matches_completed",
-              patch: { pendingVisualId: "tournament-awards:0" },
+              patch: { pendingVisualId: "session-complete" },
             });
-            runtimeManager.checkpoint("tournament_awards_ready");
+            runtimeManager.checkpoint("session_complete");
           } else {
             runtimeManager.transition("NEXT_MATCH_WAIT", {
               reason: "match_point_next_match",
@@ -1702,13 +1757,26 @@ export function createTournamentFlowController({
             "next_match_prepared",
             prepareNextMatchToDraft,
           );
-          runtimeManager.transition("MATCH_START", {
-            reason: "next_match_started",
+          runtimeManager.transition("DEPLOYMENT", {
+            reason: "next_match_deployment_started",
             patch: {
-              pendingVisualId: "match-start",
+              pendingVisualId: "deployment",
             },
           });
           runtimeManager.checkpoint("next_match_started");
+          render();
+          return;
+        }
+        if (action === "session-complete-next") {
+          runtimeManager.update(
+            "tournament_awards_prepared",
+            prepareAwardsToDraft,
+          );
+          runtimeManager.transition("TOURNAMENT_AWARDS", {
+            reason: "session_complete_confirmed",
+            patch: { pendingVisualId: "tournament-awards:0" },
+          });
+          runtimeManager.checkpoint("tournament_awards_ready");
           render();
           return;
         }

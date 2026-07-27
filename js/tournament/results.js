@@ -24,7 +24,7 @@ import {
 } from "../main/tournament-bridge.js";
 
 export const RESULTS_VERSION =
-  "mobbr-tournament-results-1.2.0";
+  "mobbr-tournament-results-1.3.0";
 
 export const RESULT_RULES = Object.freeze({
   defaultMatchPointThreshold: 50,
@@ -584,6 +584,20 @@ export function prepareNextMatchToDraft(draft) {
 
   for (const member of Object.values(draft.memberRuntime)) {
     resetMemberForNextMatch(member);
+  }
+  for (const team of draft.teams) {
+    for (const member of team.members) {
+      const runtimeMember = draft.memberRuntime[member.playerId];
+      member.currentHp = runtimeMember.maxHp;
+      member.maxHp = runtimeMember.maxHp;
+      member.combatState = "alive";
+    }
+  }
+  for (const member of draft.entryData.playerTeam.members) {
+    const runtimeMember = draft.memberRuntime[member.playerId];
+    member.currentHp = runtimeMember.maxHp;
+    member.maxHp = runtimeMember.maxHp;
+    member.combatState = "alive";
   }
   for (const [teamId, teamRuntime] of Object.entries(
     draft.teamRuntime,
