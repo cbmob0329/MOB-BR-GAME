@@ -6,6 +6,7 @@
  * runtime transaction draft; the main save is never touched directly.
  */
 
+import { assetPath } from "../assets.js";
 import {
   CONSUMABLE_ITEMS,
   ITEM_MASTER_VERSION,
@@ -21,7 +22,7 @@ import {
 } from "./round.js";
 
 export const EXPLORATION_VERSION =
-  "mobbr-tournament-exploration-1.3.0";
+  "mobbr-tournament-exploration-1.4.0";
 
 export const EXPLORATION_PAGES = Object.freeze([
   "SEARCH",
@@ -34,6 +35,7 @@ export const EXPLORATION_RULES = Object.freeze({
   maximumPerMatch: 3,
   standardAfterRounds: Object.freeze([2, 4]),
   searchCandidateCount: 3,
+  searchPointCount: 3,
   respawnTurntableAppearanceRate: 0.7,
   respawnTurntableReviveHpRate: 0.5,
   mobSlotWinRate: 0.7,
@@ -49,6 +51,24 @@ export const EXPLORATION_AREAS = Object.freeze([
   "乾燥岩盤エリア",
   "溶岩監視通路",
   "郊外住宅ブロック",
+]);
+
+export const EXPLORATION_SEARCH_POINTS = Object.freeze([
+  Object.freeze({
+    pointId: "tan1",
+    name: "探索地点 1",
+    icon: "icon/tan1.png",
+  }),
+  Object.freeze({
+    pointId: "tan2",
+    name: "探索地点 2",
+    icon: "icon/tan2.png",
+  }),
+  Object.freeze({
+    pointId: "tan3",
+    name: "探索地点 3",
+    icon: "icon/tan3.png",
+  }),
 ]);
 
 export const FACILITY_IDS = Object.freeze({
@@ -221,39 +241,104 @@ export function getDueRoundExplorationIndex(runtime) {
 }
 
 function createSearchCandidates(runtime, exploreKey) {
-  const random = createSeededRandom(
-    `${runtime.entryId}|${exploreKey}|search|${ITEM_MASTER_VERSION}`,
-  );
-  const available = CONSUMABLE_ITEMS.map((item) => ({
-    value: item,
-    weight: getExplorationItemWeight(item),
-  }));
-  const selected = [];
-
-  while (
-    selected.length < EXPLORATION_RULES.searchCandidateCount &&
-    available.length > 0
-  ) {
-    const item = weightedPick(random, available);
-    selected.push({
-      candidateId: `${exploreKey}:candidate:${selected.length + 1}`,
-      itemId: item.itemId,
-      name: item.name,
-      image: item.image,
-      description: item.description,
-      category: item.category,
-      targetType: item.targetType,
-      effectType: item.effectType,
-      effectValue: deepClone(item.effectValue),
-      rarityWeight: getExplorationItemWeight(item),
-    });
-    const removeIndex = available.findIndex(
-      (entry) => entry.value.itemId === item.itemId,
+  return EXPLORATION_SEARCH_POINTS.map((point, index) => {
+    const random = createSeededRandom(
+      `${runtime.entryId}|${exploreKey}|search-point|${point.pointId}|${ITEM_MASTER_VERSION}`,
     );
-    available.splice(removeIndex, 1);
+    const item = weightedPick(
+      random,
+      CONSUMABLE_ITEMS.map((entry) => ({
+        value: entry,
+        weight: getExplorationItemWeight(entry),
+      })),
+    );
+    return {
+      candidateId: `${exploreKey}:search-point:${index + 1}`,
+      pointId: point.pointId,
+      pointName: point.name,
+      pointIcon: point.icon,
+      resultItemId: item.itemId,
+      rarityWeight: getExplorationItemWeight(item),
+    };
+  });
+}
+
+function normalizeSearchCandidates(runtime, exploreKey, candidates) {
+  if (
+    Array.isArray(candidates) &&
+    candidates.length === EXPLORATION_RULES.searchPointCount &&
+    candidates.every(
+      (candidate) =>
+        candidate?.pointId &&
+        candidate?.pointIcon &&
+        (candidate?.resultItemId || candidate?.itemId),
+    )
+  ) {
+    return candidates.map((candidate, index) => ({
+      candidateId:
+        candidate.candidateId ??
+        `${exploreKey}:search-point:${index + 1}`,
+      pointId:
+        candidate.pointId ??
+        EXPLORATION_SEARCH_POINTS[index].pointId,
+      pointName:
+        candidate.pointName ??
+        EXPLORATION_SEARCH_POINTS[index].name,
+      pointIcon:
+        candidate.pointIcon ??
+        EXPLORATION_SEARCH_POINTS[index].icon,
+      resultItemId:
+        candidate.resultItemId ??
+        candidate.itemId,
+      rarityWeight:
+        candidate.rarityWeight ??
+        getExplorationItemWeight(
+          getItem(candidate.resultItemId ?? candidate.itemId),
+        ),
+    }));
   }
 
-  return selected;
+  // Compatibility with exploration saves created before Generation 21.
+  if (
+    Array.isArray(candidates) &&
+    candidates.length > 0
+  ) {
+    return EXPLORATION_SEARCH_POINTS.map((point, index) => {
+      const legacy =
+        candidates[index % candidates.length];
+      const fallback =
+        createSearchCandidates(runtime, exploreKey)[index];
+      return {
+        candidateId:
+          legacy?.candidateId ??
+          `${exploreKey}:search-point:${index + 1}`,
+        pointId: point.pointId,
+        pointName: point.name,
+        pointIcon: point.icon,
+        resultItemId:
+          legacy?.resultItemId ??
+          legacy?.itemId ??
+          fallback.resultItemId,
+        rarityWeight:
+          legacy?.rarityWeight ??
+          fallback.rarityWeight,
+      };
+    });
+  }
+
+  return createSearchCandidates(runtime, exploreKey);
+}
+
+export function getSearchPointReward(
+  runtime,
+  candidate,
+) {
+  const itemId =
+    candidate?.resultItemId ??
+    candidate?.itemId;
+  return itemId
+    ? getItem(itemId)
+    : null;
 }
 
 function createFacilityOutcome(runtime, exploreKey) {
@@ -296,12 +381,26 @@ export function beginExplorationToDraft(
         ],
       candidates: createSearchCandidates(draft, key),
       selectedCandidateId: null,
+      selectedPointId: null,
       resultType: null,
       resultItemId: null,
       resultReplacedItemId: null,
       searchResolved: false,
       completed: false,
     };
+
+  choices.candidates = normalizeSearchCandidates(
+    draft,
+    key,
+    choices.candidates,
+  );
+  choices.selectedPointId =
+    choices.selectedPointId ??
+    choices.candidates.find(
+      (candidate) =>
+        candidate.candidateId === choices.selectedCandidateId,
+    )?.pointId ??
+    null;
 
   draft.explorationRuntime.deterministicChoices[key] =
     deepClone(choices);
@@ -424,14 +523,25 @@ export function selectSearchCandidateToDraft(draft, candidateId) {
     throw new RangeError(`Unknown search candidate: ${candidateId}`);
   }
 
-  const item = getItem(candidate.itemId);
+  const resultItemId =
+    candidate.resultItemId ??
+    candidate.itemId;
+  if (!resultItemId) {
+    throw new RangeError(
+      `Search point reward is missing: ${candidateId}`,
+    );
+  }
+  const item = getItem(resultItemId);
   choice.selectedCandidateId = candidateId;
+  choice.selectedPointId =
+    candidate.pointId ?? null;
   const acquisition = acquireExplorationItem(draft, item);
 
   if (acquisition.status === "backpack_full") {
     draft.explorationRuntime.pendingExploreItem = {
       exploreKey: choice.exploreKey,
       candidateId,
+      pointId: choice.selectedPointId,
       itemId: item.itemId,
       name: item.name,
       image: item.image,
@@ -857,7 +967,7 @@ export function completeExplorationToDraft(draft) {
   const key = draft.explorationRuntime.currentExploreKey;
   const choice = currentChoice(draft);
   if (!choice.searchResolved) {
-    throw new RangeError("SEARCHで候補を1つ選択してください。");
+    throw new RangeError("SEARCHで探索地点を1つ選択してください。");
   }
   if (draft.explorationRuntime.pendingExploreItem) {
     throw new RangeError("バッグ満杯時の処理を完了してください。");
@@ -999,15 +1109,31 @@ function pageTabsTemplate(currentPage) {
 }
 
 function searchPageTemplate(runtime, choice) {
-  const pending = runtime.explorationRuntime.pendingExploreItem;
+  const pending =
+    runtime.explorationRuntime.pendingExploreItem;
+  const resultItem =
+    choice.resultItemId
+      ? getItem(choice.resultItemId)
+      : pending?.itemId
+        ? getItem(pending.itemId)
+        : null;
+  const normalizedCandidates =
+    normalizeSearchCandidates(
+      runtime,
+      choice.exploreKey,
+      choice.candidates,
+    );
+
   return `
     <section class="exploration-page exploration-page--search">
-      <div class="exploration-radar">
-        <div class="exploration-radar__rings" aria-hidden="true"></div>
-        ${choice.candidates.map((candidate, index) => `
+      <p class="exploration-page-note exploration-page-note--search">
+        3つの探索地点から1つ選択してください。アイテムは探索後に抽選されます。
+      </p>
+      <div class="exploration-search-grid">
+        ${normalizedCandidates.map((candidate, index) => `
           <button
             type="button"
-            class="exploration-search-node node-${index + 1} ${
+            class="exploration-search-point ${
               choice.selectedCandidateId === candidate.candidateId
                 ? "is-selected"
                 : ""
@@ -1016,18 +1142,32 @@ function searchPageTemplate(runtime, choice) {
             data-candidate-id="${escapeAttribute(candidate.candidateId)}"
             ${choice.searchResolved || pending ? "disabled" : ""}
           >
-            <img src="${escapeAttribute(candidate.image)}" alt="">
-            <strong>${escapeHtml(candidate.name)}</strong>
-            <small>${escapeHtml(candidate.description)}</small>
+            <span class="exploration-search-point__number">
+              POINT ${index + 1}
+            </span>
+            <img
+              src="${escapeAttribute(assetPath(candidate.pointIcon))}"
+              alt="${escapeAttribute(candidate.pointName)}"
+            >
+            <strong>${escapeHtml(candidate.pointName)}</strong>
+            <small>タップして探索</small>
           </button>
         `).join("")}
       </div>
       ${
-        choice.searchResolved
+        choice.searchResolved && resultItem
           ? `
-            <div class="exploration-result-banner">
-              <strong>SEARCH COMPLETE</strong>
-              <span>
+            <article class="exploration-random-result">
+              <span>SEARCH COMPLETE</span>
+              <div>
+                <img src="${escapeAttribute(assetPath(resultItem.image))}" alt="">
+                <section>
+                  <small>ランダムアイテムを発見</small>
+                  <strong>${escapeHtml(resultItem.name)}</strong>
+                  <p>${escapeHtml(resultItem.description)}</p>
+                </section>
+              </div>
+              <em>
                 ${
                   choice.resultType === "declined"
                     ? "取得しませんでした"
@@ -1037,10 +1177,24 @@ function searchPageTemplate(runtime, choice) {
                         ? "同一アイテムへ追加しました"
                         : "バッグへ収納しました"
                 }
-              </span>
-            </div>
+              </em>
+            </article>
           `
-          : `<p class="exploration-page-note">3候補から1つ選択してください。強いアイテムほど低確率です。</p>`
+          : pending && resultItem
+            ? `
+              <article class="exploration-random-result is-pending">
+                <span>ITEM FOUND</span>
+                <div>
+                  <img src="${escapeAttribute(assetPath(resultItem.image))}" alt="">
+                  <section>
+                    <small>ランダムアイテムを発見</small>
+                    <strong>${escapeHtml(resultItem.name)}</strong>
+                    <p>バッグが満杯です。交換するアイテムを選んでください。</p>
+                  </section>
+                </div>
+              </article>
+            `
+            : ""
       }
     </section>
   `;
@@ -1305,7 +1459,7 @@ export function renderExplorationScreen(runtime) {
   return `
     <main
       class="tournament-screen tournament-screen--exploration"
-      style="--map-background:url('${escapeAttribute(runtime.map.image)}')"
+      style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')"
       data-exploration-swipe
     >
       <header class="exploration-mini-header">
@@ -1321,7 +1475,7 @@ export function renderExplorationScreen(runtime) {
         ${commentaryTemplate(
           choice.searchResolved
             ? `${choice.resultItemId ? getItem(choice.resultItemId).name : "アイテム"}の探索結果を確定しました。施設やバッグも確認できます。`
-            : `${choice.areaName}を探索中！3候補から1つを選びましょう！`,
+            : `${choice.areaName}を探索中！3つの探索地点から1つ選びましょう！`,
         )}
         <div class="tournament-actions">
           <button
@@ -1370,7 +1524,7 @@ export function renderStrategySelectionScreen(runtime) {
   );
 
   return `
-    <main class="tournament-screen tournament-screen--strategy-select" style="--map-background:url('${escapeAttribute(runtime.map.image)}')">
+    <main class="tournament-screen tournament-screen--strategy-select" style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
       <header class="strategy-select-header">
         <img src="icon/battle.png" alt=""><div><span>STRATEGY SELECT</span><strong>${escapeHtml(selectedRuntime.name)}</strong></div>
       </header>

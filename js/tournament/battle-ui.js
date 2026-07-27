@@ -5,6 +5,7 @@
  * the serialized event stream without changing combat calculations.
  */
 
+import { assetPath } from "../assets.js";
 import {
   COMMENTATOR,
   COMMENTARY_VERSION,
@@ -13,7 +14,7 @@ import {
   createCommentaryDirector,
 } from "./commentary.js";
 
-export const BATTLE_UI_VERSION = "mobbr-battle-ui-1.3.0";
+export const BATTLE_UI_VERSION = "mobbr-battle-ui-1.3.1";
 export const BATTLE_REPLAY_SCHEMA_VERSION =
   "mobbr-battle-replay-1.0.0";
 
@@ -587,7 +588,7 @@ function resultCutTemplate(model) {
 
 export function renderBattleReplayScreen(runtime, model) {
   return `
-    <main class="tournament-screen tournament-screen--battle-replay" style="--map-background:url('${escapeAttribute(runtime.map.image)}')">
+    <main class="tournament-screen tournament-screen--battle-replay" style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
       ${statusHeaderTemplate(runtime, model)}
       <section class="battle-arena">
         <div class="battle-distance-guide" aria-hidden="true">

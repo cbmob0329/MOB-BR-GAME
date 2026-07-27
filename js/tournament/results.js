@@ -7,6 +7,7 @@
  * validates the signed TournamentResultData.
  */
 
+import { assetPath } from "../assets.js";
 import {
   getChampionshipPoints,
   getPlacementPoints,
@@ -24,7 +25,7 @@ import {
 } from "../main/tournament-bridge.js";
 
 export const RESULTS_VERSION =
-  "mobbr-tournament-results-1.3.0";
+  "mobbr-tournament-results-1.3.1";
 
 export const RESULT_RULES = Object.freeze({
   defaultMatchPointThreshold: 50,
@@ -1388,7 +1389,7 @@ export function renderMatchResultScreen(runtime) {
   `).join("");
 
   return `
-    <main class="tournament-screen tournament-screen--match-result" style="--result-background:url('${escapeAttribute(runtime.map.image)}')">
+    <main class="tournament-screen tournament-screen--match-result" style="--result-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
       <header class="result-header result-header--compact">
         <span><img src="icon/match.png" alt="">MATCH ${runtime.match}</span>
         <h1>MATCH RESULT</h1>
@@ -1432,7 +1433,7 @@ export function renderMatchPointScreen(runtime) {
   );
   const isWinner = winner !== null;
   return `
-    <main class="tournament-screen tournament-screen--match-point ${isWinner ? "is-winner" : "is-eligible"}" style="--tournament-background:url('${escapeAttribute(tournamentThemeBackground(runtime))}')">
+    <main class="tournament-screen tournament-screen--match-point ${isWinner ? "is-winner" : "is-eligible"}" style="--tournament-background:url('${escapeAttribute(assetPath(tournamentThemeBackground(runtime)))}')">
       <div class="match-point-rays" aria-hidden="true"></div>
       <section class="match-point-stage">
         <span>${isWinner ? "MATCH POINT WINNER" : "MATCH POINT REACHED"}</span>
@@ -1478,7 +1479,7 @@ export function renderMatchPointScreen(runtime) {
 export function renderNextMatchWaitScreen(runtime) {
   const nextMatch = runtime.match + 1;
   return `
-    <main class="tournament-screen tournament-screen--next-match" style="--result-background:url('${escapeAttribute(runtime.map.image)}')">
+    <main class="tournament-screen tournament-screen--next-match" style="--result-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
       <section class="next-match-stage">
         <img class="next-match-stage__tournament-logo" src="${escapeAttribute(
           runtime.entryData.tournament.openingThemeId === "national"

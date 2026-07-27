@@ -6,6 +6,11 @@
  */
 
 import {
+  assetPath,
+  detectAssetPrefix,
+  installAssetFallbacks,
+} from "../assets.js";
+import {
   TOURNAMENT_PHASES,
   createTournamentRuntimeManager,
 } from "./runtime.js";
@@ -63,7 +68,7 @@ import {
   resolveRoundEncounterToDraft,
 } from "./round.js";
 
-export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-1.9.0";
+export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-1.9.2";
 
 const PHASE_LABELS = Object.freeze({
   IDLE: "待機",
@@ -143,18 +148,18 @@ function playerMembers(runtime) {
 
 function tournamentThemeLogo(runtime) {
   const theme = runtime.entryData.tournament.openingThemeId;
-  if (theme === "national") return "icon/national.png";
-  if (theme === "world") return "icon/world.png";
-  if (theme === "championship") return "icon/champ.png";
-  return "icon/local.png";
+  if (theme === "national") return assetPath("icon/national.png");
+  if (theme === "world") return assetPath("icon/world.png");
+  if (theme === "championship") return assetPath("icon/champ.png");
+  return assetPath("icon/local.png");
 }
 
 function tournamentThemeBackground(runtime) {
   const theme = runtime.entryData.tournament.openingThemeId;
-  if (theme === "national") return "back/national.png";
-  if (theme === "world") return "back/world.png";
-  if (theme === "championship") return "back/champ.png";
-  return "back/local.png";
+  if (theme === "national") return assetPath("back/national.png");
+  if (theme === "world") return assetPath("back/world.png");
+  if (theme === "championship") return assetPath("back/champ.png");
+  return assetPath("back/local.png");
 }
 
 function topStatusTemplate(runtime) {
@@ -239,7 +244,7 @@ function sceneForegroundTemplate(scene) {
   return `
     <div class="opening-foregrounds">
       ${scene.foregroundImages.map((image) => `
-        <img src="${escapeAttribute(image)}" alt="">
+        <img src="${escapeAttribute(assetPath(image))}" alt="">
       `).join("")}
     </div>
   `;
@@ -249,7 +254,7 @@ function openingTemplate(runtime) {
   const scene = runtime.opening.scenes[runtime.opening.sceneIndex];
   const sceneNumber = runtime.opening.sceneIndex + 1;
   const isLast = sceneNumber === runtime.opening.scenes.length;
-  const background = scene.backgroundImage ?? tournamentThemeBackground(runtime);
+  const background = assetPath(scene.backgroundImage ?? tournamentThemeBackground(runtime));
   const logo = tournamentThemeLogo(runtime);
   const showLogo = scene.type === "TOURNAMENT_TITLE";
   return `
@@ -388,7 +393,7 @@ function deploymentTemplate(runtime) {
   return `
     <main
       class="tournament-screen tournament-screen--deployment"
-      style="--map-background:url('${escapeAttribute(runtime.map.image)}')"
+      style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')"
     >
       ${topStatusTemplate(runtime)}
       <section class="deployment-stage">
@@ -449,7 +454,7 @@ function provisionalPhaseTemplate(runtime, {
   return `
     <main
       class="tournament-screen tournament-screen--provisional"
-      style="--map-background:url('${escapeAttribute(runtime.map.image)}')"
+      style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')"
     >
       ${topStatusTemplate(runtime)}
       <section class="provisional-phase-card">
@@ -503,7 +508,7 @@ function matchStartTemplate(runtime) {
 
 function spectatorFastForwardTemplate(runtime) {
   return `
-    <main class="tournament-screen tournament-screen--spectator-fast" style="--map-background:url('${escapeAttribute(runtime.map.image)}')">
+    <main class="tournament-screen tournament-screen--spectator-fast" style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
       <section class="spectator-fast-card">
         <div class="spectator-fast-loader" aria-hidden="true"><i></i><i></i><i></i></div>
         <span>MATCH ${runtime.match}</span>
@@ -516,7 +521,7 @@ function spectatorFastForwardTemplate(runtime) {
 
 function sessionCompleteTemplate(runtime) {
   return `
-    <main class="tournament-screen tournament-screen--session-complete" style="--map-background:url('${escapeAttribute(runtime.map.image)}')">
+    <main class="tournament-screen tournament-screen--session-complete" style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
       <section class="session-complete-stage">
         <img src="icon/mic.png" alt="モブマイク">
         <span>ALL MATCHES COMPLETE</span>
@@ -556,7 +561,7 @@ function encounterPreviewTemplate(runtime) {
   const opponent = getCurrentCpuOpponent(runtime);
   const enemyMembers = opponent?.members ?? [];
   return `
-    <main class="tournament-screen tournament-screen--encounter" style="--map-background:url('${escapeAttribute(runtime.map.image)}')">
+    <main class="tournament-screen tournament-screen--encounter" style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
       <header class="encounter-versus-header">
         <span>ENCOUNTER</span>
         <h1>${escapeHtml(runtime.entryData.playerTeam.teamName)} <b>VS</b> ${escapeHtml(opponent?.teamName ?? "CPU TEAM")}</h1>
@@ -1417,7 +1422,7 @@ export function createTournamentFlowController({
         }
         if (action === "exploration-search-select") {
           const transaction = runtimeManager.update(
-            "exploration_candidate_selected",
+            "exploration_search_point_selected",
             (draft) =>
               selectSearchCandidateToDraft(
                 draft,
@@ -1932,24 +1937,26 @@ async function bootstrap() {
 
   loadingOverlay.setAttribute("aria-hidden", "false");
   loadingMessage.textContent = "大会画像を読み込んでいます";
+  await detectAssetPrefix("back/local.png");
+  installAssetFallbacks(document);
   await preloadTournamentImages([
-    "back/Load.png",
-    "back/local.png",
-    "back/national.png",
-    "back/world.png",
-    "back/champ.png",
-    "back/neon.png",
-    "back/sabak.png",
-    "back/magma.png",
-    "back/inaka.png",
-    "icon/local.png",
-    "icon/national.png",
-    "icon/world.png",
-    "icon/champ.png",
-    "icon/mic.png",
-    "icon/battle.png",
-    "icon/round.png",
-    "icon/match.png",
+    assetPath("back/Load.png"),
+    assetPath("back/local.png"),
+    assetPath("back/national.png"),
+    assetPath("back/world.png"),
+    assetPath("back/champ.png"),
+    assetPath("back/neon.png"),
+    assetPath("back/sabak.png"),
+    assetPath("back/magma.png"),
+    assetPath("back/inaka.png"),
+    assetPath("icon/local.png"),
+    assetPath("icon/national.png"),
+    assetPath("icon/world.png"),
+    assetPath("icon/champ.png"),
+    assetPath("icon/mic.png"),
+    assetPath("icon/battle.png"),
+    assetPath("icon/round.png"),
+    assetPath("icon/match.png"),
   ]);
   const controller = createTournamentFlowController({
     root,
