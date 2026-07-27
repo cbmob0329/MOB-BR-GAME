@@ -18,6 +18,7 @@ import {
 } from "./state.js";
 import {
   changeWeaponSkinToDraft,
+  getAbilityAcquisitionState,
   getSelectedPlayerId,
   learnSpecialAbilityToDraft,
   renameWeaponToDraft,
@@ -29,6 +30,9 @@ import {
   upgradeWeaponStatToDraft,
 } from "./team.js";
 import {
+  getSpecialAbility,
+} from "../../data/ability-data.js";
+import {
   createManagementController,
   renderManagementSection,
 } from "./management.js";
@@ -37,7 +41,7 @@ import {
   renderTournamentSchedule,
 } from "./tournament-bridge.js";
 
-export const APP_VERSION = "mobbr-main-app-0.5.0";
+export const APP_VERSION = "mobbr-main-app-0.6.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -436,7 +440,12 @@ function topStatusTemplate(snapshot) {
       <div class="top-status__panel">
         <div class="top-status__line">
           <div class="top-status__company">
-            ${escapeHtml(snapshot.company.companyName)}
+            <img
+              class="top-status__company-logo"
+              src="${escapeAttribute(snapshot.company.badgeImage)}"
+              alt=""
+            >
+            <span>${escapeHtml(snapshot.company.companyName)}</span>
           </div>
           <div class="top-status__date">
             ${escapeHtml(formatGameDate(snapshot.gameDate))}
@@ -544,9 +553,16 @@ function homeTemplate(snapshot, currentRoute) {
       <div class="page-content">
         <section class="hero-panel">
           <p class="hero-panel__label">COMPANY STATUS</p>
-          <h1 class="hero-panel__title">
-            ${escapeHtml(snapshot.company.companyName)}
-          </h1>
+          <div class="hero-panel__company-title">
+            <img
+              class="hero-panel__company-logo"
+              src="${escapeAttribute(snapshot.company.badgeImage)}"
+              alt=""
+            >
+            <h1 class="hero-panel__title">
+              ${escapeHtml(snapshot.company.companyName)}
+            </h1>
+          </div>
           <div class="hero-panel__meta">
             <span class="meta-chip">
               企業RANK ${escapeHtml(snapshot.company.rank)}
@@ -1373,12 +1389,17 @@ export function createMainApp({
       await openAlert({
         title: "週間企業ボーナス",
         body: `
-          <p>${escapeHtml(formatGameDate(firstBonus.gameDate))}</p>
-          <p>
-            COIN ${formatNumber(firstBonus.granted.coin)}<br>
-            DIAMOND ${formatNumber(firstBonus.granted.diamond)}<br>
-            RUBY ${formatNumber(firstBonus.granted.ruby)}
-          </p>
+          <section class="weekly-bonus-show">
+            <div class="weekly-bonus-show__burst" aria-hidden="true"></div>
+            <img src="${escapeAttribute(snapshot.company.badgeImage)}" alt="">
+            <span>WEEK START BONUS</span>
+            <h3>${escapeHtml(formatGameDate(firstBonus.gameDate))}</h3>
+            <div class="weekly-bonus-show__rewards">
+              <strong><img src="icon/coin.png" alt="">${formatNumber(firstBonus.granted.coin)}</strong>
+              <strong><img src="icon/daia.png" alt="">${formatNumber(firstBonus.granted.diamond)}</strong>
+              <strong><img src="icon/rubi.png" alt="">${formatNumber(firstBonus.granted.ruby)}</strong>
+            </div>
+          </section>
         `,
         buttonLabel: "HOMEへ",
       });
@@ -1687,6 +1708,88 @@ export function createMainApp({
       } catch (error) {
         await openAlert({
           title: "スキンを変更できません",
+          body: `<p>${escapeHtml(error.message)}</p>`,
+          code: getErrorCode(error),
+        });
+      }
+      return;
+    }
+    if (action === "inspect-special-ability") {
+      const playerId = actionElement.dataset.playerId;
+      const abilityKey = actionElement.dataset.abilityKey;
+      const snapshot = stateManager.getSnapshot();
+      const ability = getSpecialAbility(abilityKey);
+      const acquisition = getAbilityAcquisitionState(
+        snapshot,
+        playerId,
+        abilityKey,
+      );
+      const costRows = Object.entries(ability.cost)
+        .filter(([, amount]) => amount > 0)
+        .map(([pointId, amount]) =>
+          `<span>${escapeHtml(pointId.toUpperCase())} ${formatNumber(amount)}</span>`,
+        )
+        .join("") || "<span>PT 0</span>";
+      const conditionRows = acquisition.conditionState.details
+        .map((detail) => `
+          <li class="${detail.met ? "is-met" : ""}">
+            ${escapeHtml(detail.condition.type)}
+            ${detail.condition.tier ? ` ${escapeHtml(detail.condition.tier.toUpperCase())}` : ""}
+            ${formatNumber(detail.current)} / ${formatNumber(detail.required)}
+          </li>
+        `)
+        .join("");
+      const status = acquisition.replaced
+        ? "上位段階へ置換済みです"
+        : acquisition.alreadyLearned
+          ? "習得済みです"
+          : !acquisition.stagePrerequisiteMet
+            ? "第1段階の習得が必要です"
+            : !acquisition.conditionState.unlocked
+              ? "解放条件を満たしていません"
+              : !acquisition.affordable
+                ? "トレーニングポイントが不足しています"
+                : "習得できます";
+      const body = `
+        <section class="ability-detail-modal ability-detail-modal--${escapeAttribute(ability.color)}">
+          <div class="ability-detail-modal__orb">${escapeHtml(ability.name.slice(0, 1))}</div>
+          <span>${escapeHtml(ability.color.toUpperCase())} / ${escapeHtml(ability.abilityId.toUpperCase())}${ability.color === "blue" ? ` STAGE ${ability.stage}` : ""}</span>
+          <h3>${escapeHtml(ability.name)}</h3>
+          <p>${escapeHtml(ability.description)}</p>
+          <div class="ability-detail-modal__cost">${costRows}</div>
+          ${conditionRows ? `<ul class="ability-detail-modal__conditions">${conditionRows}</ul>` : ""}
+          <strong>${escapeHtml(status)}</strong>
+        </section>
+      `;
+      if (!acquisition.learnable) {
+        await openAlert({
+          title: "特殊能力詳細",
+          body,
+          buttonLabel: "閉じる",
+        });
+        return;
+      }
+      const confirmed = await openConfirm({
+        title: "特殊能力を習得しますか？",
+        body,
+        confirmLabel: "習得する",
+      });
+      if (!confirmed) return;
+      try {
+        const transaction = stateManager.transact(
+          "special_ability_learned",
+          (draft) =>
+            learnSpecialAbilityToDraft(
+              draft,
+              playerId,
+              abilityKey,
+            ),
+        );
+        showToast(`${transaction.result.name}を習得しました`);
+        render();
+      } catch (error) {
+        await openAlert({
+          title: "特殊能力を習得できません",
           body: `<p>${escapeHtml(error.message)}</p>`,
           code: getErrorCode(error),
         });

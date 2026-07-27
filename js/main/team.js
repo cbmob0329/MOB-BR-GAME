@@ -33,7 +33,7 @@ import {
   getWeaponUpgradeCost,
 } from "../../data/ability-data.js";
 
-export const TEAM_FEATURE_VERSION = "mobbr-team-feature-0.1.0";
+export const TEAM_FEATURE_VERSION = "mobbr-team-feature-0.2.0";
 
 const ROLE_ICONS = Object.freeze({
   IGL: "icon/IGL.png",
@@ -539,7 +539,12 @@ export function renderPlayerSelector(snapshot, selectedPlayerId) {
           data-player-id="${escapeAttribute(player.playerId)}"
           aria-selected="${player.playerId === selectedPlayerId}"
         >
-          <img src="${escapeAttribute(player.image)}" alt="">
+          <img
+            class="player-portrait player-portrait--selector"
+            data-role="${escapeAttribute(player.role)}"
+            src="${escapeAttribute(player.image)}"
+            alt=""
+          >
           <span>${escapeHtml(player.role)}</span>
           <strong>${escapeHtml(player.name)}</strong>
         </button>
@@ -567,7 +572,8 @@ export function renderTeamDetailsSection(snapshot) {
         <article class="team-detail-card">
           <header class="team-detail-card__header">
             <img
-              class="team-detail-card__portrait"
+              class="team-detail-card__portrait player-portrait"
+              data-role="${escapeAttribute(player.role)}"
               src="${escapeAttribute(player.image)}"
               alt="${escapeAttribute(player.name)}"
             >
@@ -814,68 +820,51 @@ export function renderSpecialAbilitySection(
       `).join("")}
     </div>
 
-    <section class="special-ability-list">
+    <p class="special-ability-guide">
+      能力アイコンをタップすると、効果・必要ポイント・解放条件を確認できます。
+    </p>
+
+    <section class="special-ability-list special-ability-list--powerpro">
       ${abilities.map((ability) => {
         const state = getAbilityAcquisitionState(
           snapshot,
           playerId,
           ability.abilityKey,
         );
-        let buttonText = "習得";
+        let statusText = "詳細";
         if (state.replaced) {
-          buttonText = "置換済み";
+          statusText = "置換済";
         } else if (state.alreadyLearned) {
-          buttonText = "習得済み";
+          statusText = "習得済";
         } else if (!state.stagePrerequisiteMet) {
-          buttonText = "第1段階が必要";
+          statusText = "前段階";
         } else if (!state.conditionState.unlocked) {
-          buttonText = "条件未達";
+          statusText = "未解放";
         } else if (!state.affordable) {
-          buttonText = "PT不足";
+          statusText = "PT不足";
+        } else {
+          statusText = "習得可";
         }
 
         return `
-          <article class="special-ability-card special-ability-card--${ability.color}">
-            <header>
-              <div>
-                <span class="special-ability-card__id">
-                  ${escapeHtml(ability.abilityId.toUpperCase())}
-                  ${ability.color === "blue" ? ` STAGE ${ability.stage}` : ""}
-                </span>
-                <h3>${escapeHtml(ability.name)}</h3>
-              </div>
-              <span class="special-target">${escapeHtml(ability.target)}</span>
-            </header>
-            <p>${escapeHtml(ability.description)}</p>
-            <div class="cost-tags">
-              ${abilityCostTemplate(ability.cost) || "<span>PT 0</span>"}
-            </div>
-            ${
-              state.conditionState.details.length
-                ? `
-                  <div class="condition-list">
-                    ${state.conditionState.details.map(
-                      (detail) => `
-                        <span class="${detail.met ? "is-met" : ""}">
-                          ${escapeHtml(conditionLabel(detail))}
-                        </span>
-                      `,
-                    ).join("")}
-                  </div>
-                `
-                : ""
-            }
-            <button
-              type="button"
-              class="primary-button"
-              data-action="learn-special-ability"
-              data-player-id="${escapeAttribute(playerId)}"
-              data-ability-key="${escapeAttribute(ability.abilityKey)}"
-              ${state.learnable ? "" : "disabled"}
-            >
-              ${escapeHtml(buttonText)}
-            </button>
-          </article>
+          <button
+            type="button"
+            class="special-ability-card special-ability-card--tile special-ability-card--${ability.color}"
+            data-action="inspect-special-ability"
+            data-player-id="${escapeAttribute(playerId)}"
+            data-ability-key="${escapeAttribute(ability.abilityKey)}"
+            aria-label="${escapeAttribute(ability.name)}の詳細"
+          >
+            <span class="special-ability-orb" aria-hidden="true">
+              ${escapeHtml(ability.name.slice(0, 1))}
+            </span>
+            <span class="special-ability-card__id">
+              ${escapeHtml(ability.abilityId.toUpperCase())}
+              ${ability.color === "blue" ? `-${ability.stage}` : ""}
+            </span>
+            <strong>${escapeHtml(ability.name)}</strong>
+            <small>${escapeHtml(statusText)}</small>
+          </button>
         `;
       }).join("")}
     </section>

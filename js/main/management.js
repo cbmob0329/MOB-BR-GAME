@@ -60,7 +60,7 @@ import {
 } from "./state.js";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-0.1.0";
+  "mobbr-management-feature-0.2.0";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -1039,18 +1039,141 @@ function currencyPriceTemplate(price) {
     .join("");
 }
 
+
+function shopItemTile(item, snapshot) {
+  const price = currencyPriceTemplate(item.price);
+  return `
+    <button
+      type="button"
+      class="shop-item-tile"
+      data-action="inspect-shop-item"
+      data-item-id="${escapeAttribute(item.itemId)}"
+      aria-label="${escapeAttribute(item.name)}の詳細"
+    >
+      <span class="shop-item-tile__image">
+        <img src="${escapeAttribute(item.image)}" alt="">
+      </span>
+      <strong>${escapeHtml(item.name)}</strong>
+      <small>${price || "FREE"}</small>
+      <em>所持 ${formatNumber(snapshot.inventory.items[item.itemId] ?? 0)}</em>
+    </button>
+  `;
+}
+
+function collectionLogoPath(master) {
+  if (master.category === "badge") {
+    return master.image;
+  }
+  return master.image.replace(/[ABC]\.png$/i, "D.png");
+}
+
+function collectionFilePages(entries, category) {
+  if (entries.length === 0) {
+    return `<p class="empty-state">${category === "card" ? "カード" : "バッジ"}はまだありません。</p>`;
+  }
+  const pageCount = Math.ceil(entries.length / 9);
+  return `
+    <div class="collection-file" role="region" aria-label="${category === "card" ? "カード" : "バッジ"}ファイル">
+      ${Array.from({ length: pageCount }, (_, pageIndex) => {
+        const pageEntries = entries.slice(pageIndex * 9, pageIndex * 9 + 9);
+        return `
+          <section class="collection-file__page">
+            <header>
+              <strong>${category === "card" ? "CARD FILE" : "BADGE FILE"}</strong>
+              <span>${pageIndex + 1} / ${pageCount}</span>
+            </header>
+            <div class="collection-file__grid">
+              ${Array.from({ length: 9 }, (_, slotIndex) => {
+                const entry = pageEntries[slotIndex];
+                if (!entry) {
+                  return `<div class="collection-file__empty"><span>EMPTY</span></div>`;
+                }
+                const { master, owned } = entry;
+                const logo = collectionLogoPath(master);
+                if (category === "card") {
+                  return `
+                    <article class="collection-file-card collection-file-card--${escapeAttribute(master.tier)}">
+                      <div class="collection-file-card__shine" aria-hidden="true"></div>
+                      <img class="collection-file-card__character" src="${escapeAttribute(master.image)}" alt="">
+                      <img class="collection-file-card__logo" src="${escapeAttribute(logo)}" alt="">
+                      <span>${escapeHtml(master.role)}</span>
+                      <strong>${escapeHtml(master.name)}</strong>
+                      <small>No.${master.collectionNo} / +${owned.level}</small>
+                    </article>
+                  `;
+                }
+                return `
+                  <article class="collection-file-badge">
+                    <div class="collection-file-badge__ring" aria-hidden="true"></div>
+                    <img src="${escapeAttribute(master.image)}" alt="">
+                    <strong>${escapeHtml(master.teamName)}</strong>
+                    <small>No.${master.collectionNo} / +${owned.level}</small>
+                  </article>
+                `;
+              }).join("")}
+            </div>
+          </section>
+        `;
+      }).join("")}
+    </div>
+    <p class="collection-file__hint">左右へスワイプしてページをめくれます。</p>
+  `;
+}
+
+function packOpeningPresentation(result) {
+  const previews = result.results.slice(0, 18).map((opened, index) => {
+    const master = opened.master;
+    const logo = master.category === "card"
+      ? collectionLogoPath(master)
+      : master.image;
+    return `
+      <article
+        class="pack-reveal-card pack-reveal-card--${escapeAttribute(opened.resultType.toLowerCase())}"
+        style="--reveal-index:${index}"
+      >
+        <div class="pack-reveal-card__flare" aria-hidden="true"></div>
+        <img class="pack-reveal-card__main" src="${escapeAttribute(master.image)}" alt="">
+        ${master.category === "card" ? `<img class="pack-reveal-card__logo" src="${escapeAttribute(logo)}" alt="">` : ""}
+        <strong>${escapeHtml(master.name ?? master.teamName)}</strong>
+        <span>${escapeHtml(opened.resultType)}</span>
+      </article>
+    `;
+  }).join("");
+  return `
+    <section class="pack-opening-show">
+      <div class="pack-opening-show__burst" aria-hidden="true"></div>
+      <span>PACK OPEN!</span>
+      <h3>${escapeHtml(result.packName)}</h3>
+      <p>NEW ${result.summary.newCount} / POWER UP ${result.summary.powerUpCount} / CONVERT ${result.summary.convertCount}</p>
+      <div class="pack-reveal-grid">${previews}</div>
+      ${result.results.length > 18 ? `<small>ほか ${result.results.length - 18}件</small>` : ""}
+    </section>
+  `;
+}
+
 export function renderTrainingManagement(snapshot) {
   const bonusRate =
     snapshot.collectionBonuses?.trainingPointRate ?? 0;
   return `
-    <section class="management-summary">
+    <section class="management-summary training-summary">
       <strong>バッジ補正 +${(bonusRate * 100).toFixed(1)}%</strong>
-      <span>実行すると1週間進みます</span>
+      <span>3選手が同時にトレーニングし、週明けボーナスを受け取ります</span>
     </section>
-    <form class="training-assignment-form" data-form="training">
-      ${snapshot.playerTeam.members.map((player) => `
-        <label class="training-assignment-card">
-          <span>${escapeHtml(player.role)} / ${escapeHtml(player.name)}</span>
+    <form class="training-assignment-form training-stage" data-form="training">
+      ${snapshot.playerTeam.members.map((player, playerIndex) => `
+        <label class="training-assignment-card training-assignment-card--visual" style="--training-index:${playerIndex}">
+          <div class="training-assignment-card__player">
+            <img
+              class="player-portrait"
+              data-role="${escapeAttribute(player.role)}"
+              src="${escapeAttribute(player.image)}"
+              alt=""
+            >
+            <div>
+              <span>${escapeHtml(player.role)}</span>
+              <strong>${escapeHtml(player.name)}</strong>
+            </div>
+          </div>
           <select data-training-player="${escapeAttribute(player.playerId)}">
             ${TRAINING_PROGRAMS.map((program) => `
               <option value="${escapeAttribute(program.id)}">
@@ -1060,14 +1183,22 @@ export function renderTrainingManagement(snapshot) {
               </option>
             `).join("")}
           </select>
+          <div class="training-program-preview">
+            ${TRAINING_PROGRAMS.slice(0, 6).map((program) => `
+              <span title="${escapeAttribute(program.name)}">
+                <img src="${escapeAttribute(program.image)}" alt="">
+              </span>
+            `).join("")}
+          </div>
         </label>
       `).join("")}
       <button
         type="button"
-        class="primary-button"
+        class="primary-button training-start-button"
         data-action="execute-training"
       >
-        1週間トレーニング
+        <span>TRAINING START</span>
+        <small>1週間トレーニング</small>
       </button>
     </form>
   `;
@@ -1083,27 +1214,12 @@ export function renderShopManagement(snapshot) {
 
   return `
     <section class="management-section">
-      <h2>ITEM SHOP</h2>
-      <div class="management-card-grid">
-        ${CONSUMABLE_ITEMS.map((item) => `
-          <article class="shop-product-card">
-            <img src="${escapeAttribute(item.image)}" alt="">
-            <div>
-              <h3>${escapeHtml(item.name)}</h3>
-              <p>${escapeHtml(item.description)}</p>
-              <div class="cost-tags">${currencyPriceTemplate(item.price)}</div>
-              <small>所持 ${formatNumber(snapshot.inventory.items[item.itemId] ?? 0)}</small>
-            </div>
-            <button
-              type="button"
-              class="compact-upgrade-button"
-              data-action="purchase-item"
-              data-item-id="${escapeAttribute(item.itemId)}"
-            >
-              購入
-            </button>
-          </article>
-        `).join("")}
+      <div class="management-section__heading">
+        <h2>ITEM SHOP</h2>
+        <span>アイコンをタップして詳細・購入</span>
+      </div>
+      <div class="shop-item-grid">
+        ${CONSUMABLE_ITEMS.map((item) => shopItemTile(item, snapshot)).join("")}
       </div>
     </section>
 
@@ -1382,40 +1498,14 @@ export function renderCollectionManagement(snapshot) {
       </div>
     </section>
 
-    <section class="management-section">
-      <h2>OWNED CARDS</h2>
-      <div class="collection-grid">
-        ${
-          ownedCards.length
-            ? ownedCards.map(({ master, owned }) => `
-                <article class="collection-card collection-card--card">
-                  <img src="${escapeAttribute(master.image)}" alt="">
-                  <span>No.${master.collectionNo}</span>
-                  <strong>${escapeHtml(master.name)}</strong>
-                  <small>+${owned.level}</small>
-                </article>
-              `).join("")
-            : `<p class="empty-state">カードはまだありません。</p>`
-        }
-      </div>
+    <section class="management-section collection-file-section">
+      <h2>CARD FILE</h2>
+      ${collectionFilePages(ownedCards, "card")}
     </section>
 
-    <section class="management-section">
-      <h2>OWNED BADGES</h2>
-      <div class="collection-grid">
-        ${
-          ownedBadges.length
-            ? ownedBadges.map(({ master, owned }) => `
-                <article class="collection-card collection-card--badge">
-                  <img src="${escapeAttribute(master.image)}" alt="">
-                  <span>No.${master.collectionNo}</span>
-                  <strong>${escapeHtml(master.teamName)}</strong>
-                  <small>+${owned.level}</small>
-                </article>
-              `).join("")
-            : `<p class="empty-state">バッジはまだありません。</p>`
-        }
-      </div>
+    <section class="management-section collection-file-section">
+      <h2>BADGE FILE</h2>
+      ${collectionFilePages(ownedBadges, "badge")}
     </section>
   `;
 }
@@ -1582,7 +1672,12 @@ export function renderRecordManagement(snapshot) {
         const record = snapshot.records.memberCareer[player.playerId];
         return `
           <article>
-            <img src="${escapeAttribute(player.image)}" alt="">
+            <img
+              class="player-portrait"
+              data-role="${escapeAttribute(player.role)}"
+              src="${escapeAttribute(player.image)}"
+              alt=""
+            >
             <div>
               <h3>${escapeHtml(player.name)} / ${escapeHtml(player.role)}</h3>
               <p>
@@ -1714,12 +1809,78 @@ export function createManagementController({
           executeTrainingToDraft(draft, assignments),
         );
         const total = tx.result.total;
+        const latest = stateManager.getSnapshot();
+        const bonusRecord = tx.result.weekAdvance.weeks[0]?.weeklyBonus?.record;
+        const memberRows = tx.result.memberResults.map((memberResult, index) => {
+          const player = latest.playerTeam.members.find((entry) => entry.playerId === memberResult.playerId);
+          const program = TRAINING_PROGRAMS.find((entry) => entry.id === memberResult.programId);
+          return `
+            <article class="training-result-member" style="--result-index:${index}">
+              <img class="training-result-member__player player-portrait" data-role="${escapeAttribute(player.role)}" src="${escapeAttribute(player.image)}" alt="">
+              <img class="training-result-member__program" src="${escapeAttribute(program.image)}" alt="">
+              <strong>${escapeHtml(player.name)}</strong>
+              <span>${escapeHtml(program.name)}</span>
+              <small>P+${memberResult.gain.power} T+${memberResult.gain.tech} M+${memberResult.gain.mental} S+${memberResult.gain.shoot}</small>
+            </article>
+          `;
+        }).join("");
         await openAlert({
-          title: "トレーニング完了",
-          body: `<p>POWER ${formatNumber(total.power)} / TECH ${formatNumber(total.tech)}<br>MENTAL ${formatNumber(total.mental)} / SHOOT ${formatNumber(total.shoot)}</p>`,
+          title: "TRAINING COMPLETE",
+          body: `
+            <section class="training-result-show">
+              <div class="training-result-show__speed" aria-hidden="true"></div>
+              <div class="training-result-members">${memberRows}</div>
+              <div class="training-result-total">
+                <span>POWER <strong>+${formatNumber(total.power)}</strong></span>
+                <span>TECH <strong>+${formatNumber(total.tech)}</strong></span>
+                <span>MENTAL <strong>+${formatNumber(total.mental)}</strong></span>
+                <span>SHOOT <strong>+${formatNumber(total.shoot)}</strong></span>
+              </div>
+              ${bonusRecord ? `
+                <div class="weekly-bonus-inline">
+                  <span>WEEK START BONUS</span>
+                  <strong><img src="icon/coin.png" alt="">${formatNumber(bonusRecord.granted.coin)}</strong>
+                  <strong><img src="icon/daia.png" alt="">${formatNumber(bonusRecord.granted.diamond)}</strong>
+                  <strong><img src="icon/rubi.png" alt="">${formatNumber(bonusRecord.granted.ruby)}</strong>
+                </div>
+              ` : ""}
+            </section>
+          `,
         });
         render();
       } catch (error) { await showError("トレーニングできません", error); }
+      return true;
+    }
+
+    if (action === "inspect-shop-item") {
+      const item = getItem(actionElement.dataset.itemId);
+      const snapshot = stateManager.getSnapshot();
+      const price = currencyPriceTemplate(item.price);
+      const confirmed = await openConfirm({
+        title: item.name,
+        body: `
+          <section class="shop-item-detail-modal">
+            <div class="shop-item-detail-modal__image">
+              <img src="${escapeAttribute(item.image)}" alt="">
+            </div>
+            <p>${escapeHtml(item.description)}</p>
+            <div class="cost-tags">${price}</div>
+            <strong>所持 ${formatNumber(snapshot.inventory.items[item.itemId] ?? 0)}</strong>
+            <small>1個購入します</small>
+          </section>
+        `,
+        confirmLabel: "購入する",
+      });
+      if (!confirmed) return true;
+      try {
+        const tx = stateManager.transact("item_purchased", (draft) =>
+          purchaseConsumableToDraft(draft, item.itemId, 1),
+        );
+        showToast(`${tx.result.name}を購入しました`);
+        render();
+      } catch (error) {
+        await showError("購入できません", error);
+      }
       return true;
     }
 
@@ -1822,12 +1983,10 @@ export function createManagementController({
             : openBadgePacksToDraft(draft, actionElement.dataset.packId, actionElement.dataset.openMode),
         );
         const result = tx.result;
-        const previews = result.results.slice(0, 12).map((opened) =>
-          `<div style="display:inline-grid;width:86px;margin:4px;text-align:center"><img src="${escapeAttribute(opened.master.image)}" alt="" style="width:80px;height:80px;object-fit:contain"><small>${escapeHtml(opened.resultType)}</small></div>`,
-        ).join("");
         await openAlert({
           title: `${result.packName} OPEN`,
-          body: `<p>NEW ${result.summary.newCount} / POWER UP ${result.summary.powerUpCount} / CONVERT ${result.summary.convertCount}</p><div>${previews}</div>${result.results.length > 12 ? `<p>ほか ${result.results.length - 12}件</p>` : ""}`,
+          body: packOpeningPresentation(result),
+          buttonLabel: "コレクションへ",
         });
         render();
       } catch (error) { await showError("パックを開封できません", error); }

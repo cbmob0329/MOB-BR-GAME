@@ -1817,6 +1817,29 @@ function formatRewards(rewards) {
   return `COIN ${new Intl.NumberFormat("ja-JP").format(rewards.coin)} / DIAMOND ${new Intl.NumberFormat("ja-JP").format(rewards.diamond)} / RUBY ${new Intl.NumberFormat("ja-JP").format(rewards.ruby)}`;
 }
 
+function weeklyBonusPresentation(imported) {
+  const record =
+    imported?.applyResult?.weekAdvance?.weeks?.[0]
+      ?.weeklyBonus?.record;
+  if (!record) return "";
+  const badgeImage =
+    imported?.state?.company?.badgeImage ?? "Play/b1.png";
+  const formatter = new Intl.NumberFormat("ja-JP");
+  return `
+    <section class="weekly-bonus-show weekly-bonus-show--tournament">
+      <div class="weekly-bonus-show__burst" aria-hidden="true"></div>
+      <img src="${escapeAttribute(badgeImage)}" alt="">
+      <span>WEEK START BONUS</span>
+      <h3>${record.gameDate.year}年 ${record.gameDate.month}月 第${record.gameDate.week}週</h3>
+      <div class="weekly-bonus-show__rewards">
+        <strong><img src="icon/coin.png" alt="">${formatter.format(record.granted.coin)}</strong>
+        <strong><img src="icon/daia.png" alt="">${formatter.format(record.granted.diamond)}</strong>
+        <strong><img src="icon/rubi.png" alt="">${formatter.format(record.granted.ruby)}</strong>
+      </div>
+    </section>
+  `;
+}
+
 export function renderTournamentSchedule(snapshot, storage) {
   const events = getAnnualTournamentSchedule(snapshot.gameDate.year);
   const currentEvents = getTournamentEventsForDate(snapshot.gameDate);
@@ -2068,6 +2091,7 @@ export function createTournamentBridgeController({
             <p>${escapeHtml(result.tournamentId)} / ${result.finalPlace}位</p>
             <p>${escapeHtml(result.summary ?? "大会結果を保存しました。")}</p>
             <p>${escapeHtml(formatRewards(result.rewards))}</p>
+            ${weeklyBonusPresentation(imported)}
           `,
         });
         render();
@@ -2100,6 +2124,8 @@ export function createTournamentBridgeController({
             <p>${escapeHtml(imported.result.tournamentId)}</p>
             <p>最終順位 ${imported.result.finalPlace}位</p>
             <p>${escapeHtml(imported.result.summary ?? "報酬と記録を保存しました。")}</p>
+            <p>${escapeHtml(formatRewards(imported.result.rewards))}</p>
+            ${weeklyBonusPresentation(imported)}
           `,
         });
         render();
