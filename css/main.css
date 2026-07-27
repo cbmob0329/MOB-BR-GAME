@@ -1667,3 +1667,122 @@ img {
     grid-column: 1 / -1;
   }
 }
+
+
+/* Generation 14: main scroll container and proportional backgrounds */
+
+html,
+body,
+#app,
+.app-shell {
+  height: 100%;
+  min-height: 0;
+}
+
+body {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app-shell {
+  overflow: hidden;
+}
+
+.screen {
+  width: 100%;
+  height: 100dvh;
+  min-height: 100svh;
+  overflow: hidden;
+  background-attachment: scroll;
+  background-position:
+    center,
+    center top,
+    center;
+  background-repeat:
+    no-repeat,
+    no-repeat,
+    no-repeat;
+  background-size:
+    100% 100%,
+    auto 100%,
+    100% 100%;
+}
+
+.screen--title,
+.screen--home,
+.screen--sub,
+.screen--coh {
+  background-color: #080a0f;
+}
+
+.app-layout {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100dvh;
+  min-height: 0;
+  padding-bottom: 0;
+}
+
+.app-layout > .top-status {
+  position: relative;
+  top: auto;
+  flex: none;
+}
+
+.app-layout > .page-content {
+  width: min(100%, 680px);
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scroll-behavior: smooth;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  padding-bottom:
+    calc(
+      var(--bottom-nav-height) +
+      var(--safe-bottom) +
+      34px
+    );
+}
+
+.title-screen,
+.wizard-shell,
+.screen--coh:not(.app-layout) {
+  height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+.screen::before {
+  position: absolute;
+  min-height: 100%;
+}
+
+@media (orientation: landscape) {
+  .screen {
+    background-position:
+      center,
+      center,
+      center;
+    background-size:
+      100% 100%,
+      cover,
+      100% 100%;
+  }
+}
+
+@media (max-width: 390px) {
+  .app-layout > .page-content {
+    padding-right: max(8px, var(--safe-right));
+    padding-left: max(8px, var(--safe-left));
+  }
+}
