@@ -15,8 +15,8 @@ import {
   rankToWeaponValue,
 } from "./game-data.js";
 
-export const BATTLE_CONFIG_VERSION = "mobbr-battle-config-1.2.0";
-export const BATTLE_BALANCE_VERSION = "mobbr-battle-balance-0.1.0";
+export const BATTLE_CONFIG_VERSION = "mobbr-battle-config-1.3.0";
+export const BATTLE_BALANCE_VERSION = "mobbr-battle-balance-0.2.0";
 
 export const COMBAT_STATES = Object.freeze(["alive", "down", "dead"]);
 export const DISTANCE_IDS = Object.freeze(["close", "mid", "far"]);
@@ -48,7 +48,7 @@ export const BATTLE_LIMITS = Object.freeze({
 });
 
 export const WEAPON_BATTLE_RULES = Object.freeze({
-  ammoMax: 8,
+  ammoMax: 12,
   resetAmmoAtBattleStart: true,
   consumeAmmoOnMiss: true,
   autoReloadAtZero: true,
@@ -519,6 +519,7 @@ export function calculateBaseDamage({
     1,
     Math.round(
       rawDamage *
+        0.84 *
         distanceMultiplier *
         strategyMultiplier *
         temporaryMultiplier *
