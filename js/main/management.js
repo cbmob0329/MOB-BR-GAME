@@ -1415,7 +1415,7 @@ export function renderShopManagement(snapshot) {
   }
 
   return `
-    <section class="mobshop-popup" style="--mobshop-bg:url('BACK/mobshop.png')">
+    <section class="mobshop-popup" style="--mobshop-bg:url('back/mobshop.png')">
       <div class="mobshop-clerk" aria-label="ロボ店員">
         <div class="mobshop-clerk__head"><i></i><i></i><b></b></div>
         <p>${escapeHtml(categoryDefinition?.dialogue ?? "いらっしゃいませ。4つのカテゴリから選んでください。")}</p>

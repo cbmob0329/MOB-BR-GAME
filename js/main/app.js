@@ -12,6 +12,11 @@
  */
 
 import {
+  assetPath,
+  detectAssetPrefix,
+  installAssetFallbacks,
+} from "../assets.js";
+import {
   SaveError,
   SaveNotFoundError,
   createGameStateManager,
@@ -44,7 +49,7 @@ import {
   renderTournamentSchedule,
 } from "./tournament-bridge.js";
 
-export const APP_VERSION = "mobbr-main-app-1.0.0";
+export const APP_VERSION = "mobbr-main-app-1.0.1";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -84,13 +89,13 @@ const ROUTE_META = Object.freeze({
     title: "HOME",
     description: "企業とチームの現在状況",
     backgroundClass: "screen--home",
-    icon: "menu/home.png",
+    icon: assetPath("menu/home.png"),
   },
   [ROUTES.facility]: {
     title: "FACILITY",
     description: "施設を選択して機能を利用",
     backgroundClass: "screen--sub",
-    icon: "menu/team.png",
+    icon: assetPath("menu/team.png"),
   },
   [ROUTES.team]: {
     title: "TEAM",
@@ -102,13 +107,13 @@ const ROUTE_META = Object.freeze({
     title: "TRAINING",
     description: "3選手の1週間トレーニング",
     backgroundClass: "screen--coh",
-    icon: "menu/traning.png",
+    icon: assetPath("menu/traning.png"),
   },
   [ROUTES.collection]: {
     title: "COLLECTION",
     description: "カード・バッジ・その他コレクション",
     backgroundClass: "screen--sub",
-    icon: "menu/COL.png",
+    icon: assetPath("menu/COL.png"),
   },
   [ROUTES.shop]: {
     title: "SHOP",
@@ -450,19 +455,19 @@ function topStatusTemplate(snapshot) {
         </div>
         <div class="resource-list" aria-label="所持通貨">
           <div class="resource-chip">
-            <img src="icon/coin.png" alt="">
+            <img src=assetPath("icon/coin.png") alt="">
             <span class="resource-chip__value">
               ${formatNumber(snapshot.resources.coin)}
             </span>
           </div>
           <div class="resource-chip">
-            <img src="icon/daia.png" alt="">
+            <img src=assetPath("icon/daia.png") alt="">
             <span class="resource-chip__value">
               ${formatNumber(snapshot.resources.diamond)}
             </span>
           </div>
           <div class="resource-chip">
-            <img src="icon/rubi.png" alt="">
+            <img src=assetPath("icon/rubi.png") alt="">
             <span class="resource-chip__value">
               ${formatNumber(snapshot.resources.ruby)}
             </span>
@@ -2096,8 +2101,10 @@ export function createMainApp({
 
   async function start() {
     showLoading("画像を読み込んでいます");
+    await detectAssetPrefix("back/local.png");
+    installAssetFallbacks(document);
     await preloadImages([
-      "back/Load.png", "back/main1.png", "back/sub.png", "back/coh.png",
+      assetPath("back/Load.png"), assetPath("back/main1.png"), assetPath("back/sub.png"), assetPath("back/coh.png"),
       "menu/home.png", "menu/team.png", "menu/traning.png", "menu/COL.png",
       "icon/coin.png", "icon/daia.png", "icon/rubi.png",
     ]);
