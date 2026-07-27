@@ -37,8 +37,22 @@ import {
   useMobSlotToDraft,
   useRespawnTurntableToDraft,
 } from "./exploration.js";
+import {
+  advanceAwardToDraft,
+  finalizeCurrentMatchToDraft,
+  prepareAwardsToDraft,
+  prepareNextMatchToDraft,
+  prepareTournamentResultToDraft,
+  renderAwardScreen,
+  renderMatchChampionScreen,
+  renderMatchResultScreen,
+  renderNextMatchWaitScreen,
+  renderReturningResultScreen,
+  renderTournamentResultScreen,
+  writePreparedResultToStorage,
+} from "./results.js";
 
-export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-1.4.0";
+export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-1.5.0";
 
 const PHASE_LABELS = Object.freeze({
   IDLE: "待機",
@@ -596,7 +610,7 @@ function roundResultTemplate(runtime) {
         : "戦闘結果なし",
     commentary: "選手別の戦闘成績と次戦へ持ち越す状態を確認します。",
     primaryAction: "round-result-next",
-    primaryLabel: "仮MATCH判定",
+    primaryLabel: "MATCH判定",
     content: `
       <div class="provisional-result-list actual-round-result-list">
         ${members.map((member) => {
@@ -629,43 +643,6 @@ function roundResultTemplate(runtime) {
           `;
         }).join("")}
       </div>
-    `,
-  });
-}
-
-function matchChampionTemplate(runtime) {
-  return provisionalPhaseTemplate(runtime, {
-    eyebrow: "MATCH CHAMPION CHECK",
-    title: "CHAMPION UNDECIDED",
-    description:
-      "戦闘とCPU順位計算が未接続のため、MATCH CHAMPIONは確定しません。優勝記録・報酬・ポイントも発生しません。",
-    commentary: "仮MATCH RESULTを生成します。",
-    primaryAction: "match-champion-next",
-    primaryLabel: "MATCH RESULT",
-  });
-}
-
-function matchResultTemplate(runtime) {
-  return provisionalPhaseTemplate(runtime, {
-    eyebrow: "PROVISIONAL MATCH RESULT",
-    title: `MATCH ${runtime.match} DIAGNOSTIC COMPLETE`,
-    description:
-      "OPENINGから仮MATCH RESULTまでの大会状態機械を確認しました。この結果はTournamentResultDataではなく、メイン報酬へ反映されません。",
-    commentary: "生成11の戦闘ロジック確認は完了です。安全に中断保存できます。",
-    primaryAction: "suspend-return",
-    primaryLabel: "保存してメインへ",
-    secondaryAction: "save-checkpoint",
-    secondaryLabel: "CHECKPOINT",
-    content: `
-      <div class="match-result-diagnostic">
-        <div><span>PLACEMENT</span><strong>未確定</strong></div>
-        <div><span>POINT</span><strong>0</strong></div>
-        <div><span>KP</span><strong>0</strong></div>
-        <div><span>REWARD</span><strong>未付与</strong></div>
-      </div>
-      <p class="result-contract-note">
-        resultSignature: null / returnStatus: ${escapeHtml(runtime.returnStatus)}
-      </p>
     `,
   });
 }
@@ -1078,10 +1055,45 @@ export function createTournamentFlowController({
         break;
       }
       case "MATCH_CHAMPION":
-        root.innerHTML = matchChampionTemplate(runtime);
+        if (
+          !runtime.matchTotals.some(
+            (record) => record.match === runtime.match,
+          )
+        ) {
+          runtimeManager.update(
+            "match_result_finalized",
+            finalizeCurrentMatchToDraft,
+          );
+          render();
+          return;
+        }
+        root.innerHTML = renderMatchChampionScreen(runtime);
         break;
       case "MATCH_RESULT":
-        root.innerHTML = matchResultTemplate(runtime);
+        root.innerHTML = renderMatchResultScreen(runtime);
+        break;
+      case "NEXT_MATCH_WAIT":
+        root.innerHTML = renderNextMatchWaitScreen(runtime);
+        break;
+      case "TOURNAMENT_AWARDS":
+        root.innerHTML = renderAwardScreen(runtime);
+        break;
+      case "TOURNAMENT_RESULT":
+        if (!runtime.tournamentResultData) {
+          runtimeManager.update(
+            "tournament_result_prepared",
+            prepareTournamentResultToDraft,
+          );
+          render();
+          return;
+        }
+        root.innerHTML = renderTournamentResultScreen(runtime);
+        break;
+      case "RETURNING_RESULT":
+        root.innerHTML = renderReturningResultScreen(runtime);
+        break;
+      case "COMPLETE":
+        root.innerHTML = renderReturningResultScreen(runtime);
         break;
       case "SUSPENDED":
         root.innerHTML = suspendedTemplate(runtime);
@@ -1238,7 +1250,7 @@ export function createTournamentFlowController({
         }
         if (action === "match-start-next") {
           runtimeManager.transition("ROUND_INTRO", {
-            reason: "provisional_match_initialized",
+            reason: "formal_match_initialized",
             patch: { round: 1, pendingVisualId: "round-intro" },
           });
           render();
@@ -1560,26 +1572,112 @@ export function createTournamentFlowController({
           return;
         }
         if (action === "match-champion-next") {
-          runtimeManager.update("provisional_match_record_created", (draft) => {
-            if (!draft.matchTotals.some((record) => record.match === draft.match)) {
-              draft.matchTotals.push({
-                match: draft.match,
-                provisional: true,
-                resultCalculated: false,
-                championTeamId: null,
-                placementPoint: 0,
-                kp: 0,
-                ap: 0,
-                total: 0,
-              });
-            }
-          });
           runtimeManager.transition("MATCH_RESULT", {
-            reason: "provisional_match_result_ready",
+            reason: "formal_match_result_ready",
             patch: { pendingVisualId: "match-result" },
           });
-          runtimeManager.checkpoint("provisional_match_result");
+          runtimeManager.checkpoint("formal_match_result");
           render();
+          return;
+        }
+        if (action === "match-result-next") {
+          const snapshot = runtimeManager.getSnapshot();
+          const matchPointWinner =
+            snapshot.matchPointRuntime?.mpWinner ?? null;
+          const allMatchesComplete =
+            snapshot.match >=
+            snapshot.entryData.tournament.matches;
+          if (matchPointWinner !== null || allMatchesComplete) {
+            runtimeManager.update(
+              "tournament_awards_prepared",
+              prepareAwardsToDraft,
+            );
+            runtimeManager.transition("TOURNAMENT_AWARDS", {
+              reason:
+                matchPointWinner !== null
+                  ? "match_point_winner_confirmed"
+                  : "all_matches_completed",
+              patch: {
+                pendingVisualId: "tournament-awards:0",
+              },
+            });
+            runtimeManager.checkpoint(
+              "tournament_awards_ready",
+            );
+          } else {
+            runtimeManager.transition("NEXT_MATCH_WAIT", {
+              reason: "next_match_wait",
+              patch: {
+                pendingVisualId: "next-match-wait",
+              },
+            });
+            runtimeManager.checkpoint("next_match_wait");
+          }
+          render();
+          return;
+        }
+        if (action === "next-match-start") {
+          runtimeManager.update(
+            "next_match_prepared",
+            prepareNextMatchToDraft,
+          );
+          runtimeManager.transition("MATCH_START", {
+            reason: "next_match_started",
+            patch: {
+              pendingVisualId: "match-start",
+            },
+          });
+          runtimeManager.checkpoint("next_match_started");
+          render();
+          return;
+        }
+        if (action === "award-next") {
+          const transaction = runtimeManager.update(
+            "award_advanced",
+            advanceAwardToDraft,
+          );
+          if (transaction.result.completed) {
+            runtimeManager.update(
+              "tournament_result_prepared",
+              prepareTournamentResultToDraft,
+            );
+            runtimeManager.transition("TOURNAMENT_RESULT", {
+              reason: "all_awards_completed",
+              patch: {
+                pendingVisualId: "tournament-result",
+              },
+            });
+            runtimeManager.checkpoint(
+              "tournament_result_ready",
+            );
+          }
+          render();
+          return;
+        }
+        if (action === "return-result") {
+          const snapshot = runtimeManager.getSnapshot();
+          writePreparedResultToStorage(storage, snapshot);
+          runtimeManager.update(
+            "tournament_result_written",
+            (draft) => {
+              draft.returnStatus = "written";
+              draft.pendingVisualId = "returning-result";
+            },
+          );
+          storage.removeItem(
+            "mob_br_tournament_resume_v1",
+          );
+          runtimeManager.transition("RETURNING_RESULT", {
+            reason: "result_written_to_main_bridge",
+          });
+          render();
+          return;
+        }
+        if (action === "return-main-with-result") {
+          runtimeManager.transition("COMPLETE", {
+            reason: "returning_to_main_after_result",
+          });
+          navigate(MAIN_PAGE_URL);
           return;
         }
         if (action === "save-checkpoint") {

@@ -41,7 +41,7 @@ import {
 } from "../../data/battle-config.js";
 
 export const TOURNAMENT_RUNTIME_VERSION =
-  "mobbr-tournament-runtime-1.3.0";
+  "mobbr-tournament-runtime-1.4.0";
 
 export const TOURNAMENT_PHASES = Object.freeze([
   "IDLE",
@@ -1187,7 +1187,13 @@ export function createTournamentRuntime(
     awardRuntime: {
       awards: [],
       mvpCandidates: [],
+      currentIndex: 0,
+      completed: false,
     },
+    matchPointRuntime: null,
+    finalRankings: null,
+    tournamentResultData: null,
+    rewardPreview: null,
     opening: {
       scenes: deepClone(openingScenes),
       sceneIndex: 0,
@@ -1322,6 +1328,41 @@ export function validateTournamentRuntime(runtime, entry = null) {
   assertPlainObject(runtime.explorationRuntime, "Exploration runtime");
   assertPlainObject(runtime.facilityRuntime, "Facility runtime");
   assertPlainObject(runtime.strategyUi, "Strategy UI runtime");
+  assertPlainObject(runtime.awardRuntime, "Award runtime");
+  if (
+    !Array.isArray(runtime.awardRuntime.awards) ||
+    !Number.isInteger(runtime.awardRuntime.currentIndex) ||
+    runtime.awardRuntime.currentIndex < 0
+  ) {
+    throw new TournamentRuntimeValidationError(
+      "Tournament award state is invalid.",
+      "INVALID_AWARD_RUNTIME",
+    );
+  }
+  if (
+    runtime.finalRankings !== null &&
+    (
+      !Array.isArray(runtime.finalRankings) ||
+      runtime.finalRankings.length !== runtime.teams.length
+    )
+  ) {
+    throw new TournamentRuntimeValidationError(
+      "Tournament final rankings are invalid.",
+      "INVALID_FINAL_RANKINGS",
+    );
+  }
+  if (
+    runtime.tournamentResultData !== null &&
+    (
+      typeof runtime.tournamentResultData !== "object" ||
+      runtime.tournamentResultData.entryId !== runtime.entryId
+    )
+  ) {
+    throw new TournamentRuntimeValidationError(
+      "Tournament result runtime data is invalid.",
+      "INVALID_TOURNAMENT_RESULT_RUNTIME",
+    );
+  }
   if (
     !Array.isArray(runtime.inventory.useHistory) ||
     !Number.isInteger(runtime.inventory.totalUses) ||
