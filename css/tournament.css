@@ -5262,3 +5262,278 @@ body {
     animation-duration: 1ms !important;
   }
 }
+
+/* Generation 19: tournament stage clarity, compact exploration, and centered flow */
+
+/* Opening and map backgrounds are always the assigned artwork without a white veil. */
+.tournament-screen--opening {
+  background-color: #07101c !important;
+  background-image: var(--opening-background) !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+}
+
+.tournament-screen--deployment,
+.tournament-screen--exploration,
+.tournament-screen--encounter,
+.tournament-screen--strategy-select,
+.tournament-screen--provisional,
+.tournament-screen--battle-replay,
+.tournament-screen--spectator-fast,
+.tournament-screen--session-complete {
+  background-color: #07101c !important;
+  background-image: var(--map-background, url("../back/neon.png")) !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-size: 100% 100% !important;
+}
+
+.opening-event-logo {
+  width: min(40vw, 210px) !important;
+  height: min(21vh, 135px) !important;
+}
+
+/* Use supplied portrait sizes consistently; no SUP-only scaling. */
+.opening-lineup__member img[data-role="SUP"],
+.player-intro-card img[data-role="SUP"],
+.deployment-team img[data-role="SUP"],
+.encounter-compact-team img[data-role="SUP"],
+.battle-fighter__portrait img[data-role="SUP"] {
+  scale: 1 !important;
+  transform: none !important;
+}
+
+/* CSS-drawn dropship: visible, readable, and non-rotating. */
+.deployment-stage__ship {
+  top: 8% !important;
+  left: 50% !important;
+  width: min(72vw, 430px) !important;
+  height: 82px !important;
+  translate: -50% 0 !important;
+  rotate: 0deg !important;
+  clip-path: polygon(7% 45%, 29% 45%, 38% 10%, 62% 10%, 71% 45%, 93% 45%, 100% 62%, 67% 68%, 61% 92%, 39% 92%, 33% 68%, 0 62%);
+  border: 3px solid rgb(255 255 255 / 58%);
+  background:
+    linear-gradient(90deg, #31445d 0 14%, #8799ad 15% 25%, #2c3e56 26% 74%, #8799ad 75% 85%, #31445d 86%),
+    #31445d !important;
+  box-shadow: 0 14px 24px rgb(0 0 0 / 44%);
+  animation: dropship-enter-stable 900ms ease-out both !important;
+}
+
+.deployment-stage__ship span {
+  display: grid !important;
+  height: 100%;
+  place-items: center;
+  color: #fff !important;
+  font-size: .82rem !important;
+  letter-spacing: .18em;
+  text-shadow: 0 2px 0 #000;
+}
+
+@keyframes dropship-enter-stable {
+  from { opacity: 0; translate: -50% -28px; }
+  to { opacity: 1; translate: -50% 0; }
+}
+
+/* Exploration no longer loses vertical space to the full status banner. */
+.exploration-mini-header {
+  position: fixed;
+  z-index: 15;
+  top: var(--safe-top);
+  right: var(--safe-right);
+  left: var(--safe-left);
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 7px;
+  align-items: center;
+  min-height: 48px;
+  border-bottom: 2px solid rgb(245 215 94 / 72%);
+  padding: 5px 8px;
+  background: rgb(5 15 30 / 92%);
+  color: #fff;
+}
+
+.exploration-mini-header img { width: 30px; height: 30px; object-fit: contain; }
+.exploration-mini-header span,
+.exploration-mini-header strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exploration-mini-header span { color: var(--tournament-gold); font-size: .45rem; }
+.exploration-mini-header strong { font-size: .62rem; }
+.exploration-mini-header em { color: #fff; font-size: .52rem; font-style: normal; font-weight: 950; }
+
+.exploration-shell--compact {
+  inset:
+    calc(var(--safe-top) + 51px)
+    var(--safe-right)
+    calc(142px + var(--safe-bottom))
+    var(--safe-left) !important;
+}
+
+.exploration-page--search,
+.exploration-radar {
+  min-height: 100% !important;
+}
+
+/* Strategy cards are text-first rectangular panels, not icon-dependent slashes. */
+.strategy-list-card {
+  grid-template-columns: 44px minmax(0, 1fr) 38px !important;
+  min-height: 72px !important;
+  padding: 8px 10px !important;
+  background: rgb(7 19 36 / 95%) !important;
+  background-image: none !important;
+  text-align: left !important;
+}
+
+.strategy-list-card::before,
+.strategy-list-card::after {
+  display: none !important;
+}
+
+.strategy-list-card__rank {
+  display: grid !important;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 2px solid rgb(245 215 94 / 66%);
+  border-radius: 9px;
+  background: rgb(245 215 94 / 12%);
+  color: var(--tournament-gold) !important;
+  font-size: .72rem !important;
+  font-weight: 1000;
+}
+
+.strategy-list-card div {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.strategy-list-card strong,
+.strategy-list-card small {
+  width: 100% !important;
+  text-align: left !important;
+}
+
+.strategy-list-card strong {
+  font-size: .68rem !important;
+  line-height: 1.3;
+}
+
+.strategy-list-card small {
+  -webkit-line-clamp: 2 !important;
+  font-size: .5rem !important;
+  line-height: 1.45;
+}
+
+.strategy-detail-card {
+  grid-template-columns: 1fr !important;
+  grid-template-rows: auto auto auto auto !important;
+  gap: 5px !important;
+  padding: 10px 12px !important;
+  text-align: left;
+}
+
+.strategy-detail-card > img { display: none !important; }
+.strategy-detail-card h2 { font-size: .8rem !important; }
+.strategy-detail-card p { font-size: .55rem !important; }
+
+/* Full-match spectator fast-forward and final thank-you screens. */
+.tournament-screen--spectator-fast,
+.tournament-screen--session-complete {
+  display: grid;
+  place-items: center;
+  padding: calc(var(--safe-top) + 14px) calc(var(--safe-right) + 12px) calc(var(--safe-bottom) + 14px) calc(var(--safe-left) + 12px);
+}
+
+.spectator-fast-card,
+.session-complete-stage {
+  display: grid;
+  width: min(100%, 520px);
+  max-height: 92dvh;
+  overflow-y: auto;
+  justify-items: center;
+  gap: 10px;
+  border: 3px solid var(--tournament-gold);
+  border-radius: 22px;
+  padding: 20px 16px;
+  background: rgb(5 15 30 / 94%);
+  color: #fff;
+  text-align: center;
+  box-shadow: 0 18px 50px rgb(0 0 0 / 45%);
+}
+
+.spectator-fast-card span,
+.session-complete-stage > span { color: var(--tournament-gold); font-size: .58rem; font-weight: 1000; letter-spacing: .12em; }
+.spectator-fast-card h1,
+.session-complete-stage h1 { margin: 0; font-size: clamp(1.4rem, 8vw, 3rem); }
+.spectator-fast-card p,
+.session-complete-stage p,
+.session-complete-stage blockquote { margin: 0; font-size: .66rem; line-height: 1.65; }
+.session-complete-stage img { width: 88px; height: 88px; object-fit: contain; border-radius: 50%; background: #fff; }
+.session-complete-stage blockquote { border-radius: 14px; padding: 11px; background: #fff; color: #07111f; font-weight: 800; }
+.session-complete-stage .tournament-button { width: 100%; }
+
+.spectator-fast-loader { display: flex; gap: 6px; }
+.spectator-fast-loader i { width: 12px; height: 12px; border-radius: 50%; background: var(--tournament-gold); animation: fast-dot 900ms ease-in-out infinite alternate; }
+.spectator-fast-loader i:nth-child(2) { animation-delay: 150ms; }
+.spectator-fast-loader i:nth-child(3) { animation-delay: 300ms; }
+@keyframes fast-dot { to { opacity: .35; translate: 0 -5px; } }
+
+/* Keep next-match and return-result cards geometrically centered. */
+.tournament-screen--next-match,
+.tournament-screen--returning-result {
+  display: grid !important;
+  place-items: center !important;
+}
+.next-match-card,
+.returning-result-card {
+  position: relative !important;
+  inset: auto !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  translate: none !important;
+  margin: 0 auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deployment-stage__ship,
+  .spectator-fast-loader i { animation-duration: 1ms !important; animation-iteration-count: 1 !important; }
+}
+
+/* Important battle events use a central commentator banner. */
+.battle-state-cut {
+  display: grid !important;
+  grid-template-columns: 62px minmax(0, 1fr) !important;
+  gap: 10px;
+  align-items: center;
+  width: min(88%, 520px) !important;
+  min-height: 104px;
+  padding: 12px 14px !important;
+  border-radius: 18px;
+  text-align: left !important;
+}
+.battle-state-cut > img {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+  border-radius: 50%;
+  background: #fff;
+}
+.battle-state-cut > div { min-width: 0; }
+.battle-state-cut strong,
+.battle-state-cut span { display: block; color: #fff; }
+.battle-state-cut strong { font-size: clamp(1.25rem, 7vw, 2.6rem); line-height: 1; }
+.battle-state-cut span { margin-top: 6px; font-size: .62rem; font-weight: 850; line-height: 1.45; }
+.battle-state-cut--down { border-color: #ffcf57 !important; }
+.battle-state-cut--confirmed_kill { border-color: #ff6373 !important; }
+.battle-state-cut--revive { border-color: #6fe4a4 !important; }
+.battle-fighter__portrait img[src*="sup" i],
+.battle-survivor-grid img[src*="sup" i],
+.match-champion-members img[src*="sup" i],
+.award-place img[src*="sup" i] {
+  transform: none !important;
+  scale: 1 !important;
+}

@@ -3740,3 +3740,211 @@ body {
   from { opacity: 0; clip-path: inset(0 100% 0 0); translate: 0 8px; }
   to { opacity: 1; clip-path: inset(0 0 0 0); translate: 0 0; }
 }
+
+/* Generation 19: stable scroll, facility hub, and separated weekly flow */
+
+.ability-plan-footer {
+  position: static !important;
+  bottom: auto !important;
+  margin-bottom: 14px;
+}
+
+.player-status-modal__ability {
+  width: 100%;
+  margin-top: 9px;
+}
+
+.facility-carousel {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: min(76vw, 300px);
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 4px 14px;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+}
+
+.facility-carousel::-webkit-scrollbar { display: none; }
+
+.facility-square {
+  position: relative;
+  display: grid;
+  aspect-ratio: 1;
+  scroll-snap-align: center;
+  align-content: end;
+  gap: 4px;
+  overflow: hidden;
+  border: 3px solid rgb(255 255 255 / 24%);
+  border-radius: 24px;
+  padding: 16px;
+  background: linear-gradient(155deg, rgb(86 132 182 / 96%), rgb(22 36 59 / 98%));
+  color: #fff;
+  text-align: left;
+  box-shadow: 0 13px 34px rgb(0 0 0 / 34%);
+}
+
+.facility-square::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background:
+    linear-gradient(180deg, transparent 35%, rgb(4 9 17 / 88%)),
+    repeating-linear-gradient(90deg, transparent 0 28px, rgb(255 255 255 / 4%) 29px 30px);
+  pointer-events: none;
+}
+
+.facility-square > * { position: relative; z-index: 2; }
+.facility-square > span,
+.facility-square > em {
+  color: #f6d75f;
+  font-size: .52rem;
+  font-style: normal;
+  font-weight: 950;
+  letter-spacing: .08em;
+}
+.facility-square strong { font-size: 1.05rem; }
+.facility-square small { color: rgb(255 255 255 / 76%); font-size: .58rem; line-height: 1.45; }
+
+.facility-square__building {
+  position: absolute;
+  z-index: 1;
+  inset: 12% 10% 32%;
+  display: grid;
+  grid-template-columns: 1fr 1.35fr 1fr;
+  align-items: end;
+  gap: 5px;
+}
+.facility-square__building i {
+  display: block;
+  height: 62%;
+  border: 2px solid rgb(255 255 255 / 32%);
+  border-radius: 10px 10px 2px 2px;
+  background:
+    repeating-linear-gradient(180deg, rgb(255 233 143 / 68%) 0 6px, transparent 7px 13px),
+    rgb(20 41 69 / 90%);
+}
+.facility-square__building i:nth-child(2) { height: 100%; }
+.facility-square.is-selected {
+  border-color: #f6d75f;
+  box-shadow: 0 0 0 3px rgb(246 215 95 / 18%), 0 13px 34px rgb(0 0 0 / 34%);
+}
+.facility-square.is-locked { filter: grayscale(1); opacity: .62; }
+.facility-square.is-locked::after {
+  position: absolute;
+  z-index: 4;
+  inset: 50% auto auto 50%;
+  content: "LOCKED";
+  translate: -50% -50%;
+  border: 2px solid #fff;
+  padding: 7px 12px;
+  background: rgb(0 0 0 / 72%);
+  color: #fff;
+  font-size: .75rem;
+  font-weight: 1000;
+}
+.facility-carousel--hub { grid-auto-columns: min(54vw, 210px); }
+.facility-square--small { border-radius: 18px; padding: 11px; }
+.facility-square--small strong { font-size: .76rem; }
+.facility-square--small small { display: none; }
+
+.facility-hub-hero,
+.facility-locked-panel {
+  display: grid;
+  gap: 5px;
+  border: 2px solid rgb(255 255 255 / 18%);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgb(20 31 49 / 86%);
+}
+.facility-hub-hero span,
+.facility-locked-panel strong { color: #f6d75f; font-size: .55rem; font-weight: 950; }
+.facility-hub-hero h1,
+.facility-hub-hero p,
+.facility-locked-panel p { margin: 0; }
+.facility-hub-hero p,
+.facility-locked-panel p { color: var(--text-muted); font-size: .63rem; line-height: 1.5; }
+.facility-menu-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+
+.training-result-show--complete,
+.ability-point-notice,
+.week-start-screen { display: grid; gap: 11px; text-align: center; }
+.training-result-show--complete > span,
+.ability-point-notice > span,
+.week-start-screen > span { color: var(--accent); font-size: .65rem; font-weight: 1000; letter-spacing: .12em; }
+.training-result-show--complete h3,
+.week-start-screen h3 { margin: 0; font-size: 1.15rem; }
+.ability-point-notice p,
+.week-start-screen p { margin: 0; color: var(--text-muted); font-size: .64rem; line-height: 1.55; }
+
+/* All player portraits now use the supplied source dimensions uniformly. */
+.player-portrait[data-role="SUP"],
+.team-detail-card__portrait[data-role="SUP"],
+.team-player-tab img[data-role="SUP"] {
+  transform: none !important;
+  scale: 1 !important;
+}
+
+/* MOB ROOM uses a square swipe selector; locked rooms remain silhouettes. */
+.room-list {
+  display: grid !important;
+  grid-auto-flow: column;
+  grid-auto-columns: min(68vw, 270px);
+  gap: 11px !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 4px 13px;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  scrollbar-width: none;
+}
+.room-list::-webkit-scrollbar { display: none; }
+.room-list-card {
+  position: relative;
+  display: grid !important;
+  aspect-ratio: 1;
+  scroll-snap-align: center;
+  grid-template-columns: 1fr !important;
+  align-content: end;
+  gap: 8px !important;
+  overflow: hidden;
+  border-radius: 22px !important;
+  padding: 15px !important;
+  background:
+    linear-gradient(180deg, transparent 35%, rgb(5 12 24 / 92%)),
+    linear-gradient(145deg, #738aa7, #24354d) !important;
+}
+.room-list-card::before {
+  position: absolute;
+  inset: 12% 14% 36%;
+  content: "";
+  border: 3px solid rgb(255 255 255 / 28%);
+  border-radius: 13px 13px 4px 4px;
+  background:
+    linear-gradient(90deg, transparent 46%, rgb(255 255 255 / 25%) 47% 53%, transparent 54%),
+    linear-gradient(180deg, transparent 60%, rgb(255 255 255 / 20%) 61% 66%, transparent 67%),
+    rgb(24 45 72 / 88%);
+}
+.room-list-card > * { position: relative; z-index: 2; }
+.room-list-card h3 { font-size: .9rem; }
+.room-list-card p { color: rgb(255 255 255 / 70%) !important; }
+.room-list-card button { width: 100%; }
+.room-list-card.is-locked::after {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  content: "LOCKED";
+  background: rgb(0 0 0 / 67%);
+  color: #fff;
+  font-size: .8rem;
+  font-weight: 1000;
+  letter-spacing: .12em;
+  pointer-events: none;
+}
