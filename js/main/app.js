@@ -23,7 +23,9 @@ import {
 } from "./state.js";
 import {
   applyPlayerStatUpgradePlanToDraft,
+  applyWeaponUpgradePlanToDraft,
   calculatePlayerStatUpgradePlan,
+  calculateWeaponUpgradePlan,
   changeWeaponSkinToDraft,
   getAbilityAcquisitionState,
   getSelectedPlayerId,
@@ -43,13 +45,13 @@ import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=22";
+} from "./management.js?v=23";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
 } from "./tournament-bridge.js";
 
-export const APP_VERSION = "mobbr-main-app-1.0.2";
+export const APP_VERSION = "mobbr-main-app-1.1.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -190,10 +192,10 @@ const ROUTE_META = Object.freeze({
 });
 
 const FACILITY_DEFINITIONS = Object.freeze([
-  { facilityId: "team_lab", name: "TEAM LAB", japaneseName: "チームラボ", note: "チーム育成・装備・コレクション", status: "OPEN", accent: "LAB" },
-  { facilityId: "mob_shop", name: "MOB SHOP", japaneseName: "MOB SHOP", note: "ショップ・パック・商品購入", status: "OPEN", accent: "SHOP" },
-  { facilityId: "cooking", name: "COOKING", japaneseName: "料理", note: "食材購入とキッチン機能", status: "LOCKED", accent: "COMING SOON" },
-  { facilityId: "mob_room", name: "MOB ROOM", japaneseName: "モブルーム", note: "部屋を選択してコレクションを配置", status: "OPEN", accent: "ROOM" },
+  { facilityId: "team_lab", name: "TEAM LAB", japaneseName: "チームラボ", note: "チーム育成・装備・コレクション", status: "OPEN", accent: "LAB", homeImage: "back/homelabo.png" },
+  { facilityId: "mob_shop", name: "MOB SHOP", japaneseName: "MOB SHOP", note: "ショップ・パック・商品購入", status: "OPEN", accent: "SHOP", homeImage: "back/homeshop.png" },
+  { facilityId: "cooking", name: "COOKING", japaneseName: "料理", note: "食材購入とキッチン機能", status: "LOCKED", accent: "COMING SOON", homeImage: "back/homekit.png" },
+  { facilityId: "mob_room", name: "MOB ROOM", japaneseName: "モブルーム", note: "部屋を選択してコレクションを配置", status: "OPEN", accent: "ROOM", homeImage: "back/homeroom.png" },
 ]);
 
 const FACILITY_MENUS = Object.freeze({
@@ -273,7 +275,6 @@ const TEAM_MENU = Object.freeze([
 
 const BOTTOM_NAV = Object.freeze([
   { route: ROUTES.home, name: "HOME", icon: "menu/home.png" },
-  { route: ROUTES.facility, name: "FACILITY", icon: "menu/team.png" },
   { route: ROUTES.schedule, name: "SCHEDULE", icon: "menu/sc.png" },
   { route: ROUTES.team, name: "TEAM", icon: "menu/team.png" },
   { route: ROUTES.settings, name: "SET", icon: "menu/setting.png" },
@@ -455,19 +456,19 @@ function topStatusTemplate(snapshot) {
         </div>
         <div class="resource-list" aria-label="所持通貨">
           <div class="resource-chip">
-            <img src=assetPath("icon/coin.png") alt="">
+            <img src="${escapeAttribute(assetPath("icon/coin.png"))}" alt="">
             <span class="resource-chip__value">
               ${formatNumber(snapshot.resources.coin)}
             </span>
           </div>
           <div class="resource-chip">
-            <img src=assetPath("icon/daia.png") alt="">
+            <img src="${escapeAttribute(assetPath("icon/daia.png"))}" alt="">
             <span class="resource-chip__value">
               ${formatNumber(snapshot.resources.diamond)}
             </span>
           </div>
           <div class="resource-chip">
-            <img src=assetPath("icon/rubi.png") alt="">
+            <img src="${escapeAttribute(assetPath("icon/rubi.png"))}" alt="">
             <span class="resource-chip__value">
               ${formatNumber(snapshot.resources.ruby)}
             </span>
@@ -567,82 +568,64 @@ function homeTemplate(snapshot, currentRoute) {
         <button type="button" data-action="navigate" data-route="${ROUTES.schedule}">大会予定</button>
       </section>`
     : "";
+
   return `
     <main class="screen screen--home app-layout">
       ${topStatusTemplate(snapshot)}
-      <div class="page-content">
+      <div class="page-content home-facility-only">
         ${tournamentNotice}
-        <section class="hero-panel">
-          <p class="hero-panel__label">COMPANY STATUS</p>
-          <div class="hero-panel__company-title">
-            <img
-              class="hero-panel__company-logo"
-              src="${escapeAttribute(snapshot.company.badgeImage)}"
-              alt=""
-            >
-            <h1 class="hero-panel__title">
-              ${escapeHtml(snapshot.company.companyName)}
-            </h1>
-          </div>
-          <div class="hero-panel__meta">
-            <span class="meta-chip">
-              企業RANK ${escapeHtml(snapshot.company.rank)}
-            </span>
-            <span class="meta-chip">
-              EXP ${formatNumber(snapshot.company.exp)}
-            </span>
-            <span class="meta-chip">
-              ROOM ${escapeHtml(snapshot.company.activeRoomId)}
-            </span>
-          </div>
-        </section>
-
-        <div class="section-heading">
-          <h2>FACILITIES</h2>
-          <p>左右へスワイプして施設を選択</p>
-        </div>
-        <section class="facility-carousel" aria-label="施設一覧">
+        <section class="home-facility-grid" aria-label="施設一覧">
           ${FACILITY_DEFINITIONS.map((facility) => `
-            <button type="button" class="facility-square ${facility.status === "LOCKED" ? "is-locked" : ""}" data-action="open-facility" data-facility-id="${escapeAttribute(facility.facilityId)}" ${facility.status === "LOCKED" ? "disabled" : ""}>
-              <span>${escapeHtml(facility.accent)}</span>
-              <div class="facility-square__building" aria-hidden="true"><i></i><i></i><i></i></div>
-              <strong>${escapeHtml(facility.japaneseName)}</strong>
-              <small>${escapeHtml(facility.note)}</small>
-              <em>${escapeHtml(facility.status)}</em>
+            <button
+              type="button"
+              class="home-facility-image ${facility.status === "LOCKED" ? "is-locked" : ""}"
+              data-action="open-facility"
+              data-facility-id="${escapeAttribute(facility.facilityId)}"
+              ${facility.status === "LOCKED" ? "disabled" : ""}
+            >
+              <img src="${escapeAttribute(facility.homeImage)}" alt="">
+              <span>${escapeHtml(facility.japaneseName)}</span>
+              ${facility.status === "LOCKED" ? "<em>LOCKED</em>" : ""}
             </button>
           `).join("")}
         </section>
-
-        <div class="section-heading">
-          <h2>TEAM MEMBERS</h2>
-          <p>IGL / ATK / SUP</p>
-        </div>
-        ${renderTeamDetailsSection(snapshot)}
       </div>
       ${bottomNavTemplate(currentRoute)}
     </main>
   `;
 }
 
-function facilityTemplate(snapshot, currentRoute, selectedFacilityId) {
-  const selected = FACILITY_DEFINITIONS.find((facility) => facility.facilityId === selectedFacilityId) ?? FACILITY_DEFINITIONS[0];
-  const menu = FACILITY_MENUS[selected.facilityId] ?? [];
+function facilityTemplate(
+  snapshot,
+  currentRoute,
+  selectedFacilityId,
+) {
+  const selected =
+    FACILITY_DEFINITIONS.find(
+      (facility) =>
+        facility.facilityId === selectedFacilityId,
+    ) ?? FACILITY_DEFINITIONS[0];
+  const menu =
+    FACILITY_MENUS[selected.facilityId] ?? [];
+
   return `
     <main class="screen screen--sub app-layout">
       ${topStatusTemplate(snapshot)}
-      <div class="page-content">
-        <div class="back-row"><button type="button" class="back-button" data-action="navigate" data-route="${ROUTES.home}">← HOME</button></div>
-        <section class="facility-hub-hero"><span>FACILITY SELECT</span><h1>${escapeHtml(selected.japaneseName)}</h1><p>${escapeHtml(selected.note)}</p></section>
-        <section class="facility-carousel facility-carousel--hub" aria-label="施設選択">
-          ${FACILITY_DEFINITIONS.map((facility) => `
-            <button type="button" class="facility-square facility-square--small ${facility.facilityId === selected.facilityId ? "is-selected" : ""} ${facility.status === "LOCKED" ? "is-locked" : ""}" data-action="select-facility" data-facility-id="${escapeAttribute(facility.facilityId)}" ${facility.status === "LOCKED" ? "disabled" : ""}>
-              <span>${escapeHtml(facility.accent)}</span><div class="facility-square__building" aria-hidden="true"><i></i><i></i><i></i></div><strong>${escapeHtml(facility.japaneseName)}</strong><em>${escapeHtml(facility.status)}</em>
-            </button>`).join("")}
+      <div class="page-content facility-menu-page">
+        <section class="facility-hub-hero">
+          <span>${escapeHtml(selected.accent)}</span>
+          <h1>${escapeHtml(selected.japaneseName)}</h1>
+          <p>${escapeHtml(selected.note)}</p>
         </section>
-        ${selected.status === "LOCKED" ? `<section class="facility-locked-panel"><strong>LOCKED</strong><p>料理機能は今後のアップデートで追加予定です。</p></section>` : `<div class="section-heading"><h2>${escapeHtml(selected.name)} MENU</h2><p>利用する機能を選択</p></div><section class="facility-menu-grid">${menu.map((item) => menuCardTemplate(item)).join("")}</section>`}
+        ${
+          selected.status === "LOCKED"
+            ? `<section class="facility-locked-panel"><strong>LOCKED</strong><p>料理機能は今後のアップデートで追加予定です。</p></section>`
+            : `<section class="facility-menu-grid">${menu.map((item) => menuCardTemplate(item)).join("")}</section>`
+        }
       </div>
       ${bottomNavTemplate(currentRoute)}
-    </main>`;
+    </main>
+  `;
 }
 
 function teamTemplate(snapshot, currentRoute) {
@@ -661,21 +644,26 @@ function teamTemplate(snapshot, currentRoute) {
           </button>
         </div>
 
-        <section class="hero-panel">
-          <p class="hero-panel__label">TEAM MANAGEMENT</p>
-          <h1 class="hero-panel__title">
-            ${escapeHtml(snapshot.playerTeam.teamName)}
-          </h1>
-          <div class="hero-panel__meta">
-            <span class="meta-chip">3 MEMBERS</span>
-            <span class="meta-chip">
-              企業RANK ${escapeHtml(snapshot.company.rank)}
-            </span>
-          </div>
+        <section class="team-compact-heading">
+          <span>TEAM MEMBERS</span>
+          <strong>${escapeHtml(snapshot.playerTeam.teamName)}</strong>
+          <small>選手をタップすると詳細を表示します</small>
         </section>
 
-        <section class="content-panel team-summary">
-          ${snapshot.playerTeam.members.map(playerRowTemplate).join("")}
+        <section class="team-portrait-grid">
+          ${snapshot.playerTeam.members.map((player) => `
+            <button
+              type="button"
+              class="team-portrait-button"
+              data-action="inspect-team-player"
+              data-player-id="${escapeAttribute(player.playerId)}"
+            >
+              <img src="${escapeAttribute(player.image)}" alt="">
+              <span>${escapeHtml(player.role)}</span>
+              <strong>${escapeHtml(player.name)}</strong>
+              <em>TAP</em>
+            </button>
+          `).join("")}
         </section>
 
         <div class="section-heading">
@@ -819,6 +807,7 @@ function teamFeatureTemplate(
     selectedPlayerId = null,
     abilityColor = "blue",
     abilityPlan = {},
+    weaponPlan = {},
   } = {},
 ) {
   const meta = ROUTE_META[route];
@@ -828,7 +817,7 @@ function teamFeatureTemplate(
   if (route === ROUTES.ability) {
     content = renderAbilityUpSection(snapshot, playerId, abilityPlan);
   } else if (route === ROUTES.equipment) {
-    content = renderEquipmentSection(snapshot, playerId);
+    content = renderEquipmentSection(snapshot, playerId, weaponPlan);
   } else if (route === ROUTES.specialAbility) {
     content = renderSpecialAbilitySection(
       snapshot,
@@ -1109,6 +1098,9 @@ export function createMainApp({
   let selectedAbilityColor = "blue";
   let abilityUpgradePlan = {};
   let abilityPlanPlayerId = null;
+  let weaponUpgradePlan = {};
+  let weaponPlanPlayerId = null;
+  let modalQuantityValue = 1;
   let toastTimer = null;
   let modalResolver = null;
 
@@ -1144,6 +1136,45 @@ export function createMainApp({
       const key = element.dataset.scrollMemory ?? (element.classList.contains("page-content") ? "page-content" : null);
       const position = key ? positions.get(key) : null;
       if (position) { element.scrollTop = position.top; element.scrollLeft = position.left; }
+    }
+  }
+
+
+  function updateTeamFeatureLiveSection(sectionType) {
+    const page = root.querySelector(".page-content");
+    const oldSection = root.querySelector(
+      `[data-live-section="${sectionType}"]`,
+    );
+    if (!oldSection) {
+      renderPreservingPageScroll();
+      return;
+    }
+
+    const snapshot = stateManager.getSnapshot();
+    const playerId = getSelectedPlayerId(
+      snapshot,
+      selectedTeamPlayerId,
+    );
+    const markup =
+      sectionType === "ability"
+        ? renderAbilityUpSection(
+            snapshot,
+            playerId,
+            abilityUpgradePlan,
+          )
+        : renderEquipmentSection(
+            snapshot,
+            playerId,
+            weaponUpgradePlan,
+          );
+    const template = document.createElement("template");
+    template.innerHTML = markup.trim();
+    const replacement =
+      template.content.firstElementChild;
+    const top = page?.scrollTop ?? 0;
+    oldSection.replaceWith(replacement);
+    if (page) {
+      page.scrollTop = top;
     }
   }
 
@@ -1310,6 +1341,51 @@ export function createMainApp({
     });
   }
 
+
+  function openQuantityPrompt({
+    title,
+    body,
+    initialValue = 1,
+    minimum = 1,
+    maximum = 99,
+    confirmLabel = "購入する",
+    cancelLabel = "戻る",
+  }) {
+    if (modalResolver) {
+      closeModal(false);
+    }
+    modalQuantityValue = Math.max(
+      minimum,
+      Math.min(maximum, Math.floor(initialValue)),
+    );
+
+    return new Promise((resolve) => {
+      modalResolver = resolve;
+      modalRoot.classList.add("is-open");
+      modalRoot.innerHTML = `
+        <div class="modal-backdrop">
+          <section class="modal-card" role="dialog" aria-modal="true">
+            <p class="modal-card__eyebrow">QUANTITY</p>
+            <h2 class="modal-card__title">${escapeHtml(title)}</h2>
+            <div class="modal-card__body">
+              ${body}
+              <div class="quantity-stepper-modal">
+                <button type="button" data-repeat-action data-action="modal-quantity-minus">−</button>
+                <strong data-quantity-value>${modalQuantityValue}</strong>
+                <button type="button" data-repeat-action data-action="modal-quantity-plus">＋</button>
+              </div>
+              <small>＋／−は長押しで加速します</small>
+            </div>
+            <div class="modal-card__actions">
+              <button type="button" class="secondary-button" data-action="modal-cancel">${escapeHtml(cancelLabel)}</button>
+              <button type="button" class="primary-button" data-action="modal-quantity-confirm">${escapeHtml(confirmLabel)}</button>
+            </div>
+          </section>
+        </div>
+      `;
+    });
+  }
+
   function getSafeSnapshot() {
     return stateManager.getSnapshot();
   }
@@ -1417,10 +1493,15 @@ export function createMainApp({
         abilityUpgradePlan = {};
         abilityPlanPlayerId = selectedTeamPlayerId;
       }
+      if (weaponPlanPlayerId !== selectedTeamPlayerId) {
+        weaponUpgradePlan = {};
+        weaponPlanPlayerId = selectedTeamPlayerId;
+      }
       root.innerHTML = teamFeatureTemplate(snapshot, route, route, {
         selectedPlayerId: selectedTeamPlayerId,
         abilityColor: selectedAbilityColor,
         abilityPlan: abilityUpgradePlan,
+        weaponPlan: weaponUpgradePlan,
       });
       return;
     }
@@ -1623,6 +1704,7 @@ export function createMainApp({
     openConfirm,
     openAlert,
     openTextPrompt,
+    openQuantityPrompt,
     showToast,
     render,
     renderPreservingScroll: renderPreservingPageScroll,
@@ -1753,7 +1835,7 @@ export function createMainApp({
             <div class="player-status-modal__points">
               <span>POWER ${formatNumber(pointPool.power)}</span><span>TECH ${formatNumber(pointPool.tech)}</span><span>MENTAL ${formatNumber(pointPool.mental)}</span><span>SHOOT ${formatNumber(pointPool.shoot)}</span>
             </div>
-            <button type="button" class="primary-button player-status-modal__ability" data-action="modal-open-player-ability" data-player-id="${escapeAttribute(player.playerId)}">この選手を能力アップ</button>
+            <button type="button" class="primary-button player-status-modal__ability" data-action="modal-open-player-ability" data-player-id="${escapeAttribute(player.playerId)}">能力アップ</button>
           </section>
         `,
         buttonLabel: "閉じる",
@@ -1800,7 +1882,9 @@ export function createMainApp({
     if (action === "select-team-player") {
       selectedTeamPlayerId = actionElement.dataset.playerId;
       abilityPlanPlayerId = selectedTeamPlayerId;
+      weaponPlanPlayerId = selectedTeamPlayerId;
       abilityUpgradePlan = {};
+      weaponUpgradePlan = {};
       render();
       return;
     }
@@ -1822,7 +1906,7 @@ export function createMainApp({
       const plan = calculatePlayerStatUpgradePlan(stateManager.getSnapshot(), playerId, candidate);
       if (plan.affordable) {
         abilityUpgradePlan = plan.increments;
-        renderPreservingPageScroll();
+        updateTeamFeatureLiveSection("ability");
       }
       return;
     }
@@ -1843,7 +1927,7 @@ export function createMainApp({
         );
         abilityUpgradePlan = {};
         showToast(`${transaction.result.totalUpgrades}段階を強化しました`);
-        renderPreservingPageScroll();
+        updateTeamFeatureLiveSection("ability");
       } catch (error) {
         await openAlert({
           title: "能力を強化できません",
@@ -1853,6 +1937,80 @@ export function createMainApp({
       }
       return;
     }
+    if (
+      action === "weapon-plan-plus" ||
+      action === "weapon-plan-minus"
+    ) {
+      const playerId = actionElement.dataset.playerId;
+      const statId =
+        actionElement.dataset.weaponStatId;
+      if (weaponPlanPlayerId !== playerId) {
+        weaponPlanPlayerId = playerId;
+        weaponUpgradePlan = {};
+      }
+      const current = Math.max(
+        0,
+        weaponUpgradePlan[statId] ?? 0,
+      );
+      const next =
+        action === "weapon-plan-plus"
+          ? current + 1
+          : Math.max(0, current - 1);
+      const candidate = {
+        ...weaponUpgradePlan,
+        [statId]: next,
+      };
+      const plan = calculateWeaponUpgradePlan(
+        stateManager.getSnapshot(),
+        playerId,
+        candidate,
+      );
+      if (plan.affordable) {
+        weaponUpgradePlan = plan.increments;
+        updateTeamFeatureLiveSection("equipment");
+      }
+      return;
+    }
+
+    if (action === "weapon-plan-confirm") {
+      const playerId = actionElement.dataset.playerId;
+      const plan = calculateWeaponUpgradePlan(
+        stateManager.getSnapshot(),
+        playerId,
+        weaponUpgradePlan,
+      );
+      if (!plan.hasChanges || !plan.affordable) return;
+      const confirmed = await openConfirm({
+        title: "武器強化を確定しますか？",
+        body: `<p>${plan.rows.reduce((sum, row) => sum + row.increment, 0)}段階をまとめて強化します。</p><p>COIN ${formatNumber(plan.totalCoin)} / RUBY ${formatNumber(plan.totalRuby)}</p>`,
+        confirmLabel: "確定する",
+      });
+      if (!confirmed) return;
+      try {
+        const transaction = stateManager.transact(
+          "weapon_stats_upgraded_batch",
+          (draft) =>
+            applyWeaponUpgradePlanToDraft(
+              draft,
+              playerId,
+              weaponUpgradePlan,
+            ),
+        );
+        weaponUpgradePlan = {};
+        showToast(
+          `${transaction.result.totalUpgrades}段階を強化しました`,
+        );
+        updateTeamFeatureLiveSection("equipment");
+      } catch (error) {
+        await openAlert({
+          title: "武器を強化できません",
+          body: `<p>${escapeHtml(error.message)}</p>`,
+          code: getErrorCode(error),
+        });
+      }
+      return;
+    }
+
     if (action === "upgrade-weapon-stat") {
       const playerId = actionElement.dataset.playerId;
       const weaponStatId = actionElement.dataset.weaponStatId;
@@ -2081,6 +2239,28 @@ export function createMainApp({
         });
       } catch (_error) {}
       render();
+    } else if (actionElement.dataset.action === "modal-quantity-minus") {
+      modalQuantityValue = Math.max(
+        1,
+        modalQuantityValue - 1,
+      );
+      const value =
+        modalRoot.querySelector("[data-quantity-value]");
+      if (value) {
+        value.textContent = String(modalQuantityValue);
+      }
+    } else if (actionElement.dataset.action === "modal-quantity-plus") {
+      modalQuantityValue = Math.min(
+        99,
+        modalQuantityValue + 1,
+      );
+      const value =
+        modalRoot.querySelector("[data-quantity-value]");
+      if (value) {
+        value.textContent = String(modalQuantityValue);
+      }
+    } else if (actionElement.dataset.action === "modal-quantity-confirm") {
+      closeModal(modalQuantityValue);
     } else if (actionElement.dataset.action === "modal-confirm") {
       closeModal(true);
     } else if (
@@ -2099,7 +2279,63 @@ export function createMainApp({
     }
   });
 
+
+  function installAcceleratedRepeat(container) {
+    let delayTimer = null;
+    let repeatTimer = null;
+    let activeButton = null;
+    let startedAt = 0;
+
+    const stop = () => {
+      if (delayTimer) clearTimeout(delayTimer);
+      if (repeatTimer) clearTimeout(repeatTimer);
+      delayTimer = null;
+      repeatTimer = null;
+      activeButton = null;
+    };
+
+    const schedule = () => {
+      if (!activeButton || activeButton.disabled) {
+        stop();
+        return;
+      }
+      activeButton.click();
+      const held =
+        performance.now() - startedAt;
+      const delay =
+        held > 2400
+          ? 45
+          : held > 1500
+            ? 70
+            : held > 850
+              ? 105
+              : 145;
+      repeatTimer = setTimeout(schedule, delay);
+    };
+
+    container.addEventListener("pointerdown", (event) => {
+      const button = event.target.closest(
+        "button[data-repeat-action]",
+      );
+      if (!button || button.disabled) return;
+      stop();
+      activeButton = button;
+      startedAt = performance.now();
+      delayTimer = setTimeout(schedule, 360);
+    });
+
+    for (const eventName of [
+      "pointerup",
+      "pointercancel",
+      "pointerleave",
+    ]) {
+      container.addEventListener(eventName, stop);
+    }
+  }
+
   async function start() {
+    installAcceleratedRepeat(root);
+    installAcceleratedRepeat(modalRoot);
     showLoading("画像を読み込んでいます");
     await detectAssetPrefix("back/local.png");
     installAssetFallbacks(document);

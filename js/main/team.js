@@ -33,7 +33,7 @@ import {
   getWeaponUpgradeCost,
 } from "../../data/ability-data.js";
 
-export const TEAM_FEATURE_VERSION = "mobbr-team-feature-0.5.0";
+export const TEAM_FEATURE_VERSION = "mobbr-team-feature-0.6.0";
 
 const ROLE_ICONS = Object.freeze({
   IGL: "icon/IGL.png",
@@ -242,6 +242,107 @@ export function upgradeWeaponStatToDraft(
     currentRank: cost.nextRank,
     coin: cost.coin,
     ruby: cost.ruby,
+  };
+}
+
+
+export function calculateWeaponUpgradePlan(
+  snapshot,
+  playerId,
+  increments = {},
+) {
+  const player = getPlayer(snapshot, playerId);
+  const normalized = Object.fromEntries(
+    WEAPON_STAT_DEFINITIONS.map((definition) => [
+      definition.id,
+      Math.max(0, Math.floor(increments[definition.id] ?? 0)),
+    ]),
+  );
+  let totalCoin = 0;
+  let totalRuby = 0;
+  const rows = WEAPON_STAT_DEFINITIONS.map((definition) => {
+    let projectedValue =
+      player.weapon.internalValues[definition.id];
+    let projectedRank =
+      getWeaponRank(player, definition.id);
+    let applied = 0;
+    for (
+      let index = 0;
+      index < normalized[definition.id];
+      index += 1
+    ) {
+      const cost = getWeaponUpgradeCost(projectedRank);
+      if (!cost) break;
+      totalCoin += cost.coin;
+      totalRuby += cost.ruby;
+      projectedValue += 1;
+      projectedRank = cost.nextRank;
+      applied += 1;
+    }
+    normalized[definition.id] = applied;
+    return {
+      definition,
+      currentRank: getWeaponRank(player, definition.id),
+      projectedRank,
+      currentValue:
+        player.weapon.internalValues[definition.id],
+      projectedValue,
+      increment: applied,
+      nextCost: getWeaponUpgradeCost(projectedRank),
+    };
+  });
+  return {
+    playerId,
+    increments: normalized,
+    rows,
+    totalCoin,
+    totalRuby,
+    remainingCoin:
+      snapshot.resources.coin - totalCoin,
+    remainingRuby:
+      snapshot.resources.ruby - totalRuby,
+    affordable:
+      snapshot.resources.coin >= totalCoin &&
+      snapshot.resources.ruby >= totalRuby,
+    hasChanges:
+      Object.values(normalized).some(
+        (value) => value > 0,
+      ),
+  };
+}
+
+export function applyWeaponUpgradePlanToDraft(
+  draft,
+  playerId,
+  increments,
+) {
+  const results = [];
+  for (const definition of WEAPON_STAT_DEFINITIONS) {
+    const count = Math.max(
+      0,
+      Math.floor(
+        increments?.[definition.id] ?? 0,
+      ),
+    );
+    for (let index = 0; index < count; index += 1) {
+      results.push(
+        upgradeWeaponStatToDraft(
+          draft,
+          playerId,
+          definition.id,
+        ),
+      );
+    }
+  }
+  if (results.length === 0) {
+    throw new RangeError(
+      "確定する武器強化がありません。",
+    );
+  }
+  return {
+    playerId,
+    results,
+    totalUpgrades: results.length,
   };
 }
 
@@ -735,6 +836,7 @@ export function renderAbilityUpSection(
   const plan = calculatePlayerStatUpgradePlan(snapshot, playerId, pendingIncrements);
 
   return `
+    <div class="team-feature-live-section" data-live-section="ability">
     ${renderPlayerSelector(snapshot, playerId)}
     <section class="ability-plan-points">
       ${TRAINING_POINT_IDS.map((pointId) => `
@@ -758,9 +860,9 @@ export function renderAbilityUpSection(
               ${row.atMaximum ? `<div class="cost-tags"><span>MAX</span></div>` : `<div class="cost-tags">${abilityCostTemplate(row.nextCost)}</div>`}
             </div>
             <div class="growth-stepper">
-              <button type="button" data-action="ability-plan-minus" data-player-id="${escapeAttribute(playerId)}" data-stat-id="${escapeAttribute(row.definition.id)}" ${row.increment > 0 ? "" : "disabled"}>−</button>
+              <button type="button" data-repeat-action data-action="ability-plan-minus" data-player-id="${escapeAttribute(playerId)}" data-stat-id="${escapeAttribute(row.definition.id)}" ${row.increment > 0 ? "" : "disabled"}>−</button>
               <strong>${row.increment}</strong>
-              <button type="button" data-action="ability-plan-plus" data-player-id="${escapeAttribute(playerId)}" data-stat-id="${escapeAttribute(row.definition.id)}" ${nextAffordable ? "" : "disabled"}>＋</button>
+              <button type="button" data-repeat-action data-action="ability-plan-plus" data-player-id="${escapeAttribute(playerId)}" data-stat-id="${escapeAttribute(row.definition.id)}" ${nextAffordable ? "" : "disabled"}>＋</button>
             </div>
           </article>
         `;
@@ -770,105 +872,167 @@ export function renderAbilityUpSection(
       <div><span>予定強化</span><strong>${plan.rows.reduce((sum, row) => sum + row.increment, 0)}段階</strong></div>
       <button type="button" class="primary-button" data-action="ability-plan-confirm" data-player-id="${escapeAttribute(playerId)}" ${plan.hasChanges && plan.affordable ? "" : "disabled"}>能力アップを確定</button>
     </section>
+    </div>
   `;
 }
 
-export function renderEquipmentSection(snapshot, selectedPlayerId) {
-  const playerId = getSelectedPlayerId(snapshot, selectedPlayerId);
+export function renderEquipmentSection(
+  snapshot,
+  selectedPlayerId,
+  pendingIncrements = {},
+) {
+  const playerId =
+    getSelectedPlayerId(snapshot, selectedPlayerId);
   const player = getPlayer(snapshot, playerId);
   const ownedSkins = WEAPON_SKINS.filter(
-    (skin) => snapshot.inventory.weaponSkins?.[skin.skinId] === true,
+    (skin) =>
+      snapshot.inventory.weaponSkins?.[skin.skinId] === true,
+  );
+  const plan = calculateWeaponUpgradePlan(
+    snapshot,
+    playerId,
+    pendingIncrements,
   );
 
   return `
-    ${renderPlayerSelector(snapshot, playerId)}
-    <section class="weapon-overview">
-      <img
-        class="weapon-overview__image"
-        src="${escapeAttribute(player.weapon.image)}"
-        alt="${escapeAttribute(player.weapon.weaponName)}"
-      >
-      <div class="weapon-overview__main">
-        <span>${escapeHtml(player.role)} WEAPON</span>
-        <h2>${escapeHtml(player.weapon.weaponName)}</h2>
-        <p>装弾数 ${player.weapon.ammoMax} / スキン ${escapeHtml(player.weapon.skinId)}</p>
-      </div>
-      <button
-        type="button"
-        class="secondary-button"
-        data-action="rename-weapon"
-        data-player-id="${escapeAttribute(playerId)}"
-      >
-        武器名変更
-      </button>
-    </section>
+    <div class="team-feature-live-section" data-live-section="equipment">
+      ${renderPlayerSelector(snapshot, playerId)}
+      <section class="weapon-overview">
+        <img
+          class="weapon-overview__image"
+          src="${escapeAttribute(player.weapon.image)}"
+          alt="${escapeAttribute(player.weapon.weaponName)}"
+        >
+        <div class="weapon-overview__main">
+          <span>${escapeHtml(player.role)} WEAPON</span>
+          <h2>${escapeHtml(player.weapon.weaponName)}</h2>
+          <p>装弾数 ${player.weapon.ammoMax} / スキン ${escapeHtml(player.weapon.skinId)}</p>
+        </div>
+        <button
+          type="button"
+          class="secondary-button"
+          data-action="rename-weapon"
+          data-player-id="${escapeAttribute(playerId)}"
+        >
+          武器名変更
+        </button>
+      </section>
 
-    <section class="content-panel weapon-skin-panel">
-      <label for="weaponSkinSelect">武器スキン</label>
-      <select id="weaponSkinSelect" data-player-id="${escapeAttribute(playerId)}">
-        ${ownedSkins.map((skin) => `
-          <option
-            value="${escapeAttribute(skin.skinId)}"
-            ${skin.skinId === player.weapon.skinId ? "selected" : ""}
-          >
-            ${escapeHtml(skin.name)}
-          </option>
-        `).join("")}
-      </select>
-      <button
-        type="button"
-        class="primary-button"
-        data-action="change-weapon-skin"
-        data-player-id="${escapeAttribute(playerId)}"
-      >
-        スキンを変更
-      </button>
-    </section>
-
-    <section class="growth-grid">
-      ${WEAPON_STAT_DEFINITIONS.map((definition) => {
-        const currentRank = getWeaponRank(player, definition.id);
-        const cost = getWeaponUpgradeCost(currentRank);
-        const affordable =
-          cost &&
-          snapshot.resources.coin >= cost.coin &&
-          snapshot.resources.ruby >= cost.ruby;
-
-        return `
-          <article class="growth-card growth-card--weapon">
-            <div class="growth-card__main">
-              <h3>${escapeHtml(definition.name)}</h3>
-              <p>
-                ${escapeHtml(currentRank)}
-                <span>
-                  内部値 ${player.weapon.internalValues[definition.id]}
-                </span>
-              </p>
-              ${
-                cost
-                  ? `
-                    <div class="cost-tags">
-                      <span>COIN ${formatNumber(cost.coin)}</span>
-                      <span>RUBY ${formatNumber(cost.ruby)}</span>
-                    </div>
-                  `
-                  : `<div class="cost-tags"><span>MAX</span></div>`
-              }
-            </div>
-            <button
-              type="button"
-              class="compact-upgrade-button"
-              data-action="upgrade-weapon-stat"
-              data-player-id="${escapeAttribute(playerId)}"
-              data-weapon-stat-id="${escapeAttribute(definition.id)}"
-              ${cost && affordable ? "" : "disabled"}
+      <section class="content-panel weapon-skin-panel">
+        <label for="weaponSkinSelect">武器スキン</label>
+        <select
+          id="weaponSkinSelect"
+          data-player-id="${escapeAttribute(playerId)}"
+        >
+          ${ownedSkins.map((skin) => `
+            <option
+              value="${escapeAttribute(skin.skinId)}"
+              ${skin.skinId === player.weapon.skinId ? "selected" : ""}
             >
-              ${cost ? `→ ${escapeHtml(cost.nextRank)}` : "MOB"}
-            </button>
-          </article>
-        `;
-      }).join("")}
-    </section>
+              ${escapeHtml(skin.name)}
+            </option>
+          `).join("")}
+        </select>
+        <button
+          type="button"
+          class="primary-button"
+          data-action="change-weapon-skin"
+          data-player-id="${escapeAttribute(playerId)}"
+        >
+          スキンを変更
+        </button>
+      </section>
+
+      <section class="weapon-plan-resources">
+        <span>
+          COIN
+          <strong>${formatNumber(snapshot.resources.coin)}</strong>
+          <em>→ ${formatNumber(plan.remainingCoin)}</em>
+        </span>
+        <span>
+          RUBY
+          <strong>${formatNumber(snapshot.resources.ruby)}</strong>
+          <em>→ ${formatNumber(plan.remainingRuby)}</em>
+        </span>
+      </section>
+
+      <section class="growth-grid growth-grid--planned">
+        ${plan.rows.map((row) => {
+          const nextAffordable =
+            row.nextCost &&
+            plan.remainingCoin >= row.nextCost.coin &&
+            plan.remainingRuby >= row.nextCost.ruby;
+          return `
+            <article class="growth-card growth-card--weapon growth-card--planned">
+              <div class="growth-card__main">
+                <h3>${escapeHtml(row.definition.name)}</h3>
+                <p>
+                  ${escapeHtml(row.currentRank)}
+                  ${
+                    row.increment > 0
+                      ? ` → <strong>${escapeHtml(row.projectedRank)}</strong>`
+                      : ""
+                  }
+                  <span>
+                    内部値 ${row.currentValue}
+                    ${row.increment > 0 ? ` + ${row.increment}` : ""}
+                  </span>
+                </p>
+                ${
+                  row.nextCost
+                    ? `
+                      <div class="cost-tags">
+                        <span>COIN ${formatNumber(row.nextCost.coin)}</span>
+                        <span>RUBY ${formatNumber(row.nextCost.ruby)}</span>
+                      </div>
+                    `
+                    : `<div class="cost-tags"><span>MAX</span></div>`
+                }
+              </div>
+              <div class="growth-stepper">
+                <button
+                  type="button"
+                  data-repeat-action
+                  data-action="weapon-plan-minus"
+                  data-player-id="${escapeAttribute(playerId)}"
+                  data-weapon-stat-id="${escapeAttribute(row.definition.id)}"
+                  ${row.increment > 0 ? "" : "disabled"}
+                >
+                  −
+                </button>
+                <strong>${row.increment}</strong>
+                <button
+                  type="button"
+                  data-repeat-action
+                  data-action="weapon-plan-plus"
+                  data-player-id="${escapeAttribute(playerId)}"
+                  data-weapon-stat-id="${escapeAttribute(row.definition.id)}"
+                  ${nextAffordable ? "" : "disabled"}
+                >
+                  ＋
+                </button>
+              </div>
+            </article>
+          `;
+        }).join("")}
+      </section>
+
+      <section class="ability-plan-footer weapon-plan-footer">
+        <div>
+          <span>予定強化</span>
+          <strong>${plan.rows.reduce((sum, row) => sum + row.increment, 0)}段階</strong>
+        </div>
+        <button
+          type="button"
+          class="primary-button"
+          data-action="weapon-plan-confirm"
+          data-player-id="${escapeAttribute(playerId)}"
+          ${plan.hasChanges && plan.affordable ? "" : "disabled"}
+        >
+          武器強化を確定
+        </button>
+      </section>
+    </div>
   `;
 }
 
@@ -951,10 +1115,22 @@ export function renderSpecialAbilitySection(
           statusText = "習得可";
         }
 
+        const visualState =
+          state.replaced
+            ? "replaced"
+            : state.alreadyLearned
+              ? "learned"
+              : state.learnable
+                ? "learnable"
+                : !state.conditionState.unlocked ||
+                    !state.stagePrerequisiteMet
+                  ? "locked"
+                  : "insufficient";
         return `
           <button
             type="button"
-            class="special-ability-card special-ability-card--tile special-ability-card--${ability.color}"
+            class="special-ability-card special-ability-card--tile special-ability-card--${ability.color} is-${visualState}"
+            data-ability-state="${visualState}"
             data-action="inspect-special-ability"
             data-player-id="${escapeAttribute(playerId)}"
             data-ability-key="${escapeAttribute(ability.abilityKey)}"
@@ -968,7 +1144,7 @@ export function renderSpecialAbilitySection(
               ${ability.color === "blue" ? `-${ability.stage}` : ""}
             </span>
             <strong>${escapeHtml(ability.name)}</strong>
-            <small>${escapeHtml(statusText)}</small>
+            <small><i></i>${escapeHtml(statusText)}</small>
           </button>
         `;
       }).join("")}

@@ -35,7 +35,7 @@ import {
   calculateChecksum,
 } from "./state.js";
 
-export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-1.0.0";
+export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-1.1.0";
 export const TOURNAMENT_ENTRY_SCHEMA_VERSION =
   "mobbr-tournament-entry-1.0.0";
 export const TOURNAMENT_RESULT_SCHEMA_VERSION =
@@ -900,9 +900,9 @@ function validateMember(member) {
     }
   }
   assertPlainObject(member.weapon, "Player weapon");
-  if (member.weapon.ammoMax !== 8 || member.weapon.ammoCurrent !== 8) {
+  if (member.weapon.ammoMax !== 12 || member.weapon.ammoCurrent !== 12) {
     throw new TournamentEntryValidationError(
-      "Tournament weapon ammo must start at 8.",
+      "Tournament weapon ammo must start at 12.",
       "INVALID_WEAPON_AMMO",
     );
   }

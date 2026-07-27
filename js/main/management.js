@@ -61,7 +61,7 @@ import {
 } from "./state.js";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-0.6.1";
+  "mobbr-management-feature-0.7.0";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -1777,12 +1777,14 @@ export function renderRoomManagement(snapshot) {
             <div class="room-placement__controls">
               <button
                 type="button"
+                data-repeat-action
                 data-action="room-scale-down"
                 data-room-id="${escapeAttribute(activeRoom.roomId)}"
                 data-placement-id="${escapeAttribute(placement.placementId)}"
               >－</button>
               <button
                 type="button"
+                data-repeat-action
                 data-action="room-scale-up"
                 data-room-id="${escapeAttribute(activeRoom.roomId)}"
                 data-placement-id="${escapeAttribute(placement.placementId)}"
@@ -1939,6 +1941,7 @@ export function createManagementController({
   openConfirm,
   openAlert,
   openTextPrompt,
+  openQuantityPrompt,
   showToast,
   render,
   renderPreservingScroll = render,
@@ -2113,48 +2116,64 @@ export function createManagementController({
     if (action === "inspect-shop-item") {
       const item = getItem(actionElement.dataset.itemId);
       const snapshot = stateManager.getSnapshot();
-      const quantityText = await openTextPrompt({
+      const quantity = await openQuantityPrompt({
         title: item.name,
-        body: `<section class="shop-item-detail-modal"><div class="shop-item-detail-modal__image"><img src="${escapeAttribute(item.image)}" alt=""></div><p>${escapeHtml(item.description)}</p><div class="cost-tags">${currencyPriceTemplate(item.price)}</div><strong>所持 ${formatNumber(snapshot.inventory.items[item.itemId] ?? 0)}</strong><small>購入数量を1～99で入力してください</small></section>`,
-        initialValue: "1",
-        maximumLength: 2,
+        body: `<section class="shop-item-detail-modal"><div class="shop-item-detail-modal__image"><img src="${escapeAttribute(item.image)}" alt=""></div><p>${escapeHtml(item.description)}</p><div class="cost-tags">${currencyPriceTemplate(item.price)}</div><strong>所持 ${formatNumber(snapshot.inventory.items[item.itemId] ?? 0)}</strong></section>`,
+        initialValue: 1,
+        minimum: 1,
+        maximum: 99,
         confirmLabel: "購入する",
       });
-      if (quantityText === false) return true;
-      const quantity = Number(quantityText);
-      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
-        await showError("購入できません", new RangeError("購入数量は1～99にしてください。"));
-        return true;
-      }
+      if (quantity === false) return true;
       try {
-        const tx = stateManager.transact("item_purchased", (draft) => purchaseConsumableToDraft(draft, item.itemId, quantity));
-        showToast(`${tx.result.name}を${quantity}個購入しました`);
+        const tx = stateManager.transact(
+          "item_purchased",
+          (draft) =>
+            purchaseConsumableToDraft(
+              draft,
+              item.itemId,
+              quantity,
+            ),
+        );
+        showToast(
+          `${tx.result.name}を${quantity}個購入しました`,
+        );
         renderPreservingScroll();
-      } catch (error) { await showError("購入できません", error); }
+      } catch (error) {
+        await showError("購入できません", error);
+      }
       return true;
     }
 
     if (action === "inspect-shop-pack") {
       const pack = getCardPack(actionElement.dataset.packId);
       const snapshot = stateManager.getSnapshot();
-      const quantityText = await openTextPrompt({
+      const quantity = await openQuantityPrompt({
         title: pack.name,
-        body: `<section class="shop-item-detail-modal"><div class="shop-item-detail-modal__image"><img src="${escapeAttribute(pack.image)}" alt=""></div><p>カードパックをまとめて購入できます。</p><div class="cost-tags">${currencyPriceTemplate(pack.price)}</div><strong>所持 ${formatNumber(snapshot.inventory.cardPacks[pack.packId] ?? 0)}</strong><small>購入数量を1～99で入力してください</small></section>`,
-        initialValue: "1",
-        maximumLength: 2,
+        body: `<section class="shop-item-detail-modal"><div class="shop-item-detail-modal__image"><img src="${escapeAttribute(pack.image)}" alt=""></div><p>カードパックをまとめて購入できます。</p><div class="cost-tags">${currencyPriceTemplate(pack.price)}</div><strong>所持 ${formatNumber(snapshot.inventory.cardPacks[pack.packId] ?? 0)}</strong></section>`,
+        initialValue: 1,
+        minimum: 1,
+        maximum: 99,
         confirmLabel: "購入する",
       });
-      if (quantityText === false) return true;
-      const quantity = Number(quantityText);
-      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
-        await showError("購入できません", new RangeError("購入数量は1～99にしてください。"));
-        return true;
-      }
+      if (quantity === false) return true;
       try {
-        const tx = stateManager.transact("card_pack_purchased", (draft) => purchaseCardPackToDraft(draft, pack.packId, quantity));
-        showToast(`${tx.result.name}を${quantity}個購入しました`);
+        const tx = stateManager.transact(
+          "card_pack_purchased",
+          (draft) =>
+            purchaseCardPackToDraft(
+              draft,
+              pack.packId,
+              quantity,
+            ),
+        );
+        showToast(
+          `${tx.result.name}を${quantity}個購入しました`,
+        );
         renderPreservingScroll();
-      } catch (error) { await showError("購入できません", error); }
+      } catch (error) {
+        await showError("購入できません", error);
+      }
       return true;
     }
 

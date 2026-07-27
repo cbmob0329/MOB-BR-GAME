@@ -48,7 +48,7 @@ import {
   STRATEGY_RULES,
 } from "../../data/strategy-data.js";
 
-export const SAVE_SCHEMA_VERSION = "mobbr-save-1.1.0";
+export const SAVE_SCHEMA_VERSION = "mobbr-save-1.2.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
 
 export const STORAGE_KEYS = Object.freeze({
@@ -378,7 +378,7 @@ function createInitialWeapon(definition, customName) {
     weaponName,
     skinId: definition.weapon.skinId,
     image: definition.weapon.image,
-    ammoMax: 8,
+    ammoMax: 12,
     rangeRanks: deepClone(definition.weapon.rangeRanks),
     fireRateRank: definition.weapon.fireRateRank,
     reloadRank: definition.weapon.reloadRank,
@@ -780,9 +780,9 @@ function validatePlayer(player, index) {
     `Player ${player.playerId} weapon name`,
     60,
   );
-  if (player.weapon.ammoMax !== 8) {
+  if (player.weapon.ammoMax !== 12) {
     throw new SaveCorruptionError(
-      `Player ${player.playerId} weapon ammoMax must equal 8.`,
+      `Player ${player.playerId} weapon ammoMax must equal 12.`,
       { code: "INVALID_WEAPON_AMMO" },
     );
   }
@@ -1014,6 +1014,9 @@ function normalizeLegacyRole(role) {
 function migrateLegacyPlayer(player) {
   const migrated = deepClone(player);
   migrated.role = normalizeLegacyRole(migrated.role);
+  if (migrated.weapon) {
+    migrated.weapon.ammoMax = 12;
+  }
 
   if (migrated.stats?.sap !== undefined) {
     migrated.stats.support = migrated.stats.support ?? migrated.stats.sap;
@@ -1096,7 +1099,8 @@ export function migrateSaveState(
     rawState.schemaVersion === undefined ||
     rawState.schemaVersion === null ||
     rawState.schemaVersion === "mobbr-save-0.9.0" ||
-    rawState.schemaVersion === "mobbr-save-1.0.0"
+    rawState.schemaVersion === "mobbr-save-1.0.0" ||
+    rawState.schemaVersion === "mobbr-save-1.1.0"
   ) {
     const migrated = migrateUnversionedSave(rawState, timestamp);
     validateSaveState(migrated);
