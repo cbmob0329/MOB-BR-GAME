@@ -17,9 +17,31 @@ import {
   readTournamentEntryFromStorage,
   validateTournamentEntryData,
 } from "../main/tournament-bridge.js";
+import {
+  CPU_LOCAL_DATA_VERSION,
+  CPU_LOCAL_MASTER_VERSION,
+  LOCAL_CPU_TEAMS,
+} from "../../data/cpu-local-data.js";
+import {
+  CPU_NATIONAL_DATA_VERSION,
+  CPU_NATIONAL_MASTER_VERSION,
+  NATIONAL_CPU_TEAMS,
+} from "../../data/cpu-national-data.js";
+import {
+  CPU_WORLD_DATA_VERSION,
+  CPU_WORLD_MASTER_VERSION,
+  getWorldCpuTeamsForYear,
+} from "../../data/cpu-world-data.js";
+import {
+  buildCpuBattleStats,
+  calculateMaxHp,
+  getRoleCommonSkills,
+  resolveCpuRankFromRange,
+  resolveCpuWeaponProfile,
+} from "../../data/battle-config.js";
 
 export const TOURNAMENT_RUNTIME_VERSION =
-  "mobbr-tournament-runtime-1.0.0";
+  "mobbr-tournament-runtime-1.1.0";
 
 export const TOURNAMENT_PHASES = Object.freeze([
   "IDLE",
@@ -333,7 +355,7 @@ function createOpeningCommentary(entry, role = null) {
   return `${entry.company.companyName}の${team.teamName}、3人がステージへ入ります！`;
 }
 
-export function createOpeningScenes(entry) {
+export function createOpeningScenes(entry, teams = null) {
   validateTournamentEntryData(entry);
   const theme = getThemeAssets(entry);
   const map = chooseTournamentMap(entry);
@@ -347,6 +369,11 @@ export function createOpeningScenes(entry) {
   const ownedStrategyCount = entry.strategyInventory.filter(
     (strategy) => strategy.unlimited || strategy.tournamentRemaining > 0,
   ).length;
+
+  const featuredCpu =
+    Array.isArray(teams)
+      ? teams.find((team) => team.isPlayer !== true)
+      : null;
 
   const scenes = [
     {
@@ -426,12 +453,16 @@ export function createOpeningScenes(entry) {
     {
       sceneId: "opening-featured-cpu",
       type: "FEATURED_CPU",
-      duration: 1500,
+      duration: 1700,
       backgroundImage: theme.backgroundImage,
-      foregroundImages: [],
-      text: "CPU ROSTER CONNECTING",
-      subtext: `${entry.tournament.cpuPoolId} / Generation 10`,
-      commentary: "注目CPUチームの正式データを照合しています。",
+      foregroundImages: featuredCpu ? [featuredCpu.teamLogo] : [],
+      text: featuredCpu?.teamName ?? "CPU ROSTER READY",
+      subtext: featuredCpu
+        ? `${featuredCpu.form.toUpperCase()} / ${featuredCpu.source}`
+        : entry.tournament.cpuPoolId,
+      commentary: featuredCpu
+        ? `注目チームは${featuredCpu.teamName}！${featuredCpu.description || "実力派チームです！"}`
+        : "CPUチームの正式ロスターを確認しました。",
       soundId: "cpu_spotlight",
       animationId: "data_scan",
       canSkip: true,
@@ -556,27 +587,282 @@ function createPlayerTeamRecord(entry) {
   };
 }
 
-function createPendingCpuSlots(entry) {
-  const count = Math.max(0, entry.tournament.totalTeams - 1);
-  return Array.from({ length: count }, (_, index) => ({
-    teamId: `pending-cpu-${String(index + 1).padStart(2, "0")}`,
-    teamName: null,
-    companyName: null,
-    teamLogo: null,
+function seedTextToUint32(seedText) {
+  const text = String(seedText);
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0 || 0x9e3779b9;
+}
+
+function createSeededRandom(seedText) {
+  let state = seedTextToUint32(seedText);
+  return () => {
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    state >>>= 0;
+    return state / 0x1_0000_0000;
+  };
+}
+
+function deterministicShuffle(entries, random) {
+  const result = [...entries];
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    [result[index], result[swapIndex]] = [
+      result[swapIndex],
+      result[index],
+    ];
+  }
+  return result;
+}
+
+function getCpuPoolForEntry(entry) {
+  switch (entry.tournament.cpuPoolId) {
+    case "cpu-local":
+      return {
+        pool: LOCAL_CPU_TEAMS,
+        source: "cpu-local",
+        selectionMode: "local_pool",
+      };
+    case "cpu-national":
+      return {
+        pool: NATIONAL_CPU_TEAMS,
+        source: "cpu-national",
+        selectionMode: "national_pool",
+      };
+    case "cpu-world":
+      return {
+        pool: getWorldCpuTeamsForYear(entry.gameDate.year),
+        source: "cpu-world",
+        selectionMode:
+          entry.gameDate.year >= 1993
+            ? "world_pool_with_year5_expansion"
+            : "world_formal_pool",
+      };
+    case "championship-top-20":
+      return {
+        pool: getWorldCpuTeamsForYear(entry.gameDate.year),
+        source: "championship-top-20",
+        selectionMode:
+          "world_pool_fallback_pending_championship_point_table",
+      };
+    default:
+      throw new TournamentRuntimeValidationError(
+        `Unsupported CPU pool: ${entry.tournament.cpuPoolId}`,
+        "UNSUPPORTED_CPU_POOL",
+      );
+  }
+}
+
+function resolveCpuTeamForm(entry, random) {
+  const rates = entry.tournament.cpuFormRates;
+  if (
+    rates &&
+    Number.isFinite(rates.slump) &&
+    Number.isFinite(rates.hot) &&
+    rates.slump >= 0 &&
+    rates.hot >= 0 &&
+    rates.slump + rates.hot <= 1
+  ) {
+    const roll = random();
+    if (roll < rates.slump) {
+      return {
+        form: "slump",
+        source: "entry_cpu_form_rates",
+      };
+    }
+    if (roll >= 1 - rates.hot) {
+      return {
+        form: "hot",
+        source: "entry_cpu_form_rates",
+      };
+    }
+  }
+
+  return {
+    form: "normal",
+    source: "default_normal_no_probability_specified",
+  };
+}
+
+function getCpuFormRange(player, form) {
+  if (form === "slump") {
+    return player.slumpRankRange;
+  }
+  if (form === "hot") {
+    return player.hotRankRange;
+  }
+  return player.normalRankRange;
+}
+
+function createCpuSkillSnapshots(player) {
+  const commonSkills = getRoleCommonSkills(player.role);
+  const commonById = new Map(
+    commonSkills.map((skill) => [skill.id, skill]),
+  );
+  const skillIds =
+    player.skillProfile === "unique" &&
+    Array.isArray(player.uniqueSkillIds) &&
+    player.uniqueSkillIds.length === 3
+      ? player.uniqueSkillIds
+      : commonSkills.map((skill) => skill.id);
+
+  return skillIds.map((skillId) => {
+    const common = commonById.get(skillId);
+    if (common) {
+      return {
+        skillId: common.id,
+        name: common.name,
+        type: common.type,
+        target: common.target,
+        baseCt: common.baseCt,
+        source:
+          player.skillProfile === "unique"
+            ? "unique_common_override"
+            : "role_common",
+      };
+    }
+    return {
+      skillId,
+      name: skillId,
+      type: "UNRESOLVED_UNIQUE",
+      target: "battle_defined",
+      baseCt: null,
+      source: "unique_skill_pending_battle_master",
+    };
+  });
+}
+
+function createCpuMemberRecord(sourcePlayer, teamId, form, random) {
+  const rankRange = getCpuFormRange(sourcePlayer, form);
+  const characterRank = resolveCpuRankFromRange(
+    rankRange,
+    random(),
+  );
+  const battleStats = buildCpuBattleStats(
+    characterRank,
+    sourcePlayer.role,
+  );
+  const maxHp = calculateMaxHp(battleStats.stamina);
+  const weaponProfile = resolveCpuWeaponProfile(sourcePlayer);
+
+  return {
+    playerId: sourcePlayer.id,
+    id: sourcePlayer.id,
+    teamId,
+    name: sourcePlayer.name,
+    role: sourcePlayer.role,
+    image: sourcePlayer.image,
+    characterRank,
+    sourceRankRange: deepClone(rankRange),
+    sourceForm: form,
+    battleStats: deepClone(battleStats),
+    maxHp,
+    currentHp: maxHp,
+    combatState: "alive",
+    weapon: {
+      weaponId: `cpu-weapon-${sourcePlayer.id}`,
+      weaponName: weaponProfile.weaponName,
+      image: null,
+      ammoMax: 8,
+      ammoCurrent: 8,
+      preferredRange: weaponProfile.preferredRange,
+      source: weaponProfile.source,
+    },
+    skillProfile: sourcePlayer.skillProfile,
+    skills: createCpuSkillSnapshots(sourcePlayer),
+    specialAbilities: [],
+    dataFallbacks:
+      sourcePlayer.weaponSource === "role_template_fallback"
+        ? ["weaponName", "preferredRange"]
+        : [],
+  };
+}
+
+function createCpuTeamRecord(
+  sourceTeam,
+  entry,
+  selectionIndex,
+  selectionMeta,
+  random,
+) {
+  const formResult = resolveCpuTeamForm(entry, random);
+  const members = sourceTeam.members.map((sourcePlayer) =>
+    createCpuMemberRecord(
+      sourcePlayer,
+      sourceTeam.teamId,
+      formResult.form,
+      random,
+    ),
+  );
+
+  return {
+    teamId: sourceTeam.teamId,
+    teamName: sourceTeam.name,
+    companyName: sourceTeam.companyName,
+    teamLogo: sourceTeam.logo,
+    description: sourceTeam.description,
     groupId: null,
     isPlayer: false,
-    isPlaceholder: true,
-    source: entry.tournament.cpuPoolId,
-    slotNumber: index + 1,
-    members: [],
-  }));
+    isPlaceholder: false,
+    source: selectionMeta.source,
+    selectionMode: selectionMeta.selectionMode,
+    selectionIndex,
+    form: formResult.form,
+    formSource: formResult.source,
+    formLocked: true,
+    unlockGameYear: sourceTeam.unlockGameYear,
+    unlockCalendarYear: sourceTeam.unlockCalendarYear,
+    isExpansionTeam: sourceTeam.isExpansionTeam,
+    teamTrait: sourceTeam.teamTrait,
+    members,
+  };
+}
+
+export function selectCpuTeamsForEntry(entry) {
+  validateTournamentEntryData(entry);
+  const requiredCount = Math.max(
+    0,
+    entry.tournament.totalTeams - 1,
+  );
+  const selectionMeta = getCpuPoolForEntry(entry);
+  if (requiredCount > selectionMeta.pool.length) {
+    throw new TournamentRuntimeValidationError(
+      `CPU pool ${selectionMeta.source} has only ${selectionMeta.pool.length} teams for ${requiredCount} slots.`,
+      "CPU_POOL_TOO_SMALL",
+    );
+  }
+
+  const random = createSeededRandom(
+    `${entry.entryId}|${entry.checksum}|${entry.tournament.cpuPoolId}`,
+  );
+  const selected = deterministicShuffle(
+    selectionMeta.pool,
+    random,
+  ).slice(0, requiredCount);
+
+  return deepFreeze(
+    selected.map((team, index) =>
+      createCpuTeamRecord(
+        team,
+        entry,
+        index + 1,
+        selectionMeta,
+        random,
+      ),
+    ),
+  );
 }
 
 export function createTournamentTeamSlots(entry) {
   validateTournamentEntryData(entry);
   return deepFreeze([
     createPlayerTeamRecord(entry),
-    ...createPendingCpuSlots(entry),
+    ...selectCpuTeamsForEntry(entry),
   ]);
 }
 
@@ -639,6 +925,65 @@ function createPlayerTeamRuntime(entry) {
     bestPlace: null,
     points: 0,
     condition: entry.playerTeam.currentForm ?? "normal",
+  };
+}
+
+function createCpuMemberRuntime(member) {
+  return {
+    playerId: member.playerId,
+    teamId: member.teamId,
+    role: member.role,
+    hp: member.currentHp,
+    maxHp: member.maxHp,
+    combatState: "alive",
+    downCount: 0,
+    deathCount: 0,
+    reviveCount: 0,
+    shots: 0,
+    hits: 0,
+    damage: 0,
+    damageTaken: 0,
+    kills: 0,
+    assists: 0,
+    healing: 0,
+    skillUses: 0,
+    weaponShots: 0,
+    weaponHits: 0,
+    weaponDamage: 0,
+    weaponReloads: 0,
+    currentAmmo: member.weapon.ammoCurrent,
+    reloadRemaining: 0,
+    skillCt: Object.fromEntries(
+      member.skills.map((skill) => [skill.skillId, 0]),
+    ),
+    temporaryEffects: [],
+  };
+}
+
+function createCpuTeamRuntime(team) {
+  return {
+    teamId: team.teamId,
+    matchHp: team.members.map((member) => member.currentHp),
+    persistentHp: team.members.map((member) => member.currentHp),
+    combatState: team.members.map(() => "alive"),
+    skillCt: team.members.map((member) =>
+      Object.fromEntries(
+        member.skills.map((skill) => [skill.skillId, 0]),
+      ),
+    ),
+    temporaryBuffs: [],
+    matchBuffs: [],
+    currentStrategyId: "D-01",
+    strategyConsumed: false,
+    kills: 0,
+    assists: 0,
+    damage: 0,
+    damageTaken: 0,
+    wins: 0,
+    bestPlace: null,
+    points: 0,
+    condition: team.form,
+    formLocked: team.formLocked,
   };
 }
 
@@ -735,14 +1080,34 @@ export function createTournamentRuntime(
   const timestamp = nowIso(clock);
   const teams = createTournamentTeamSlots(entry);
   const map = chooseTournamentMap(entry);
-  const openingScenes = createOpeningScenes(entry);
+  const openingScenes = createOpeningScenes(entry, teams);
   const memberRuntime = Object.fromEntries(
-    entry.playerTeam.members.map((member) => {
-      const runtimeMember = createPlayerMemberRuntime(member);
-      runtimeMember.teamId = entry.playerTeam.teamId;
-      return [member.playerId, runtimeMember];
-    }),
+    teams.flatMap((team) =>
+      team.members.map((member) => {
+        if (team.isPlayer) {
+          const runtimeMember = createPlayerMemberRuntime(member);
+          runtimeMember.teamId = team.teamId;
+          return [member.playerId, runtimeMember];
+        }
+        return [
+          member.playerId,
+          createCpuMemberRuntime(member),
+        ];
+      }),
+    ),
   );
+  const teamRuntime = Object.fromEntries(
+    teams.map((team) => [
+      team.teamId,
+      team.isPlayer
+        ? createPlayerTeamRuntime(entry)
+        : createCpuTeamRuntime(team),
+    ]),
+  );
+  const cpuTeamIds = teams
+    .filter((team) => !team.isPlayer)
+    .map((team) => team.teamId);
+  const initialOpponentId = cpuTeamIds[0] ?? null;
 
   const runtime = {
     runtimeVersion: TOURNAMENT_RUNTIME_VERSION,
@@ -765,18 +1130,27 @@ export function createTournamentRuntime(
     tournamentId: entry.tournament.tournamentId,
     sessionId: entry.tournament.sessionId,
     seasonId: entry.gameDate.seasonId,
+    cpuMasterVersions: {
+      localData: CPU_LOCAL_DATA_VERSION,
+      localMaster: CPU_LOCAL_MASTER_VERSION,
+      nationalData: CPU_NATIONAL_DATA_VERSION,
+      nationalMaster: CPU_NATIONAL_MASTER_VERSION,
+      worldData: CPU_WORLD_DATA_VERSION,
+      worldMaster: CPU_WORLD_MASTER_VERSION,
+    },
     match: 0,
     round: 0,
     playerTeamId: entry.playerTeam.teamId,
     teams: deepClone(teams),
     activeTeamIds: teams.map((team) => team.teamId),
     eliminated: [],
-    currentPairs: [],
-    currentOpponentId: null,
-    lockedOpponentId: null,
-    teamRuntime: {
-      [entry.playerTeam.teamId]: createPlayerTeamRuntime(entry),
-    },
+    currentPairs:
+      initialOpponentId === null
+        ? []
+        : [[entry.playerTeam.teamId, initialOpponentId]],
+    currentOpponentId: initialOpponentId,
+    lockedOpponentId: initialOpponentId,
+    teamRuntime,
     memberRuntime,
     totals: createEmptyTotals(entry),
     matchTotals: [],
@@ -848,6 +1222,7 @@ export function validateTournamentRuntime(runtime, entry = null) {
     );
   }
   assertNonNegativeInteger(runtime.revision, "Runtime revision");
+  assertPlainObject(runtime.cpuMasterVersions, "CPU master versions");
   assertNonNegativeInteger(runtime.match, "Runtime match");
   assertNonNegativeInteger(runtime.round, "Runtime round");
   if (!Array.isArray(runtime.teams) || runtime.teams.length < 1) {
@@ -862,8 +1237,68 @@ export function validateTournamentRuntime(runtime, entry = null) {
       "INVALID_ACTIVE_TEAMS",
     );
   }
+
+  const runtimeTeamIds = runtime.teams.map((team) => team.teamId);
+  if (
+    new Set(runtimeTeamIds).size !== runtimeTeamIds.length ||
+    runtime.teams.some((team) => team.isPlaceholder === true)
+  ) {
+    throw new TournamentRuntimeValidationError(
+      "Runtime CPU teams must be unique formal roster records.",
+      "INVALID_FORMAL_CPU_ROSTER",
+    );
+  }
+
+  for (const team of runtime.teams.filter((candidate) => !candidate.isPlayer)) {
+    if (
+      !Array.isArray(team.members) ||
+      team.members.length !== 3 ||
+      new Set(team.members.map((member) => member.role)).size !== 3
+    ) {
+      throw new TournamentRuntimeValidationError(
+        `CPU team roster is invalid: ${team.teamId}`,
+        "INVALID_CPU_TEAM_ROSTER",
+      );
+    }
+    for (const member of team.members) {
+      if (
+        !member.characterRank ||
+        !member.battleStats ||
+        member.weapon?.ammoMax !== 8 ||
+        !Array.isArray(member.skills) ||
+        member.skills.length !== 3
+      ) {
+        throw new TournamentRuntimeValidationError(
+          `CPU player runtime source is invalid: ${member.playerId}`,
+          "INVALID_CPU_PLAYER_RUNTIME_SOURCE",
+        );
+      }
+    }
+  }
+
   assertPlainObject(runtime.teamRuntime, "Team runtime");
   assertPlainObject(runtime.memberRuntime, "Member runtime");
+  if (
+    Object.keys(runtime.teamRuntime).length !== runtime.teams.length ||
+    Object.keys(runtime.memberRuntime).length !== runtime.teams.length * 3
+  ) {
+    throw new TournamentRuntimeValidationError(
+      "CPU/player runtime map counts are inconsistent.",
+      "INVALID_RUNTIME_ROSTER_MAP_COUNT",
+    );
+  }
+  if (
+    runtime.currentOpponentId !== null &&
+    (
+      runtime.currentOpponentId === runtime.playerTeamId ||
+      !runtimeTeamIds.includes(runtime.currentOpponentId)
+    )
+  ) {
+    throw new TournamentRuntimeValidationError(
+      "Current CPU opponent is invalid.",
+      "INVALID_CURRENT_CPU_OPPONENT",
+    );
+  }
   assertPlainObject(runtime.inventory, "Inventory runtime");
   assertPlainObject(runtime.strategyRuntime, "Strategy runtime");
   assertPlainObject(runtime.explorationRuntime, "Exploration runtime");
