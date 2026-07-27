@@ -61,7 +61,7 @@ import {
 } from "./state.js";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-0.6.0";
+  "mobbr-management-feature-0.6.1";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -1155,6 +1155,18 @@ function formatNumber(value) {
   return new Intl.NumberFormat("ja-JP").format(value);
 }
 
+export function formatManagementGameDate(gameDate) {
+  if (
+    !gameDate ||
+    !Number.isInteger(gameDate.year) ||
+    !Number.isInteger(gameDate.month) ||
+    !Number.isInteger(gameDate.week)
+  ) {
+    throw new TypeError("Game date is invalid.");
+  }
+  return `${gameDate.year}年 ${gameDate.month}月 第${gameDate.week}週`;
+}
+
 function currencyPriceTemplate(price) {
   return CURRENCY_IDS
     .filter((id) => (price[id] ?? 0) > 0)
@@ -1297,7 +1309,11 @@ export function renderTrainingManagement(snapshot) {
         const selected = TRAINING_PROGRAMS.find((program) => program.id === selectedId) ?? TRAINING_PROGRAMS[0];
         const pointPool = snapshot.playerTrainingPoints?.[player.playerId] ?? snapshot.trainingPoints;
         return `
-          <section class="training-player-station" style="--training-index:${playerIndex}">
+          <section
+            class="training-player-station"
+            style="--training-index:${playerIndex}"
+            data-training-station="${escapeAttribute(player.playerId)}"
+          >
             <header>
               <img class="player-portrait" data-role="${escapeAttribute(player.role)}" src="${escapeAttribute(player.image)}" alt="">
               <div>
@@ -1305,7 +1321,12 @@ export function renderTrainingManagement(snapshot) {
                 <strong>${escapeHtml(player.name)}</strong>
                 <small>P ${pointPool.power} / T ${pointPool.tech} / M ${pointPool.mental} / S ${pointPool.shoot}</small>
               </div>
-              <img class="training-player-station__selected" src="${escapeAttribute(selected.image)}" alt="">
+              <img
+                class="training-player-station__selected"
+                data-training-selected-preview
+                src="${escapeAttribute(selected.image)}"
+                alt="${escapeAttribute(selected.name)}"
+              >
             </header>
             <input type="hidden" data-training-player="${escapeAttribute(player.playerId)}" value="${escapeAttribute(selected.id)}">
             <div class="training-program-icon-grid" role="radiogroup" aria-label="${escapeAttribute(player.name)}のトレーニング">
@@ -1316,6 +1337,7 @@ export function renderTrainingManagement(snapshot) {
                   data-action="select-training-program"
                   data-player-id="${escapeAttribute(player.playerId)}"
                   data-program-id="${escapeAttribute(program.id)}"
+                  aria-pressed="${program.id === selected.id ? "true" : "false"}"
                   ${tournamentWeek.trainingBlocked ? "disabled" : ""}
                 >
                   <img src="${escapeAttribute(program.image)}" alt="">
@@ -1933,13 +1955,65 @@ export function createManagementController({
     });
   }
 
+  function updateTrainingSelectionInPlace({
+    playerId,
+    programId,
+  }) {
+    const station = root.querySelector(
+      `[data-training-station="${CSS.escape(playerId)}"]`,
+    );
+    const program = TRAINING_PROGRAMS.find(
+      (entry) => entry.id === programId,
+    );
+    if (!station || !program) {
+      return false;
+    }
+
+    const input = station.querySelector(
+      `[data-training-player="${CSS.escape(playerId)}"]`,
+    );
+    if (input) {
+      input.value = programId;
+    }
+
+    const preview = station.querySelector(
+      "[data-training-selected-preview]",
+    );
+    if (preview) {
+      preview.src = program.image;
+      preview.alt = program.name;
+    }
+
+    for (const button of station.querySelectorAll(
+      '[data-action="select-training-program"]',
+    )) {
+      const selected =
+        button.dataset.programId === programId;
+      button.classList.toggle("is-selected", selected);
+      button.setAttribute(
+        "aria-pressed",
+        selected ? "true" : "false",
+      );
+    }
+    return true;
+  }
+
   async function handleAction(actionElement) {
     const action = actionElement.dataset.action;
 
     if (action === "select-training-program") {
-      MANAGEMENT_VIEW_STATE.trainingSelections[actionElement.dataset.playerId] =
-        actionElement.dataset.programId;
-      renderPreservingScroll();
+      const playerId = actionElement.dataset.playerId;
+      const programId = actionElement.dataset.programId;
+      MANAGEMENT_VIEW_STATE.trainingSelections[playerId] =
+        programId;
+
+      // iOS Safariで一瞬scrollTop=0が描画されるため、
+      // 画面全体を再描画せず、この選手欄だけを更新します。
+      updateTrainingSelectionInPlace({
+        playerId,
+        programId,
+      });
+      actionElement.blur();
       return true;
     }
 
@@ -2016,7 +2090,7 @@ export function createManagementController({
 
         await openAlert({
           title: "TRAINING COMPLETE",
-          body: `<section class="training-result-show training-result-show--complete"><span>TRAINING FINISHED</span><h3>${escapeHtml(formatGameDate(beforeTrainingDate))}</h3><div class="training-result-members">${memberRows}</div></section>`,
+          body: `<section class="training-result-show training-result-show--complete"><span>TRAINING FINISHED</span><h3>${escapeHtml(formatManagementGameDate(beforeTrainingDate))}</h3><div class="training-result-members">${memberRows}</div></section>`,
           buttonLabel: "能力ポイント確認",
         });
 
@@ -2028,7 +2102,7 @@ export function createManagementController({
 
         await openAlert({
           title: "NEW WEEK START",
-          body: `<section class="week-start-screen"><span>WEEK START</span><h3>${latest.gameDate.year}年 ${latest.gameDate.month}月 第${latest.gameDate.week}週</h3><p>${escapeHtml(formatGameDate(beforeTrainingDate))}のトレーニングを終え、新しい週が始まりました。</p>${bonusRecord ? `<div class="weekly-bonus-inline"><span>WEEK START BONUS</span><strong><img src="icon/coin.png" alt="">${formatNumber(bonusRecord.granted.coin)}</strong><strong><img src="icon/daia.png" alt="">${formatNumber(bonusRecord.granted.diamond)}</strong><strong><img src="icon/rubi.png" alt="">${formatNumber(bonusRecord.granted.ruby)}</strong></div>` : ""}</section>`,
+          body: `<section class="week-start-screen"><span>WEEK START</span><h3>${latest.gameDate.year}年 ${latest.gameDate.month}月 第${latest.gameDate.week}週</h3><p>${escapeHtml(formatManagementGameDate(beforeTrainingDate))}のトレーニングを終え、新しい週が始まりました。</p>${bonusRecord ? `<div class="weekly-bonus-inline"><span>WEEK START BONUS</span><strong><img src="icon/coin.png" alt="">${formatNumber(bonusRecord.granted.coin)}</strong><strong><img src="icon/daia.png" alt="">${formatNumber(bonusRecord.granted.diamond)}</strong><strong><img src="icon/rubi.png" alt="">${formatNumber(bonusRecord.granted.ruby)}</strong></div>` : ""}</section>`,
           buttonLabel: "今週を始める",
         });
         renderPreservingScroll();
