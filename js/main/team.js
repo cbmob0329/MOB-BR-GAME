@@ -33,7 +33,7 @@ import {
   getWeaponUpgradeCost,
 } from "../../data/ability-data.js";
 
-export const TEAM_FEATURE_VERSION = "mobbr-team-feature-0.2.0";
+export const TEAM_FEATURE_VERSION = "mobbr-team-feature-0.3.0";
 
 const ROLE_ICONS = Object.freeze({
   IGL: "icon/IGL.png",
@@ -528,6 +528,98 @@ function pointPoolTemplate(snapshot) {
   `;
 }
 
+export function calculatePlayerStatUpgradePlan(
+  snapshot,
+  playerId,
+  increments = {},
+) {
+  const player = getPlayer(snapshot, playerId);
+  const normalized = Object.fromEntries(
+    PLAYER_STAT_DEFINITIONS.map((definition) => [
+      definition.id,
+      Math.max(0, Math.floor(increments[definition.id] ?? 0)),
+    ]),
+  );
+  const totalCost = Object.fromEntries(
+    TRAINING_POINT_IDS.map((pointId) => [pointId, 0]),
+  );
+  const rows = PLAYER_STAT_DEFINITIONS.map((definition) => {
+    const currentValue = player.stats[definition.id];
+    let projectedValue = currentValue;
+    const steps = [];
+    for (let index = 0; index < normalized[definition.id]; index += 1) {
+      const cost = getStatUpgradeCost(projectedValue);
+      if (!cost) break;
+      const pointCost = Object.fromEntries(
+        TRAINING_POINT_IDS.map((pointId) => [pointId, 0]),
+      );
+      pointCost[definition.primaryPoint] = cost.primary;
+      pointCost[definition.secondaryPoint] = cost.secondary;
+      for (const pointId of TRAINING_POINT_IDS) {
+        totalCost[pointId] += pointCost[pointId];
+      }
+      steps.push(pointCost);
+      projectedValue += 1;
+    }
+    normalized[definition.id] = steps.length;
+    const nextCostMaster = getStatUpgradeCost(projectedValue);
+    const nextCost = Object.fromEntries(
+      TRAINING_POINT_IDS.map((pointId) => [pointId, 0]),
+    );
+    if (nextCostMaster) {
+      nextCost[definition.primaryPoint] = nextCostMaster.primary;
+      nextCost[definition.secondaryPoint] = nextCostMaster.secondary;
+    }
+    return {
+      definition,
+      currentValue,
+      projectedValue,
+      increment: steps.length,
+      nextCost,
+      atMaximum: nextCostMaster === null,
+    };
+  });
+  const remainingPoints = Object.fromEntries(
+    TRAINING_POINT_IDS.map((pointId) => [
+      pointId,
+      snapshot.trainingPoints[pointId] - totalCost[pointId],
+    ]),
+  );
+  return {
+    playerId,
+    increments: normalized,
+    totalCost,
+    remainingPoints,
+    affordable: TRAINING_POINT_IDS.every((pointId) => remainingPoints[pointId] >= 0),
+    hasChanges: Object.values(normalized).some((value) => value > 0),
+    rows,
+  };
+}
+
+export function applyPlayerStatUpgradePlanToDraft(
+  draft,
+  playerId,
+  increments,
+) {
+  assertDraft(draft);
+  const results = [];
+  for (const definition of PLAYER_STAT_DEFINITIONS) {
+    const count = Math.max(0, Math.floor(increments?.[definition.id] ?? 0));
+    for (let index = 0; index < count; index += 1) {
+      results.push(upgradePlayerStatToDraft(draft, playerId, definition.id));
+    }
+  }
+  if (results.length === 0) {
+    throw new RangeError("確定する能力アップがありません。");
+  }
+  return {
+    playerId,
+    results,
+    totalUpgrades: results.length,
+    characterRank: getPlayer(draft, playerId).characterRank,
+  };
+}
+
 export function renderPlayerSelector(snapshot, selectedPlayerId) {
   return `
     <div class="team-player-selector" role="tablist" aria-label="選手選択">
@@ -614,56 +706,50 @@ function abilityCostTemplate(cost) {
     .join("");
 }
 
-export function renderAbilityUpSection(snapshot, selectedPlayerId) {
+export function renderAbilityUpSection(
+  snapshot,
+  selectedPlayerId,
+  pendingIncrements = {},
+) {
   const playerId = getSelectedPlayerId(snapshot, selectedPlayerId);
   const player = getPlayer(snapshot, playerId);
+  const plan = calculatePlayerStatUpgradePlan(snapshot, playerId, pendingIncrements);
 
   return `
     ${renderPlayerSelector(snapshot, playerId)}
-    ${pointPoolTemplate(snapshot)}
-    <section class="growth-grid">
-      ${PLAYER_STAT_DEFINITIONS.map((definition) => {
-        const currentValue = player.stats[definition.id];
-        const cost = getStatUpgradeCost(currentValue);
-        const pointCost = Object.fromEntries(
-          TRAINING_POINT_IDS.map((pointId) => [pointId, 0]),
-        );
-        if (cost) {
-          pointCost[definition.primaryPoint] = cost.primary;
-          pointCost[definition.secondaryPoint] = cost.secondary;
-        }
-        const affordable = cost
-          ? canAffordPointCost(snapshot.trainingPoints, pointCost)
-          : false;
-
+    <section class="ability-plan-points">
+      ${TRAINING_POINT_IDS.map((pointId) => `
+        <span class="${plan.remainingPoints[pointId] < 0 ? "is-negative" : ""}">
+          ${POINT_LABELS[pointId]}
+          <strong>${formatNumber(snapshot.trainingPoints[pointId])}</strong>
+          <em>→ ${formatNumber(plan.remainingPoints[pointId])}</em>
+        </span>
+      `).join("")}
+    </section>
+    <section class="growth-grid growth-grid--planned">
+      ${plan.rows.map((row) => {
+        const projectedRank = characterValueToRank(row.projectedValue);
+        const nextAffordable = !row.atMaximum && canAffordPointCost(plan.remainingPoints, row.nextCost);
         return `
-          <article class="growth-card">
-            <img class="growth-card__icon" src="${escapeAttribute(definition.icon)}" alt="">
+          <article class="growth-card growth-card--planned">
+            <img class="growth-card__icon" src="${escapeAttribute(row.definition.icon)}" alt="">
             <div class="growth-card__main">
-              <h3>${escapeHtml(definition.displayName)}</h3>
-              <p>
-                ${escapeHtml(characterValueToRank(currentValue))}
-                <span>内部値 ${currentValue}</span>
-              </p>
-              ${
-                cost
-                  ? `<div class="cost-tags">${abilityCostTemplate(pointCost)}</div>`
-                  : `<div class="cost-tags"><span>MAX</span></div>`
-              }
+              <h3>${escapeHtml(row.definition.displayName)}</h3>
+              <p>${escapeHtml(characterValueToRank(row.currentValue))}${row.increment > 0 ? ` → <strong>${escapeHtml(projectedRank)}</strong>` : ""}<span>内部値 ${row.currentValue}${row.increment > 0 ? ` + ${row.increment}` : ""}</span></p>
+              ${row.atMaximum ? `<div class="cost-tags"><span>MAX</span></div>` : `<div class="cost-tags">${abilityCostTemplate(row.nextCost)}</div>`}
             </div>
-            <button
-              type="button"
-              class="compact-upgrade-button"
-              data-action="upgrade-player-stat"
-              data-player-id="${escapeAttribute(playerId)}"
-              data-stat-id="${escapeAttribute(definition.id)}"
-              ${cost && affordable ? "" : "disabled"}
-            >
-              ${cost ? "＋1" : "MOB"}
-            </button>
+            <div class="growth-stepper">
+              <button type="button" data-action="ability-plan-minus" data-player-id="${escapeAttribute(playerId)}" data-stat-id="${escapeAttribute(row.definition.id)}" ${row.increment > 0 ? "" : "disabled"}>−</button>
+              <strong>${row.increment}</strong>
+              <button type="button" data-action="ability-plan-plus" data-player-id="${escapeAttribute(playerId)}" data-stat-id="${escapeAttribute(row.definition.id)}" ${nextAffordable ? "" : "disabled"}>＋</button>
+            </div>
           </article>
         `;
       }).join("")}
+    </section>
+    <section class="ability-plan-footer">
+      <div><span>予定強化</span><strong>${plan.rows.reduce((sum, row) => sum + row.increment, 0)}段階</strong></div>
+      <button type="button" class="primary-button" data-action="ability-plan-confirm" data-player-id="${escapeAttribute(playerId)}" ${plan.hasChanges && plan.affordable ? "" : "disabled"}>能力アップを確定</button>
     </section>
   `;
 }

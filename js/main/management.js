@@ -9,6 +9,7 @@ import {
   TRAINING_POINT_IDS,
   advanceGameWeek,
   getCompanyRankData,
+  getTournamentEventsForDate,
 } from "../../data/game-data.js";
 import {
   TRAINING_PROGRAMS,
@@ -60,11 +61,80 @@ import {
 } from "./state.js";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-0.2.0";
+  "mobbr-management-feature-0.3.0";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
 const ROOM_EPSILON = 0.001;
+
+const MANAGEMENT_VIEW_STATE = {
+  shopCategory: null,
+  collectionFile: null,
+  selectedPackType: null,
+  selectedPackId: null,
+};
+
+const SHOP_CATEGORY_DEFINITIONS = Object.freeze([
+  { id: "item", label: "アイテム", icon: "icon/item.png", dialogue: "大会用アイテムです。必要な数をまとめて購入できます。" },
+  { id: "card", label: "カード", icon: "icon/card.png", dialogue: "カードパックです。解放済み商品を複数まとめて購入できます。" },
+  { id: "skin", label: "スキン", icon: "menu/gacha.png", dialogue: "武器スキンです。未所持スキンだけが抽選対象です。" },
+  { id: "good", label: "GOOD", icon: "icon/bagi.png", dialogue: "バッジパックなどの大会記念品です。大会報酬で入手できます。" },
+]);
+
+function tournamentQualificationNeeded(snapshot, event) {
+  const history = snapshot.tournament?.history ?? [];
+  if (history.some((entry) => entry.tournamentId === event.tournamentId)) {
+    return false;
+  }
+  const type = event.tournamentType;
+  if (type === "local") return true;
+  const qualifiedTypes = new Set(
+    history
+      .filter((entry) => entry.qualified === true || entry.status === "qualified")
+      .map((entry) => entry.nextStageId)
+      .filter(Boolean),
+  );
+  if (qualifiedTypes.has(type)) return true;
+  if (type === "national") {
+    return history.some((entry) =>
+      entry.tournamentType === "local" &&
+      Number.isInteger(entry.finalPlace) &&
+      entry.finalPlace <= 10
+    );
+  }
+  if (type === "world_qualifier" || type === "world_last_chance") {
+    return history.some((entry) =>
+      entry.tournamentType === "national" && entry.qualified === true
+    );
+  }
+  if (type === "world_final") {
+    return history.some((entry) =>
+      ["world_qualifier", "world_last_chance"].includes(entry.tournamentType) &&
+      entry.qualified === true
+    );
+  }
+  if (type === "championship") {
+    return history.some((entry) =>
+      entry.tournamentType === "world_final" &&
+      Number.isInteger(entry.finalPlace) &&
+      entry.finalPlace <= 20
+    );
+  }
+  return false;
+}
+
+export function getTournamentWeekStatus(snapshot) {
+  const events = getTournamentEventsForDate(snapshot.gameDate);
+  const details = events.map((event) => ({
+    event,
+    participationRequired: tournamentQualificationNeeded(snapshot, event),
+  }));
+  return {
+    hasTournament: details.length > 0,
+    trainingBlocked: details.some((detail) => detail.participationRequired),
+    details,
+  };
+}
 
 function deepClone(value) {
   if (typeof globalThis.structuredClone === "function") {
@@ -240,6 +310,14 @@ export function executeTrainingToDraft(
   ) {
     throw new RangeError("未完了の大会があるためトレーニングできません。");
   }
+  const tournamentWeek = getTournamentWeekStatus(draft);
+  if (tournamentWeek.trainingBlocked) {
+    const names = tournamentWeek.details
+      .filter((detail) => detail.participationRequired)
+      .map((detail) => detail.event.stageName)
+      .join(" / ");
+    throw new RangeError(`今週は出場予定大会（${names}）があるためトレーニングできません。`);
+  }
 
   const badgeBonusRate =
     draft.collectionBonuses.trainingPointRate ??
@@ -253,6 +331,24 @@ export function executeTrainingToDraft(
   }
   draft.records.trainingCompleted += 1;
 
+  for (const detail of tournamentWeek.details) {
+    const event = detail.event;
+    if (draft.tournament.history.some((entry) => entry.tournamentId === event.tournamentId)) {
+      continue;
+    }
+    draft.tournament.history.push({
+      tournamentId: event.tournamentId,
+      tournamentType: event.tournamentType,
+      stageName: event.stageName,
+      finalPlace: null,
+      qualified: false,
+      status: "not_entered",
+      summary: `今週は${event.stageName}が開催されました。出場予定はありませんでした。`,
+      rewards: { coin: 0, diamond: 0, ruby: 0, companyExp: 0 },
+      rankings: [],
+      completedAt: clock().toISOString(),
+    });
+  }
   const weekAdvance = advanceWeeksToDraft(draft, 1, {
     grantWeeklyBonus: true,
     clock,
@@ -505,10 +601,14 @@ export function openCardPacksToDraft(
   assertRandom(random);
   const pack = getCardPack(packId);
   const owned = draft.inventory.cardPacks[packId] ?? 0;
-  const count = mode === "all" ? owned : 1;
+  const count = mode === "all"
+    ? owned
+    : mode === "leave_one"
+      ? Math.max(0, owned - 1)
+      : 1;
 
-  if (!["one", "all"].includes(mode)) {
-    throw new RangeError("開封モードはoneまたはallです。");
+  if (!["one", "leave_one", "all"].includes(mode)) {
+    throw new RangeError("開封モードが不正です。");
   }
   if (owned < count || count < 1) {
     throw new RangeError("開封できるカードパックがありません。");
@@ -569,10 +669,14 @@ export function openBadgePacksToDraft(
   assertRandom(random);
   const pack = getBadgePack(packId);
   const owned = draft.inventory.badgePacks[packId] ?? 0;
-  const count = mode === "all" ? owned : 1;
+  const count = mode === "all"
+    ? owned
+    : mode === "leave_one"
+      ? Math.max(0, owned - 1)
+      : 1;
 
-  if (!["one", "all"].includes(mode)) {
-    throw new RangeError("開封モードはoneまたはallです。");
+  if (!["one", "leave_one", "all"].includes(mode)) {
+    throw new RangeError("開封モードが不正です。");
   }
   if (owned < count || count < 1) {
     throw new RangeError("開封できるバッジパックがありません。");
@@ -1068,47 +1172,41 @@ function collectionLogoPath(master) {
 }
 
 function collectionFilePages(entries, category) {
-  if (entries.length === 0) {
-    return `<p class="empty-state">${category === "card" ? "カード" : "バッジ"}はまだありません。</p>`;
-  }
-  const pageCount = Math.ceil(entries.length / 9);
+  const pageCount = Math.max(1, Math.ceil(entries.length / 9));
   return `
-    <div class="collection-file" role="region" aria-label="${category === "card" ? "カード" : "バッジ"}ファイル">
+    <div class="collection-file collection-file--${category}" role="region" aria-label="${category === "card" ? "カード" : "バッジ"}ファイル">
       ${Array.from({ length: pageCount }, (_, pageIndex) => {
         const pageEntries = entries.slice(pageIndex * 9, pageIndex * 9 + 9);
         return `
           <section class="collection-file__page">
-            <header>
-              <strong>${category === "card" ? "CARD FILE" : "BADGE FILE"}</strong>
-              <span>${pageIndex + 1} / ${pageCount}</span>
-            </header>
+            <header><strong>${category === "card" ? "CARD FILE" : "BADGE FILE"}</strong><span>${pageIndex + 1} / ${pageCount}</span></header>
             <div class="collection-file__grid">
               ${Array.from({ length: 9 }, (_, slotIndex) => {
                 const entry = pageEntries[slotIndex];
-                if (!entry) {
-                  return `<div class="collection-file__empty"><span>EMPTY</span></div>`;
-                }
+                if (!entry) return `<div class="collection-file__empty"><span>EMPTY</span></div>`;
                 const { master, owned } = entry;
+                const isOwned = owned?.owned === true;
                 const logo = collectionLogoPath(master);
                 if (category === "card") {
                   return `
-                    <article class="collection-file-card collection-file-card--${escapeAttribute(master.tier)}">
+                    <button type="button" class="collection-file-card collection-file-card--${escapeAttribute(master.tier)} ${isOwned ? "is-owned" : "is-locked"}" data-action="inspect-collection-entry" data-collection-id="${escapeAttribute(master.collectionId)}">
+                      <span class="collection-file-card__number">No.${String(master.collectionNo).padStart(3, "0")}</span>
                       <div class="collection-file-card__shine" aria-hidden="true"></div>
                       <img class="collection-file-card__character" src="${escapeAttribute(master.image)}" alt="">
                       <img class="collection-file-card__logo" src="${escapeAttribute(logo)}" alt="">
-                      <span>${escapeHtml(master.role)}</span>
-                      <strong>${escapeHtml(master.name)}</strong>
-                      <small>No.${master.collectionNo} / +${owned.level}</small>
-                    </article>
+                      <strong>${escapeHtml(isOwned ? master.name : "未獲得")}</strong>
+                      <small>${isOwned ? `${escapeHtml(master.role)} / +${owned.level}` : "LOCKED"}</small>
+                    </button>
                   `;
                 }
                 return `
-                  <article class="collection-file-badge">
+                  <button type="button" class="collection-file-badge ${isOwned ? "is-owned" : "is-locked"}" data-action="inspect-collection-entry" data-collection-id="${escapeAttribute(master.collectionId)}">
+                    <span class="collection-file-card__number">No.${String(master.collectionNo).padStart(3, "0")}</span>
                     <div class="collection-file-badge__ring" aria-hidden="true"></div>
                     <img src="${escapeAttribute(master.image)}" alt="">
-                    <strong>${escapeHtml(master.teamName)}</strong>
-                    <small>No.${master.collectionNo} / +${owned.level}</small>
-                  </article>
+                    <strong>${escapeHtml(isOwned ? master.teamName : "未獲得")}</strong>
+                    <small>${isOwned ? `${escapeHtml(master.tier.toUpperCase())} / +${owned.level}` : "LOCKED"}</small>
+                  </button>
                 `;
               }).join("")}
             </div>
@@ -1116,7 +1214,7 @@ function collectionFilePages(entries, category) {
         `;
       }).join("")}
     </div>
-    <p class="collection-file__hint">左右へスワイプしてページをめくれます。</p>
+    <p class="collection-file__hint">左右へスワイプしてページをめくれます。カード／バッジをタップすると詳細を表示します。</p>
   `;
 }
 
@@ -1152,9 +1250,18 @@ function packOpeningPresentation(result) {
 }
 
 export function renderTrainingManagement(snapshot) {
-  const bonusRate =
-    snapshot.collectionBonuses?.trainingPointRate ?? 0;
+  const bonusRate = snapshot.collectionBonuses?.trainingPointRate ?? 0;
+  const tournamentWeek = getTournamentWeekStatus(snapshot);
+  const notice = tournamentWeek.hasTournament
+    ? `<section class="training-tournament-notice ${tournamentWeek.trainingBlocked ? "is-blocked" : "is-observer"}">
+        <strong>${tournamentWeek.trainingBlocked ? "TOURNAMENT WEEK" : "TOURNAMENT NOTICE"}</strong>
+        <p>${tournamentWeek.details.map((detail) => detail.participationRequired
+          ? `${detail.event.stageName}へ出場予定です。この週はトレーニングできません。`
+          : `${detail.event.stageName}が開催されます。出場予定はないためトレーニング可能です。`).join(" ")}</p>
+      </section>`
+    : "";
   return `
+    ${notice}
     <section class="management-summary training-summary">
       <strong>バッジ補正 +${(bonusRate * 100).toFixed(1)}%</strong>
       <span>3選手が同時にトレーニングし、週明けボーナスを受け取ります</span>
@@ -1163,42 +1270,18 @@ export function renderTrainingManagement(snapshot) {
       ${snapshot.playerTeam.members.map((player, playerIndex) => `
         <label class="training-assignment-card training-assignment-card--visual" style="--training-index:${playerIndex}">
           <div class="training-assignment-card__player">
-            <img
-              class="player-portrait"
-              data-role="${escapeAttribute(player.role)}"
-              src="${escapeAttribute(player.image)}"
-              alt=""
-            >
-            <div>
-              <span>${escapeHtml(player.role)}</span>
-              <strong>${escapeHtml(player.name)}</strong>
-            </div>
+            <img class="player-portrait" data-role="${escapeAttribute(player.role)}" src="${escapeAttribute(player.image)}" alt="">
+            <div><span>${escapeHtml(player.role)}</span><strong>${escapeHtml(player.name)}</strong></div>
           </div>
-          <select data-training-player="${escapeAttribute(player.playerId)}">
-            ${TRAINING_PROGRAMS.map((program) => `
-              <option value="${escapeAttribute(program.id)}">
-                ${escapeHtml(program.name)} — P${program.points.power}
-                T${program.points.tech} M${program.points.mental}
-                S${program.points.shoot}
-              </option>
-            `).join("")}
+          <select data-training-player="${escapeAttribute(player.playerId)}" ${tournamentWeek.trainingBlocked ? "disabled" : ""}>
+            ${TRAINING_PROGRAMS.map((program) => `<option value="${escapeAttribute(program.id)}">${escapeHtml(program.name)} — P${program.points.power} T${program.points.tech} M${program.points.mental} S${program.points.shoot}</option>`).join("")}
           </select>
-          <div class="training-program-preview">
-            ${TRAINING_PROGRAMS.slice(0, 6).map((program) => `
-              <span title="${escapeAttribute(program.name)}">
-                <img src="${escapeAttribute(program.image)}" alt="">
-              </span>
-            `).join("")}
-          </div>
+          <div class="training-program-preview">${TRAINING_PROGRAMS.slice(0, 6).map((program) => `<span title="${escapeAttribute(program.name)}"><img src="${escapeAttribute(program.image)}" alt=""></span>`).join("")}</div>
         </label>
       `).join("")}
-      <button
-        type="button"
-        class="primary-button training-start-button"
-        data-action="execute-training"
-      >
-        <span>TRAINING START</span>
-        <small>1週間トレーニング</small>
+      <button type="button" class="primary-button training-start-button" data-action="execute-training" ${tournamentWeek.trainingBlocked ? "disabled" : ""}>
+        <span>${tournamentWeek.trainingBlocked ? "TOURNAMENT WEEK" : "TRAINING START"}</span>
+        <small>${tournamentWeek.trainingBlocked ? "大会終了後に実行できます" : "1週間トレーニング"}</small>
       </button>
     </form>
   `;
@@ -1206,69 +1289,98 @@ export function renderTrainingManagement(snapshot) {
 
 export function renderShopManagement(snapshot) {
   const unlockProgress = getCardPackUnlockProgress(snapshot);
-  const gachaPool = WEAPON_SKINS.filter(
-    (skin) =>
-      skin.source === "gacha" &&
-      snapshot.inventory.weaponSkins?.[skin.skinId] !== true,
+  const category = MANAGEMENT_VIEW_STATE.shopCategory;
+  const categoryDefinition = SHOP_CATEGORY_DEFINITIONS.find(
+    (entry) => entry.id === category,
   );
+  let categoryContent = `
+    <section class="mobshop-welcome">
+      <p>ロボ店員「いらっしゃいませ。商品カテゴリを選択してください。」</p>
+    </section>
+  `;
+
+  if (category === "item") {
+    categoryContent = `
+      <section class="management-section">
+        <div class="management-section__heading">
+          <h2>ITEM</h2><span>アイコンをタップして数量を入力</span>
+        </div>
+        <div class="shop-item-grid">
+          ${CONSUMABLE_ITEMS.map((item) => shopItemTile(item, snapshot)).join("")}
+        </div>
+      </section>
+    `;
+  } else if (category === "card") {
+    categoryContent = `
+      <section class="management-section">
+        <div class="management-section__heading"><h2>CARD PACK</h2><span>複数購入対応</span></div>
+        <div class="shop-category-product-grid">
+          ${CARD_PACKS.map((pack) => {
+            const unlocked = isCardPackUnlocked(pack.packId, unlockProgress);
+            return `
+              <button type="button" class="shop-category-product" data-action="inspect-shop-pack" data-pack-type="card" data-pack-id="${escapeAttribute(pack.packId)}" ${unlocked ? "" : "disabled"}>
+                <img src="${escapeAttribute(pack.image)}" alt="">
+                <strong>${escapeHtml(pack.name)}</strong>
+                <small>${unlocked ? currencyPriceTemplate(pack.price) : "大会条件未達"}</small>
+                <em>所持 ${formatNumber(snapshot.inventory.cardPacks[pack.packId] ?? 0)}</em>
+              </button>
+            `;
+          }).join("")}
+        </div>
+      </section>
+    `;
+  } else if (category === "skin") {
+    const remaining = WEAPON_SKINS.filter(
+      (skin) => skin.source === "gacha" && snapshot.inventory.weaponSkins?.[skin.skinId] !== true,
+    );
+    categoryContent = `
+      <section class="management-section">
+        <div class="management-section__heading"><h2>WEAPON SKIN</h2><span>未所持 ${remaining.length}</span></div>
+        <div class="shop-category-product-grid">
+          ${WEAPON_SKINS.map((skin) => `
+            <article class="shop-category-product ${snapshot.inventory.weaponSkins?.[skin.skinId] ? "is-owned" : ""}">
+              <img src="${escapeAttribute(skin.image)}" alt="">
+              <strong>${escapeHtml(skin.name)}</strong>
+              <small>${snapshot.inventory.weaponSkins?.[skin.skinId] ? "OWNED" : skin.source === "initial" ? "INITIAL" : "GACHA"}</small>
+            </article>
+          `).join("")}
+        </div>
+        <button type="button" class="primary-button mobshop-gacha-button" data-action="weapon-skin-gacha" ${remaining.length ? "" : "disabled"}>50 DIAMOND / 3 RUBYで抽選</button>
+      </section>
+    `;
+  } else if (category === "good") {
+    categoryContent = `
+      <section class="management-section">
+        <div class="management-section__heading"><h2>GOOD</h2><span>大会記念品</span></div>
+        <div class="shop-category-product-grid">
+          ${BADGE_PACKS.map((pack) => `
+            <article class="shop-category-product">
+              <img src="${escapeAttribute(pack.image)}" alt="">
+              <strong>${escapeHtml(pack.name)}</strong>
+              <small>大会報酬限定</small>
+              <em>所持 ${formatNumber(snapshot.inventory.badgePacks[pack.packId] ?? 0)}</em>
+            </article>
+          `).join("")}
+        </div>
+      </section>
+    `;
+  }
 
   return `
-    <section class="management-section">
-      <div class="management-section__heading">
-        <h2>ITEM SHOP</h2>
-        <span>アイコンをタップして詳細・購入</span>
+    <section class="mobshop-popup" style="--mobshop-bg:url('BACK/mobshop.png')">
+      <div class="mobshop-clerk" aria-label="ロボ店員">
+        <div class="mobshop-clerk__head"><i></i><i></i><b></b></div>
+        <p>${escapeHtml(categoryDefinition?.dialogue ?? "いらっしゃいませ。4つのカテゴリから選んでください。")}</p>
       </div>
-      <div class="shop-item-grid">
-        ${CONSUMABLE_ITEMS.map((item) => shopItemTile(item, snapshot)).join("")}
-      </div>
-    </section>
-
-    <section class="management-section">
-      <h2>CARD PACK</h2>
-      <div class="management-card-grid">
-        ${CARD_PACKS.map((pack) => {
-          const unlocked = isCardPackUnlocked(
-            pack.packId,
-            unlockProgress,
-          );
-          return `
-            <article class="shop-product-card">
-              <img src="${escapeAttribute(pack.image)}" alt="">
-              <div>
-                <h3>${escapeHtml(pack.name)}</h3>
-                <p>${unlocked ? "購入可能" : "大会条件未達"}</p>
-                <div class="cost-tags">${currencyPriceTemplate(pack.price)}</div>
-                <small>所持 ${formatNumber(snapshot.inventory.cardPacks[pack.packId] ?? 0)}</small>
-              </div>
-              <button
-                type="button"
-                class="compact-upgrade-button"
-                data-action="purchase-card-pack"
-                data-pack-id="${escapeAttribute(pack.packId)}"
-                ${unlocked ? "" : "disabled"}
-              >
-                購入
-              </button>
-            </article>
-          `;
-        }).join("")}
-      </div>
-    </section>
-
-    <section class="content-panel skin-gacha-panel">
-      <h2>WEAPON SKIN GACHA</h2>
-      <p>
-        50 DIAMOND + 3 RUBY / 重複なし<br>
-        残り ${gachaPool.length}種類
-      </p>
-      <button
-        type="button"
-        class="primary-button"
-        data-action="weapon-skin-gacha"
-        ${gachaPool.length > 0 ? "" : "disabled"}
-      >
-        ガチャを引く
-      </button>
+      <nav class="mobshop-category-grid" aria-label="ショップカテゴリ">
+        ${SHOP_CATEGORY_DEFINITIONS.map((entry) => `
+          <button type="button" class="${category === entry.id ? "is-active" : ""}" data-action="select-shop-category" data-shop-category="${escapeAttribute(entry.id)}">
+            <img src="${escapeAttribute(entry.icon)}" alt="">
+            <span>${escapeHtml(entry.label)}</span>
+          </button>
+        `).join("")}
+      </nav>
+      <div class="mobshop-content">${categoryContent}</div>
     </section>
   `;
 }
@@ -1416,97 +1528,78 @@ export function renderScoutManagement(snapshot) {
 function packOpenButtons(type, packs, inventory) {
   return packs.map((pack) => {
     const count = inventory[pack.packId] ?? 0;
+    const selected = MANAGEMENT_VIEW_STATE.selectedPackType === type && MANAGEMENT_VIEW_STATE.selectedPackId === pack.packId;
     return `
-      <article class="pack-open-card">
+      <button type="button" class="pack-icon-tile ${selected ? "is-selected" : ""}" data-action="select-collection-pack" data-pack-type="${type}" data-pack-id="${escapeAttribute(pack.packId)}">
         <img src="${escapeAttribute(pack.image)}" alt="">
-        <div>
-          <h3>${escapeHtml(pack.name)}</h3>
-          <p>所持 ${formatNumber(count)}</p>
-        </div>
-        <button
-          type="button"
-          class="secondary-button"
-          data-action="open-${type}-pack"
-          data-pack-id="${escapeAttribute(pack.packId)}"
-          data-open-mode="one"
-          ${count > 0 ? "" : "disabled"}
-        >
-          1つ開封
-        </button>
-        <button
-          type="button"
-          class="primary-button"
-          data-action="open-${type}-pack"
-          data-pack-id="${escapeAttribute(pack.packId)}"
-          data-open-mode="all"
-          ${count > 0 ? "" : "disabled"}
-        >
-          全て開封
-        </button>
-      </article>
+        <strong>${escapeHtml(pack.name)}</strong>
+        <span>×${formatNumber(count)}</span>
+      </button>
     `;
   }).join("");
 }
 
-function ownedCollectionCards(snapshot, category) {
-  const master =
-    category === "card" ? CARD_COLLECTION : BADGE_COLLECTION;
-  const record =
-    category === "card"
-      ? snapshot.collections.cards
-      : snapshot.collections.badges;
-  return master
-    .filter((entry) => record?.[entry.collectionId]?.owned === true)
-    .map((entry) => ({ master: entry, owned: record[entry.collectionId] }));
+function allCollectionEntries(snapshot, category) {
+  const master = category === "card" ? CARD_COLLECTION : BADGE_COLLECTION;
+  const record = category === "card" ? snapshot.collections.cards : snapshot.collections.badges;
+  return master.map((entry) => ({ master: entry, owned: record?.[entry.collectionId] ?? null }));
+}
+
+function selectedPackPanel(snapshot) {
+  const type = MANAGEMENT_VIEW_STATE.selectedPackType;
+  const packId = MANAGEMENT_VIEW_STATE.selectedPackId;
+  if (!type || !packId) return "";
+  const pack = type === "card" ? getCardPack(packId) : getBadgePack(packId);
+  const inventory = type === "card" ? snapshot.inventory.cardPacks : snapshot.inventory.badgePacks;
+  const count = inventory[packId] ?? 0;
+  return `
+    <section class="selected-pack-panel">
+      <img src="${escapeAttribute(pack.image)}" alt="">
+      <div><span>${type.toUpperCase()} PACK</span><h3>${escapeHtml(pack.name)}</h3><p>所持 ${formatNumber(count)}</p></div>
+      <div class="selected-pack-panel__actions">
+        <button type="button" data-action="open-${type}-pack" data-pack-id="${escapeAttribute(packId)}" data-open-mode="one" ${count >= 1 ? "" : "disabled"}>1つ開封</button>
+        <button type="button" data-action="open-${type}-pack" data-pack-id="${escapeAttribute(packId)}" data-open-mode="leave_one" ${count >= 2 ? "" : "disabled"}>1つ残して全て</button>
+        <button type="button" data-action="open-${type}-pack" data-pack-id="${escapeAttribute(packId)}" data-open-mode="all" ${count >= 1 ? "" : "disabled"}>全て開封</button>
+      </div>
+    </section>
+  `;
 }
 
 export function renderCollectionManagement(snapshot) {
-  const cardCompletion = getCollectionCompletion(
-    snapshot.collections.cards,
-    "card",
-  );
-  const badgeCompletion = getCollectionCompletion(
-    snapshot.collections.badges,
-    "badge",
-  );
-  const ownedCards = ownedCollectionCards(snapshot, "card");
-  const ownedBadges = ownedCollectionCards(snapshot, "badge");
+  const cardCompletion = getCollectionCompletion(snapshot.collections.cards, "card");
+  const badgeCompletion = getCollectionCompletion(snapshot.collections.badges, "badge");
+  const fileType = MANAGEMENT_VIEW_STATE.collectionFile;
+  const allCards = allCollectionEntries(snapshot, "card");
+  const allBadges = allCollectionEntries(snapshot, "badge");
+
+  if (fileType === "card" || fileType === "badge") {
+    return `
+      <section class="collection-file-view">
+        <header>
+          <button type="button" class="back-button" data-action="close-collection-file">← COLLECTION</button>
+          <div><img src="${fileType === "card" ? "icon/cardf.png" : "icon/bagif.png"}" alt=""><strong>${fileType === "card" ? "CARD FILE" : "BADGE FILE"}</strong></div>
+        </header>
+        ${collectionFilePages(fileType === "card" ? allCards : allBadges, fileType)}
+      </section>
+    `;
+  }
 
   return `
+    <section class="collection-file-launchers">
+      <button type="button" data-action="open-collection-file" data-file-type="card">
+        <img src="icon/cardf.png" alt=""><strong>CARD FILE</strong><span>${cardCompletion.ownedCount}/${cardCompletion.totalCount}</span>
+      </button>
+      <button type="button" data-action="open-collection-file" data-file-type="badge">
+        <img src="icon/bagif.png" alt=""><strong>BADGE FILE</strong><span>${badgeCompletion.ownedCount}/${badgeCompletion.totalCount}</span>
+      </button>
+    </section>
     <section class="collection-completion-grid">
-      <article>
-        <strong>CARD ${cardCompletion.ownedCount} / ${cardCompletion.totalCount}</strong>
-        <span>週間COIN +${((snapshot.collectionBonuses.weeklyCoinRate ?? 0) * 100).toFixed(1)}%</span>
-      </article>
-      <article>
-        <strong>BADGE ${badgeCompletion.ownedCount} / ${badgeCompletion.totalCount}</strong>
-        <span>TRAINING +${((snapshot.collectionBonuses.trainingPointRate ?? 0) * 100).toFixed(1)}%</span>
-      </article>
+      <article><img src="icon/card.png" alt=""><strong>CARD ${cardCompletion.ownedCount} / ${cardCompletion.totalCount}</strong><span>週間COIN +${((snapshot.collectionBonuses.weeklyCoinRate ?? 0) * 100).toFixed(1)}%</span></article>
+      <article><img src="icon/bagi.png" alt=""><strong>BADGE ${badgeCompletion.ownedCount} / ${badgeCompletion.totalCount}</strong><span>TRAINING +${((snapshot.collectionBonuses.trainingPointRate ?? 0) * 100).toFixed(1)}%</span></article>
     </section>
-
-    <section class="management-section">
-      <h2>カードパック開封</h2>
-      <div class="pack-open-grid">
-        ${packOpenButtons("card", CARD_PACKS, snapshot.inventory.cardPacks)}
-      </div>
-    </section>
-
-    <section class="management-section">
-      <h2>バッジパック開封</h2>
-      <div class="pack-open-grid">
-        ${packOpenButtons("badge", BADGE_PACKS, snapshot.inventory.badgePacks)}
-      </div>
-    </section>
-
-    <section class="management-section collection-file-section">
-      <h2>CARD FILE</h2>
-      ${collectionFilePages(ownedCards, "card")}
-    </section>
-
-    <section class="management-section collection-file-section">
-      <h2>BADGE FILE</h2>
-      ${collectionFilePages(ownedBadges, "badge")}
-    </section>
+    <section class="management-section"><h2>カードパック</h2><div class="pack-icon-strip">${packOpenButtons("card", CARD_PACKS, snapshot.inventory.cardPacks)}</div></section>
+    <section class="management-section"><h2>バッジパック</h2><div class="pack-icon-strip">${packOpenButtons("badge", BADGE_PACKS, snapshot.inventory.badgePacks)}</div></section>
+    ${selectedPackPanel(snapshot)}
   `;
 }
 
@@ -1708,7 +1801,7 @@ export function renderNewsManagement(snapshot) {
                 <summary>
                   <span>${escapeHtml(entry.tournamentType)}</span>
                   <strong>${escapeHtml(entry.tournamentId)}</strong>
-                  <em>${entry.finalPlace}位</em>
+                  <em>${Number.isInteger(entry.finalPlace) ? `${entry.finalPlace}位` : "不参加"}</em>
                 </summary>
                 <div>
                   <p>${escapeHtml(entry.summary ?? "大会結果")}</p>
@@ -1775,6 +1868,7 @@ export function createManagementController({
   root,
   openConfirm,
   openAlert,
+  openTextPrompt,
   showToast,
   render,
 }) {
@@ -1792,6 +1886,43 @@ export function createManagementController({
 
   async function handleAction(actionElement) {
     const action = actionElement.dataset.action;
+
+    if (action === "select-shop-category") {
+      MANAGEMENT_VIEW_STATE.shopCategory = actionElement.dataset.shopCategory;
+      render();
+      return true;
+    }
+    if (action === "open-collection-file") {
+      MANAGEMENT_VIEW_STATE.collectionFile = actionElement.dataset.fileType;
+      render();
+      return true;
+    }
+    if (action === "close-collection-file") {
+      MANAGEMENT_VIEW_STATE.collectionFile = null;
+      render();
+      return true;
+    }
+    if (action === "select-collection-pack") {
+      MANAGEMENT_VIEW_STATE.selectedPackType = actionElement.dataset.packType;
+      MANAGEMENT_VIEW_STATE.selectedPackId = actionElement.dataset.packId;
+      render();
+      return true;
+    }
+    if (action === "inspect-collection-entry") {
+      const master = getCollectionEntry(actionElement.dataset.collectionId);
+      const snapshot = stateManager.getSnapshot();
+      const record = master.category === "card" ? snapshot.collections.cards : snapshot.collections.badges;
+      const owned = record?.[master.collectionId];
+      if (!owned?.owned) {
+        await openAlert({ title: `No.${String(master.collectionNo).padStart(3, "0")}`, body: "<p>未獲得のコレクションです。</p>" });
+        return true;
+      }
+      const body = master.category === "card"
+        ? `<section class="collection-detail-card"><img class="collection-detail-card__main" src="${escapeAttribute(master.image)}" alt=""><img class="collection-detail-card__logo" src="${escapeAttribute(collectionLogoPath(master))}" alt=""><span>No.${String(master.collectionNo).padStart(3, "0")}</span><h3>${escapeHtml(master.name)}</h3><p>所属 ${escapeHtml(master.teamName)}</p><p>役職 ${escapeHtml(master.role)}</p><strong>LEVEL +${owned.level}</strong></section>`
+        : `<section class="collection-detail-card collection-detail-card--badge"><img class="collection-detail-card__main" src="${escapeAttribute(master.image)}" alt=""><span>No.${String(master.collectionNo).padStart(3, "0")}</span><h3>${escapeHtml(master.teamName)}</h3><p>地域 ${escapeHtml(master.tier[0].toUpperCase() + master.tier.slice(1))}</p><strong>LEVEL +${owned.level}</strong></section>`;
+      await openAlert({ title: master.category === "card" ? "CARD DETAIL" : "BADGE DETAIL", body, buttonLabel: "閉じる" });
+      return true;
+    }
 
     if (action === "execute-training") {
       const assignments = [...root.querySelectorAll("[data-training-player]")]
@@ -1855,32 +1986,48 @@ export function createManagementController({
     if (action === "inspect-shop-item") {
       const item = getItem(actionElement.dataset.itemId);
       const snapshot = stateManager.getSnapshot();
-      const price = currencyPriceTemplate(item.price);
-      const confirmed = await openConfirm({
+      const quantityText = await openTextPrompt({
         title: item.name,
-        body: `
-          <section class="shop-item-detail-modal">
-            <div class="shop-item-detail-modal__image">
-              <img src="${escapeAttribute(item.image)}" alt="">
-            </div>
-            <p>${escapeHtml(item.description)}</p>
-            <div class="cost-tags">${price}</div>
-            <strong>所持 ${formatNumber(snapshot.inventory.items[item.itemId] ?? 0)}</strong>
-            <small>1個購入します</small>
-          </section>
-        `,
+        body: `<section class="shop-item-detail-modal"><div class="shop-item-detail-modal__image"><img src="${escapeAttribute(item.image)}" alt=""></div><p>${escapeHtml(item.description)}</p><div class="cost-tags">${currencyPriceTemplate(item.price)}</div><strong>所持 ${formatNumber(snapshot.inventory.items[item.itemId] ?? 0)}</strong><small>購入数量を1～99で入力してください</small></section>`,
+        initialValue: "1",
+        maximumLength: 2,
         confirmLabel: "購入する",
       });
-      if (!confirmed) return true;
-      try {
-        const tx = stateManager.transact("item_purchased", (draft) =>
-          purchaseConsumableToDraft(draft, item.itemId, 1),
-        );
-        showToast(`${tx.result.name}を購入しました`);
-        render();
-      } catch (error) {
-        await showError("購入できません", error);
+      if (quantityText === false) return true;
+      const quantity = Number(quantityText);
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
+        await showError("購入できません", new RangeError("購入数量は1～99にしてください。"));
+        return true;
       }
+      try {
+        const tx = stateManager.transact("item_purchased", (draft) => purchaseConsumableToDraft(draft, item.itemId, quantity));
+        showToast(`${tx.result.name}を${quantity}個購入しました`);
+        render();
+      } catch (error) { await showError("購入できません", error); }
+      return true;
+    }
+
+    if (action === "inspect-shop-pack") {
+      const pack = getCardPack(actionElement.dataset.packId);
+      const snapshot = stateManager.getSnapshot();
+      const quantityText = await openTextPrompt({
+        title: pack.name,
+        body: `<section class="shop-item-detail-modal"><div class="shop-item-detail-modal__image"><img src="${escapeAttribute(pack.image)}" alt=""></div><p>カードパックをまとめて購入できます。</p><div class="cost-tags">${currencyPriceTemplate(pack.price)}</div><strong>所持 ${formatNumber(snapshot.inventory.cardPacks[pack.packId] ?? 0)}</strong><small>購入数量を1～99で入力してください</small></section>`,
+        initialValue: "1",
+        maximumLength: 2,
+        confirmLabel: "購入する",
+      });
+      if (quantityText === false) return true;
+      const quantity = Number(quantityText);
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
+        await showError("購入できません", new RangeError("購入数量は1～99にしてください。"));
+        return true;
+      }
+      try {
+        const tx = stateManager.transact("card_pack_purchased", (draft) => purchaseCardPackToDraft(draft, pack.packId, quantity));
+        showToast(`${tx.result.name}を${quantity}個購入しました`);
+        render();
+      } catch (error) { await showError("購入できません", error); }
       return true;
     }
 

@@ -359,6 +359,66 @@ export const REWARD_TABLES = deepFreeze({
   },
 });
 
+export function getTournamentIcon(tournamentType) {
+  if (tournamentType === "national") return "icon/national.png";
+  if (String(tournamentType).startsWith("world")) return "icon/world.png";
+  if (tournamentType === "championship") return "icon/champ.png";
+  return "icon/local.png";
+}
+
+export function getTournamentEntryAvailability(snapshot, event) {
+  const history = snapshot.tournament?.history ?? [];
+  if (history.some((entry) => entry.tournamentId === event.tournamentId)) {
+    return { eligible: false, reason: "この大会は記録済みです。", status: "completed" };
+  }
+  const type = event.tournamentType;
+  if (type === "local") {
+    return { eligible: true, reason: "出場予定大会です。", status: "scheduled" };
+  }
+  const qualifiedFor = new Set(
+    history
+      .filter((entry) => entry.qualified === true || entry.status === "qualified")
+      .map((entry) => entry.nextStageId)
+      .filter(Boolean),
+  );
+  if (qualifiedFor.has(type)) {
+    return { eligible: true, reason: "前大会の結果により出場資格があります。", status: "qualified" };
+  }
+  if (
+    type === "national" &&
+    history.some((entry) =>
+      entry.tournamentType === "local" &&
+      Number.isInteger(entry.finalPlace) &&
+      entry.finalPlace <= 10
+    )
+  ) {
+    return { eligible: true, reason: "LOCAL大会の結果により出場資格があります。", status: "qualified" };
+  }
+  if (
+    ["world_qualifier", "world_last_chance"].includes(type) &&
+    history.some((entry) => entry.tournamentType === "national" && entry.qualified === true)
+  ) {
+    return { eligible: true, reason: "NATIONAL大会の結果により出場資格があります。", status: "qualified" };
+  }
+  if (
+    type === "world_final" &&
+    history.some((entry) => ["world_qualifier", "world_last_chance"].includes(entry.tournamentType) && entry.qualified === true)
+  ) {
+    return { eligible: true, reason: "WORLD予選の結果により出場資格があります。", status: "qualified" };
+  }
+  if (
+    type === "championship" &&
+    history.some((entry) => entry.tournamentType === "world_final" && Number.isInteger(entry.finalPlace))
+  ) {
+    return { eligible: true, reason: "CHAMPIONSHIP出場対象です。", status: "qualified" };
+  }
+  return {
+    eligible: false,
+    reason: "出場予定はありませんが、大会結果は新聞へ記録されます。",
+    status: "observer",
+  };
+}
+
 export const TOURNAMENT_TYPE_PRESETS = deepFreeze({
   local: {
     tournamentName: "MOB BR LOCAL",
@@ -1056,6 +1116,14 @@ export function prepareTournamentEntry({
     throw new TournamentEntryValidationError(
       "This tournament is not scheduled for the current game week.",
       "TOURNAMENT_NOT_CURRENT",
+    );
+  }
+
+  const availability = getTournamentEntryAvailability(snapshot, matchingEvent);
+  if (!availability.eligible) {
+    throw new TournamentEntryValidationError(
+      availability.reason,
+      "TOURNAMENT_ENTRY_NOT_ELIGIBLE",
     );
   }
 
@@ -1913,12 +1981,15 @@ export function renderTournamentSchedule(snapshot, storage) {
                 getRewardTableForTournamentType(event.tournamentType),
                 1,
               );
-              const disabled = status.state !== "idle";
+              const availability = getTournamentEntryAvailability(snapshot, event);
+              const disabled = status.state !== "idle" || !availability.eligible;
               return `
-                <article class="tournament-current-card">
-                  <span>NOW OPEN</span>
+                <article class="tournament-current-card ${availability.eligible ? "is-entry" : "is-observer"}">
+                  <img class="tournament-type-logo" src="${escapeAttribute(getTournamentIcon(event.tournamentType))}" alt="">
+                  <span>${availability.eligible ? "NOW OPEN" : "TOURNAMENT NOTICE"}</span>
                   <h3>${escapeHtml(preset.tournamentName)}</h3>
                   <p>${escapeHtml(event.stageName)}</p>
+                  <small>${escapeHtml(availability.reason)}</small>
                   <small>1位報酬 ${escapeHtml(formatRewards(rewards))}</small>
                   <button
                     type="button"
@@ -1927,7 +1998,7 @@ export function renderTournamentSchedule(snapshot, storage) {
                     data-tournament-id="${escapeAttribute(event.tournamentId)}"
                     ${disabled ? "disabled" : ""}
                   >
-                    大会に参加
+                    ${availability.eligible ? "大会に参加" : "出場予定なし"}
                   </button>
                 </article>
               `;
@@ -1954,6 +2025,7 @@ export function renderTournamentSchedule(snapshot, storage) {
               <strong>${escapeHtml(eventDateLabel(event))}</strong>
               <span>${event.split ? `SP${event.split}` : "SPECIAL"}</span>
             </div>
+            <img class="tournament-calendar-card__logo" src="${escapeAttribute(getTournamentIcon(event.tournamentType))}" alt="">
             <div class="tournament-calendar-card__main">
               <h3>${escapeHtml(preset.tournamentName)}</h3>
               <p>${escapeHtml(event.stageName)}</p>

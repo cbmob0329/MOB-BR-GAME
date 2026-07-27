@@ -17,6 +17,8 @@ import {
   createGameStateManager,
 } from "./state.js";
 import {
+  applyPlayerStatUpgradePlanToDraft,
+  calculatePlayerStatUpgradePlan,
   changeWeaponSkinToDraft,
   getAbilityAcquisitionState,
   getSelectedPlayerId,
@@ -34,6 +36,7 @@ import {
 } from "../../data/ability-data.js";
 import {
   createManagementController,
+  getTournamentWeekStatus,
   renderManagementSection,
 } from "./management.js";
 import {
@@ -41,7 +44,7 @@ import {
   renderTournamentSchedule,
 } from "./tournament-bridge.js";
 
-export const APP_VERSION = "mobbr-main-app-0.6.0";
+export const APP_VERSION = "mobbr-main-app-0.7.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -547,10 +550,29 @@ function titleTemplate(hasSave, saveSummary = null) {
 }
 
 function homeTemplate(snapshot, currentRoute) {
+  const tournamentWeek = getTournamentWeekStatus(snapshot);
+  const tournamentNotice = tournamentWeek.hasTournament
+    ? `<section class="home-tournament-notice ${tournamentWeek.trainingBlocked ? "is-entry" : "is-observer"}">
+        <img src="${escapeAttribute((() => {
+          const type = tournamentWeek.details[0]?.event.tournamentType ?? "local";
+          if (type === "national") return "icon/national.png";
+          if (type.startsWith("world")) return "icon/world.png";
+          if (type === "championship") return "icon/champ.png";
+          return "icon/local.png";
+        })())}" alt="">
+        <div>
+          <span>${tournamentWeek.trainingBlocked ? "TOURNAMENT WEEK" : "TOURNAMENT NOTICE"}</span>
+          <strong>${escapeHtml(tournamentWeek.details.map((detail) => detail.event.stageName).join(" / "))}</strong>
+          <p>${tournamentWeek.trainingBlocked ? "今週は出場予定大会があります。トレーニングは行えません。" : "今週は大会が開催されますが、出場予定はありません。トレーニング可能です。"}</p>
+        </div>
+        <button type="button" data-action="navigate" data-route="${ROUTES.schedule}">大会予定</button>
+      </section>`
+    : "";
   return `
     <main class="screen screen--home app-layout">
       ${topStatusTemplate(snapshot)}
       <div class="page-content">
+        ${tournamentNotice}
         <section class="hero-panel">
           <p class="hero-panel__label">COMPANY STATUS</p>
           <div class="hero-panel__company-title">
@@ -752,6 +774,7 @@ function teamFeatureTemplate(
   {
     selectedPlayerId = null,
     abilityColor = "blue",
+    abilityPlan = {},
   } = {},
 ) {
   const meta = ROUTE_META[route];
@@ -759,7 +782,7 @@ function teamFeatureTemplate(
   let content = "";
 
   if (route === ROUTES.ability) {
-    content = renderAbilityUpSection(snapshot, playerId);
+    content = renderAbilityUpSection(snapshot, playerId, abilityPlan);
   } else if (route === ROUTES.equipment) {
     content = renderEquipmentSection(snapshot, playerId);
   } else if (route === ROUTES.specialAbility) {
@@ -1020,6 +1043,8 @@ export function createMainApp({
   let wizardError = "";
   let selectedTeamPlayerId = null;
   let selectedAbilityColor = "blue";
+  let abilityUpgradePlan = {};
+  let abilityPlanPlayerId = null;
   let toastTimer = null;
   let modalResolver = null;
 
@@ -1040,6 +1065,16 @@ export function createMainApp({
     toastTimer = setTimeout(() => {
       toastRoot.innerHTML = "";
     }, 2200);
+  }
+
+  function renderPreservingPageScroll() {
+    const page = root.querySelector(".page-content");
+    const scrollTop = page?.scrollTop ?? 0;
+    render();
+    queueMicrotask(() => {
+      const nextPage = root.querySelector(".page-content");
+      if (nextPage) nextPage.scrollTop = scrollTop;
+    });
   }
 
   function closeModal(value = false) {
@@ -1304,9 +1339,14 @@ export function createMainApp({
         snapshot,
         selectedTeamPlayerId,
       );
+      if (abilityPlanPlayerId !== selectedTeamPlayerId) {
+        abilityUpgradePlan = {};
+        abilityPlanPlayerId = selectedTeamPlayerId;
+      }
       root.innerHTML = teamFeatureTemplate(snapshot, route, route, {
         selectedPlayerId: selectedTeamPlayerId,
         abilityColor: selectedAbilityColor,
+        abilityPlan: abilityUpgradePlan,
       });
       return;
     }
@@ -1504,6 +1544,7 @@ export function createMainApp({
     root,
     openConfirm,
     openAlert,
+    openTextPrompt,
     showToast,
     render,
   });
@@ -1593,6 +1634,8 @@ export function createMainApp({
     }
     if (action === "select-team-player") {
       selectedTeamPlayerId = actionElement.dataset.playerId;
+      abilityPlanPlayerId = selectedTeamPlayerId;
+      abilityUpgradePlan = {};
       render();
       return;
     }
@@ -1601,27 +1644,41 @@ export function createMainApp({
       render();
       return;
     }
-    if (action === "upgrade-player-stat") {
+    if (action === "ability-plan-plus" || action === "ability-plan-minus") {
       const playerId = actionElement.dataset.playerId;
       const statId = actionElement.dataset.statId;
-      const confirmed = await openConfirm({
-        title: "能力を1段階強化しますか？",
-        body: "<p>主ポイントと副ポイントを同時に消費します。</p>",
-        confirmLabel: "強化する",
-      });
-      if (!confirmed) {
-        return;
+      if (abilityPlanPlayerId !== playerId) {
+        abilityPlanPlayerId = playerId;
+        abilityUpgradePlan = {};
       }
+      const current = Math.max(0, abilityUpgradePlan[statId] ?? 0);
+      const next = action === "ability-plan-plus" ? current + 1 : Math.max(0, current - 1);
+      const candidate = { ...abilityUpgradePlan, [statId]: next };
+      const plan = calculatePlayerStatUpgradePlan(stateManager.getSnapshot(), playerId, candidate);
+      if (plan.affordable) {
+        abilityUpgradePlan = plan.increments;
+        renderPreservingPageScroll();
+      }
+      return;
+    }
+    if (action === "ability-plan-confirm") {
+      const playerId = actionElement.dataset.playerId;
+      const plan = calculatePlayerStatUpgradePlan(stateManager.getSnapshot(), playerId, abilityUpgradePlan);
+      if (!plan.hasChanges || !plan.affordable) return;
+      const confirmed = await openConfirm({
+        title: "能力アップを確定しますか？",
+        body: `<p>${plan.rows.reduce((sum, row) => sum + row.increment, 0)}段階をまとめて強化します。</p>`,
+        confirmLabel: "確定する",
+      });
+      if (!confirmed) return;
       try {
         const transaction = stateManager.transact(
-          "player_stat_upgraded",
-          (draft) =>
-            upgradePlayerStatToDraft(draft, playerId, statId),
+          "player_stats_upgraded_batch",
+          (draft) => applyPlayerStatUpgradePlanToDraft(draft, playerId, abilityUpgradePlan),
         );
-        showToast(
-          `${transaction.result.previousRank} → ${transaction.result.currentRank}`,
-        );
-        render();
+        abilityUpgradePlan = {};
+        showToast(`${transaction.result.totalUpgrades}段階を強化しました`);
+        renderPreservingPageScroll();
       } catch (error) {
         await openAlert({
           title: "能力を強化できません",
@@ -1876,7 +1933,11 @@ export function createMainApp({
         console.error(error);
       }
     } finally {
-      route = ROUTES.title;
+      const returnHome = globalThis.location?.hash === "#home" && Boolean(stateManager.getSnapshot());
+      route = returnHome ? ROUTES.home : ROUTES.title;
+      if (returnHome && globalThis.history?.replaceState) {
+        globalThis.history.replaceState(null, "", globalThis.location.pathname + globalThis.location.search);
+      }
       titleSettingsOpen = false;
       root.dataset.mode = "";
       render();
