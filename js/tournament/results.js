@@ -25,7 +25,7 @@ import {
 } from "../main/tournament-bridge.js";
 
 export const RESULTS_VERSION =
-  "mobbr-tournament-results-1.3.1";
+  "mobbr-tournament-results-1.4.0";
 
 export const RESULT_RULES = Object.freeze({
   defaultMatchPointThreshold: 50,
@@ -541,7 +541,7 @@ export function finalizeCurrentMatchToDraft(draft) {
 function resetMemberForNextMatch(runtimeMember) {
   runtimeMember.hp = runtimeMember.maxHp;
   runtimeMember.combatState = "alive";
-  runtimeMember.currentAmmo = 8;
+  runtimeMember.currentAmmo = 12;
   runtimeMember.reloadRemaining = 0;
   runtimeMember.skillCt = Object.fromEntries(
     Object.keys(runtimeMember.skillCt ?? {}).map(

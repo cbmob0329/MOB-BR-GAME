@@ -14,7 +14,7 @@ import {
   createCommentaryDirector,
 } from "./commentary.js";
 
-export const BATTLE_UI_VERSION = "mobbr-battle-ui-1.3.1";
+export const BATTLE_UI_VERSION = "mobbr-battle-ui-1.4.0";
 export const BATTLE_REPLAY_SCHEMA_VERSION =
   "mobbr-battle-replay-1.0.0";
 
@@ -101,6 +101,7 @@ function initialStatesFromRuntime(runtime) {
         distance: state.distance,
         preferredDistance: state.preferredDistance,
         skillCharge: deepClone(state.skillCharge),
+        skills: deepClone(state.skills ?? []),
         actionState: "idle",
       },
     ]),
@@ -270,12 +271,36 @@ export function applyBattleReplayEvent(model, event) {
 
   const next = deepClone(model);
   clearActionStates(next);
+  const elapsedDelta = Math.max(
+    0,
+    event.time - next.elapsedSeconds,
+  );
+  for (const participant of Object.values(next.participants)) {
+    if (participant.combatState !== "alive") continue;
+    for (const skill of participant.skills ?? []) {
+      participant.skillCharge[skill.skillId] = Math.min(
+        skill.baseCt,
+        (participant.skillCharge[skill.skillId] ?? 0) + elapsedDelta,
+      );
+    }
+  }
   next.elapsedSeconds = event.time;
   next.eventIndex += 1;
   next.transient = transientForEvent(event, next);
 
   const actor = next.participants[event.actorPlayerId];
   const target = next.participants[event.targetPlayerId];
+
+  if (
+    actor &&
+    event.skillId &&
+    (
+      event.type.startsWith("skill_") ||
+      event.type === "skill_buff"
+    )
+  ) {
+    actor.skillCharge[event.skillId] = 0;
+  }
 
   if (actor) {
     if (
@@ -412,6 +437,31 @@ function ammoTemplate(participant) {
   `;
 }
 
+
+function skillCtTemplate(participant) {
+  const skills = (participant.skills ?? []).slice(0, 3);
+  if (skills.length === 0) return "";
+  return `
+    <div class="battle-skill-ct" aria-label="スキルCT">
+      ${skills.map((skill) => {
+        const charge = Math.min(
+          skill.baseCt,
+          participant.skillCharge?.[skill.skillId] ?? 0,
+        );
+        const ready = charge >= skill.baseCt - 0.001;
+        const remaining = Math.max(0, skill.baseCt - charge);
+        return `
+          <span class="${ready ? "is-ready" : ""}" title="${escapeAttribute(skill.name)}">
+            <i style="width:${Math.min(100, charge / skill.baseCt * 100).toFixed(1)}%"></i>
+            <b>${escapeHtml(skill.name.slice(0, 4))}</b>
+            <em>${ready ? "OK" : remaining.toFixed(1)}</em>
+          </span>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
 function participantTemplate(participant, side) {
   const hpRate =
     participant.maxHp <= 0
@@ -449,6 +499,7 @@ function participantTemplate(participant, side) {
           }
         </div>
         ${ammoTemplate(participant)}
+        ${skillCtTemplate(participant)}
       </div>
     </article>
   `;
@@ -589,6 +640,7 @@ function resultCutTemplate(model) {
 export function renderBattleReplayScreen(runtime, model) {
   return `
     <main class="tournament-screen tournament-screen--battle-replay" style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
+      <img class="tournament-stage-background" src="${escapeAttribute(assetPath(runtime.map.image))}" alt="">
       ${statusHeaderTemplate(runtime, model)}
       <section class="battle-arena">
         <div class="battle-distance-guide" aria-hidden="true">

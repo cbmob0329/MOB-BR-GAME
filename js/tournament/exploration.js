@@ -22,7 +22,7 @@ import {
 } from "./round.js";
 
 export const EXPLORATION_VERSION =
-  "mobbr-tournament-exploration-1.4.0";
+  "mobbr-tournament-exploration-1.5.0";
 
 export const EXPLORATION_PAGES = Object.freeze([
   "SEARCH",
@@ -1462,9 +1462,19 @@ export function renderExplorationScreen(runtime) {
       style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')"
       data-exploration-swipe
     >
+      <img class="tournament-stage-background" src="${escapeAttribute(assetPath(runtime.map.image))}" alt="">
       <header class="exploration-mini-header">
         <img src="icon/ex.png" alt=""><div><span>EXPLORE ${runtime.explorationRuntime.currentExploreIndex}/3</span><strong>${escapeHtml(choice.areaName)}</strong></div><em>ALIVE ${runtime.activeTeamIds.length}</em>
       </header>
+      <button
+        type="button"
+        class="exploration-backpack-shortcut"
+        data-action="exploration-page"
+        data-page="BAG"
+      >
+        <img src="${escapeAttribute(assetPath("icon/back.png"))}" alt="">
+        <span>BACKPACK</span>
+      </button>
       <section class="exploration-shell exploration-shell--compact">
         ${pageTabsTemplate(page)}
         <div class="exploration-page-viewport" data-exploration-viewport>
@@ -1525,6 +1535,7 @@ export function renderStrategySelectionScreen(runtime) {
 
   return `
     <main class="tournament-screen tournament-screen--strategy-select" style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
+      <img class="tournament-stage-background" src="${escapeAttribute(assetPath(runtime.map.image))}" alt="">
       <header class="strategy-select-header">
         <img src="icon/battle.png" alt=""><div><span>STRATEGY SELECT</span><strong>${escapeHtml(selectedRuntime.name)}</strong></div>
       </header>
@@ -1613,20 +1624,17 @@ export function renderStrategyCutIn(runtime) {
   const strategy = runtime.strategyRuntime[strategyId];
   const master = strategyMaster(strategyId);
   return `
-    <section class="strategy-start-cutin">
-      <img src="${escapeAttribute(master.icon)}" alt="">
-      <div>
-        <span>STRATEGY LOCKED / ${escapeHtml(strategy.rank)}</span>
-        <h1>${escapeHtml(strategy.name)}</h1>
-        <p>${escapeHtml(master.description)}</p>
-        <small>
-          ${
-            strategy.unlimited
-              ? "UNLIMITED"
-              : `戦闘開始前残り ${strategy.tournamentRemaining}`
-          }
-        </small>
-      </div>
+    <section class="strategy-start-cutin strategy-start-cutin--text">
+      <span>STRATEGY LOCKED / ${escapeHtml(strategy.rank)}</span>
+      <h1>${escapeHtml(strategy.name)}</h1>
+      <p>${escapeHtml(master.description)}</p>
+      <small>
+        ${
+          strategy.unlimited
+            ? "UNLIMITED"
+            : `戦闘開始前残り ${strategy.tournamentRemaining}`
+        }
+      </small>
     </section>
   `;
 }

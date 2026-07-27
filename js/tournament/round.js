@@ -11,7 +11,7 @@ import {
 } from "../../data/game-data.js";
 
 export const ROUND_INTEGRATION_VERSION =
-  "mobbr-tournament-round-1.2.0";
+  "mobbr-tournament-round-1.3.0";
 
 export const ROUND_INTEGRATION_RULES = Object.freeze({
   encounterRate: 0.75,
@@ -387,11 +387,20 @@ function scoreTeam(
           : 0
       : 0;
   const matchForm =
-    (stableUnit(`${runtime.entryId}:${runtime.match}:${teamId}:match-form`) - 0.5) * 920;
+    (stableUnit(`${runtime.entryId}:${runtime.match}:${teamId}:match-form`) - 0.5) * 980;
   const roundSwing =
-    (stableUnit(`${runtime.entryId}:${runtime.match}:${runtime.round}:${teamId}:score`) - 0.5) * 620;
+    (stableUnit(`${runtime.entryId}:${runtime.match}:${runtime.round}:${teamId}:score`) - 0.5) * 680;
+  const surpriseRoll = stableUnit(
+    `${runtime.entryId}:${runtime.match}:${runtime.round}:${teamId}:surprise`,
+  );
+  const controlledSurprise =
+    surpriseRoll < 0.08
+      ? 560
+      : surpriseRoll > 0.965
+        ? -430
+        : 0;
   return (
-    stats.battlePower * 5.4 +
+    stats.battlePower * 5.05 +
     stats.hpRate * 460 +
     stats.aliveCount * 150 +
     stats.kp * 120 +
@@ -400,7 +409,8 @@ function scoreTeam(
     battleBonus +
     matchForm +
     roundSwing +
-    recentPlacementAdjustment(runtime, teamId)
+    recentPlacementAdjustment(runtime, teamId) +
+    controlledSurprise
   );
 }
 
@@ -417,22 +427,52 @@ function applyCpuRoundState(
     for (const member of members) {
       member.hp = 0;
       member.combatState = "dead";
-      member.currentAmmo = 8;
+      member.currentAmmo = 12;
       member.reloadRemaining = 0;
     }
   } else if (
     teamId !== runtime.playerTeamId &&
     teamId !== runtime.currentOpponentId
   ) {
+    const seed =
+      `${runtime.entryId}:${runtime.match}:${runtime.round}:${teamId}:wear`;
+    const severity = stableUnit(`${seed}:severity`);
+    const deathBoxIndex =
+      runtime.round >= 2 &&
+      stableUnit(`${seed}:death-box`) < 0.055
+        ? Math.floor(
+            stableUnit(`${seed}:death-member`) * members.length,
+          )
+        : -1;
+
     for (const [index, member] of members.entries()) {
+      if (index === deathBoxIndex) {
+        member.hp = 0;
+        member.combatState = "dead";
+        member.currentAmmo = 12;
+        member.reloadRemaining = 0;
+        continue;
+      }
+
       const unit = stableUnit(
-        `${runtime.entryId}:${runtime.match}:${runtime.round}:${teamId}:${member.playerId}:hp`,
+        `${seed}:${member.playerId}:hp`,
       );
+      let minimumRate = 0.68;
+      let maximumRate = 0.98;
+
+      if (runtime.round >= 2 && severity < 0.16) {
+        minimumRate = 0.28;
+        maximumRate = 0.62;
+      } else if (runtime.round >= 2 && severity < 0.42) {
+        minimumRate = 0.52;
+        maximumRate = 0.82;
+      }
+
       const hpRate = clamp(
-        0.12 +
-          unit * 0.78 +
-          Math.min(0.1, score / 20000),
-        0.08,
+        minimumRate +
+          unit * (maximumRate - minimumRate) +
+          Math.max(-0.05, Math.min(0.05, score / 50000)),
+        0.12,
         1,
       );
       member.hp = Math.max(
@@ -440,24 +480,26 @@ function applyCpuRoundState(
         Math.round(member.maxHp * hpRate),
       );
       member.combatState = "alive";
-      member.currentAmmo = 8;
+      member.currentAmmo = 12;
       member.reloadRemaining = 0;
-      if (index === 2 && hpRate < 0.2) {
-        member.hp = 10;
-      }
+    }
+
+    if (members.every((member) => member.combatState === "dead")) {
+      members[0].combatState = "alive";
+      members[0].hp = Math.max(
+        10,
+        Math.round(members[0].maxHp * 0.22),
+      );
     }
   }
 
-  const teamRuntime =
-    runtime.teamRuntime[teamId];
+  const teamRuntime = runtime.teamRuntime[teamId];
   teamRuntime.matchHp =
     members.map((member) => member.hp);
   teamRuntime.persistentHp =
     [...teamRuntime.matchHp];
   teamRuntime.combatState =
-    members.map(
-      (member) => member.combatState,
-    );
+    members.map((member) => member.combatState);
 }
 
 function baseRoundRecord(runtime) {

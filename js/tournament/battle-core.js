@@ -29,7 +29,7 @@ import {
 } from "./battle-actions.js";
 
 export const BATTLE_CORE_VERSION =
-  "mobbr-battle-core-1.3.0";
+  "mobbr-battle-core-1.4.0";
 export const BATTLE_STATE_SCHEMA_VERSION =
   "mobbr-battle-state-1.0.0";
 
@@ -224,6 +224,14 @@ function createInitialParticipantStates(participants) {
         distance: participant.currentDistance,
         preferredDistance: participant.preferredDistance,
         skillCharge: deepClone(participant.skillCharge),
+        skills: deepClone(
+          participant.skills.map((skill) => ({
+            skillId: skill.skillId,
+            name: skill.name,
+            baseCt: skill.baseCt,
+            type: skill.type,
+          })),
+        ),
       },
     ]),
   );

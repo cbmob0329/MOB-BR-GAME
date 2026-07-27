@@ -41,7 +41,7 @@ import {
 } from "../../data/battle-config.js";
 
 export const TOURNAMENT_RUNTIME_VERSION =
-  "mobbr-tournament-runtime-1.7.0";
+  "mobbr-tournament-runtime-1.8.0";
 
 export const TOURNAMENT_PHASES = Object.freeze([
   "IDLE",
@@ -759,8 +759,8 @@ function createCpuMemberRecord(sourcePlayer, teamId, form, random) {
       weaponId: `cpu-weapon-${sourcePlayer.id}`,
       weaponName: weaponProfile.weaponName,
       image: null,
-      ammoMax: 8,
-      ammoCurrent: 8,
+      ammoMax: 12,
+      ammoCurrent: 12,
       preferredRange: weaponProfile.preferredRange,
       source: weaponProfile.source,
     },
@@ -1287,7 +1287,7 @@ export function validateTournamentRuntime(runtime, entry = null) {
       if (
         !member.characterRank ||
         !member.battleStats ||
-        member.weapon?.ammoMax !== 8 ||
+        member.weapon?.ammoMax !== 12 ||
         !Array.isArray(member.skills) ||
         member.skills.length !== 3
       ) {

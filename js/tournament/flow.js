@@ -68,7 +68,7 @@ import {
   resolveRoundEncounterToDraft,
 } from "./round.js";
 
-export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-1.9.2";
+export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-2.0.0";
 
 const PHASE_LABELS = Object.freeze({
   IDLE: "待機",
@@ -262,6 +262,7 @@ function openingTemplate(runtime) {
       class="tournament-screen tournament-screen--opening"
       style="--opening-background:url('${escapeAttribute(background)}')"
     >
+      <img class="tournament-stage-background" src="${escapeAttribute(background)}" alt="">
       <section class="opening-stage opening-stage--${escapeAttribute(scene.type.toLowerCase())}">
         ${showLogo ? `<img class="opening-event-logo" src="${escapeAttribute(logo)}" alt="">` : ""}
         <div class="opening-stage__accent" aria-hidden="true"></div>
@@ -395,6 +396,7 @@ function deploymentTemplate(runtime) {
       class="tournament-screen tournament-screen--deployment"
       style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')"
     >
+      <img class="tournament-stage-background" src="${escapeAttribute(assetPath(runtime.map.image))}" alt="">
       ${topStatusTemplate(runtime)}
       <section class="deployment-stage">
         <div class="deployment-stage__ship" aria-hidden="true">
@@ -456,6 +458,7 @@ function provisionalPhaseTemplate(runtime, {
       class="tournament-screen tournament-screen--provisional"
       style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')"
     >
+      <img class="tournament-stage-background" src="${escapeAttribute(assetPath(runtime.map.image))}" alt="">
       ${topStatusTemplate(runtime)}
       <section class="provisional-phase-card">
         <span>${escapeHtml(eyebrow)}</span>
@@ -562,6 +565,7 @@ function encounterPreviewTemplate(runtime) {
   const enemyMembers = opponent?.members ?? [];
   return `
     <main class="tournament-screen tournament-screen--encounter" style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
+      <img class="tournament-stage-background" src="${escapeAttribute(assetPath(runtime.map.image))}" alt="">
       <header class="encounter-versus-header">
         <span>ENCOUNTER</span>
         <h1>${escapeHtml(runtime.entryData.playerTeam.teamName)} <b>VS</b> ${escapeHtml(opponent?.teamName ?? "CPU TEAM")}</h1>
