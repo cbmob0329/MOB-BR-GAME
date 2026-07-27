@@ -1380,7 +1380,10 @@ function validateConsumedCarryItems(result, entry) {
   const allowed = new Map();
   for (const item of entry.carryItems) {
     if (!item) continue;
-    allowed.set(item.itemId, (allowed.get(item.itemId) ?? 0) + 1);
+    allowed.set(
+      item.itemId,
+      (allowed.get(item.itemId) ?? 0) + (item.quantity ?? 1),
+    );
   }
   const consumedTotals = new Map();
   for (const item of result.consumedCarryItems) {

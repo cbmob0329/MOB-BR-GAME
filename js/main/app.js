@@ -37,7 +37,7 @@ import {
   renderTournamentSchedule,
 } from "./tournament-bridge.js";
 
-export const APP_VERSION = "mobbr-main-app-0.4.0";
+export const APP_VERSION = "mobbr-main-app-0.5.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
