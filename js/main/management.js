@@ -61,7 +61,7 @@ import {
 } from "./state.js";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-0.3.0";
+  "mobbr-management-feature-0.5.0";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -72,6 +72,7 @@ const MANAGEMENT_VIEW_STATE = {
   collectionFile: null,
   selectedPackType: null,
   selectedPackId: null,
+  trainingSelections: {},
 };
 
 const SHOP_CATEGORY_DEFINITIONS = Object.freeze([
@@ -204,6 +205,20 @@ function ensureArray(parent, key) {
   return parent[key];
 }
 
+function createEmptyPointPool() {
+  return Object.fromEntries(TRAINING_POINT_IDS.map((pointId) => [pointId, 0]));
+}
+
+function ensurePlayerTrainingPointsToDraft(draft) {
+  draft.playerTrainingPoints ??= Object.fromEntries(
+    draft.playerTeam.members.map((player) => [player.playerId, createEmptyPointPool()]),
+  );
+  for (const player of draft.playerTeam.members) {
+    draft.playerTrainingPoints[player.playerId] ??= createEmptyPointPool();
+  }
+  return draft.playerTrainingPoints;
+}
+
 export function calculateBagCapacity(companyRankIndex) {
   if (!Number.isInteger(companyRankIndex) || companyRankIndex < 1 || companyRankIndex > 72) {
     throw new RangeError("Company rank index must be from 1 to 72.");
@@ -326,8 +341,12 @@ export function executeTrainingToDraft(
     );
   const result = calculateWeeklyTraining(assignments, badgeBonusRate);
 
-  for (const pointId of TRAINING_POINT_IDS) {
-    draft.trainingPoints[pointId] += result.total[pointId];
+  const playerPointPools = ensurePlayerTrainingPointsToDraft(draft);
+  for (const memberResult of result.memberResults) {
+    const pool = playerPointPools[memberResult.playerId];
+    for (const pointId of TRAINING_POINT_IDS) {
+      pool[pointId] += memberResult.gain[pointId];
+    }
   }
   draft.records.trainingCompleted += 1;
 
@@ -1260,28 +1279,57 @@ export function renderTrainingManagement(snapshot) {
           : `${detail.event.stageName}が開催されます。出場予定はないためトレーニング可能です。`).join(" ")}</p>
       </section>`
     : "";
+
+  for (const player of snapshot.playerTeam.members) {
+    MANAGEMENT_VIEW_STATE.trainingSelections[player.playerId] ??=
+      TRAINING_PROGRAMS[0].id;
+  }
+
   return `
     ${notice}
     <section class="management-summary training-summary">
       <strong>バッジ補正 +${(bonusRate * 100).toFixed(1)}%</strong>
-      <span>3選手が同時にトレーニングし、週明けボーナスを受け取ります</span>
+      <span>各選手のアイコンから練習を選択。獲得ポイントは選手ごとに保存されます。</span>
     </section>
-    <form class="training-assignment-form training-stage" data-form="training">
-      ${snapshot.playerTeam.members.map((player, playerIndex) => `
-        <label class="training-assignment-card training-assignment-card--visual" style="--training-index:${playerIndex}">
-          <div class="training-assignment-card__player">
-            <img class="player-portrait" data-role="${escapeAttribute(player.role)}" src="${escapeAttribute(player.image)}" alt="">
-            <div><span>${escapeHtml(player.role)}</span><strong>${escapeHtml(player.name)}</strong></div>
-          </div>
-          <select data-training-player="${escapeAttribute(player.playerId)}" ${tournamentWeek.trainingBlocked ? "disabled" : ""}>
-            ${TRAINING_PROGRAMS.map((program) => `<option value="${escapeAttribute(program.id)}">${escapeHtml(program.name)} — P${program.points.power} T${program.points.tech} M${program.points.mental} S${program.points.shoot}</option>`).join("")}
-          </select>
-          <div class="training-program-preview">${TRAINING_PROGRAMS.slice(0, 6).map((program) => `<span title="${escapeAttribute(program.name)}"><img src="${escapeAttribute(program.image)}" alt=""></span>`).join("")}</div>
-        </label>
-      `).join("")}
+    <form class="training-assignment-form training-stage training-stage--icons" data-form="training">
+      ${snapshot.playerTeam.members.map((player, playerIndex) => {
+        const selectedId = MANAGEMENT_VIEW_STATE.trainingSelections[player.playerId];
+        const selected = TRAINING_PROGRAMS.find((program) => program.id === selectedId) ?? TRAINING_PROGRAMS[0];
+        const pointPool = snapshot.playerTrainingPoints?.[player.playerId] ?? snapshot.trainingPoints;
+        return `
+          <section class="training-player-station" style="--training-index:${playerIndex}">
+            <header>
+              <img class="player-portrait" data-role="${escapeAttribute(player.role)}" src="${escapeAttribute(player.image)}" alt="">
+              <div>
+                <span>${escapeHtml(player.role)}</span>
+                <strong>${escapeHtml(player.name)}</strong>
+                <small>P ${pointPool.power} / T ${pointPool.tech} / M ${pointPool.mental} / S ${pointPool.shoot}</small>
+              </div>
+              <img class="training-player-station__selected" src="${escapeAttribute(selected.image)}" alt="">
+            </header>
+            <input type="hidden" data-training-player="${escapeAttribute(player.playerId)}" value="${escapeAttribute(selected.id)}">
+            <div class="training-program-icon-grid" role="radiogroup" aria-label="${escapeAttribute(player.name)}のトレーニング">
+              ${TRAINING_PROGRAMS.map((program) => `
+                <button
+                  type="button"
+                  class="training-program-icon ${program.id === selected.id ? "is-selected" : ""}"
+                  data-action="select-training-program"
+                  data-player-id="${escapeAttribute(player.playerId)}"
+                  data-program-id="${escapeAttribute(program.id)}"
+                  ${tournamentWeek.trainingBlocked ? "disabled" : ""}
+                >
+                  <img src="${escapeAttribute(program.image)}" alt="">
+                  <strong>${escapeHtml(program.name)}</strong>
+                  <small>P${program.points.power} T${program.points.tech} M${program.points.mental} S${program.points.shoot}</small>
+                </button>
+              `).join("")}
+            </div>
+          </section>
+        `;
+      }).join("")}
       <button type="button" class="primary-button training-start-button" data-action="execute-training" ${tournamentWeek.trainingBlocked ? "disabled" : ""}>
         <span>${tournamentWeek.trainingBlocked ? "TOURNAMENT WEEK" : "TRAINING START"}</span>
-        <small>${tournamentWeek.trainingBlocked ? "大会終了後に実行できます" : "1週間トレーニング"}</small>
+        <small>${tournamentWeek.trainingBlocked ? "大会終了後に実行できます" : "選択した内容で1週間進める"}</small>
       </button>
     </form>
   `;
@@ -1338,7 +1386,7 @@ export function renderShopManagement(snapshot) {
         <div class="management-section__heading"><h2>WEAPON SKIN</h2><span>未所持 ${remaining.length}</span></div>
         <div class="shop-category-product-grid">
           ${WEAPON_SKINS.map((skin) => `
-            <article class="shop-category-product ${snapshot.inventory.weaponSkins?.[skin.skinId] ? "is-owned" : ""}">
+            <article class="shop-category-product ${snapshot.inventory.weaponSkins?.[skin.skinId] ? "is-owned" : "is-locked"}">
               <img src="${escapeAttribute(skin.image)}" alt="">
               <strong>${escapeHtml(skin.name)}</strong>
               <small>${snapshot.inventory.weaponSkins?.[skin.skinId] ? "OWNED" : skin.source === "initial" ? "INITIAL" : "GACHA"}</small>
@@ -1871,6 +1919,7 @@ export function createManagementController({
   openTextPrompt,
   showToast,
   render,
+  renderPreservingScroll = render,
 }) {
   if (!stateManager || !root) {
     throw new TypeError("Management controller dependencies are missing.");
@@ -1887,9 +1936,16 @@ export function createManagementController({
   async function handleAction(actionElement) {
     const action = actionElement.dataset.action;
 
+    if (action === "select-training-program") {
+      MANAGEMENT_VIEW_STATE.trainingSelections[actionElement.dataset.playerId] =
+        actionElement.dataset.programId;
+      renderPreservingScroll();
+      return true;
+    }
+
     if (action === "select-shop-category") {
       MANAGEMENT_VIEW_STATE.shopCategory = actionElement.dataset.shopCategory;
-      render();
+      renderPreservingScroll();
       return true;
     }
     if (action === "open-collection-file") {
@@ -1905,7 +1961,7 @@ export function createManagementController({
     if (action === "select-collection-pack") {
       MANAGEMENT_VIEW_STATE.selectedPackType = actionElement.dataset.packType;
       MANAGEMENT_VIEW_STATE.selectedPackId = actionElement.dataset.packId;
-      render();
+      renderPreservingScroll();
       return true;
     }
     if (action === "inspect-collection-entry") {
@@ -1925,6 +1981,9 @@ export function createManagementController({
     }
 
     if (action === "execute-training") {
+      const beforeTrainingDate = deepClone(
+        stateManager.getSnapshot().gameDate,
+      );
       const assignments = [...root.querySelectorAll("[data-training-player]")]
         .map((select) => ({
           playerId: select.dataset.trainingPlayer,
@@ -1932,7 +1991,7 @@ export function createManagementController({
         }));
       if (!(await openConfirm({
         title: "1週間トレーニングしますか？",
-        body: "<p>3選手の獲得ポイントを合算し、1週間進めます。</p>",
+        body: "<p>各選手が選んだ練習を実行し、個別の能力ポイントを獲得して1週間進めます。</p>",
         confirmLabel: "実行する",
       }))) return true;
       try {
@@ -1959,7 +2018,11 @@ export function createManagementController({
           title: "TRAINING COMPLETE",
           body: `
             <section class="training-result-show">
-              <div class="training-result-show__speed" aria-hidden="true"></div>
+              <div class="week-transition-show" aria-label="週の進行">
+                <div class="week-transition-show__step"><span>BEFORE</span><div><strong>${beforeTrainingDate.year}年 ${beforeTrainingDate.month}月 第${beforeTrainingDate.week}週</strong><span>トレーニング開始</span></div></div>
+                <div class="week-transition-show__step"><span>NEXT</span><div><strong>WEEK ADVANCE</strong><span>結果と企業ボーナスを集計</span></div></div>
+                <div class="week-transition-show__step"><span>START</span><div><strong>${latest.gameDate.year}年 ${latest.gameDate.month}月 第${latest.gameDate.week}週</strong><span>新しい週が始まりました</span></div></div>
+              </div>
               <div class="training-result-members">${memberRows}</div>
               <div class="training-result-total">
                 <span>POWER <strong>+${formatNumber(total.power)}</strong></span>
@@ -2113,7 +2176,7 @@ export function createManagementController({
         const result = tx.result;
         await openAlert({
           title: `${result.selectedRank} RANK STRATEGY`,
-          body: `<p><strong>${escapeHtml(result.strategyName)}</strong></p><p>${escapeHtml(result.acquisitionType)} / 所持 ${result.quantity}</p><p>コーチランクアップ成功 ${result.coachResults.filter((coach) => coach.success).length}人</p>`,
+          body: `<section class="strategy-meeting-show"><div class="strategy-meeting-show__board"><span>TACTICAL BRIEFING</span><strong>${escapeHtml(result.strategyName)}</strong><small>${escapeHtml(result.selectedRank)} RANK / ${escapeHtml(result.acquisitionType)} / 所持 ${result.quantity}</small></div><div class="strategy-meeting-show__board"><span>COACH REVIEW</span><strong>${result.coachResults.filter((coach) => coach.success).length} / ${result.coachResults.length} RANK UP</strong><small>会議内容を各コーチの成長判定へ反映しました</small></div></section>`,
         });
         render();
       } catch (error) { await showError("作戦会議を実行できません", error); }
@@ -2135,7 +2198,7 @@ export function createManagementController({
           body: packOpeningPresentation(result),
           buttonLabel: "コレクションへ",
         });
-        render();
+        renderPreservingScroll();
       } catch (error) { await showError("パックを開封できません", error); }
       return true;
     }

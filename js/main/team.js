@@ -33,7 +33,7 @@ import {
   getWeaponUpgradeCost,
 } from "../../data/ability-data.js";
 
-export const TEAM_FEATURE_VERSION = "mobbr-team-feature-0.3.0";
+export const TEAM_FEATURE_VERSION = "mobbr-team-feature-0.5.0";
 
 const ROLE_ICONS = Object.freeze({
   IGL: "icon/IGL.png",
@@ -107,6 +107,24 @@ function setWeaponRank(player, weaponStatId, nextRank, nextValue) {
   player.weapon.internalValues[weaponStatId] = nextValue;
 }
 
+
+function createEmptyPointPool() {
+  return Object.fromEntries(TRAINING_POINT_IDS.map((pointId) => [pointId, 0]));
+}
+
+export function getPlayerTrainingPointPool(snapshot, playerId) {
+  const pool = snapshot.playerTrainingPoints?.[playerId];
+  return pool ?? snapshot.trainingPoints ?? createEmptyPointPool();
+}
+
+function ensurePlayerTrainingPointPoolToDraft(draft, playerId) {
+  draft.playerTrainingPoints ??= Object.fromEntries(
+    draft.playerTeam.members.map((player) => [player.playerId, createEmptyPointPool()]),
+  );
+  draft.playerTrainingPoints[playerId] ??= createEmptyPointPool();
+  return draft.playerTrainingPoints[playerId];
+}
+
 function subtractPointCost(pointPool, cost) {
   if (!canAffordPointCost(pointPool, cost)) {
     throw new RangeError("トレーニングポイントが不足しています。");
@@ -157,7 +175,7 @@ export function upgradePlayerStatToDraft(draft, playerId, statId) {
   );
   pointCost[definition.primaryPoint] = upgradeCost.primary;
   pointCost[definition.secondaryPoint] = upgradeCost.secondary;
-  subtractPointCost(draft.trainingPoints, pointCost);
+  subtractPointCost(ensurePlayerTrainingPointPoolToDraft(draft, playerId), pointCost);
 
   const previousMaxHp = player.maxHp;
   player.stats[statId] += 1;
@@ -411,7 +429,7 @@ export function getAbilityAcquisitionState(
     learned?.stage === 2;
 
   const affordable = canAffordPointCost(
-    snapshot.trainingPoints,
+    getPlayerTrainingPointPool(snapshot, playerId),
     ability.cost,
   );
 
@@ -464,7 +482,7 @@ export function learnSpecialAbilityToDraft(
   }
 
   const player = getPlayer(draft, playerId);
-  subtractPointCost(draft.trainingPoints, ability.cost);
+  subtractPointCost(ensurePlayerTrainingPointPoolToDraft(draft, playerId), ability.cost);
 
   const entry = {
     abilityKey: ability.abilityKey,
@@ -515,13 +533,13 @@ export function learnSpecialAbilityToDraft(
   };
 }
 
-function pointPoolTemplate(snapshot) {
+function pointPoolTemplate(snapshot, playerId) {
   return `
     <section class="team-point-grid" aria-label="トレーニングポイント">
       ${TRAINING_POINT_IDS.map((pointId) => `
         <div class="team-point-chip team-point-chip--${pointId}">
           <span>${POINT_LABELS[pointId]}</span>
-          <strong>${formatNumber(snapshot.trainingPoints[pointId])}</strong>
+          <strong>${formatNumber(getPlayerTrainingPointPool(snapshot, playerId)[pointId])}</strong>
         </div>
       `).join("")}
     </section>
@@ -582,7 +600,7 @@ export function calculatePlayerStatUpgradePlan(
   const remainingPoints = Object.fromEntries(
     TRAINING_POINT_IDS.map((pointId) => [
       pointId,
-      snapshot.trainingPoints[pointId] - totalCost[pointId],
+      getPlayerTrainingPointPool(snapshot, playerId)[pointId] - totalCost[pointId],
     ]),
   );
   return {
@@ -661,7 +679,7 @@ export function renderTeamDetailsSection(snapshot) {
   return `
     <section class="team-detail-grid">
       ${snapshot.playerTeam.members.map((player) => `
-        <article class="team-detail-card">
+        <button type="button" class="team-detail-card team-detail-card--tap" data-action="inspect-team-player" data-player-id="${escapeAttribute(player.playerId)}">
           <header class="team-detail-card__header">
             <img
               class="team-detail-card__portrait player-portrait"
@@ -683,6 +701,7 @@ export function renderTeamDetailsSection(snapshot) {
               (definition) => statMiniTemplate(player, definition),
             ).join("")}
           </div>
+          <span class="team-detail-card__tap">TAP</span>
           <footer class="team-detail-card__weapon">
             <img src="${escapeAttribute(player.weapon.image)}" alt="">
             <div>
@@ -690,7 +709,7 @@ export function renderTeamDetailsSection(snapshot) {
               <strong>${escapeHtml(player.weapon.weaponName)}</strong>
             </div>
           </footer>
-        </article>
+        </button>
       `).join("")}
     </section>
   `;
@@ -721,7 +740,7 @@ export function renderAbilityUpSection(
       ${TRAINING_POINT_IDS.map((pointId) => `
         <span class="${plan.remainingPoints[pointId] < 0 ? "is-negative" : ""}">
           ${POINT_LABELS[pointId]}
-          <strong>${formatNumber(snapshot.trainingPoints[pointId])}</strong>
+          <strong>${formatNumber(getPlayerTrainingPointPool(snapshot, playerId)[pointId])}</strong>
           <em>→ ${formatNumber(plan.remainingPoints[pointId])}</em>
         </span>
       `).join("")}
@@ -890,7 +909,7 @@ export function renderSpecialAbilitySection(
 
   return `
     ${renderPlayerSelector(snapshot, playerId)}
-    ${pointPoolTemplate(snapshot)}
+    ${pointPoolTemplate(snapshot, playerId)}
 
     <div class="special-color-tabs" role="tablist">
       ${["blue", "gold", "red"].map((tabColor) => `

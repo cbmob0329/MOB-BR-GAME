@@ -48,7 +48,7 @@ import {
   STRATEGY_RULES,
 } from "../../data/strategy-data.js";
 
-export const SAVE_SCHEMA_VERSION = "mobbr-save-1.0.0";
+export const SAVE_SCHEMA_VERSION = "mobbr-save-1.1.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
 
 export const STORAGE_KEYS = Object.freeze({
@@ -596,6 +596,9 @@ export function createNewGameState(
 
     resources: deepClone(INITIAL_GAME_DATA.resources),
     trainingPoints: createEmptyTrainingPoints(),
+    playerTrainingPoints: Object.fromEntries(
+      players.map((player) => [player.playerId, createEmptyTrainingPoints()]),
+    ),
 
     collectionBonuses: {
       weeklyCoinRate: 0,
@@ -696,6 +699,7 @@ export function createNewGameState(
       reducedMotion: false,
       autoAdvanceOpening: false,
       textLanguage: "ja",
+      testMode: false,
     },
 
     ui: {
@@ -863,6 +867,18 @@ export function validateSaveState(state) {
 
   validateResourceObject(state.resources, "Resources");
   validateTrainingPoints(state.trainingPoints);
+  if (state.playerTrainingPoints !== undefined) {
+    assertPlainObject(state.playerTrainingPoints, "Player training points");
+    for (const player of state.playerTeam.members) {
+      if (!state.playerTrainingPoints[player.playerId]) {
+        throw new SaveCorruptionError(
+          `Training points are missing for ${player.playerId}.`,
+          { code: "MISSING_PLAYER_TRAINING_POINTS" },
+        );
+      }
+      validateTrainingPoints(state.playerTrainingPoints[player.playerId]);
+    }
+  }
 
   assertPlainObject(state.playerTeam, "Player team");
   if (
@@ -1014,6 +1030,14 @@ function migrateUnversionedSave(rawState, timestamp) {
   const migrated = deepClone(rawState);
 
   migrated.schemaVersion = SAVE_SCHEMA_VERSION;
+  migrated.settings = migrated.settings ?? {};
+  migrated.settings.testMode = migrated.settings.testMode === true;
+  migrated.playerTrainingPoints = migrated.playerTrainingPoints ?? Object.fromEntries(
+    (migrated.playerTeam?.members ?? []).map((player) => [
+      player.playerId,
+      deepClone(migrated.trainingPoints ?? createEmptyTrainingPoints()),
+    ]),
+  );
   migrated.saveSlotId =
     migrated.saveSlotId ??
     migrated.slotId ??
@@ -1071,7 +1095,8 @@ export function migrateSaveState(
   if (
     rawState.schemaVersion === undefined ||
     rawState.schemaVersion === null ||
-    rawState.schemaVersion === "mobbr-save-0.9.0"
+    rawState.schemaVersion === "mobbr-save-0.9.0" ||
+    rawState.schemaVersion === "mobbr-save-1.0.0"
   ) {
     const migrated = migrateUnversionedSave(rawState, timestamp);
     validateSaveState(migrated);
@@ -1580,6 +1605,15 @@ export function applyTournamentResultToDraft(
   for (const pointId of TRAINING_POINT_IDS) {
     draft.trainingPoints[pointId] +=
       rewards.trainingPoints[pointId];
+  }
+  draft.playerTrainingPoints = draft.playerTrainingPoints ?? Object.fromEntries(
+    draft.playerTeam.members.map((player) => [player.playerId, createEmptyTrainingPoints()]),
+  );
+  for (const player of draft.playerTeam.members) {
+    draft.playerTrainingPoints[player.playerId] ??= createEmptyTrainingPoints();
+    for (const pointId of TRAINING_POINT_IDS) {
+      draft.playerTrainingPoints[player.playerId][pointId] += rewards.trainingPoints[pointId];
+    }
   }
 
   for (const [packId, quantity] of Object.entries(

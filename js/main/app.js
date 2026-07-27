@@ -44,7 +44,7 @@ import {
   renderTournamentSchedule,
 } from "./tournament-bridge.js";
 
-export const APP_VERSION = "mobbr-main-app-0.7.0";
+export const APP_VERSION = "mobbr-main-app-0.9.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -420,7 +420,7 @@ function menuCardTemplate(item, wide = false) {
 
 function playerRowTemplate(player) {
   return `
-    <article class="player-row">
+    <button type="button" class="player-row player-row--tap" data-action="inspect-team-player" data-player-id="${escapeAttribute(player.playerId)}">
       <img
         class="player-row__image"
         src="${escapeAttribute(player.image)}"
@@ -433,7 +433,8 @@ function playerRowTemplate(player) {
         </div>
       </div>
       <span class="role-badge">${escapeHtml(player.role)}</span>
-    </article>
+      <span class="player-row__tap">TAP</span>
+    </button>
   `;
 }
 
@@ -671,6 +672,7 @@ function settingsTemplate(snapshot, currentRoute, fromTitle = false) {
     reducedMotion: false,
     autoAdvanceOpening: false,
     commentarySpeed: 1,
+    testMode: false,
   };
 
   return `
@@ -756,6 +758,23 @@ function settingsTemplate(snapshot, currentRoute, fromTitle = false) {
               </option>
             </select>
           </div>
+
+          <section class="test-mode-setting ${settings.testMode ? "is-active" : ""}">
+            <div>
+              <strong>TEST MODE</strong>
+              <span>${settings.testMode ? "有効：通貨・ポイント・週送りを自由に操作できます" : "認証コードを入力すると有効になります"}</span>
+            </div>
+            <input type="password" inputmode="numeric" name="testModeCode" maxlength="4" placeholder="認証コード">
+            ${settings.testMode ? `
+              <div class="test-mode-actions">
+                <button type="button" data-action="test-grant-resources">通貨を補充</button>
+                <button type="button" data-action="test-grant-points">全選手PT補充</button>
+                <button type="button" data-action="test-advance-week" data-weeks="1">+1週</button>
+                <button type="button" data-action="test-advance-week" data-weeks="4">+4週</button>
+                <button type="button" data-action="test-advance-week" data-weeks="12">+12週</button>
+              </div>
+            ` : ""}
+          </section>
 
           <button type="submit" class="primary-button">
             設定を保存
@@ -1021,6 +1040,21 @@ function wizardTemplate(stepIndex, data, errorMessage = "") {
 
 function normaliseRoute(route) {
   return Object.values(ROUTES).includes(route) ? route : ROUTES.home;
+}
+
+function preloadImages(paths, timeoutMs = 1400) {
+  if (typeof Image === "undefined") return Promise.resolve();
+  const unique = [...new Set(paths.filter(Boolean))];
+  const tasks = unique.map((path) => new Promise((resolve) => {
+    const image = new Image();
+    image.onload = resolve;
+    image.onerror = resolve;
+    image.src = path;
+  }));
+  return Promise.race([
+    Promise.all(tasks),
+    new Promise((resolve) => setTimeout(resolve, timeoutMs)),
+  ]);
 }
 
 export function createMainApp({
@@ -1509,6 +1543,7 @@ export function createMainApp({
       autoAdvanceOpening:
         formData.get("autoAdvanceOpening") === "on",
       commentarySpeed: Number(formData.get("commentarySpeed")),
+      testModeCode: String(formData.get("testModeCode") ?? "").trim(),
     };
 
     if (!stateManager.getSnapshot()) {
@@ -1525,6 +1560,9 @@ export function createMainApp({
         draft.settings.autoAdvanceOpening =
           settings.autoAdvanceOpening;
         draft.settings.commentarySpeed = settings.commentarySpeed;
+        if (settings.testModeCode === "0321") {
+          draft.settings.testMode = true;
+        }
       });
       document.documentElement.dataset.reducedMotion =
         settings.reducedMotion ? "true" : "false";
@@ -1547,6 +1585,7 @@ export function createMainApp({
     openTextPrompt,
     showToast,
     render,
+    renderPreservingScroll: renderPreservingPageScroll,
   });
 
   const tournamentBridgeController = createTournamentBridgeController({
@@ -1630,6 +1669,81 @@ export function createMainApp({
     }
     if (action === "finish-new-game") {
       await finishNewGame();
+      return;
+    }
+    if (action === "inspect-team-player") {
+      const snapshot = stateManager.getSnapshot();
+      const player = snapshot.playerTeam.members.find(
+        (member) => member.playerId === actionElement.dataset.playerId,
+      );
+      if (!player) return;
+      const labels = {
+        stamina: "スタミナ",
+        mind: "マインド",
+        physical: "フィジカル",
+        aim: "エイム",
+        agility: "アジリティ",
+        technique: "テクニック",
+        support: "サポート",
+      };
+      const pointPool = snapshot.playerTrainingPoints?.[player.playerId] ?? snapshot.trainingPoints;
+      await openAlert({
+        title: `${player.role} ${player.name}`,
+        body: `
+          <section class="player-status-modal">
+            <img class="player-status-modal__portrait player-portrait" data-role="${escapeAttribute(player.role)}" src="${escapeAttribute(player.image)}" alt="">
+            <div class="player-status-modal__head">
+              <span>総合RANK ${escapeHtml(player.characterRank)}</span>
+              <strong>${escapeHtml(player.weapon.weaponName)}</strong>
+              <small>HP ${formatNumber(player.currentHp)} / ${formatNumber(player.maxHp)}</small>
+            </div>
+            <div class="player-status-modal__stats">
+              ${Object.entries(player.stats).map(([statId, value]) => `<div><span>${escapeHtml(labels[statId] ?? statId)}</span><strong>${value}</strong></div>`).join("")}
+            </div>
+            <div class="player-status-modal__points">
+              <span>POWER ${formatNumber(pointPool.power)}</span><span>TECH ${formatNumber(pointPool.tech)}</span><span>MENTAL ${formatNumber(pointPool.mental)}</span><span>SHOOT ${formatNumber(pointPool.shoot)}</span>
+            </div>
+          </section>
+        `,
+        buttonLabel: "閉じる",
+      });
+      return;
+    }
+    if (action === "test-grant-resources") {
+      const snapshot = stateManager.getSnapshot();
+      if (!snapshot?.settings?.testMode) return;
+      stateManager.transact("test_mode_resources_granted", (draft) => {
+        draft.resources.coin = Math.max(draft.resources.coin, 999_999_999);
+        draft.resources.diamond = Math.max(draft.resources.diamond, 99_999);
+        draft.resources.ruby = Math.max(draft.resources.ruby, 99_999);
+      });
+      showToast("TEST MODE：通貨を補充しました");
+      renderPreservingPageScroll();
+      return;
+    }
+    if (action === "test-grant-points") {
+      const snapshot = stateManager.getSnapshot();
+      if (!snapshot?.settings?.testMode) return;
+      stateManager.transact("test_mode_points_granted", (draft) => {
+        draft.playerTrainingPoints ??= {};
+        for (const player of draft.playerTeam.members) {
+          draft.playerTrainingPoints[player.playerId] ??= { power: 0, tech: 0, mental: 0, shoot: 0 };
+          for (const pointId of ["power", "tech", "mental", "shoot"]) {
+            draft.playerTrainingPoints[player.playerId][pointId] = 9999;
+          }
+        }
+      });
+      showToast("TEST MODE：全選手の能力PTを補充しました");
+      renderPreservingPageScroll();
+      return;
+    }
+    if (action === "test-advance-week") {
+      const snapshot = stateManager.getSnapshot();
+      if (!snapshot?.settings?.testMode) return;
+      const weeks = Math.max(1, Math.min(52, Number(actionElement.dataset.weeks) || 1));
+      stateManager.advanceWeeks(weeks, { grantWeeklyBonus: true });
+      showToast(`TEST MODE：${weeks}週進めました`);
+      render();
       return;
     }
     if (action === "select-team-player") {
@@ -1920,8 +2034,14 @@ export function createMainApp({
     }
   });
 
-  function start() {
-    showLoading("起動しています");
+  async function start() {
+    showLoading("画像を読み込んでいます");
+    await preloadImages([
+      "back/Load.png", "back/main1.png", "back/sub.png", "back/coh.png",
+      "menu/home.png", "menu/team.png", "menu/traning.png", "menu/COL.png",
+      "icon/coin.png", "icon/daia.png", "icon/rubi.png",
+    ]);
+    loadingMessage.textContent = "セーブデータを確認しています";
 
     try {
       const summary = inspectSaveSummary();
