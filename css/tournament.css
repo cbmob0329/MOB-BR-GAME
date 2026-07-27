@@ -4190,3 +4190,28 @@ img {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* Stage 16: portrait normalisation and brighter stretched battle backgrounds */
+.tournament-screen {
+  background-position: center !important;
+  background-size: 100% 100% !important;
+}
+
+.battle-fighter__portrait img,
+.battle-survivor-grid img,
+.match-champion-members img,
+.award-place img {
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+.battle-fighter__portrait img[src*="sup" i],
+.battle-survivor-grid img[src*="sup" i],
+.match-champion-members img[src*="sup" i],
+.award-place img[src*="sup" i] {
+  transform: scale(0.86);
+}
+
+.tournament-screen::before {
+  opacity: 0.5;
+}
