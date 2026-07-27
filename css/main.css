@@ -3963,3 +3963,299 @@ img.asset-missing {
   background-position: center, center !important;
   background-size: cover, cover !important;
 }
+
+
+/* Generation 23: HOME facilities, compact team UI, stable steppers */
+
+.bottom-nav__inner {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+.home-facility-only {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.home-facility-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px;
+}
+
+.home-facility-image {
+  position: relative;
+  display: grid;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 3px solid rgb(255 255 255 / 24%);
+  border-radius: 20px;
+  padding: 0;
+  background: #101a28;
+  box-shadow: 0 12px 28px rgb(0 0 0 / 28%);
+}
+
+.home-facility-image img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.home-facility-image span {
+  position: absolute;
+  z-index: 2;
+  right: 7px;
+  bottom: 7px;
+  left: 7px;
+  border-radius: 10px;
+  padding: 7px 5px;
+  background: rgb(4 12 23 / 82%);
+  color: #fff;
+  font-size: .64rem;
+  font-weight: 1000;
+  text-align: center;
+}
+
+.home-facility-image.is-locked img {
+  filter: grayscale(1) brightness(.35);
+}
+
+.home-facility-image em {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  border: 2px solid #fff;
+  border-radius: 8px;
+  padding: 5px 9px;
+  background: rgb(0 0 0 / 72%);
+  color: #fff;
+  font-size: .58rem;
+  font-style: normal;
+  font-weight: 1000;
+}
+
+.facility-menu-page {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.facility-menu-page .facility-carousel {
+  display: none !important;
+}
+
+.team-compact-heading {
+  display: grid;
+  gap: 3px;
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgb(24 38 59 / 88%);
+}
+
+.team-compact-heading span {
+  color: var(--accent);
+  font-size: .5rem;
+  font-weight: 950;
+}
+
+.team-compact-heading strong {
+  overflow: hidden;
+  color: #fff;
+  font-size: .76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-compact-heading small {
+  color: var(--text-muted);
+  font-size: .5rem;
+}
+
+.team-portrait-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.team-portrait-button {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  justify-items: center;
+  gap: 3px;
+  border: 2px solid rgb(255 255 255 / 18%);
+  border-radius: 14px;
+  padding: 7px 5px;
+  background: rgb(22 34 52 / 88%);
+  color: #fff;
+}
+
+.team-portrait-button img {
+  width: 100%;
+  height: min(27vw, 112px);
+  object-fit: contain;
+}
+
+.team-portrait-button span {
+  color: var(--accent);
+  font-size: .47rem;
+  font-weight: 950;
+}
+
+.team-portrait-button strong {
+  width: 100%;
+  overflow: hidden;
+  font-size: .55rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-portrait-button em {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  border-radius: 999px;
+  padding: 2px 5px;
+  background: rgb(246 215 95 / 88%);
+  color: #111;
+  font-size: .38rem;
+  font-style: normal;
+  font-weight: 1000;
+}
+
+.team-feature-live-section {
+  display: contents;
+}
+
+.weapon-plan-resources {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin: 8px 0;
+}
+
+.weapon-plan-resources span {
+  display: grid;
+  gap: 2px;
+  border-radius: 10px;
+  padding: 7px;
+  background: rgb(26 40 61 / 92%);
+  color: #dfe6f0;
+  font-size: .46rem;
+}
+
+.weapon-plan-resources strong {
+  color: #fff;
+  font-size: .65rem;
+}
+
+.weapon-plan-resources em {
+  color: #87d9ff;
+  font-size: .48rem;
+  font-style: normal;
+}
+
+.growth-stepper button[data-repeat-action],
+.quantity-stepper-modal button {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.quantity-stepper-modal {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) 58px;
+  gap: 9px;
+  align-items: center;
+  margin: 12px 0 4px;
+}
+
+.quantity-stepper-modal button {
+  min-height: 54px;
+  border: 2px solid rgb(255 255 255 / 20%);
+  border-radius: 12px;
+  background: rgb(35 49 72 / 98%);
+  color: #fff;
+  font-size: 1.3rem;
+  font-weight: 1000;
+}
+
+.quantity-stepper-modal strong {
+  display: grid;
+  min-height: 54px;
+  place-items: center;
+  border: 3px solid var(--accent);
+  border-radius: 12px;
+  background: rgb(12 20 33 / 96%);
+  color: var(--accent);
+  font-size: 1.1rem;
+}
+
+.player-status-modal__ability {
+  width: auto !important;
+  min-height: 34px !important;
+  justify-self: center;
+  padding: 6px 14px !important;
+  font-size: .55rem !important;
+  white-space: nowrap;
+}
+
+.special-ability-card small {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 3px 6px;
+}
+
+.special-ability-card small i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.special-ability-card.is-learned,
+.special-ability-card.is-replaced {
+  border-color: #58d794 !important;
+  background: rgb(24 77 58 / 92%) !important;
+}
+
+.special-ability-card.is-learned small,
+.special-ability-card.is-replaced small {
+  color: #9bffca !important;
+}
+
+.special-ability-card.is-learnable {
+  border-color: #f5d75e !important;
+  box-shadow: 0 0 0 3px rgb(245 215 94 / 13%);
+}
+
+.special-ability-card.is-learnable small {
+  background: #f5d75e;
+  color: #111 !important;
+}
+
+.special-ability-card.is-locked {
+  opacity: .48;
+  filter: grayscale(.75);
+}
+
+.special-ability-card.is-insufficient small {
+  color: #ff9a9f !important;
+}
+
+@media (max-width: 360px) {
+  .home-facility-grid {
+    gap: 7px;
+  }
+
+  .team-portrait-button img {
+    height: 86px;
+  }
+}

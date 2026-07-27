@@ -5785,3 +5785,179 @@ html[data-asset-prefix="../../"] .tournament-loading-overlay {
     font-size: .5rem;
   }
 }
+
+
+/* Generation 23: guaranteed stage artwork, centered strategy, CT display */
+
+.tournament-screen {
+  isolation: isolate;
+}
+
+.tournament-stage-background {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+}
+
+
+.provisional-phase-card {
+  background: rgb(5 15 30 / 72%) !important;
+  backdrop-filter: blur(2px);
+}
+
+.strategy-start-cutin--text {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  width: min(100%, 650px) !important;
+  min-height: 0 !important;
+  justify-items: center !important;
+  gap: 7px !important;
+  border: 6px solid var(--tournament-gold) !important;
+  padding: 18px 16px !important;
+  background: rgb(5 15 30 / 88%) !important;
+  text-align: center !important;
+}
+
+.strategy-start-cutin--text::before,
+.strategy-start-cutin--text::after {
+  display: none !important;
+}
+
+.strategy-start-cutin--text > span,
+.strategy-start-cutin--text > h1,
+.strategy-start-cutin--text > p,
+.strategy-start-cutin--text > small {
+  grid-column: 1 !important;
+  width: min(100%, 560px) !important;
+  margin: 0 !important;
+  text-align: center !important;
+  writing-mode: horizontal-tb !important;
+  overflow-wrap: anywhere;
+}
+
+.strategy-start-cutin--text > span {
+  color: var(--tournament-gold);
+  font-size: .62rem;
+  font-weight: 1000;
+  letter-spacing: .08em;
+}
+
+.strategy-start-cutin--text > h1 {
+  color: #fff;
+  font-size: clamp(1.25rem, 7vw, 2.5rem) !important;
+  line-height: 1.15 !important;
+}
+
+.strategy-start-cutin--text > p {
+  color: rgb(255 255 255 / 84%);
+  font-size: .68rem !important;
+  line-height: 1.55;
+}
+
+.strategy-start-cutin--text > small {
+  color: #fff;
+  font-size: .58rem;
+  font-weight: 950;
+}
+
+.battle-skill-ct {
+  display: grid;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.battle-skill-ct > span {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 14px;
+  align-items: center;
+  overflow: hidden;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 48%);
+  color: #fff;
+}
+
+.battle-skill-ct i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: rgb(84 170 232 / 42%);
+}
+
+.battle-skill-ct b,
+.battle-skill-ct em {
+  position: relative;
+  z-index: 1;
+  padding: 1px 3px;
+  font-size: .34rem;
+  font-style: normal;
+  line-height: 1.1;
+}
+
+.battle-skill-ct em {
+  color: #bfe7ff;
+  font-variant-numeric: tabular-nums;
+}
+
+.battle-skill-ct > span.is-ready i {
+  width: 100% !important;
+  background: rgb(245 215 94 / 55%);
+}
+
+.battle-skill-ct > span.is-ready em {
+  color: #fff3a7;
+  font-weight: 1000;
+}
+
+.exploration-backpack-shortcut {
+  position: absolute;
+  z-index: 8;
+  top: calc(var(--safe-top) + 55px);
+  right: calc(var(--safe-right) + 8px);
+  display: grid;
+  grid-template-columns: 30px auto;
+  gap: 5px;
+  align-items: center;
+  border: 2px solid var(--tournament-gold);
+  border-radius: 999px;
+  padding: 4px 9px 4px 5px;
+  background: rgb(5 15 30 / 93%);
+  color: #fff;
+  box-shadow: 0 7px 18px rgb(0 0 0 / 30%);
+}
+
+.exploration-backpack-shortcut img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+
+.exploration-backpack-shortcut span {
+  font-size: .48rem;
+  font-weight: 1000;
+}
+
+.battle-ammo {
+  grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
+  gap: 1px !important;
+}
+
+@media (max-width: 390px) {
+  .strategy-start-cutin--text {
+    padding: 12px 10px !important;
+  }
+
+  .exploration-backpack-shortcut span {
+    display: none;
+  }
+
+  .exploration-backpack-shortcut {
+    grid-template-columns: 30px;
+    padding-right: 5px;
+  }
+}
