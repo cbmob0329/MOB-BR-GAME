@@ -15,7 +15,7 @@ import {
   rankToWeaponValue,
 } from "./game-data.js";
 
-export const BATTLE_CONFIG_VERSION = "mobbr-battle-config-1.1.0";
+export const BATTLE_CONFIG_VERSION = "mobbr-battle-config-1.2.0";
 export const BATTLE_BALANCE_VERSION = "mobbr-battle-balance-0.1.0";
 
 export const COMBAT_STATES = Object.freeze(["alive", "down", "dead"]);
@@ -39,10 +39,10 @@ export const BATTLE_LIMITS = Object.freeze({
   hitChanceMax: 0.95,
   criticalChanceMin: 0.03,
   criticalChanceMax: 0.3,
-  minimumAttackIntervalSeconds: 0.45,
-  maximumAttackIntervalSeconds: 1.4,
-  minimumReloadSeconds: 0.8,
-  maximumReloadSeconds: 2.5,
+  minimumAttackIntervalSeconds: 0.32,
+  maximumAttackIntervalSeconds: 0.9,
+  minimumReloadSeconds: 0.65,
+  maximumReloadSeconds: 1.45,
   maximumSkillCtReduction: 0.15,
   maximumShieldSupportBonus: 0.1,
 });
@@ -224,7 +224,7 @@ export const SKILL_MASTER = Object.freeze({
       name: "リスポーンフィールド",
       type: "REVIVE",
       target: "all_down_allies",
-      baseCt: 9,
+      baseCt: 7.2,
       reviveHpRate: 0.3,
       excludesDead: true,
       affectedStats: Object.freeze(["support", "mind"]),
