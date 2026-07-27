@@ -21,7 +21,7 @@ import {
 } from "./round.js";
 
 export const EXPLORATION_VERSION =
-  "mobbr-tournament-exploration-1.1.0";
+  "mobbr-tournament-exploration-1.2.0";
 
 export const EXPLORATION_PAGES = Object.freeze([
   "SEARCH",
@@ -1368,9 +1368,11 @@ export function renderStrategySelectionScreen(runtime) {
   );
 
   return `
-    <main class="tournament-screen tournament-screen--strategy-select">
-      ${topStatusTemplate(runtime, "全50作戦")}
-      <section class="strategy-select-shell">
+    <main class="tournament-screen tournament-screen--strategy-select" style="--map-background:url('${escapeAttribute(runtime.map.image)}')">
+      <header class="strategy-select-header">
+        <img src="icon/battle.png" alt=""><div><span>STRATEGY SELECT</span><strong>${escapeHtml(selectedRuntime.name)}</strong></div>
+      </header>
+      <section class="strategy-select-shell strategy-select-shell--no-status">
         <nav class="strategy-rank-tabs">
           ${STRATEGY_TABS.map((rankTab) => `
             <button
@@ -1458,7 +1460,6 @@ export function renderStrategyCutIn(runtime) {
   const master = strategyMaster(strategyId);
   return `
     <section class="strategy-start-cutin">
-      <div class="strategy-start-cutin__slash" aria-hidden="true"></div>
       <img src="${escapeAttribute(master.icon)}" alt="">
       <div>
         <span>STRATEGY LOCKED / ${escapeHtml(strategy.rank)}</span>

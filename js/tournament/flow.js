@@ -62,7 +62,7 @@ import {
   resolveRoundEncounterToDraft,
 } from "./round.js";
 
-export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-1.7.0";
+export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-1.8.0";
 
 const PHASE_LABELS = Object.freeze({
   IDLE: "待機",
@@ -246,39 +246,28 @@ function openingTemplate(runtime) {
   const scene = runtime.opening.scenes[runtime.opening.sceneIndex];
   const sceneNumber = runtime.opening.sceneIndex + 1;
   const isLast = sceneNumber === runtime.opening.scenes.length;
+  const background = tournamentThemeBackground(runtime);
+  const logo = tournamentThemeLogo(runtime);
   return `
     <main
       class="tournament-screen tournament-screen--opening"
-      style="--opening-background:url('${escapeAttribute(scene.backgroundImage)}')"
+      style="--opening-background:url('${escapeAttribute(background)}')"
     >
-      ${topStatusTemplate(runtime)}
       <section class="opening-stage opening-stage--${escapeAttribute(scene.type.toLowerCase())}">
-        <div class="opening-stage__scan" aria-hidden="true"></div>
+        <img class="opening-event-logo" src="${escapeAttribute(logo)}" alt="">
+        <div class="opening-stage__accent" aria-hidden="true"></div>
         ${sceneForegroundTemplate(scene)}
         <div class="opening-stage__copy">
-          <span>SCENE ${sceneNumber} / ${runtime.opening.scenes.length}</span>
+          <span>${escapeHtml(runtime.entryData.tournament.stageName)} / SCENE ${sceneNumber}</span>
           <h1>${escapeHtml(scene.text)}</h1>
           <p>${escapeHtml(scene.subtext ?? "")}</p>
         </div>
       </section>
-      <div class="tournament-bottom-area">
+      <div class="tournament-bottom-area tournament-bottom-area--opening">
         ${commentaryTemplate(scene.commentary)}
         <div class="tournament-actions tournament-actions--opening">
-          <button
-            type="button"
-            class="tournament-button tournament-button--ghost"
-            data-action="opening-skip"
-            ${scene.canSkip ? "" : "disabled"}
-          >
-            SKIP OPENING
-          </button>
-          <button
-            type="button"
-            class="tournament-button tournament-button--primary"
-            data-action="opening-next"
-          >
-            ${isLast ? "TEAM INTRO" : "NEXT"}
-          </button>
+          <button type="button" class="tournament-button tournament-button--ghost" data-action="opening-skip" ${scene.canSkip ? "" : "disabled"}>SKIP</button>
+          <button type="button" class="tournament-button tournament-button--primary" data-action="opening-next">${isLast ? "TEAM INTRO" : "NEXT"}</button>
         </div>
       </div>
     </main>
@@ -534,50 +523,43 @@ function getCurrentCpuOpponent(runtime) {
 function encounterPreviewTemplate(runtime) {
   const members = playerMembers(runtime);
   const opponent = getCurrentCpuOpponent(runtime);
-  return provisionalPhaseTemplate(runtime, {
-    eyebrow: "ENCOUNTER PREVIEW",
-    title: opponent?.teamName ?? "CPU TEAM",
-    description: "両チームの3選手を確認して作戦を選択します。",
-    commentary: opponent
-      ? `${opponent.teamName}との接敵を確認！作戦準備へ移ります。`
-      : "CPU対戦相手を確認できません。",
-    primaryAction: "encounter-next",
-    primaryLabel: "作戦確認",
-    content: `
-      <div class="encounter-preview-grid">
-        <section class="encounter-team encounter-team--player">
-          <span>PLAYER TEAM</span>
-          <h2>${escapeHtml(runtime.entryData.playerTeam.teamName)}</h2>
+  const enemyMembers = opponent?.members ?? [];
+  return `
+    <main class="tournament-screen tournament-screen--encounter" style="--map-background:url('${escapeAttribute(runtime.map.image)}')">
+      <header class="encounter-versus-header">
+        <span>ENCOUNTER</span>
+        <h1>${escapeHtml(runtime.entryData.playerTeam.teamName)} <b>VS</b> ${escapeHtml(opponent?.teamName ?? "CPU TEAM")}</h1>
+      </header>
+      <section class="encounter-compact-stage">
+        <div class="encounter-compact-team encounter-compact-team--player">
+          <strong>${escapeHtml(runtime.entryData.playerTeam.teamName)}</strong>
           ${members.map((member) => `
-            <div>
+            <article>
               <img src="${escapeAttribute(member.image)}" alt="">
-              <strong>${escapeHtml(member.role)} ${escapeHtml(member.name)}</strong>
-              <small>HP ${member.currentHp} / ${member.maxHp} — ${escapeHtml(member.weapon.weaponName)}</small>
-            </div>
+              <div><span>${escapeHtml(member.role)}</span><b>${escapeHtml(member.name)}</b><small>HP ${member.currentHp}/${member.maxHp}</small></div>
+            </article>
           `).join("")}
-        </section>
-        <section class="encounter-team encounter-team--cpu">
-          <span>CPU TEAM / ${escapeHtml(opponent?.form?.toUpperCase() ?? "NORMAL")}</span>
-          <h2>${escapeHtml(opponent?.teamName ?? "CPU TEAM")}</h2>
-          ${
-            opponent
-              ? opponent.members.map((member) => `
-                  <div>
-                    <img src="${escapeAttribute(member.image)}" alt="">
-                    <strong>${escapeHtml(member.role)} ${escapeHtml(member.name)}</strong>
-                    <small>
-                      RANK ${escapeHtml(member.characterRank)} —
-                      ${escapeHtml(member.weapon.weaponName)} /
-                      ${escapeHtml(member.weapon.preferredRange)}
-                    </small>
-                  </div>
-                `).join("")
-              : `<div class="pending-opponent-mark">!</div>`
-          }
-        </section>
+        </div>
+        <div class="encounter-vs-mark">VS</div>
+        <div class="encounter-compact-team encounter-compact-team--cpu">
+          <strong>${escapeHtml(opponent?.teamName ?? "CPU TEAM")}</strong>
+          ${enemyMembers.map((member) => `
+            <article>
+              <img src="${escapeAttribute(member.image)}" alt="">
+              <div><span>${escapeHtml(member.role)}</span><b>${escapeHtml(member.name)}</b><small>RANK ${escapeHtml(member.characterRank)}</small></div>
+            </article>
+          `).join("")}
+        </div>
+      </section>
+      <div class="tournament-bottom-area encounter-bottom-area">
+        ${commentaryTemplate(opponent ? `${runtime.entryData.playerTeam.teamName}と${opponent.teamName}が接敵！両チームの役割配置を確認して作戦を決めましょう！` : "対戦相手を確認できません。")}
+        <div class="tournament-actions">
+          <button type="button" class="tournament-button tournament-button--secondary" data-action="suspend-return">中断保存</button>
+          <button type="button" class="tournament-button tournament-button--primary" data-action="encounter-next">作戦選択</button>
+        </div>
       </div>
-    `,
-  });
+    </main>
+  `;
 }
 
 function battleCountdownTemplate(runtime) {
@@ -993,6 +975,11 @@ export function createTournamentFlowController({
         break;
       case "ROUND_INTRO":
         root.innerHTML = roundIntroTemplate(runtime);
+        if (!isPlayerActive(runtime)) {
+          scheduleAction(() => {
+            root.querySelector('[data-action="round-intro-next"]')?.click();
+          }, runtime.entryData.settings.reducedMotion ? 30 : 180);
+        }
         break;
       case "ENCOUNTER_PREVIEW":
         root.innerHTML = encounterPreviewTemplate(runtime);
@@ -1851,13 +1838,51 @@ export function createTournamentFlowController({
   });
 }
 
-function bootstrap() {
+function preloadTournamentImages(paths, timeoutMs = 1800) {
+  if (typeof Image === "undefined") {
+    return Promise.resolve();
+  }
+  const unique = [...new Set(paths.filter(Boolean))];
+  const tasks = unique.map((path) => new Promise((resolve) => {
+    const image = new Image();
+    image.onload = resolve;
+    image.onerror = resolve;
+    image.src = path;
+  }));
+  return Promise.race([
+    Promise.all(tasks),
+    new Promise((resolve) => setTimeout(resolve, timeoutMs)),
+  ]);
+}
+
+async function bootstrap() {
   const root = document.querySelector("#tournamentApp");
   const modalRoot = document.querySelector("#tournamentModalRoot");
   const toastRoot = document.querySelector("#tournamentToastRoot");
   const loadingOverlay = document.querySelector("#tournamentLoadingOverlay");
   const loadingMessage = document.querySelector("#tournamentLoadingMessage");
 
+  loadingOverlay.setAttribute("aria-hidden", "false");
+  loadingMessage.textContent = "大会画像を読み込んでいます";
+  await preloadTournamentImages([
+    "back/Load.png",
+    "back/local.png",
+    "back/national.png",
+    "back/world.png",
+    "back/champ.png",
+    "back/neon.png",
+    "back/sabak.png",
+    "back/magma.png",
+    "back/inaka.png",
+    "icon/local.png",
+    "icon/national.png",
+    "icon/world.png",
+    "icon/champ.png",
+    "icon/mic.png",
+    "icon/battle.png",
+    "icon/round.png",
+    "icon/match.png",
+  ]);
   const controller = createTournamentFlowController({
     root,
     modalRoot,

@@ -52,12 +52,12 @@ import {
 } from "./special-abilities.js";
 
 export const BATTLE_ACTIONS_VERSION =
-  "mobbr-battle-actions-1.3.0";
+  "mobbr-battle-actions-1.4.0";
 
 export const BATTLE_ACTION_BALANCE = Object.freeze({
   criticalDamageMultiplier: 1.5,
-  finishDownedTargetChance: 0.16,
-  finishDownedGraceSeconds: 1.4,
+  finishDownedTargetChance: 0.13,
+  finishDownedGraceSeconds: 2.1,
   lowHpTargetWeight: 1.5,
   roleTargetWeight: 0.45,
   callBuff: Object.freeze({
@@ -483,7 +483,16 @@ export function createBattleParticipant({
       name: skill.name,
       type: skill.type,
       target: skill.target,
-      baseCt: skill.baseCt,
+      baseCt: Math.max(
+        2.8,
+        Math.round(
+          skill.baseCt *
+            (1 - clamp(((battleStats.agility ?? 1) + (battleStats.mind ?? 1) - 2) / 520, 0, 0.16)) *
+            (0.96 + ((String(member.playerId).charCodeAt(String(member.playerId).length - 1) || 0) % 9) * 0.01) *
+            100,
+        ) / 100,
+      ),
+      originalBaseCt: skill.baseCt,
       unavoidable: skill.unavoidable === true,
       usesAmmo: skill.usesAmmo === true,
       source: skill.source ?? "entry",
@@ -584,6 +593,7 @@ export function createBattleParticipant({
       nextNormalAim: 0,
       allyDownCallUses: 0,
     },
+    reviveSkillUses: 0,
     unappliedSpecialAbilityKeys:
       deepClone(specialProfile.unsupportedAbilityKeys),
     stats: {
@@ -878,6 +888,46 @@ export function confirmDownedTarget(
   };
 }
 
+function tryEmergencySupportRevive(battle, downedTarget) {
+  const support = getTeamParticipants(battle, downedTarget.teamId, "alive")
+    .find((member) =>
+      member.role === "SUP" &&
+      (member.reviveSkillUses ?? 0) < 1 &&
+      member.skills.some((skill) => skill.skillId === "sup_respawn_field"),
+    );
+  if (!support) return null;
+  const skill = support.skills.find((entry) => entry.skillId === "sup_respawn_field");
+  support.reviveSkillUses = (support.reviveSkillUses ?? 0) + 1;
+  support.stats.skillUses += 1;
+  support.skillCharge[skill.skillId] = 0;
+  appendBattleEvent(battle, "skill_cutin", {
+    actorPlayerId: support.playerId,
+    actorTeamId: support.teamId,
+    targetPlayerId: downedTarget.playerId,
+    targetTeamId: downedTarget.teamId,
+    skillId: skill.skillId,
+    skillName: skill.name,
+    emergency: true,
+  });
+  const result = reviveParticipant(
+    battle,
+    support,
+    downedTarget,
+    skill.reviveHpRate ?? STATE_RULES.reviveFieldBaseHpRate,
+    skill.skillId,
+    skill.name,
+  );
+  appendBattleEvent(battle, "skill_revive", {
+    actorPlayerId: support.playerId,
+    actorTeamId: support.teamId,
+    skillId: skill.skillId,
+    skillName: skill.name,
+    results: result ? [result] : [],
+    emergency: true,
+  });
+  return result;
+}
+
 export function applyBattleDamage(
   battle,
   actor,
@@ -981,6 +1031,10 @@ export function applyBattleDamage(
       sourceName,
     });
     applySpecialOnAllyDown(
+      battle,
+      target,
+    );
+    tryEmergencySupportRevive(
       battle,
       target,
     );
@@ -2156,6 +2210,9 @@ function executeRespawnField(
   actor,
   skill,
 ) {
+  if ((actor.reviveSkillUses ?? 0) >= 1) {
+    return null;
+  }
   const targets =
     getTeamParticipants(
       battle,
@@ -2166,6 +2223,7 @@ function executeRespawnField(
     return null;
   }
   useSkillCharge(actor, skill);
+  actor.reviveSkillUses = (actor.reviveSkillUses ?? 0) + 1;
   const modifiers =
     getSpecialSkillModifiers(
       actor,

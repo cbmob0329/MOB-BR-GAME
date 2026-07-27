@@ -203,6 +203,13 @@ export function resolveRoundEncounterToDraft(
   const playerActive =
     draft.activeTeamIds.includes(
       draft.playerTeamId,
+    ) &&
+    teamMembers(
+      draft,
+      draft.playerTeamId,
+    ).some(
+      (member) =>
+        member.combatState !== "dead",
     );
   const roll = stableUnit(`${key}:encounter`);
   const encountered =
@@ -538,8 +545,14 @@ export function finalizeRoundFieldToDraft(
               source: "player_visible_battle",
             }
           : createFastStats(draft, teamId);
+      const forcedEliminated =
+        teamMembers(draft, teamId).every(
+          (member) =>
+            member.combatState === "dead",
+        );
       return {
         teamId,
+        forcedEliminated,
         teamName:
           teamRecord(draft, teamId)
             .teamName,
@@ -556,6 +569,9 @@ export function finalizeRoundFieldToDraft(
   );
 
   teamResults.sort((left, right) => {
+    if (left.forcedEliminated !== right.forcedEliminated) {
+      return left.forcedEliminated ? 1 : -1;
+    }
     if (right.score !== left.score) {
       return right.score - left.score;
     }

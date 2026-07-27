@@ -13,7 +13,7 @@ import {
   createCommentaryDirector,
 } from "./commentary.js";
 
-export const BATTLE_UI_VERSION = "mobbr-battle-ui-1.1.0";
+export const BATTLE_UI_VERSION = "mobbr-battle-ui-1.2.0";
 export const BATTLE_REPLAY_SCHEMA_VERSION =
   "mobbr-battle-replay-1.0.0";
 
@@ -131,7 +131,7 @@ export function createBattleReplayModel(runtime) {
     playerTeamId: runtime.playerTeamId,
     leftTeamId: result.leftTeamId,
     rightTeamId: result.rightTeamId,
-    durationSeconds: 10,
+    durationSeconds: result.durationSeconds ?? 10,
     elapsedSeconds: 0,
     eventIndex: 0,
     status: "ready",
@@ -757,12 +757,19 @@ export function createBattlePlaybackController({
         ? 0
         : model.events[eventIndex - 1].time;
     const eventDelay = Math.max(0, event.time - previousTime) * 1000;
-    const isCutIn = event.type.startsWith("skill_");
-    const presentationHold =
-      isCutIn && !reducedMotion ? 180 : 0;
+    const previousEvent = eventIndex > 0 ? model.events[eventIndex - 1] : null;
+    const previousPresentationHold = !reducedMotion && previousEvent
+      ? previousEvent.type.startsWith("skill_")
+        ? 720
+        : ["down", "confirmed_kill", "revive"].includes(previousEvent.type)
+          ? 540
+          : previousEvent.type === "underdog_momentum"
+            ? 620
+            : 0
+      : 0;
     const delay = reducedMotion
       ? Math.min(25, eventDelay / safeRate)
-      : Math.max(12, eventDelay / safeRate + presentationHold);
+      : Math.max(18, eventDelay / safeRate + previousPresentationHold / safeRate);
     const token = generation;
 
     timeoutId = timer.setTimeout(() => {

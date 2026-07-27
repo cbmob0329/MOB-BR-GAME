@@ -6,7 +6,7 @@
  * replacing confirmed-kill, revive, down, and result commentary.
  */
 
-export const COMMENTARY_VERSION = "mobbr-commentary-1.0.0";
+export const COMMENTARY_VERSION = "mobbr-commentary-1.1.0";
 export const COMMENTATOR = Object.freeze({
   id: "mob-mic",
   name: "モブマイク",
@@ -34,14 +34,29 @@ export const COMMENTARY_PRIORITIES = Object.freeze({
 });
 
 export const COMMENTARY_PRESENTATION = Object.freeze({
-  repeatedTextCooldownSeconds: 3,
-  defaultSuppressDuration: 0.55,
-  highPrioritySuppressDuration: 1.15,
+  repeatedTextCooldownSeconds: 1.4,
+  defaultSuppressDuration: 0.28,
+  highPrioritySuppressDuration: 0.78,
   resultSuppressDuration: 2,
   largeDamageHpRate: 0.2,
 });
 
 const TEMPLATES = Object.freeze({
+  underdog_momentum: Object.freeze([
+    "格上相手ですが、{leftTeamName}に勝負の流れが来ています！",
+    "番狂わせの気配！{leftTeamName}が一気に集中力を上げました！",
+    "10%の勝機をつかめるか！{leftTeamName}が食らいつきます！",
+  ]),
+  assist: Object.freeze([
+    "連携が決まりました！アシストポイント獲得です！",
+    "味方の援護が効いています！見事なアシスト！",
+    "単独ではありません。チームで仕留めにかかります！",
+  ]),
+  reload_complete: Object.freeze([
+    "{actorName}、装填完了！再び射撃へ入ります！",
+    "8発を補充！{actorName}が攻撃を再開します！",
+    "リロード完了、次の射線を狙います！",
+  ]),
   battle_start: Object.freeze([
     "{leftTeamName}対{rightTeamName}、戦闘開始です！",
     "両チームが接敵！10秒間の自動戦闘が始まります！",
@@ -237,6 +252,12 @@ function commentaryDefinition(event, context) {
     Number(event.damage ?? 0) / Math.max(1, targetMaxHp);
 
   switch (event.type) {
+    case "underdog_momentum":
+      return {
+        category: "underdog_momentum",
+        priority: COMMENTARY_PRIORITIES.reversal,
+        tags: ["underdog", "reversal"],
+      };
     case "battle_start":
       return {
         category: "battle_start",
@@ -285,6 +306,18 @@ function commentaryDefinition(event, context) {
         };
       }
       return null;
+    case "reload_complete":
+      return {
+        category: "reload_complete",
+        priority: COMMENTARY_PRIORITIES.reload,
+        tags: ["reload", "complete"],
+      };
+    case "assist":
+      return {
+        category: "assist",
+        priority: COMMENTARY_PRIORITIES.heal,
+        tags: ["assist", "teamplay"],
+      };
     case "reload_start":
       return {
         category: "reload",

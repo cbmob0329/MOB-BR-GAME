@@ -24,11 +24,12 @@ import {
   recoverDownedAfterBattle,
   initializeBattleSpecialAbilities,
   prepareParticipantSpecialAfterBattle,
+  addOrRefreshEffect,
   updateParticipantTimers,
 } from "./battle-actions.js";
 
 export const BATTLE_CORE_VERSION =
-  "mobbr-battle-core-1.2.0";
+  "mobbr-battle-core-1.3.0";
 export const BATTLE_STATE_SCHEMA_VERSION =
   "mobbr-battle-state-1.0.0";
 
@@ -368,6 +369,37 @@ export function createBattleFromTournamentRuntime(
   initializeBattleSpecialAbilities(
     battle,
   );
+
+  const leftPower = teamBattlePower(battle, leftTeamId);
+  const rightPower = teamBattlePower(battle, rightTeamId);
+  const playerUnderdog = leftPower < rightPower * 0.92;
+  const upsetTriggered = playerUnderdog && nextBattleRandom(battle) < 0.10;
+  if (upsetTriggered) {
+    for (const participant of getTeamParticipants(battle, leftTeamId)) {
+      addOrRefreshEffect(participant, {
+        code: "underdog_momentum",
+        sourcePlayerId: participant.playerId,
+        remainingSeconds: battle.durationSeconds,
+        accuracyModifier: 0.04,
+        damageReduction: 0.08,
+        damageMultiplier: 1.12,
+        stats: { mind: 1, agility: 1 },
+      });
+    }
+    appendBattleEvent(battle, "underdog_momentum", {
+      teamId: leftTeamId,
+      teamName: leftTeam.teamName,
+      probability: 0.10,
+      leftPower,
+      rightPower,
+    });
+  }
+  battle.upsetMomentum = {
+    eligible: playerUnderdog,
+    triggered: upsetTriggered,
+    probability: playerUnderdog ? 0.10 : 0,
+  };
+
   battle.initialParticipantStates =
     createInitialParticipantStates(
       Object.values(battle.participants),
