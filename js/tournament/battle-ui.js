@@ -13,7 +13,7 @@ import {
   createCommentaryDirector,
 } from "./commentary.js";
 
-export const BATTLE_UI_VERSION = "mobbr-battle-ui-1.0.0";
+export const BATTLE_UI_VERSION = "mobbr-battle-ui-1.1.0";
 export const BATTLE_REPLAY_SCHEMA_VERSION =
   "mobbr-battle-replay-1.0.0";
 
@@ -421,8 +421,9 @@ function participantTemplate(participant, side) {
       data-distance="${escapeAttribute(participant.distance)}"
     >
       <div class="battle-fighter__portrait">
-        <img src="${escapeAttribute(participant.image)}" alt="">
+        <img src="${escapeAttribute(participant.combatState === "dead" ? "icon/deth.png" : participant.image)}" alt="">
         <span>${escapeHtml(participant.role)}</span>
+        ${participant.combatState === "dead" ? `<b class="death-box-label">DEATH BOX</b>` : ""}
       </div>
       <div class="battle-fighter__info">
         <strong>${escapeHtml(participant.name)}</strong>
@@ -573,7 +574,7 @@ function resultCutTemplate(model) {
 
 export function renderBattleReplayScreen(runtime, model) {
   return `
-    <main class="tournament-screen tournament-screen--battle-replay">
+    <main class="tournament-screen tournament-screen--battle-replay" style="--map-background:url('${escapeAttribute(runtime.map.image)}')">
       ${statusHeaderTemplate(runtime, model)}
       <section class="battle-arena">
         <div class="battle-distance-guide" aria-hidden="true">

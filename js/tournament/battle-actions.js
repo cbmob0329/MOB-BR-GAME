@@ -52,11 +52,12 @@ import {
 } from "./special-abilities.js";
 
 export const BATTLE_ACTIONS_VERSION =
-  "mobbr-battle-actions-1.2.0";
+  "mobbr-battle-actions-1.3.0";
 
 export const BATTLE_ACTION_BALANCE = Object.freeze({
   criticalDamageMultiplier: 1.5,
-  finishDownedTargetChance: 0.24,
+  finishDownedTargetChance: 0.16,
+  finishDownedGraceSeconds: 1.4,
   lowHpTargetWeight: 1.5,
   roleTargetWeight: 0.45,
   callBuff: Object.freeze({
@@ -543,6 +544,7 @@ export function createBattleParticipant({
       previouslyAppliedMaxHpBonus +
       newlyAppliedMaxHpBonus,
     combatState,
+    downedAt: combatState === "down" ? 0 : null,
     preferredDistance,
     currentDistance: "mid",
     distanceCooldown: roundTime(0.1 + index * 0.08),
@@ -691,6 +693,10 @@ export function selectAttackTarget(
     battle,
     enemyTeamId,
     "down",
+  ).filter((target) =>
+    target.downedAt === null ||
+    battle.elapsedSeconds - target.downedAt >=
+      BATTLE_ACTION_BALANCE.finishDownedGraceSeconds
   );
 
   if (
@@ -840,6 +846,7 @@ export function confirmDownedTarget(
   }
 
   target.combatState = "dead";
+  target.downedAt = null;
   target.hp = STATE_RULES.deadHp;
   target.stats.deaths += 1;
   actor.stats.kills += 1;
@@ -957,6 +964,7 @@ export function applyBattleDamage(
   let downed = false;
   if (target.hp <= 0) {
     target.combatState = "down";
+    target.downedAt = battle.elapsedSeconds;
     target.hp = STATE_RULES.downHp;
     target.stats.downsTaken += 1;
     actor.stats.downsGiven += 1;
@@ -1399,6 +1407,7 @@ function reviveParticipant(
     return null;
   }
   target.combatState = "alive";
+  target.downedAt = null;
   target.hp = calculateReviveHp(
     target.maxHp,
     reviveRate,
@@ -2583,6 +2592,7 @@ export function recoverDownedAfterBattle(
     return false;
   }
   participant.combatState = "alive";
+  participant.downedAt = null;
   participant.hp =
     STATE_RULES.downRecoveryHpAfterBattle;
   participant.lifeSerial += 1;

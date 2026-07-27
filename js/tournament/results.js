@@ -24,7 +24,7 @@ import {
 } from "../main/tournament-bridge.js";
 
 export const RESULTS_VERSION =
-  "mobbr-tournament-results-1.1.0";
+  "mobbr-tournament-results-1.2.0";
 
 export const RESULT_RULES = Object.freeze({
   defaultMatchPointThreshold: 50,
@@ -92,6 +92,14 @@ function escapeAttribute(value) {
 
 function formatNumber(value) {
   return new Intl.NumberFormat("ja-JP").format(value);
+}
+
+function tournamentThemeBackground(runtime) {
+  const theme = runtime.entryData.tournament.openingThemeId;
+  if (theme === "national") return "back/national.png";
+  if (theme === "world") return "back/world.png";
+  if (theme === "championship") return "back/champ.png";
+  return "back/local.png";
 }
 
 function assertRuntime(draft) {
@@ -216,10 +224,14 @@ function createLegacyMatchStats(runtime, team, match) {
     `${runtime.entryId}|${team.teamId}|${match}|legacy-match-stats`,
   );
   const rounds = getPlayableRoundCount(runtime);
+  const killRoll = stableUnit(
+    `${runtime.entryId}|${team.teamId}|${match}|legacy-kp`,
+  );
+  const kp = killRoll < 0.5 ? 0 : killRoll < 0.82 ? 1 : killRoll < 0.97 ? 2 : 3;
   return {
-    kp: Math.max(0, Math.round(power / 180 + variation * 5)),
-    ap: Math.max(0, Math.round(power / 260 + variation * 3)),
-    damage: Math.max(0, Math.round(power * (2.2 + variation * 1.9))),
+    kp,
+    ap: kp === 0 ? 0 : Math.min(kp * 2, Math.floor(variation * (kp + 2))),
+    damage: Math.max(0, Math.min(2800, Math.round(power * (1.7 + variation * 1.2)))),
     damageTaken: Math.max(0, Math.round(power * (1.5 + (1 - variation) * 1.7))),
     downs: Math.max(0, Math.round(power / 170 + variation * 4)),
     wins: 0,
@@ -700,9 +712,12 @@ function createCpuMemberAwardStats(
         : 1;
   const kills = Math.max(
     0,
-    Math.round(
-      (teamTotal.sumKp / 3) * roleBoost +
-        stableUnit(`${seed}|kills`) * 4,
+    Math.min(
+      teamTotal.sumKp,
+      Math.floor(
+        (teamTotal.sumKp / 3) * roleBoost +
+          stableUnit(`${seed}|kills`) * 1.5,
+      ),
     ),
   );
   const assists = Math.max(
@@ -1338,73 +1353,51 @@ export function renderMatchResultScreen(runtime) {
   if (!record) {
     throw new RangeError("Current match ranking is missing.");
   }
-  const totalMatches =
-    runtime.entryData.tournament.matches;
-  const matchPointWinner =
-    runtime.matchPointRuntime?.mpWinner ?? null;
-  const newMatchPoint =
-    (runtime.matchPointRuntime?.newEligibleTeamIds?.length ?? 0) > 0;
-  const showMatchPoint =
-    runtime.matchPointRuntime?.enabled &&
-    (newMatchPoint || matchPointWinner !== null);
-  const isFinal =
-    runtime.match >= totalMatches ||
-    matchPointWinner !== null;
+  const totalMatches = runtime.entryData.tournament.matches;
+  const matchPointWinner = runtime.matchPointRuntime?.mpWinner ?? null;
+  const newMatchPoint = (runtime.matchPointRuntime?.newEligibleTeamIds?.length ?? 0) > 0;
+  const showMatchPoint = runtime.matchPointRuntime?.enabled && (newMatchPoint || matchPointWinner !== null);
+  const isFinal = runtime.match >= totalMatches || matchPointWinner !== null;
+  const cumulative = createFinalRankings(runtime);
+  const playerRow = record.rankings.find((row) => row.isPlayer);
+
+  const compactRows = (rows, cumulativeMode = false) => rows.map((row) => `
+    <article class="compact-result-row ${row.isPlayer ? "is-player" : ""} ${row.place === 1 ? "is-champion" : ""}">
+      <strong class="compact-result-row__place">${row.place}</strong>
+      <img src="${escapeAttribute(row.teamLogo)}" alt="">
+      <div class="compact-result-row__team"><b>${escapeHtml(row.teamName)}</b><small>${cumulativeMode ? `MATCH ${row.matchesPlayed}` : escapeHtml(row.status)}</small></div>
+      <span><img src="icon/round.png" alt="">${cumulativeMode ? row.sumPlacementPoint : row.placementPoint}</span>
+      <span><img src="icon/kill.png" alt="">${cumulativeMode ? row.sumKp : row.kp}</span>
+      <span><img src="icon/assist.png" alt="">${cumulativeMode ? row.sumAp : row.ap}</span>
+      <em>${cumulativeMode ? row.sumTotal : row.total}</em>
+    </article>
+  `).join("");
 
   return `
-    <main class="tournament-screen tournament-screen--match-result">
-      <header class="result-header">
-        <span>MATCH ${runtime.match}</span>
+    <main class="tournament-screen tournament-screen--match-result" style="--result-background:url('${escapeAttribute(runtime.map.image)}')">
+      <header class="result-header result-header--compact">
+        <span><img src="icon/match.png" alt="">MATCH ${runtime.match}</span>
         <h1>MATCH RESULT</h1>
-        <p>
-          CHAMPION ${escapeHtml(record.championTeamName)} /
-          ${runtime.matchPointRuntime?.enabled
-            ? `MATCH POINT ${runtime.matchPointRuntime.threshold}`
-            : `${totalMatches} MATCH SESSION`}
-        </p>
+        <p>CHAMPION ${escapeHtml(record.championTeamName)} / PLAYER ${playerRow.place} PLACE / TOTAL ${playerRow.total}</p>
       </header>
-      <section class="result-table-scroll">
-        <table class="result-table">
-          <thead>
-            <tr>
-              <th>PLACE</th>
-              <th>TEAM</th>
-              <th>PP</th>
-              <th>KP</th>
-              <th>TOTAL</th>
-              <th>SUM</th>
-              <th>STATE</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${record.rankings.map((row) => `
-              <tr class="${row.isPlayer ? "is-player" : ""} ${row.champion ? "is-champion" : ""}">
-                <td>${row.place}</td>
-                <td>
-                  <img src="${escapeAttribute(row.teamLogo)}" alt="">
-                  <strong>${escapeHtml(row.teamName)}</strong>
-                </td>
-                <td>${row.placementPoint}</td>
-                <td>${row.kp}</td>
-                <td>${row.total}</td>
-                <td>${row.cumulativeTotal}</td>
-                <td>${escapeHtml(row.status)}</td>
-              </tr>
-            `).join("")}
-          </tbody>
-        </table>
+      <section class="match-result-vertical-scroll">
+        <article class="compact-result-section">
+          <h2><img src="icon/battle.png" alt="">MATCH ${runtime.match} RESULT</h2>
+          <div class="compact-result-list">${compactRows(record.rankings)}</div>
+        </article>
+        <article class="compact-result-section compact-result-section--total">
+          <h2><img src="icon/damage.png" alt="">TOTAL RESULT</h2>
+          <div class="compact-result-list">${compactRows(cumulative, true)}</div>
+        </article>
+        ${isFinal ? `<section class="all-matches-complete"><img src="icon/champ.png" alt=""><span>ALL MATCHES COMPLETE</span><strong>全MATCHの集計が完了しました</strong></section>` : ""}
       </section>
       <div class="tournament-bottom-area result-fixed-bottom">
         ${commentator(
           isFinal
-            ? "全MATCHの集計が完了しました。個人表彰へ進みます！"
-            : `MATCH ${runtime.match}終了！順位表を確認して次のMATCHへ進みましょう！`,
+            ? "全MATCHの集計が完了しました。表彰と大会総合結果へ進みます！"
+            : `MATCH ${runtime.match}の結果と大会TOTALを確認しました。`,
         )}
-        <button
-          type="button"
-          class="tournament-button tournament-button--primary"
-          data-action="match-result-next"
-        >
+        <button type="button" class="tournament-button tournament-button--primary" data-action="match-result-next">
           ${showMatchPoint ? "MATCH POINT" : isFinal ? "AWARDS" : "NEXT MATCH"}
         </button>
       </div>
@@ -1425,7 +1418,7 @@ export function renderMatchPointScreen(runtime) {
   );
   const isWinner = winner !== null;
   return `
-    <main class="tournament-screen tournament-screen--match-point ${isWinner ? "is-winner" : "is-eligible"}">
+    <main class="tournament-screen tournament-screen--match-point ${isWinner ? "is-winner" : "is-eligible"}" style="--tournament-background:url('${escapeAttribute(tournamentThemeBackground(runtime))}')">
       <div class="match-point-rays" aria-hidden="true"></div>
       <section class="match-point-stage">
         <span>${isWinner ? "MATCH POINT WINNER" : "MATCH POINT REACHED"}</span>
@@ -1469,21 +1462,28 @@ export function renderMatchPointScreen(runtime) {
 }
 
 export function renderNextMatchWaitScreen(runtime) {
+  const nextMatch = runtime.match + 1;
   return `
-    <main class="tournament-screen tournament-screen--next-match">
-      <section class="next-match-card">
-        <span>NEXT MATCH</span>
-        <h1>MATCH ${runtime.match + 1}</h1>
-        <p>
-          HP・スキルCT・MATCH限定補正を初期化し、
-          大会バッグと作戦残回数を保持します。
-        </p>
-        <button
-          type="button"
-          class="tournament-button tournament-button--primary"
-          data-action="next-match-start"
-        >
-          MATCH ${runtime.match + 1} START
+    <main class="tournament-screen tournament-screen--next-match" style="--result-background:url('${escapeAttribute(runtime.map.image)}')">
+      <section class="next-match-stage">
+        <img class="next-match-stage__tournament-logo" src="${escapeAttribute(
+          runtime.entryData.tournament.openingThemeId === "national"
+            ? "icon/national.png"
+            : runtime.entryData.tournament.openingThemeId === "world"
+              ? "icon/world.png"
+              : runtime.entryData.tournament.openingThemeId === "championship"
+                ? "icon/champ.png"
+                : "icon/local.png"
+        )}" alt="">
+        <span>SESSION CONTINUES</span>
+        <h1>MATCH ${nextMatch}</h1>
+        <p>${escapeHtml(runtime.map.name)} / ${runtime.teams.length} TEAMS</p>
+        <div class="next-match-stage__rules">
+          <strong>HP・CT・MATCH効果を初期化</strong>
+          <small>大会バッグ・作戦残回数・累計ポイントは保持します</small>
+        </div>
+        <button type="button" class="tournament-button tournament-button--primary" data-action="next-match-start">
+          MATCH ${nextMatch} START
         </button>
       </section>
     </main>

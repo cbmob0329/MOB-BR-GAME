@@ -21,14 +21,13 @@ import {
 } from "./round.js";
 
 export const EXPLORATION_VERSION =
-  "mobbr-tournament-exploration-1.0.0";
+  "mobbr-tournament-exploration-1.1.0";
 
 export const EXPLORATION_PAGES = Object.freeze([
   "SEARCH",
   "FACILITY",
   "BAG",
   "ALIVE_TEAMS",
-  "PASSIVE_INTEL",
 ]);
 
 export const EXPLORATION_RULES = Object.freeze({
@@ -971,8 +970,14 @@ function commentaryTemplate(text) {
 
 function explorationPageLabel(page) {
   if (page === "ALIVE_TEAMS") return "ALIVE TEAMS";
-  if (page === "PASSIVE_INTEL") return "PASSIVE/INTEL";
   return page;
+}
+
+function explorationPageIcon(page) {
+  if (page === "SEARCH") return "icon/ex.png";
+  if (page === "FACILITY") return "icon/juke.png";
+  if (page === "BAG") return "icon/back.png";
+  return "icon/match.png";
 }
 
 function pageTabsTemplate(currentPage) {
@@ -985,7 +990,8 @@ function pageTabsTemplate(currentPage) {
           data-action="exploration-page"
           data-page="${escapeAttribute(page)}"
         >
-          ${escapeHtml(explorationPageLabel(page))}
+          <img src="${escapeAttribute(explorationPageIcon(page))}" alt="">
+          <span>${escapeHtml(explorationPageLabel(page))}</span>
         </button>
       `).join("")}
     </nav>
@@ -1076,7 +1082,8 @@ function facilityPageTemplate(runtime) {
         </article>
         <article>
           <div class="facility-machine facility-machine--slot">
-            <i>7</i><i>7</i><i>7</i>
+            <img src="icon/juke.png" alt="">
+            <strong>MOB SLOT</strong>
           </div>
           <h2>MOBスロット</h2>
           <p>70%で揃い、生存味方全員を最大HP70%回復。</p>
@@ -1288,9 +1295,7 @@ export function renderExplorationScreen(runtime) {
         ? facilityPageTemplate(runtime)
         : page === "BAG"
           ? bagPageTemplate(runtime)
-          : page === "ALIVE_TEAMS"
-            ? aliveTeamsPageTemplate(runtime)
-            : passiveIntelPageTemplate(runtime);
+          : aliveTeamsPageTemplate(runtime);
 
   const canComplete =
     choice.searchResolved &&
@@ -1539,6 +1544,9 @@ export function validateExplorationRuntime(runtime) {
     !runtime.strategyRuntime[STRATEGY_RULES.fallbackStrategyId]
   ) {
     throw new Error("Strategy UI selection is invalid.");
+  }
+  if (runtime.explorationRuntime.currentPage === "PASSIVE_INTEL") {
+    runtime.explorationRuntime.currentPage = "SEARCH";
   }
   if (!EXPLORATION_PAGES.includes(runtime.explorationRuntime.currentPage)) {
     throw new Error("Exploration page is invalid.");

@@ -41,7 +41,7 @@ import {
 } from "../../data/battle-config.js";
 
 export const TOURNAMENT_RUNTIME_VERSION =
-  "mobbr-tournament-runtime-1.5.0";
+  "mobbr-tournament-runtime-1.6.0";
 
 export const TOURNAMENT_PHASES = Object.freeze([
   "IDLE",
@@ -431,7 +431,7 @@ export function createOpeningScenes(entry, teams = null) {
       type: "PLAYER_COMPANY",
       duration: 1800,
       backgroundImage: theme.backgroundImage,
-      foregroundImages: [entry.company.badgeImage, entry.playerTeam.teamLogo],
+      foregroundImages: [entry.playerTeam.teamLogo || entry.company.badgeImage],
       text: entry.company.companyName,
       subtext: entry.playerTeam.teamName,
       commentary: createOpeningCommentary(entry),
@@ -469,10 +469,10 @@ export function createOpeningScenes(entry, teams = null) {
       foregroundImages: featuredCpu ? [featuredCpu.teamLogo] : [],
       text: featuredCpu?.teamName ?? "CPU ROSTER READY",
       subtext: featuredCpu
-        ? `${featuredCpu.form.toUpperCase()} / ${featuredCpu.source}`
+        ? `注目チーム / ${featuredCpu.members.map((member) => member.role).join("・")}`
         : entry.tournament.cpuPoolId,
       commentary: featuredCpu
-        ? `注目チームは${featuredCpu.teamName}！${featuredCpu.description || "実力派チームです！"}`
+        ? `注目チームは${featuredCpu.teamName}！個性ある3人の編成です！`
         : "CPUチームの正式ロスターを確認しました。",
       soundId: "cpu_spotlight",
       animationId: "data_scan",
@@ -489,45 +489,6 @@ export function createOpeningScenes(entry, teams = null) {
       commentary: `コーチ陣と全${entry.strategyInventory.length}作戦が大会へ持ち込まれました！`,
       soundId: "strategy_ready",
       animationId: "strategy_cards",
-      canSkip: true,
-    },
-    {
-      sceneId: "opening-dropship",
-      type: "DROPSHIP",
-      duration: 1600,
-      backgroundImage: map.image,
-      foregroundImages: [],
-      text: "DROPSHIP READY",
-      subtext: entry.tournament.tournamentName,
-      commentary: `全${entry.tournament.totalTeams}チーム、降下準備に入ります！`,
-      soundId: "dropship",
-      animationId: "dropship_flyby",
-      canSkip: true,
-    },
-    {
-      sceneId: "opening-deployment",
-      type: "DEPLOYMENT",
-      duration: 1500,
-      backgroundImage: map.image,
-      foregroundImages: members.map((member) => member.image),
-      text: "DEPLOYMENT",
-      subtext: entry.playerTeam.teamName,
-      commentary: `全${entry.tournament.totalTeams}チーム、降下開始です！`,
-      soundId: "deployment",
-      animationId: "team_drop",
-      canSkip: true,
-    },
-    {
-      sceneId: "opening-landing",
-      type: "LANDING",
-      duration: 1300,
-      backgroundImage: map.image,
-      foregroundImages: [],
-      text: "LANDING",
-      subtext: map.name,
-      commentary: `${entry.playerTeam.teamName}、無事に着地しました！`,
-      soundId: "landing",
-      animationId: "landing_impact",
       canSkip: true,
     },
     {
@@ -1408,7 +1369,7 @@ export function validateTournamentRuntime(runtime, entry = null) {
   if (
     !Array.isArray(runtime.explorationRuntime.completedKeys) ||
     !Array.isArray(runtime.explorationRuntime.history) ||
-    !["SEARCH", "FACILITY", "BAG", "ALIVE_TEAMS", "PASSIVE_INTEL"].includes(
+    !["SEARCH", "FACILITY", "BAG", "ALIVE_TEAMS"].includes(
       runtime.explorationRuntime.currentPage,
     )
   ) {
@@ -1454,10 +1415,10 @@ export function validateTournamentRuntime(runtime, entry = null) {
   }
   if (
     !Array.isArray(runtime.opening?.scenes) ||
-    runtime.opening.scenes.length !== 13
+    runtime.opening.scenes.length !== 10
   ) {
     throw new TournamentRuntimeValidationError(
-      "Opening runtime must contain 13 independent scenes.",
+      "Opening runtime must contain 10 independent scenes.",
       "INVALID_OPENING_SCENES",
     );
   }
@@ -1852,6 +1813,11 @@ export function createTournamentRuntimeManager({
         const resume = readTournamentResumeDataForEntry(validStorage, entry);
         if (resume) {
           const restored = deepClone(resume.runtime);
+          if (
+            restored.explorationRuntime?.currentPage === "PASSIVE_INTEL"
+          ) {
+            restored.explorationRuntime.currentPage = "SEARCH";
+          }
           restored.previousPhase = restored.phase;
           restored.phase = resume.safePhase;
           restored.resumeTargetPhase = resume.safePhase;

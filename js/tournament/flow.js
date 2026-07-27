@@ -58,10 +58,11 @@ import {
   getCurrentRoundRecord,
   getPlayableRoundCount,
   getRoundTarget,
+  isPlayerActive,
   resolveRoundEncounterToDraft,
 } from "./round.js";
 
-export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-1.6.0";
+export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-1.7.0";
 
 const PHASE_LABELS = Object.freeze({
   IDLE: "待機",
@@ -93,7 +94,7 @@ const PHASE_LABELS = Object.freeze({
   ERROR: "エラー",
 });
 
-const MAIN_PAGE_URL = "./index.html";
+const MAIN_PAGE_URL = "./index.html#home";
 const ROLE_ORDER = Object.freeze(["IGL", "ATK", "SUP"]);
 
 function escapeHtml(value) {
@@ -137,6 +138,22 @@ function playerMembers(runtime) {
   );
 }
 
+function tournamentThemeLogo(runtime) {
+  const theme = runtime.entryData.tournament.openingThemeId;
+  if (theme === "national") return "icon/national.png";
+  if (theme === "world") return "icon/world.png";
+  if (theme === "championship") return "icon/champ.png";
+  return "icon/local.png";
+}
+
+function tournamentThemeBackground(runtime) {
+  const theme = runtime.entryData.tournament.openingThemeId;
+  if (theme === "national") return "back/national.png";
+  if (theme === "world") return "back/world.png";
+  if (theme === "championship") return "back/champ.png";
+  return "back/local.png";
+}
+
 function topStatusTemplate(runtime) {
   const activeTeams = runtime.activeTeamIds.length;
   const match = runtime.match > 0 ? runtime.match : "-";
@@ -144,22 +161,19 @@ function topStatusTemplate(runtime) {
   return `
     <header class="tournament-status">
       <div class="tournament-status__main">
+        <img class="tournament-status__logo" src="${escapeAttribute(tournamentThemeLogo(runtime))}" alt="">
         <div class="tournament-status__title">
           <strong>${escapeHtml(runtime.entryData.tournament.tournamentName)}</strong>
           <span>${escapeHtml(runtime.entryData.tournament.stageName)}</span>
         </div>
-        <div class="tournament-status__phase">
-          ${escapeHtml(formatTournamentPhase(runtime.phase))}
-        </div>
+        <div class="tournament-status__phase">${escapeHtml(formatTournamentPhase(runtime.phase))}</div>
       </div>
       <div class="tournament-status__metrics">
-        <span>MATCH <strong>${match}</strong></span>
-        <span>ROUND <strong>${round}</strong></span>
-        <span>ALIVE <strong>${activeTeams}</strong></span>
+        <span><img src="icon/match.png" alt="">MATCH <strong>${match}</strong></span>
+        <span><img src="icon/round.png" alt="">ROUND <strong>${round}</strong></span>
+        <span><img src="icon/battle.png" alt="">ALIVE <strong>${activeTeams}</strong></span>
       </div>
-      <div class="tournament-status__progress" aria-hidden="true">
-        <span style="width:${getTournamentProgress(runtime).toFixed(2)}%"></span>
-      </div>
+      <div class="tournament-status__progress" aria-hidden="true"><span style="width:${getTournamentProgress(runtime).toFixed(2)}%"></span></div>
     </header>
   `;
 }
@@ -178,12 +192,12 @@ function commentaryTemplate(text, label = "モブマイク") {
 
 function loadingTemplate(runtime) {
   return `
-    <main class="tournament-screen tournament-screen--loading">
+    <main class="tournament-screen tournament-screen--loading" style="--tournament-background:url('${escapeAttribute(tournamentThemeBackground(runtime))}')">
       ${topStatusTemplate(runtime)}
       <section class="tournament-loading-card">
         <p>MOB BR TOURNAMENT SYSTEM</p>
         <h1>${escapeHtml(runtime.entryData.tournament.tournamentName)}</h1>
-        <div class="tournament-spinner" aria-hidden="true"></div>
+        <div class="tournament-loading-bars" aria-hidden="true"><i></i><i></i><i></i></div>
         <strong>参加データを大会ランタイムへ複製しています</strong>
         <span>
           ENTRY ${escapeHtml(runtime.entryId)}<br>
@@ -292,11 +306,7 @@ function teamRosterRow(team, index, playerTeamId) {
       <img src="${escapeAttribute(team.teamLogo)}" alt="">
       <div>
         <strong>${escapeHtml(team.teamName)}</strong>
-        <small>
-          ${escapeHtml(team.source)} /
-          ${escapeHtml(team.form.toUpperCase())} /
-          ${escapeHtml(team.description || "CPU TEAM")}
-        </small>
+        <small>CPU TEAM / ${escapeHtml(team.members.map((member) => member.role).join("・"))}</small>
       </div>
       <em>CPU</em>
     </article>
@@ -319,7 +329,7 @@ function playerIntroTemplate(runtime) {
 
 function teamIntroTemplate(runtime) {
   return `
-    <main class="tournament-screen tournament-screen--team-intro">
+    <main class="tournament-screen tournament-screen--team-intro" style="--tournament-background:url('${escapeAttribute(tournamentThemeBackground(runtime))}')">
       ${topStatusTemplate(runtime)}
       <div class="tournament-scroll-area">
         <section class="team-intro-hero">
@@ -372,7 +382,7 @@ function teamIntroTemplate(runtime) {
             class="tournament-button tournament-button--primary"
             data-action="team-intro-next"
           >
-            DEPLOYMENT
+            MATCH DEPLOYMENT
           </button>
         </div>
       </div>
@@ -409,7 +419,7 @@ function deploymentTemplate(runtime) {
       </section>
       <div class="tournament-bottom-area">
         ${commentaryTemplate(
-          `全${runtime.activeTeamIds.length}チーム、降下開始です！`,
+          `MATCH ${Math.max(1, runtime.match || 1)}の初動配置へ進みます。`,
         )}
         <div class="tournament-actions">
           <button
@@ -499,25 +509,17 @@ function matchStartTemplate(runtime) {
 }
 
 function roundIntroTemplate(runtime) {
-  const target = getRoundTarget(runtime, runtime.round);
   return provisionalPhaseTemplate(runtime, {
     eyebrow: "ROUND INTRO",
     title: `ROUND ${runtime.round}`,
-    description:
-      `残存${runtime.activeTeamIds.length}チームから${target}チームへ絞り込みます。接敵率は75%です。`,
-    commentary: `ROUND ${runtime.round}開始！生存目標は${target}チームです！`,
+    description: "",
+    commentary: `ROUND ${runtime.round}開始！`,
     primaryAction: "round-intro-next",
     primaryLabel: "ENCOUNTER CHECK",
     content: `
-      <div class="round-target-line">
-        ${Array.from({ length: getPlayableRoundCount(runtime) }, (_value, index) => {
-          const round = index + 1;
-          return `
-            <span class="${round === runtime.round ? "is-current" : ""}">
-              R${round} → ${getRoundTarget(runtime, round)}
-            </span>
-          `;
-        }).join("")}
+      <div class="round-intro-symbol">
+        <img src="icon/round.png" alt="">
+        <strong>ROUND ${runtime.round}</strong>
       </div>
     `,
   });
@@ -535,9 +537,7 @@ function encounterPreviewTemplate(runtime) {
   return provisionalPhaseTemplate(runtime, {
     eyebrow: "ENCOUNTER PREVIEW",
     title: opponent?.teamName ?? "CPU TEAM",
-    description:
-      opponent?.description ||
-      "正式CPUロスターを大会ランタイムから読み込みました。",
+    description: "両チームの3選手を確認して作戦を選択します。",
     commentary: opponent
       ? `${opponent.teamName}との接敵を確認！作戦準備へ移ります。`
       : "CPU対戦相手を確認できません。",
@@ -581,21 +581,21 @@ function encounterPreviewTemplate(runtime) {
 }
 
 function battleCountdownTemplate(runtime) {
-  const strategy =
-    runtime.strategyRuntime[
-      runtime.teamRuntime[runtime.playerTeamId].currentStrategyId
-    ];
+  const strategy = runtime.strategyRuntime[
+    runtime.teamRuntime[runtime.playerTeamId].currentStrategyId
+  ];
   return provisionalPhaseTemplate(runtime, {
     eyebrow: "BATTLE COUNTDOWN",
-    title: "3 · 2 · 1",
-    description:
-      "作戦は選択時点では未消費です。戦闘ランタイム生成時に確定消費します。",
+    title: "BATTLE START",
+    description: "",
     commentary: `${strategy?.name ?? "バランスを大事に"}で戦闘を開始します！`,
     primaryAction: "battle-countdown-now",
-    primaryLabel: "START",
+    primaryLabel: "SKIP COUNTDOWN",
     content: `
       ${renderStrategyCutIn(runtime)}
-      <div class="countdown-pulse">BATTLE</div>
+      <div class="countdown-sequence" aria-label="3 2 1">
+        <strong>3</strong><strong>2</strong><strong>1</strong><span>BATTLE!</span>
+      </div>
     `,
   });
 }
@@ -1011,7 +1011,7 @@ export function createTournamentFlowController({
           } catch (error) {
             handleRuntimeError(error);
           }
-        }, runtime.entryData.settings.reducedMotion ? 0 : 1100);
+        }, runtime.entryData.settings.reducedMotion ? 600 : 3200);
         break;
       case "BATTLE":
         if (!runtime.lastBattleResult) {
@@ -1050,6 +1050,11 @@ export function createTournamentFlowController({
         break;
       case "ROUND_RESULT":
         root.innerHTML = roundResultTemplate(runtime);
+        if (!isPlayerActive(runtime)) {
+          scheduleAction(() => {
+            root.querySelector('[data-action="round-result-next"]')?.click();
+          }, runtime.entryData.settings.reducedMotion ? 80 : 520);
+        }
         break;
       case "ROUND_ADVANCE": {
         const totalRounds = getPlayableRoundCount(runtime);
@@ -1070,6 +1075,11 @@ export function createTournamentFlowController({
           primaryAction: "round-advance-next",
           primaryLabel: hasNextRound ? "NEXT ROUND" : "CHAMPION CHECK",
         });
+        if (!isPlayerActive(runtime)) {
+          scheduleAction(() => {
+            root.querySelector('[data-action="round-advance-next"]')?.click();
+          }, runtime.entryData.settings.reducedMotion ? 80 : 420);
+        }
         break;
       }
       case "MATCH_CHAMPION":

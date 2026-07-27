@@ -11,13 +11,14 @@ import {
 } from "../../data/game-data.js";
 
 export const ROUND_INTEGRATION_VERSION =
-  "mobbr-tournament-round-1.0.0";
+  "mobbr-tournament-round-1.1.0";
 
 export const ROUND_INTEGRATION_RULES = Object.freeze({
   encounterRate: 0.75,
   announcementCounts: Object.freeze([3, 2, 1]),
-  cpuFastDamageScale: 6.5,
-  playerBattleWinBonus: 600,
+  cpuFastDamageScale: 2.8,
+  maximumCpuKpPerRound: 3,
+  playerBattleWinBonus: 520,
   playerBattleLossPenalty: 420,
 });
 
@@ -293,57 +294,39 @@ function createFastStats(
   teamId,
 ) {
   const power = teamPower(runtime, teamId);
-  const seed =
-    `${runtime.entryId}:${runtime.match}:${runtime.round}:${teamId}:fast`;
+  const seed = `${runtime.entryId}:${runtime.match}:${runtime.round}:${teamId}:fast`;
   const variation = stableUnit(seed);
-  const hpRate =
-    teamMembers(runtime, teamId).reduce(
-      (sum, member) =>
-        sum +
-        (
-          member.maxHp > 0
-            ? member.hp / member.maxHp
-            : 0
-        ),
-      0,
-    ) / 3;
+  const hpRate = teamMembers(runtime, teamId).reduce(
+    (sum, member) => sum + (member.maxHp > 0 ? member.hp / member.maxHp : 0),
+    0,
+  ) / 3;
+  const killRoll = stableUnit(`${seed}:kp`);
+  const kp = killRoll < 0.48
+    ? 0
+    : killRoll < 0.80
+      ? 1
+      : killRoll < 0.96
+        ? 2
+        : ROUND_INTEGRATION_RULES.maximumCpuKpPerRound;
+  const ap = kp === 0
+    ? 0
+    : Math.min(kp * 2, Math.floor(stableUnit(`${seed}:ap`) * (kp + 2)));
   const damage = Math.max(
     0,
     Math.round(
-      power *
-        (
-          ROUND_INTEGRATION_RULES
-            .cpuFastDamageScale +
-          variation * 2.5
-        ),
-    ),
-  );
-  const kp = Math.max(
-    0,
-    Math.round(
-      power / 120 +
-      variation * 5 +
-      hpRate * 2,
-    ),
-  );
-  const ap = Math.max(
-    0,
-    Math.round(
-      kp *
-        (
-          0.25 +
-          stableUnit(`${seed}:ap`) * 0.7
-        ),
+      Math.min(
+        2800,
+        power * (ROUND_INTEGRATION_RULES.cpuFastDamageScale + variation * 1.2),
+      ),
     ),
   );
   const damageTaken = Math.max(
     0,
     Math.round(
-      damage *
-        (
-          0.55 +
-          stableUnit(`${seed}:taken`) * 0.9
-        ),
+      Math.min(
+        3000,
+        damage * (0.55 + stableUnit(`${seed}:taken`) * 0.9),
+      ),
     ),
   );
   return {
@@ -351,21 +334,30 @@ function createFastStats(
     ap,
     damage,
     damageTaken,
-    downs: Math.max(
-      kp,
-      Math.round(kp * 1.4),
-    ),
+    downs: Math.min(5, kp + (stableUnit(`${seed}:downs`) > 0.65 ? 1 : 0)),
     confirmedKills: kp,
     hpRate,
-    aliveCount:
-      teamMembers(runtime, teamId)
-        .filter(
-          (member) =>
-            member.combatState === "alive",
-        ).length,
+    aliveCount: teamMembers(runtime, teamId).filter(
+      (member) => member.combatState === "alive",
+    ).length,
     battlePower: power,
     source: "cpu_fast_round",
   };
+}
+
+function recentPlacementAdjustment(runtime, teamId) {
+  const recent = runtime.matchTotals
+    .slice(-2)
+    .map((match) => match.rankings?.find((row) => row.teamId === teamId)?.place)
+    .filter(Number.isInteger);
+  if (recent.length === 0) return 0;
+  const consecutiveTopTwo = recent.every((place) => place <= 2);
+  if (consecutiveTopTwo && recent.length >= 2) return -420;
+  const last = recent.at(-1);
+  if (last === 1) return -210;
+  if (last === 2) return -130;
+  if (last >= Math.ceil(runtime.teams.length * 0.7)) return 150;
+  return 0;
 }
 
 function scoreTeam(
@@ -387,17 +379,21 @@ function scoreTeam(
               .playerBattleLossPenalty
           : 0
       : 0;
+  const matchForm =
+    (stableUnit(`${runtime.entryId}:${runtime.match}:${teamId}:match-form`) - 0.5) * 920;
+  const roundSwing =
+    (stableUnit(`${runtime.entryId}:${runtime.match}:${runtime.round}:${teamId}:score`) - 0.5) * 620;
   return (
-    stats.battlePower * 7 +
-    stats.hpRate * 500 +
-    stats.aliveCount * 160 +
-    stats.kp * 90 +
-    stats.damage / 25 -
-    stats.damageTaken / 40 +
+    stats.battlePower * 5.4 +
+    stats.hpRate * 460 +
+    stats.aliveCount * 150 +
+    stats.kp * 120 +
+    stats.damage / 30 -
+    stats.damageTaken / 44 +
     battleBonus +
-    stableUnit(
-      `${runtime.entryId}:${runtime.match}:${runtime.round}:${teamId}:score`,
-    ) * 480
+    matchForm +
+    roundSwing +
+    recentPlacementAdjustment(runtime, teamId)
   );
 }
 
