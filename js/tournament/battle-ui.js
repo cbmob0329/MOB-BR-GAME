@@ -14,7 +14,7 @@ import {
   createCommentaryDirector,
 } from "./commentary.js";
 
-export const BATTLE_UI_VERSION = "mobbr-battle-ui-1.5.0";
+export const BATTLE_UI_VERSION = "mobbr-battle-ui-1.6.0";
 export const BATTLE_REPLAY_SCHEMA_VERSION =
   "mobbr-battle-replay-1.0.0";
 
@@ -449,22 +449,43 @@ function ammoTemplate(participant) {
 
 
 function skillCtTemplate(participant) {
-  const skills = (participant.skills ?? []).slice(0, 3);
-  if (skills.length === 0) return "";
+  const skills =
+    (participant.skills ?? []).slice(0, 3);
   return `
-    <div class="battle-skill-ct" aria-label="スキルCT">
-      ${skills.map((skill) => {
+    <div class="battle-skill-rings" aria-label="スキルCT">
+      ${Array.from({ length: 3 }, (_value, index) => {
+        const skill = skills[index] ?? null;
+        if (!skill) {
+          return `
+            <span class="is-empty" aria-hidden="true">
+              <i>${index + 1}</i>
+            </span>
+          `;
+        }
         const charge = Math.min(
           skill.baseCt,
-          participant.skillCharge?.[skill.skillId] ?? 0,
+          participant.skillCharge?.[
+            skill.skillId
+          ] ?? 0,
         );
-        const ready = charge >= skill.baseCt - 0.001;
-        const remaining = Math.max(0, skill.baseCt - charge);
+        const ready =
+          charge >= skill.baseCt - 0.001;
+        const remaining =
+          Math.max(0, skill.baseCt - charge);
+        const chargeRate =
+          skill.baseCt > 0
+            ? Math.min(
+                1,
+                charge / skill.baseCt,
+              )
+            : 1;
         return `
-          <span class="${ready ? "is-ready" : ""}" title="${escapeAttribute(skill.name)}">
-            <i style="width:${Math.min(100, charge / skill.baseCt * 100).toFixed(1)}%"></i>
-            <b>${escapeHtml(skill.name.slice(0, 4))}</b>
-            <em>${ready ? "OK" : remaining.toFixed(1)}</em>
+          <span
+            class="${ready ? "is-ready" : ""}"
+            style="--ct-charge:${(chargeRate * 360).toFixed(1)}deg"
+            title="${escapeAttribute(skill.name)}"
+          >
+            <i>${ready ? "OK" : remaining.toFixed(0)}</i>
           </span>
         `;
       }).join("")}
@@ -472,11 +493,21 @@ function skillCtTemplate(participant) {
   `;
 }
 
-function participantTemplate(participant, side) {
+function participantTemplate(
+  participant,
+  side,
+) {
   const hpRate =
     participant.maxHp <= 0
       ? 0
-      : Math.max(0, Math.min(1, participant.hp / participant.maxHp));
+      : Math.max(
+          0,
+          Math.min(
+            1,
+            participant.hp /
+              participant.maxHp,
+          ),
+        );
   return `
     <article
       class="battle-fighter battle-fighter--${side} battle-fighter--${escapeAttribute(participant.actionState)}"
@@ -484,31 +515,33 @@ function participantTemplate(participant, side) {
       data-state="${escapeAttribute(participant.combatState)}"
       data-distance="${escapeAttribute(participant.distance)}"
     >
-      <div class="battle-fighter__portrait">
-        <img src="${escapeAttribute(participant.combatState === "dead" ? "icon/deth.png" : participant.image)}" alt="">
+      <div class="battle-fighter__label">
         <span>${escapeHtml(participant.role)}</span>
-        ${participant.combatState === "dead" ? `<b class="death-box-label">DEATH BOX</b>` : ""}
-      </div>
-      <div class="battle-fighter__info">
         <strong>${escapeHtml(participant.name)}</strong>
-        <small>${escapeHtml(participant.weaponName)}</small>
+        <small>
+          ${escapeHtml(DISTANCE_LABELS[participant.distance] ?? participant.distance)}
+          / AMMO ${participant.ammo}
+        </small>
+      </div>
+      <div class="battle-fighter__portrait">
+        <img
+          src="${escapeAttribute(participant.combatState === "dead" ? "icon/deth.png" : participant.image)}"
+          alt=""
+          data-role="${escapeAttribute(participant.role)}"
+        >
+        ${
+          participant.combatState === "dead"
+            ? `<b class="death-box-label">DEATH BOX</b>`
+            : ""
+        }
+      </div>
+      <div class="battle-fighter__hud">
         <div class="battle-hp-line">
           <div class="battle-hp-bar">
             <span style="width:${(hpRate * 100).toFixed(2)}%"></span>
           </div>
           <b>${participant.hp}/${participant.maxHp}</b>
         </div>
-        <div class="battle-fighter__meta">
-          <span class="distance-badge distance-badge--${escapeAttribute(participant.distance)}">
-            ${escapeHtml(DISTANCE_LABELS[participant.distance] ?? participant.distance)}
-          </span>
-          ${
-            participant.reloadRemaining > 0
-              ? `<span class="reload-badge">RELOAD</span>`
-              : `<span class="state-badge">${escapeHtml(participant.combatState.toUpperCase())}</span>`
-          }
-        </div>
-        ${ammoTemplate(participant)}
         ${skillCtTemplate(participant)}
       </div>
     </article>
@@ -518,7 +551,7 @@ function participantTemplate(participant, side) {
 function teamColumnTemplate(model, teamId, side) {
   const team = model.teams[teamId];
   return `
-    <section class="battle-team-column battle-team-column--${side}">
+    <section class="battle-team-column battle-team-column--${side} ${team.isPlayer ? "is-player" : "is-enemy"}">
       <header>
         <img src="${escapeAttribute(team.teamLogo)}" alt="">
         <strong>${escapeHtml(team.teamName)}</strong>
@@ -638,11 +671,17 @@ function fxLayerTemplate(transient) {
 
 function commentaryPanelTemplate(commentary) {
   return `
-    <aside class="battle-commentary-panel">
-      <img src="${escapeAttribute(COMMENTATOR.image)}" alt="${escapeAttribute(COMMENTATOR.name)}">
+    <aside class="battle-commentary-panel battle-commentary-panel--live">
+      <div class="battle-commentary-panel__speaker">
+        <img src="${escapeAttribute(COMMENTATOR.image)}" alt="${escapeAttribute(COMMENTATOR.name)}">
+        <span>LIVE</span>
+      </div>
       <div>
         <strong>${escapeHtml(COMMENTATOR.name)}</strong>
         <p>${escapeHtml(commentary.text)}</p>
+        <i class="battle-commentary-wave" aria-hidden="true">
+          <b></b><b></b><b></b><b></b><b></b>
+        </i>
       </div>
     </aside>
   `;
@@ -676,7 +715,12 @@ export function renderBattleReplayScreen(runtime, model) {
       ${statusHeaderTemplate(runtime, model)}
       <section class="battle-arena">
         <div class="battle-distance-guide" aria-hidden="true">
-          <span>CLOSE</span><span>MID</span><span>FAR</span>
+          <span>FAR</span><span>MID</span><span>CLOSE</span><span>MID</span><span>FAR</span>
+        </div>
+        <div class="battle-swipe-guide">
+          <span>PLAYER FORMATION</span>
+          <strong>← SWIPE →</strong>
+          <small>表示隊形を移動</small>
         </div>
         ${teamColumnTemplate(model, model.leftTeamId, "left")}
         <div class="battle-versus-line"><span>VS</span></div>
@@ -788,6 +832,9 @@ export function createBattlePlaybackController({
   let destroyed = false;
   let completed = false;
   let generation = 0;
+  let swipeStartX = null;
+  let swipeStartY = null;
+  let manualFormationShift = 0;
 
   const safeRate =
     Number.isFinite(playbackRate) && playbackRate > 0
@@ -796,7 +843,25 @@ export function createBattlePlaybackController({
 
   function render() {
     if (!destroyed) {
-      root.innerHTML = renderBattleReplayScreen(runtime, model);
+      root.innerHTML =
+        renderBattleReplayScreen(
+          runtime,
+          model,
+        );
+      root.dataset.battleManualShift =
+        String(manualFormationShift);
+      const guide =
+        root.querySelector(
+          ".battle-swipe-guide strong",
+        );
+      if (guide) {
+        guide.textContent =
+          manualFormationShift < 0
+            ? "FAR VIEW"
+            : manualFormationShift > 0
+              ? "CLOSE VIEW"
+              : "← SWIPE →";
+      }
     }
   }
 
@@ -893,11 +958,89 @@ export function createBattlePlaybackController({
     }
   }
 
+
+  function handlePointerDown(event) {
+    if (
+      !event.target?.closest?.(
+        ".battle-team-column.is-player",
+      )
+    ) {
+      return;
+    }
+    swipeStartX = event.clientX;
+    swipeStartY = event.clientY;
+  }
+
+  function handlePointerUp(event) {
+    if (
+      swipeStartX === null ||
+      swipeStartY === null
+    ) {
+      return;
+    }
+    const deltaX =
+      event.clientX - swipeStartX;
+    const deltaY =
+      event.clientY - swipeStartY;
+    swipeStartX = null;
+    swipeStartY = null;
+
+    if (
+      Math.abs(deltaX) < 34 ||
+      Math.abs(deltaX) <=
+        Math.abs(deltaY)
+    ) {
+      return;
+    }
+
+    manualFormationShift =
+      Math.max(
+        -1,
+        Math.min(
+          1,
+          manualFormationShift +
+            (deltaX > 0 ? 1 : -1),
+        ),
+      );
+    root.dataset.battleManualShift =
+      String(manualFormationShift);
+
+    const guide =
+      root.querySelector(
+        ".battle-swipe-guide strong",
+      );
+    if (guide) {
+      guide.textContent =
+        manualFormationShift < 0
+          ? "FAR VIEW"
+          : manualFormationShift > 0
+            ? "CLOSE VIEW"
+            : "MID VIEW";
+    }
+  }
+
+  function handlePointerCancel() {
+    swipeStartX = null;
+    swipeStartY = null;
+  }
+
   function start() {
     if (destroyed) {
       throw new Error("Destroyed battle playback cannot start.");
     }
     root.addEventListener?.("click", handleClick);
+    root.addEventListener?.(
+      "pointerdown",
+      handlePointerDown,
+    );
+    root.addEventListener?.(
+      "pointerup",
+      handlePointerUp,
+    );
+    root.addEventListener?.(
+      "pointercancel",
+      handlePointerCancel,
+    );
     model.status = "playing";
     render();
     scheduleNext();
@@ -925,6 +1068,19 @@ export function createBattlePlaybackController({
     generation += 1;
     clearTimer();
     root.removeEventListener?.("click", handleClick);
+    root.removeEventListener?.(
+      "pointerdown",
+      handlePointerDown,
+    );
+    root.removeEventListener?.(
+      "pointerup",
+      handlePointerUp,
+    );
+    root.removeEventListener?.(
+      "pointercancel",
+      handlePointerCancel,
+    );
+    delete root.dataset.battleManualShift;
   }
 
   const controller = Object.freeze({

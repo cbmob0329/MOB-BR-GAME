@@ -8,13 +8,13 @@
 
 import {
   clamp,
-} from "../../data/game-data.js?v=26";
+} from "../../data/game-data.js?v=27";
 import {
   getMatchParticipantCount,
-} from "./circuit.js?v=26";
+} from "./circuit.js?v=27";
 
 export const ROUND_INTEGRATION_VERSION =
-  "mobbr-tournament-round-1.5.0";
+  "mobbr-tournament-round-1.6.0";
 
 export const ROUND_INTEGRATION_RULES = Object.freeze({
   encounterRate: 0.75,
@@ -372,12 +372,12 @@ function recentPlacementAdjustment(runtime, teamId) {
   const consecutiveChampion =
     recent.length >= 2 &&
     recent.every((place) => place === 1);
-  if (consecutiveChampion) return -760;
-  if (consecutiveTopTwo && recent.length >= 2) return -520;
+  if (consecutiveChampion) return -900;
+  if (consecutiveTopTwo && recent.length >= 2) return -760;
   const last = recent.at(-1);
-  if (last === 1) return -310;
-  if (last === 2) return -170;
-  if (last >= Math.ceil(runtime.teams.length * 0.7)) return 165;
+  if (last === 1) return -390;
+  if (last === 2) return -250;
+  if (last >= Math.ceil(runtime.teams.length * 0.7)) return 210;
   return 0;
 }
 
@@ -401,17 +401,17 @@ function scoreTeam(
           : 0
       : 0;
   const matchForm =
-    (stableUnit(`${runtime.entryId}:${runtime.match}:${teamId}:match-form`) - 0.5) * 980;
+    (stableUnit(`${runtime.entryId}:${runtime.match}:${teamId}:match-form`) - 0.5) * 1240;
   const roundSwing =
-    (stableUnit(`${runtime.entryId}:${runtime.match}:${runtime.round}:${teamId}:score`) - 0.5) * 680;
+    (stableUnit(`${runtime.entryId}:${runtime.match}:${runtime.round}:${teamId}:score`) - 0.5) * 820;
   const surpriseRoll = stableUnit(
     `${runtime.entryId}:${runtime.match}:${runtime.round}:${teamId}:surprise`,
   );
   const controlledSurprise =
-    surpriseRoll < 0.08
-      ? 560
-      : surpriseRoll > 0.965
-        ? -430
+    surpriseRoll < 0.10
+      ? 720
+      : surpriseRoll > 0.96
+        ? -560
         : 0;
   return (
     stats.battlePower * 5.05 +

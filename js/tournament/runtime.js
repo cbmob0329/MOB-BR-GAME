@@ -9,14 +9,14 @@
 import {
   STORAGE_KEYS,
   calculateChecksum,
-} from "../main/state.js?v=26";
+} from "../main/state.js?v=27";
 import {
   TOURNAMENT_BRIDGE_VERSION,
   TOURNAMENT_ENTRY_SCHEMA_VERSION,
   TOURNAMENT_RESUME_SCHEMA_VERSION,
   readTournamentEntryFromStorage,
   validateTournamentEntryData,
-} from "../main/tournament-bridge.js?v=26";
+} from "../main/tournament-bridge.js?v=27";
 import {
   CPU_LOCAL_DATA_VERSION,
   CPU_LOCAL_MASTER_VERSION,
@@ -41,11 +41,11 @@ import {
 } from "../../data/battle-config.js";
 import {
   resolveCpuTeamMaster,
-} from "../../data/circuit-data.js?v=26";
+} from "../../data/circuit-data.js?v=27";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=26";
+} from "./circuit.js?v=27";
 
 export const TOURNAMENT_RUNTIME_VERSION =
   "mobbr-tournament-runtime-1.9.0";

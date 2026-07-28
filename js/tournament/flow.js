@@ -13,14 +13,14 @@ import {
 import {
   TOURNAMENT_PHASES,
   createTournamentRuntimeManager,
-} from "./runtime.js?v=26";
+} from "./runtime.js?v=27";
 import {
   executeCurrentBattleToDraft,
 } from "./battle-core.js";
 import {
   createBattlePlaybackController,
   renderBattleOutcomeScreen,
-} from "./battle-ui.js?v=26";
+} from "./battle-ui.js?v=27";
 import {
   EXPLORATION_PAGES,
   beginExplorationToDraft,
@@ -57,13 +57,13 @@ import {
   renderReturningResultScreen,
   renderTournamentResultScreen,
   writePreparedResultToStorage,
-} from "./results.js?v=26";
+} from "./results.js?v=27";
 
 import {
   applyMatchPlanToDraft,
   circuitSectionLabel,
   isPlayerMatch,
-} from "./circuit.js?v=26";
+} from "./circuit.js?v=27";
 
 import {
   fastForwardMatchToChampionToDraft,
@@ -73,7 +73,7 @@ import {
   getRoundTarget,
   isPlayerActive,
   resolveRoundEncounterToDraft,
-} from "./round.js?v=26";
+} from "./round.js?v=27";
 
 export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-2.4.0";
 

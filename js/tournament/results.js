@@ -11,29 +11,29 @@ import { assetPath } from "../assets.js";
 import {
   getChampionshipPoints,
   getPlacementPoints,
-} from "../../data/game-data.js?v=26";
+} from "../../data/game-data.js?v=27";
 import {
   STRATEGY_RULES,
 } from "../../data/strategy-data.js";
 import {
   FORMAL_CIRCUIT_RULES,
   isCasualTournamentType,
-} from "../../data/circuit-data.js?v=26";
+} from "../../data/circuit-data.js?v=27";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=26";
+} from "./circuit.js?v=27";
 import {
   getPlayableRoundCount,
-} from "./round.js?v=26";
+} from "./round.js?v=27";
 import {
   finalizeTournamentResultData,
   resolvePlacementRewards,
   writeTournamentResultToStorage,
-} from "../main/tournament-bridge.js?v=26";
+} from "../main/tournament-bridge.js?v=27";
 
 export const RESULTS_VERSION =
-  "mobbr-tournament-results-1.8.0";
+  "mobbr-tournament-results-1.9.0";
 
 export const RESULT_RULES = Object.freeze({
   defaultMatchPointThreshold: 50,
@@ -1862,7 +1862,12 @@ export function renderNextMatchWaitScreen(runtime) {
     (entry) => entry.match === nextMatch,
   ) ?? null;
   return `
-    <main class="tournament-screen tournament-screen--next-match" style="--result-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
+    <main class="tournament-screen tournament-screen--next-match" style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
+      <img
+        class="tournament-stage-background"
+        src="${escapeAttribute(assetPath(runtime.map.image))}"
+        alt=""
+      >
       <section class="next-match-stage">
         <img class="next-match-stage__tournament-logo" src="${escapeAttribute(
           runtime.entryData.tournament.openingThemeId === "national"
