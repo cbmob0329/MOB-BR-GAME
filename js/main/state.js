@@ -19,7 +19,7 @@ import {
   getCompanyRankData,
   rankToWeaponValue,
   validateGameDate,
-} from "../../data/game-data.js?v=25";
+} from "../../data/game-data.js?v=26";
 import {
   BATTLE_CONFIG_VERSION,
   getRoleCommonSkills,
@@ -48,7 +48,7 @@ import {
   STRATEGY_RULES,
 } from "../../data/strategy-data.js";
 
-export const SAVE_SCHEMA_VERSION = "mobbr-save-1.3.0";
+export const SAVE_SCHEMA_VERSION = "mobbr-save-1.4.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
 
 export const STORAGE_KEYS = Object.freeze({
@@ -71,13 +71,13 @@ const INITIAL_PLAYER_DEFINITIONS = Object.freeze([
     role: "IGL",
     image: "Play/P1igl.png",
     stats: Object.freeze({
-      stamina: 2,
-      mind: 3,
-      physical: 1,
-      aim: 2,
-      agility: 1,
-      technique: 3,
-      support: 2,
+      stamina: 10,
+      mind: 19,
+      physical: 8,
+      aim: 10,
+      agility: 9,
+      technique: 12,
+      support: 11,
     }),
     weapon: Object.freeze({
       weaponId: "player_weapon_igl",
@@ -98,13 +98,13 @@ const INITIAL_PLAYER_DEFINITIONS = Object.freeze([
     role: "ATK",
     image: "Play/P1atk.png",
     stats: Object.freeze({
-      stamina: 2,
-      mind: 1,
-      physical: 3,
-      aim: 3,
-      agility: 3,
-      technique: 2,
-      support: 1,
+      stamina: 10,
+      mind: 8,
+      physical: 19,
+      aim: 12,
+      agility: 11,
+      technique: 10,
+      support: 8,
     }),
     weapon: Object.freeze({
       weaponId: "player_weapon_atk",
@@ -125,13 +125,13 @@ const INITIAL_PLAYER_DEFINITIONS = Object.freeze([
     role: "SUP",
     image: "Play/P1sup.png",
     stats: Object.freeze({
-      stamina: 2,
-      mind: 3,
-      physical: 1,
-      aim: 1,
-      agility: 2,
-      technique: 2,
-      support: 3,
+      stamina: 10,
+      mind: 11,
+      physical: 8,
+      aim: 9,
+      agility: 10,
+      technique: 11,
+      support: 19,
     }),
     weapon: Object.freeze({
       weaponId: "player_weapon_sup",
@@ -705,6 +705,7 @@ export function createNewGameState(
     ui: {
       lastScreen: "home",
       lastSubScreen: null,
+      pendingWeekStart: null,
     },
 
     system: {
@@ -1035,6 +1036,11 @@ function migrateUnversionedSave(rawState, timestamp) {
   migrated.schemaVersion = SAVE_SCHEMA_VERSION;
   migrated.settings = migrated.settings ?? {};
   migrated.settings.testMode = migrated.settings.testMode === true;
+  migrated.ui = migrated.ui ?? {};
+  migrated.ui.lastScreen = migrated.ui.lastScreen ?? "home";
+  migrated.ui.lastSubScreen = null;
+  migrated.ui.pendingWeekStart =
+    migrated.ui.pendingWeekStart ?? null;
   migrated.playerTrainingPoints = migrated.playerTrainingPoints ?? Object.fromEntries(
     (migrated.playerTeam?.members ?? []).map((player) => [
       player.playerId,
@@ -1101,7 +1107,8 @@ export function migrateSaveState(
     rawState.schemaVersion === "mobbr-save-0.9.0" ||
     rawState.schemaVersion === "mobbr-save-1.0.0" ||
     rawState.schemaVersion === "mobbr-save-1.1.0" ||
-    rawState.schemaVersion === "mobbr-save-1.2.0"
+    rawState.schemaVersion === "mobbr-save-1.2.0" ||
+    rawState.schemaVersion === "mobbr-save-1.3.0"
   ) {
     const migrated = migrateUnversionedSave(rawState, timestamp);
     validateSaveState(migrated);
@@ -1248,9 +1255,26 @@ export function advanceWeeksToDraft(
 
   const weeks = [];
   for (let index = 0; index < amount; index += 1) {
-    draft.gameDate = deepClone(advanceGameWeek(draft.gameDate, 1));
+    const previousGameDate =
+      deepClone(draft.gameDate);
+    draft.gameDate =
+      deepClone(
+        advanceGameWeek(draft.gameDate, 1),
+      );
+    const monthChanged =
+      previousGameDate.year !== draft.gameDate.year ||
+      previousGameDate.month !== draft.gameDate.month;
+    const messageIndex =
+      (
+        draft.gameDate.year * 48 +
+        draft.gameDate.month * 4 +
+        draft.gameDate.week
+      ) % 50;
     const entry = {
+      previousGameDate,
       gameDate: deepClone(draft.gameDate),
+      monthChanged,
+      messageIndex,
       weeklyBonus: null,
     };
 
@@ -1261,6 +1285,25 @@ export function advanceWeeksToDraft(
         grantedAt: nowIso(clock),
       });
     }
+
+    draft.ui ??= {
+      lastScreen: "home",
+      lastSubScreen: null,
+      pendingWeekStart: null,
+    };
+    draft.ui.lastScreen = "home";
+    draft.ui.lastSubScreen = null;
+    draft.ui.pendingWeekStart = {
+      gameDate:
+        deepClone(draft.gameDate),
+      previousGameDate,
+      monthChanged,
+      monthImage:
+        `back/month${String(draft.gameDate.month).padStart(2, "0")}.png`,
+      messageIndex,
+      createdAt:
+        nowIso(clock),
+    };
 
     weeks.push(entry);
   }

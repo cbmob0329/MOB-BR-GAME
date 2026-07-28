@@ -17,7 +17,7 @@ import {
   getPlacementPoints,
   getTournamentEventsForDate,
   isChampionshipYear,
-} from "../../data/game-data.js?v=25";
+} from "../../data/game-data.js?v=26";
 import {
   CASUAL_TOURNAMENT_RULES,
   FORMAL_CIRCUIT_RULES,
@@ -31,7 +31,7 @@ import {
   selectTeamIds,
   sourcePoolForTeamId,
   teamSeed,
-} from "../../data/circuit-data.js?v=25";
+} from "../../data/circuit-data.js?v=26";
 import {
   LOCAL_CPU_TEAMS,
 } from "../../data/cpu-local-data.js";
@@ -57,9 +57,9 @@ import {
   DuplicateTournamentResultError,
   STORAGE_KEYS,
   calculateChecksum,
-} from "./state.js?v=25";
+} from "./state.js?v=26";
 
-export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-1.5.0";
+export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-1.5.1";
 export const TOURNAMENT_ENTRY_SCHEMA_VERSION =
   "mobbr-tournament-entry-1.0.0";
 export const TOURNAMENT_RESULT_SCHEMA_VERSION =
@@ -3068,7 +3068,6 @@ export function createTournamentBridgeController({
             <p>${escapeHtml(result.tournamentId)} / ${result.finalPlace}位</p>
             <p>${escapeHtml(result.summary ?? "大会結果を保存しました。")}</p>
             <p>${escapeHtml(formatRewards(result.rewards))}</p>
-            ${weeklyBonusPresentation(imported)}
           `,
         });
         render();
@@ -3102,7 +3101,6 @@ export function createTournamentBridgeController({
             <p>最終順位 ${imported.result.finalPlace}位</p>
             <p>${escapeHtml(imported.result.summary ?? "報酬と記録を保存しました。")}</p>
             <p>${escapeHtml(formatRewards(imported.result.rewards))}</p>
-            ${weeklyBonusPresentation(imported)}
           `,
         });
         render();

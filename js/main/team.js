@@ -11,7 +11,7 @@ import {
   calculateCharacterOverallRank,
   characterValueToRank,
   weaponValueToRank,
-} from "../../data/game-data.js?v=25";
+} from "../../data/game-data.js?v=26";
 import {
   calculateMaxHp,
   getRoleCommonSkills,
@@ -33,7 +33,7 @@ import {
   getWeaponUpgradeCost,
 } from "../../data/ability-data.js";
 
-export const TEAM_FEATURE_VERSION = "mobbr-team-feature-0.7.0";
+export const TEAM_FEATURE_VERSION = "mobbr-team-feature-0.8.0";
 
 const ROLE_ICONS = Object.freeze({
   IGL: "icon/IGL.png",
@@ -833,6 +833,9 @@ export function renderAbilityUpSection(
   snapshot,
   selectedPlayerId,
   pendingIncrements = {},
+  {
+    includeSelector = true,
+  } = {},
 ) {
   const playerId = getSelectedPlayerId(snapshot, selectedPlayerId);
   const player = getPlayer(snapshot, playerId);
@@ -840,7 +843,7 @@ export function renderAbilityUpSection(
 
   return `
     <div class="team-feature-live-section" data-live-section="ability">
-    ${renderPlayerSelector(snapshot, playerId)}
+    ${includeSelector ? renderPlayerSelector(snapshot, playerId) : ""}
     <section class="ability-plan-points">
       ${TRAINING_POINT_IDS.map((pointId) => `
         <span class="${plan.remainingPoints[pointId] < 0 ? "is-negative" : ""}">
@@ -883,6 +886,9 @@ export function renderEquipmentSection(
   snapshot,
   selectedPlayerId,
   pendingIncrements = {},
+  {
+    includeSelector = true,
+  } = {},
 ) {
   const playerId =
     getSelectedPlayerId(snapshot, selectedPlayerId);
@@ -899,7 +905,7 @@ export function renderEquipmentSection(
 
   return `
     <div class="team-feature-live-section" data-live-section="equipment">
-      ${renderPlayerSelector(snapshot, playerId)}
+      ${includeSelector ? renderPlayerSelector(snapshot, playerId) : ""}
       <section class="weapon-overview">
         <img
           class="weapon-overview__image"
@@ -946,16 +952,11 @@ export function renderEquipmentSection(
         </button>
       </section>
 
-      <section class="weapon-plan-resources">
+      <section class="weapon-plan-resources weapon-plan-resources--coin-only">
         <span>
-          COIN
+          COIN ONLY
           <strong>${formatNumber(snapshot.resources.coin)}</strong>
           <em>→ ${formatNumber(plan.remainingCoin)}</em>
-        </span>
-        <span>
-          RUBY
-          <strong>${formatNumber(snapshot.resources.ruby)}</strong>
-          <em>→ ${formatNumber(plan.remainingRuby)}</em>
         </span>
       </section>
 
@@ -963,8 +964,7 @@ export function renderEquipmentSection(
         ${plan.rows.map((row) => {
           const nextAffordable =
             row.nextCost &&
-            plan.remainingCoin >= row.nextCost.coin &&
-            plan.remainingRuby >= row.nextCost.ruby;
+            plan.remainingCoin >= row.nextCost.coin;
           return `
             <article class="growth-card growth-card--weapon growth-card--planned">
               <div class="growth-card__main">
@@ -986,7 +986,6 @@ export function renderEquipmentSection(
                     ? `
                       <div class="cost-tags">
                         <span>COIN ${formatNumber(row.nextCost.coin)}</span>
-                        <span>RUBY ${formatNumber(row.nextCost.ruby)}</span>
                       </div>
                     `
                     : `<div class="cost-tags"><span>MAX</span></div>`
@@ -1075,6 +1074,7 @@ export function renderSpecialAbilitySection(
   );
 
   return `
+    <div class="team-feature-live-section" data-live-section="special">
     ${renderPlayerSelector(snapshot, playerId)}
     ${pointPoolTemplate(snapshot, playerId)}
 
@@ -1152,5 +1152,6 @@ export function renderSpecialAbilitySection(
         `;
       }).join("")}
     </section>
+    </div>
   `;
 }

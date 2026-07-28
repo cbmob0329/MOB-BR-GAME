@@ -20,7 +20,7 @@ import {
   SaveError,
   SaveNotFoundError,
   createGameStateManager,
-} from "./state.js?v=25";
+} from "./state.js?v=26";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyWeaponUpgradePlanToDraft,
@@ -37,7 +37,7 @@ import {
   renderTeamDetailsSection,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=25";
+} from "./team.js?v=26";
 import {
   getSpecialAbility,
 } from "../../data/ability-data.js";
@@ -45,13 +45,13 @@ import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=25";
+} from "./management.js?v=26";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=25";
+} from "./tournament-bridge.js?v=26";
 
-export const APP_VERSION = "mobbr-main-app-1.3.0";
+export const APP_VERSION = "mobbr-main-app-1.4.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -73,6 +73,59 @@ export const ROUTES = Object.freeze({
   ability: "ability",
   specialAbility: "specialAbility",
 });
+
+const WEEKLY_EMPLOYEE_MESSAGES = Object.freeze([
+  '今週も頑張りましょう！',
+  'ショップも見に来てください🎵',
+  'エイム、バッチリですか？応援しています！',
+  '今週の目標をひとつ決めて進みましょう！',
+  'トレーニングの積み重ねが勝利につながります！',
+  'バッグのアイテム確認も忘れずに！',
+  '武器の調整、今週も丁寧に進めましょう！',
+  '選手のみなさん、今日もいい表情です！',
+  '焦らず一週間ずつ強くなりましょう！',
+  '大会予定を確認して準備しておきましょう！',
+  '作戦会議で新しい戦い方を試してみませんか？',
+  '今週も企業をしっかり支えていきます！',
+  '休むところは休んで、勝負どころで集中です！',
+  'コインの使い道は計画的にいきましょう！',
+  '特殊能力の解放条件も確認してみてください！',
+  'チームの成長、こちらでも実感しています！',
+  '今週はどの選手を伸ばしますか？',
+  'ショップに新しい発見があるかもしれません！',
+  '遠距離・中距離・近距離、全部確認しましょう！',
+  '大会では通過ラインの確認を忘れずに！',
+  '今週も一緒に会社を大きくしましょう！',
+  'パックがあれば開封して戦力を確認しましょう！',
+  'モブルームの模様替えも気分転換になりますよ！',
+  '今日の一歩がWorldにつながっています！',
+  '選手のHPと武器を忘れずに確認してください！',
+  'カジュアル大会で調子を見るのもおすすめです！',
+  '今週のチームもいい雰囲気です！',
+  '能力ポイント、たまっていませんか？',
+  '新しい作戦を試す絶好の週かもしれません！',
+  '大会前はバッグ編成を見直しましょう！',
+  '一戦一戦、経験を積み上げていきましょう！',
+  '今週も全力でサポートします！',
+  '選手の得意距離を伸ばしてみましょう！',
+  '武器強化はCOIN残高と相談してくださいね！',
+  'コーチの成長もチーム力につながります！',
+  'スカウト情報も時々確認してみてください！',
+  'ニュースにライバルの結果が出ているかもしれません！',
+  '今週は安定重視でいきますか？攻めますか？',
+  '小さな強化でも大会では大きな差になります！',
+  'チームラボをいつでも利用してください！',
+  '今週の大会も最後まで応援しています！',
+  '勝っても負けても、次へつながる一週間です！',
+  'アイテムは使うタイミングが大切です！',
+  '選手の特殊能力、少し強くなっていますよ！',
+  '今週の企業ボーナスを受け取りました！',
+  '月間予定も確認しておきましょう！',
+  'いい準備が、いい試合を作ります！',
+  '今週もモブマイクが大会を盛り上げます！',
+  'チームのみなさんへ、今週もよろしくお願いします！',
+  '準備完了です。新しい一週間を始めましょう！',
+]);
 
 const MANAGEMENT_ROUTES = Object.freeze([
   ROUTES.train,
@@ -178,8 +231,8 @@ const ROUTE_META = Object.freeze({
     icon: "menu/item.png",
   },
   [ROUTES.ability]: {
-    title: "ABILITY UP",
-    description: "7能力の強化",
+    title: "PLAYER DEVELOPMENT",
+    description: "選手能力と武器をひとつの画面で強化",
     backgroundClass: "screen--sub",
     icon: "icon/ab.png",
   },
@@ -202,8 +255,7 @@ const FACILITY_MENUS = Object.freeze({
   team_lab: Object.freeze([
     { route: ROUTES.team, name: "TEAM", note: "選手ステータス", icon: "menu/team.png" },
     { route: ROUTES.train, name: "TRAINING", note: "週間育成", icon: "menu/traning.png" },
-    { route: ROUTES.equipment, name: "EQUIPMENT", note: "武器・バッグ", icon: "menu/eq.png" },
-    { route: ROUTES.ability, name: "ABILITY UP", note: "7能力強化", icon: "icon/ab.png" },
+    { route: ROUTES.ability, name: "ABILITY / WEAPON", note: "能力・武器を強化", icon: "icon/ab.png" },
     { route: ROUTES.specialAbility, name: "SPECIAL", note: "特殊能力", icon: "icon/sp.png" },
     { route: ROUTES.collection, name: "COLLECTION", note: "カード・バッジ", icon: "menu/COL.png" },
     { route: ROUTES.coach, name: "COACH", note: "作戦会議", icon: "menu/coach.png" },
@@ -811,6 +863,28 @@ function settingsTemplate(snapshot, currentRoute, fromTitle = false) {
   `;
 }
 
+function renderPlayerSelectorForDevelopment(
+  snapshot,
+  selectedPlayerId,
+) {
+  return `
+    <div class="player-selector player-selector--development">
+      ${snapshot.playerTeam.members.map((player) => `
+        <button
+          type="button"
+          class="${player.playerId === selectedPlayerId ? "is-active" : ""}"
+          data-action="select-team-player"
+          data-player-id="${escapeAttribute(player.playerId)}"
+        >
+          <img src="${escapeAttribute(player.image)}" alt="">
+          <span>${escapeHtml(player.role)}</span>
+          <strong>${escapeHtml(player.name)}</strong>
+        </button>
+      `).join("")}
+    </div>
+  `;
+}
+
 function teamFeatureTemplate(
   snapshot,
   route,
@@ -826,10 +900,58 @@ function teamFeatureTemplate(
   const playerId = getSelectedPlayerId(snapshot, selectedPlayerId);
   let content = "";
 
-  if (route === ROUTES.ability) {
-    content = renderAbilityUpSection(snapshot, playerId, abilityPlan);
-  } else if (route === ROUTES.equipment) {
-    content = renderEquipmentSection(snapshot, playerId, weaponPlan);
+  if (
+    route === ROUTES.ability ||
+    route === ROUTES.equipment
+  ) {
+    const activeDevelopmentMode =
+      route === ROUTES.equipment
+        ? "weapon"
+        : developmentMode;
+    content = `
+      <section class="development-workspace" data-live-section="development">
+        ${renderPlayerSelectorForDevelopment(snapshot, playerId)}
+        <nav class="development-tabs" aria-label="育成カテゴリ">
+          <button
+            type="button"
+            class="${activeDevelopmentMode === "ability" ? "is-active" : ""}"
+            data-action="select-development-tab"
+            data-development-tab="ability"
+          >
+            <img src="icon/ab.png" alt="">
+            <span>PLAYER</span>
+            <strong>能力アップ</strong>
+          </button>
+          <button
+            type="button"
+            class="${activeDevelopmentMode === "weapon" ? "is-active" : ""}"
+            data-action="select-development-tab"
+            data-development-tab="weapon"
+          >
+            <img src="menu/eq.png" alt="">
+            <span>WEAPON</span>
+            <strong>武器強化</strong>
+          </button>
+        </nav>
+        <div class="development-body" data-development-body>
+          ${
+            activeDevelopmentMode === "ability"
+              ? renderAbilityUpSection(
+                  snapshot,
+                  playerId,
+                  abilityPlan,
+                  { includeSelector: false },
+                )
+              : renderEquipmentSection(
+                  snapshot,
+                  playerId,
+                  weaponPlan,
+                  { includeSelector: false },
+                )
+          }
+        </div>
+      </section>
+    `;
   } else if (route === ROUTES.specialAbility) {
     content = renderSpecialAbilitySection(
       snapshot,
@@ -853,12 +975,14 @@ function teamFeatureTemplate(
           </button>
         </div>
 
-        <section class="hero-panel">
-          <p class="hero-panel__label">PLAYER DEVELOPMENT</p>
-          <h1 class="hero-panel__title">${escapeHtml(meta.title)}</h1>
-          <p class="placeholder-panel__text">
-            ${escapeHtml(meta.description)}
-          </p>
+        <section class="feature-command-header">
+          <img src="${escapeAttribute(meta.icon)}" alt="">
+          <div>
+            <span>TEAM LAB / PLAYER SYSTEM</span>
+            <h1>${escapeHtml(meta.title)}</h1>
+            <p>${escapeHtml(meta.description)}</p>
+          </div>
+          <em>ONLINE</em>
         </section>
 
         ${content}
@@ -884,12 +1008,18 @@ function managementFeatureTemplate(snapshot, route, currentRoute) {
             ← FACILITY
           </button>
         </div>
-        <section class="hero-panel">
-          <p class="hero-panel__label">COMPANY MANAGEMENT</p>
-          <h1 class="hero-panel__title">${escapeHtml(meta.title)}</h1>
-          <p class="placeholder-panel__text">${escapeHtml(meta.description)}</p>
+        <section class="management-command-bar management-command-bar--${escapeAttribute(route)}">
+          <img src="${escapeAttribute(meta.icon)}" alt="">
+          <div>
+            <span>COMPANY APPLICATION</span>
+            <h1>${escapeHtml(meta.title)}</h1>
+            <p>${escapeHtml(meta.description)}</p>
+          </div>
+          <em>READY</em>
         </section>
-        ${renderManagementSection(snapshot, route)}
+        <section class="management-app-content">
+          ${renderManagementSection(snapshot, route)}
+        </section>
       </div>
       ${bottomNavTemplate(currentRoute)}
     </main>
@@ -1108,11 +1238,13 @@ export function createMainApp({
   let selectedTeamPlayerId = null;
   let selectedFacilityId = "team_lab";
   let selectedAbilityColor = "blue";
+  let developmentMode = "ability";
   let abilityUpgradePlan = {};
   let abilityPlanPlayerId = null;
   let weaponUpgradePlan = {};
   let weaponPlanPlayerId = null;
   let modalQuantityValue = 1;
+  let weekStartPresentationOpen = false;
   let toastTimer = null;
   let modalResolver = null;
 
@@ -1173,12 +1305,20 @@ export function createMainApp({
             snapshot,
             playerId,
             abilityUpgradePlan,
+            { includeSelector: false },
           )
-        : renderEquipmentSection(
-            snapshot,
-            playerId,
-            weaponUpgradePlan,
-          );
+        : sectionType === "equipment"
+          ? renderEquipmentSection(
+              snapshot,
+              playerId,
+              weaponUpgradePlan,
+              { includeSelector: false },
+            )
+          : renderSpecialAbilitySection(
+              snapshot,
+              playerId,
+              selectedAbilityColor,
+            );
     const template = document.createElement("template");
     template.innerHTML = markup.trim();
     const replacement =
@@ -1188,6 +1328,33 @@ export function createMainApp({
     if (page) {
       page.scrollTop = top;
     }
+  }
+
+
+  function specialConditionText(detail) {
+    const labels = {
+      wins: "大会優勝",
+      top5: "大会TOP5",
+      mvp: "MVP獲得",
+      damage: "累計ダメージ",
+      kp: "累計KP",
+      ap: "累計AP",
+      training: "トレーニング回数",
+      cardTypes: "カード獲得種類",
+      badgeTypes: "バッジ獲得種類",
+      championshipWins: "Championship優勝",
+    };
+    const tierLabels = {
+      local: "LOCAL",
+      national: "NATIONAL",
+      world: "WORLD",
+      championship: "CHAMPIONSHIP",
+    };
+    const tier =
+      detail.condition.tier
+        ? `（${tierLabels[detail.condition.tier] ?? detail.condition.tier.toUpperCase()}）`
+        : "";
+    return `${labels[detail.condition.type] ?? detail.condition.type}${tier}`;
   }
 
   function closeModal(value = false) {
@@ -1398,6 +1565,99 @@ export function createMainApp({
     });
   }
 
+
+  async function showPendingWeekStartPresentation() {
+    if (
+      weekStartPresentationOpen ||
+      modalResolver
+    ) {
+      return false;
+    }
+    const snapshot =
+      stateManager.getSnapshot();
+    const pending =
+      snapshot?.ui?.pendingWeekStart;
+    if (!pending) {
+      return false;
+    }
+
+    weekStartPresentationOpen = true;
+    const message =
+      WEEKLY_EMPLOYEE_MESSAGES[
+        pending.messageIndex %
+        WEEKLY_EMPLOYEE_MESSAGES.length
+      ];
+    const monthImage =
+      pending.monthImage ??
+      `back/month${String(pending.gameDate.month).padStart(2, "0")}.png`;
+    const bonus =
+      snapshot.weeklyBonus.history.at(-1);
+
+    try {
+      await openAlert({
+        title: pending.monthChanged
+          ? "NEW MONTH / NEW WEEK"
+          : "NEW WEEK START",
+        body: `
+          <section class="employee-week-greeting">
+            ${
+              pending.monthChanged
+                ? `
+                  <div class="month-opening-visual">
+                    <img
+                      src="${escapeAttribute(assetPath(monthImage))}"
+                      alt="${pending.gameDate.month}月"
+                    >
+                    <span>MONTH ${String(pending.gameDate.month).padStart(2, "0")}</span>
+                    <strong>${pending.gameDate.year}年 ${pending.gameDate.month}月</strong>
+                    <small>月初画像は後から同名ファイルへ差し替えできます</small>
+                  </div>
+                `
+                : ""
+            }
+            <div class="employee-week-greeting__staff">
+              <div class="employee-placeholder">
+                <span>STAFF</span>
+              </div>
+              <div>
+                <span>COMPANY STAFF</span>
+                <h3>${pending.gameDate.year}年 ${pending.gameDate.month}月 第${pending.gameDate.week}週</h3>
+                <p>${escapeHtml(message)}</p>
+              </div>
+            </div>
+            ${
+              bonus?.gameDate?.year === pending.gameDate.year &&
+              bonus?.gameDate?.month === pending.gameDate.month &&
+              bonus?.gameDate?.week === pending.gameDate.week
+                ? `
+                  <div class="weekly-bonus-inline">
+                    <span>WEEK START BONUS</span>
+                    <strong><img src="icon/coin.png" alt="">${formatNumber(bonus.granted.coin)}</strong>
+                    <strong><img src="icon/daia.png" alt="">${formatNumber(bonus.granted.diamond)}</strong>
+                    <strong><img src="icon/rubi.png" alt="">${formatNumber(bonus.granted.ruby)}</strong>
+                  </div>
+                `
+                : ""
+            }
+          </section>
+        `,
+        buttonLabel: "今週を始める",
+      });
+
+      stateManager.transact(
+        "week_start_presentation_completed",
+        (draft) => {
+          draft.ui.pendingWeekStart = null;
+          draft.ui.lastScreen = ROUTES.home;
+          draft.ui.lastSubScreen = null;
+        },
+      );
+    } finally {
+      weekStartPresentationOpen = false;
+    }
+    return true;
+  }
+
   function getSafeSnapshot() {
     return stateManager.getSnapshot();
   }
@@ -1463,8 +1723,20 @@ export function createMainApp({
       return;
     }
 
+    if (
+      snapshot.ui?.pendingWeekStart &&
+      route !== ROUTES.title
+    ) {
+      route = ROUTES.home;
+    }
+
     if (route === ROUTES.home) {
       root.innerHTML = homeTemplate(snapshot, route);
+      if (snapshot.ui?.pendingWeekStart) {
+        queueMicrotask(
+          showPendingWeekStartPresentation,
+        );
+      }
       return;
     }
     if (route === ROUTES.facility) {
@@ -1664,6 +1936,11 @@ export function createMainApp({
       showToast("画面位置を保存できませんでした");
     }
 
+    if (normalized === ROUTES.equipment) {
+      developmentMode = "weapon";
+    } else if (normalized === ROUTES.ability) {
+      developmentMode = "ability";
+    }
     route = normalized;
     render();
   }
@@ -1897,12 +2174,30 @@ export function createMainApp({
       weaponPlanPlayerId = selectedTeamPlayerId;
       abilityUpgradePlan = {};
       weaponUpgradePlan = {};
-      render();
+      if (route === ROUTES.specialAbility) {
+        updateTeamFeatureLiveSection("special");
+      } else if (
+        route === ROUTES.ability ||
+        route === ROUTES.equipment
+      ) {
+        renderPreservingPageScroll();
+      } else {
+        render();
+      }
+      return;
+    }
+    if (action === "select-development-tab") {
+      developmentMode =
+        actionElement.dataset.developmentTab === "weapon"
+          ? "weapon"
+          : "ability";
+      renderPreservingPageScroll();
       return;
     }
     if (action === "select-ability-color") {
-      selectedAbilityColor = actionElement.dataset.abilityColor;
-      render();
+      selectedAbilityColor =
+        actionElement.dataset.abilityColor;
+      updateTeamFeatureLiveSection("special");
       return;
     }
     if (action === "ability-plan-plus" || action === "ability-plan-minus") {
@@ -1994,7 +2289,7 @@ export function createMainApp({
       if (!plan.hasChanges || !plan.affordable) return;
       const confirmed = await openConfirm({
         title: "武器強化を確定しますか？",
-        body: `<p>${plan.rows.reduce((sum, row) => sum + row.increment, 0)}段階をまとめて強化します。</p><p>COIN ${formatNumber(plan.totalCoin)} / RUBY ${formatNumber(plan.totalRuby)}</p>`,
+        body: `<p>${plan.rows.reduce((sum, row) => sum + row.increment, 0)}段階をまとめて強化します。</p><p>必要COIN ${formatNumber(plan.totalCoin)}</p>`,
         confirmLabel: "確定する",
       });
       if (!confirmed) return;
@@ -2028,7 +2323,7 @@ export function createMainApp({
       const weaponStatId = actionElement.dataset.weaponStatId;
       const confirmed = await openConfirm({
         title: "武器能力を強化しますか？",
-        body: "<p>COINとRUBYを消費します。</p>",
+        body: "<p>COINを消費します。</p>",
         confirmLabel: "強化する",
       });
       if (!confirmed) {
@@ -2125,9 +2420,8 @@ export function createMainApp({
       const conditionRows = acquisition.conditionState.details
         .map((detail) => `
           <li class="${detail.met ? "is-met" : ""}">
-            ${escapeHtml(detail.condition.type)}
-            ${detail.condition.tier ? ` ${escapeHtml(detail.condition.tier.toUpperCase())}` : ""}
-            ${formatNumber(detail.current)} / ${formatNumber(detail.required)}
+            <span>${escapeHtml(specialConditionText(detail))}</span>
+            <strong>${formatNumber(detail.current)} / ${formatNumber(detail.required)}</strong>
           </li>
         `)
         .join("");
@@ -2149,7 +2443,19 @@ export function createMainApp({
           <h3>${escapeHtml(ability.name)}</h3>
           <p>${escapeHtml(ability.description)}</p>
           <div class="ability-detail-modal__cost">${costRows}</div>
-          ${conditionRows ? `<ul class="ability-detail-modal__conditions">${conditionRows}</ul>` : ""}
+          <section class="ability-unlock-detail">
+            <h4>解放条件</h4>
+            ${
+              conditionRows
+                ? `<ul class="ability-detail-modal__conditions">${conditionRows}</ul>`
+                : `<p>大会実績による追加条件はありません。</p>`
+            }
+            ${
+              ability.color === "blue" && ability.stage > 1
+                ? `<p>前段階の特殊能力習得も必要です。</p>`
+                : ""
+            }
+          </section>
           <strong>${escapeHtml(status)}</strong>
         </section>
       `;
@@ -2178,7 +2484,7 @@ export function createMainApp({
             ),
         );
         showToast(`${transaction.result.name}を習得しました`);
-        render();
+        updateTeamFeatureLiveSection("special");
       } catch (error) {
         await openAlert({
           title: "特殊能力を習得できません",
@@ -2211,7 +2517,7 @@ export function createMainApp({
             ),
         );
         showToast(`${transaction.result.name}を習得しました`);
-        render();
+        updateTeamFeatureLiveSection("special");
       } catch (error) {
         await openAlert({
           title: "特殊能力を習得できません",

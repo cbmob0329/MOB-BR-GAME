@@ -10,11 +10,11 @@ import {
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=25";
+} from "../../data/game-data.js?v=26";
 import {
   isCasualTournamentType,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=25";
+} from "../../data/circuit-data.js?v=26";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
@@ -62,13 +62,13 @@ import {
 import {
   advanceWeeksToDraft,
   applyResourceDeltaToDraft,
-} from "./state.js?v=25";
+} from "./state.js?v=26";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=25";
+} from "./tournament-bridge.js?v=26";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-1.0.0";
+  "mobbr-management-feature-1.1.0";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -1338,32 +1338,87 @@ function collectionFilePages(entries, category) {
 }
 
 function packOpeningPresentation(result) {
-  const previews = result.results.slice(0, 18).map((opened, index) => {
-    const master = opened.master;
-    const logo = master.category === "card"
-      ? collectionLogoPath(master)
-      : master.image;
-    return `
-      <article
-        class="pack-reveal-card pack-reveal-card--${escapeAttribute(opened.resultType.toLowerCase())}"
-        style="--reveal-index:${index}"
-      >
-        <div class="pack-reveal-card__flare" aria-hidden="true"></div>
-        <img class="pack-reveal-card__main" src="${escapeAttribute(master.image)}" alt="">
-        ${master.category === "card" ? `<img class="pack-reveal-card__logo" src="${escapeAttribute(logo)}" alt="">` : ""}
-        <strong>${escapeHtml(master.name ?? master.teamName)}</strong>
-        <span>${escapeHtml(opened.resultType)}</span>
-      </article>
-    `;
-  }).join("");
+  const cards =
+    result.results.slice(0, 18);
+  const hero =
+    cards.find(
+      (opened) =>
+        opened.resultType === "NEW",
+    ) ?? cards[0] ?? null;
+
+  const previews = cards.map(
+    (opened, index) => {
+      const master = opened.master;
+      const logo =
+        master.category === "card"
+          ? collectionLogoPath(master)
+          : master.image;
+      return `
+        <article
+          class="pack-reveal-card pack-reveal-card--${escapeAttribute(opened.resultType.toLowerCase())}"
+          style="--reveal-index:${index}"
+        >
+          <div
+            class="pack-reveal-card__flare"
+            aria-hidden="true"
+          ></div>
+          <img
+            class="pack-reveal-card__main"
+            src="${escapeAttribute(master.image)}"
+            alt=""
+          >
+          ${
+            master.category === "card"
+              ? `<img class="pack-reveal-card__logo" src="${escapeAttribute(logo)}" alt="">`
+              : ""
+          }
+          <strong>${escapeHtml(master.name ?? master.teamName)}</strong>
+          <span>${escapeHtml(opened.resultType)}</span>
+        </article>
+      `;
+    },
+  ).join("");
+
   return `
-    <section class="pack-opening-show">
-      <div class="pack-opening-show__burst" aria-hidden="true"></div>
+    <section class="pack-opening-show pack-opening-show--stage">
+      <div
+        class="pack-opening-show__burst"
+        aria-hidden="true"
+      ></div>
       <span>PACK OPEN!</span>
       <h3>${escapeHtml(result.packName)}</h3>
-      <p>NEW ${result.summary.newCount} / POWER UP ${result.summary.powerUpCount} / CONVERT ${result.summary.convertCount}</p>
-      <div class="pack-reveal-grid">${previews}</div>
-      ${result.results.length > 18 ? `<small>ほか ${result.results.length - 18}件</small>` : ""}
+
+      ${
+        hero
+          ? `
+            <article class="pack-opening-hero">
+              <div class="pack-opening-hero__rings" aria-hidden="true"></div>
+              <img src="${escapeAttribute(hero.master.image)}" alt="">
+              <div>
+                <span>${escapeHtml(hero.resultType)}</span>
+                <strong>${escapeHtml(hero.master.name ?? hero.master.teamName)}</strong>
+                <small>OPENING HIGHLIGHT</small>
+              </div>
+            </article>
+          `
+          : ""
+      }
+
+      <div class="pack-opening-summary">
+        <span>NEW <strong>${result.summary.newCount}</strong></span>
+        <span>POWER UP <strong>${result.summary.powerUpCount}</strong></span>
+        <span>CONVERT <strong>${result.summary.convertCount}</strong></span>
+      </div>
+
+      <div class="pack-reveal-grid pack-reveal-grid--square">
+        ${previews}
+      </div>
+
+      ${
+        result.results.length > 18
+          ? `<small>ほか ${result.results.length - 18}件</small>`
+          : ""
+      }
     </section>
   `;
 }
@@ -1738,6 +1793,7 @@ export function renderCollectionManagement(snapshot) {
 
   if (fileType === "card" || fileType === "badge") {
     return `
+      <div class="management-live-section" data-live-section="collection">
       <section class="collection-file-view">
         <header>
           <button type="button" class="back-button" data-action="close-collection-file">← COLLECTION</button>
@@ -1745,10 +1801,12 @@ export function renderCollectionManagement(snapshot) {
         </header>
         ${collectionFilePages(fileType === "card" ? allCards : allBadges, fileType)}
       </section>
+      </div>
     `;
   }
 
   return `
+    <div class="management-live-section" data-live-section="collection">
     <section class="collection-file-launchers">
       <button type="button" data-action="open-collection-file" data-file-type="card">
         <img src="icon/cardf.png" alt=""><strong>CARD FILE</strong><span>${cardCompletion.ownedCount}/${cardCompletion.totalCount}</span>
@@ -1764,6 +1822,7 @@ export function renderCollectionManagement(snapshot) {
     <section class="management-section"><h2>カードパック</h2><div class="pack-icon-strip">${packOpenButtons("card", CARD_PACKS, snapshot.inventory.cardPacks)}</div></section>
     <section class="management-section"><h2>バッジパック</h2><div class="pack-icon-strip">${packOpenButtons("badge", BADGE_PACKS, snapshot.inventory.badgePacks)}</div></section>
     ${selectedPackPanel(snapshot)}
+    </div>
   `;
 }
 
@@ -2116,6 +2175,33 @@ export function createManagementController({
     return true;
   }
 
+  function updateCollectionInPlace() {
+    const current =
+      root.querySelector(
+        '[data-live-section="collection"]',
+      );
+    if (!current) {
+      renderPreservingScroll();
+      return false;
+    }
+    const page =
+      root.querySelector(".page-content");
+    const top = page?.scrollTop ?? 0;
+    const template =
+      document.createElement("template");
+    template.innerHTML =
+      renderCollectionManagement(
+        stateManager.getSnapshot(),
+      ).trim();
+    current.replaceWith(
+      template.content.firstElementChild,
+    );
+    if (page) {
+      page.scrollTop = top;
+    }
+    return true;
+  }
+
   async function handleAction(actionElement) {
     const action = actionElement.dataset.action;
 
@@ -2141,19 +2227,21 @@ export function createManagementController({
       return true;
     }
     if (action === "open-collection-file") {
-      MANAGEMENT_VIEW_STATE.collectionFile = actionElement.dataset.fileType;
-      render();
+      MANAGEMENT_VIEW_STATE.collectionFile =
+        actionElement.dataset.fileType;
+      updateCollectionInPlace();
       return true;
     }
     if (action === "close-collection-file") {
       MANAGEMENT_VIEW_STATE.collectionFile = null;
-      render();
+      updateCollectionInPlace();
       return true;
     }
     if (action === "select-collection-pack") {
       MANAGEMENT_VIEW_STATE.selectedPackType = actionElement.dataset.packType;
-      MANAGEMENT_VIEW_STATE.selectedPackId = actionElement.dataset.packId;
-      renderPreservingScroll();
+      MANAGEMENT_VIEW_STATE.selectedPackId =
+        actionElement.dataset.packId;
+      updateCollectionInPlace();
       return true;
     }
     if (action === "inspect-collection-entry") {
@@ -2218,11 +2306,7 @@ export function createManagementController({
           buttonLabel: "新しい週へ",
         });
 
-        await openAlert({
-          title: "NEW WEEK START",
-          body: `<section class="week-start-screen"><span>WEEK START</span><h3>${latest.gameDate.year}年 ${latest.gameDate.month}月 第${latest.gameDate.week}週</h3><p>${escapeHtml(formatManagementGameDate(beforeTrainingDate))}のトレーニングを終え、新しい週が始まりました。</p>${bonusRecord ? `<div class="weekly-bonus-inline"><span>WEEK START BONUS</span><strong><img src="icon/coin.png" alt="">${formatNumber(bonusRecord.granted.coin)}</strong><strong><img src="icon/daia.png" alt="">${formatNumber(bonusRecord.granted.diamond)}</strong><strong><img src="icon/rubi.png" alt="">${formatNumber(bonusRecord.granted.ruby)}</strong></div>` : ""}</section>`,
-          buttonLabel: "今週を始める",
-        });
+        // 共通の従業員週開始画面をHOMEで表示します。
         renderPreservingScroll();
       } catch (error) { await showError("トレーニングできません", error); }
       return true;
@@ -2396,7 +2480,7 @@ export function createManagementController({
           body: packOpeningPresentation(result),
           buttonLabel: "コレクションへ",
         });
-        renderPreservingScroll();
+        updateCollectionInPlace();
       } catch (error) { await showError("パックを開封できません", error); }
       return true;
     }
