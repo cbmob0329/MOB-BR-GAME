@@ -5961,3 +5961,382 @@ html[data-asset-prefix="../../"] .tournament-loading-overlay {
     padding-right: 5px;
   }
 }
+
+
+/* Generation 24: qualification clarity and full-color battle movement */
+
+.tournament-status__qualification {
+  position: absolute;
+  right: calc(var(--safe-right) + 13px);
+  bottom: -16px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: 2px solid var(--tournament-gold);
+  border-radius: 999px;
+  padding: 4px 9px;
+  background: rgb(4 15 29 / 96%);
+  color: #fff;
+  box-shadow: 0 6px 13px rgb(0 0 0 / 28%);
+}
+
+.tournament-status__qualification span {
+  color: var(--tournament-gold);
+  font-size: .38rem;
+  font-weight: 950;
+  letter-spacing: .08em;
+}
+
+.tournament-status__qualification strong {
+  font-size: .51rem;
+}
+
+.qualification-line-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 7px;
+  border-radius: 9px;
+  padding: 6px 9px;
+  font-size: .5rem;
+}
+
+.qualification-line-banner.is-inside {
+  background: rgb(41 150 95 / 28%);
+  color: #b5ffd8;
+}
+
+.qualification-line-banner.is-outside {
+  background: rgb(201 65 76 / 28%);
+  color: #ffc0c5;
+}
+
+.round-result-verdict,
+.tournament-qualification-verdict {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  width: min(100%, 660px);
+  margin-inline: auto;
+  border: 4px solid #fff;
+  border-radius: 19px;
+  padding: 13px;
+  background: rgb(4 15 29 / 92%);
+  color: #fff;
+  text-align: center;
+  box-shadow:
+    0 14px 30px rgb(0 0 0 / 34%),
+    inset 0 0 30px rgb(255 255 255 / 5%);
+  animation: verdict-arrive 460ms cubic-bezier(.18,.82,.22,1) both;
+}
+
+.round-result-verdict img,
+.tournament-qualification-verdict img {
+  width: 66px;
+  height: 66px;
+  object-fit: contain;
+}
+
+.round-result-verdict span,
+.tournament-qualification-verdict span {
+  color: var(--tournament-gold);
+  font-size: .58rem;
+  font-weight: 1000;
+  letter-spacing: .12em;
+}
+
+.round-result-verdict h2,
+.round-result-verdict p,
+.tournament-qualification-verdict h2,
+.tournament-qualification-verdict p {
+  margin: 0;
+}
+
+.round-result-verdict h2,
+.tournament-qualification-verdict h2 {
+  font-size: clamp(1.05rem, 5vw, 1.7rem);
+}
+
+.round-result-verdict strong,
+.tournament-qualification-verdict strong {
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: rgb(255 255 255 / 9%);
+  font-size: .57rem;
+}
+
+.round-result-verdict p,
+.tournament-qualification-verdict p {
+  color: rgb(255 255 255 / 82%);
+  font-size: .57rem;
+  line-height: 1.6;
+}
+
+.round-result-verdict.is-clear,
+.tournament-qualification-verdict.is-qualified {
+  border-color: #62e7a7;
+}
+
+.round-result-verdict.is-out,
+.tournament-qualification-verdict.is-not-qualified {
+  border-color: #ff7782;
+}
+
+.tournament-qualification-verdict.is-complete {
+  border-color: var(--tournament-gold);
+}
+
+@keyframes verdict-arrive {
+  from {
+    translate: 0 18px;
+    scale: .95;
+    opacity: 0;
+  }
+}
+
+.battle-fighter__portrait img {
+  transition:
+    translate 180ms ease,
+    scale 180ms ease,
+    filter 180ms ease;
+  transform-origin: center bottom;
+}
+
+.battle-fighter--left[data-distance="close"] .battle-fighter__portrait img {
+  translate: 10px 0;
+  scale: 1.08;
+}
+
+.battle-fighter--right[data-distance="close"] .battle-fighter__portrait img {
+  translate: -10px 0;
+  scale: 1.08;
+}
+
+.battle-fighter--left[data-distance="far"] .battle-fighter__portrait img {
+  translate: -7px 0;
+  scale: .91;
+}
+
+.battle-fighter--right[data-distance="far"] .battle-fighter__portrait img {
+  translate: 7px 0;
+  scale: .91;
+}
+
+.battle-fighter--move .battle-fighter__portrait img {
+  animation: fighter-range-move 300ms ease both;
+}
+
+.battle-fighter--left.battle-fighter--attack .battle-fighter__portrait img {
+  animation: fighter-lunge-left 250ms ease both;
+}
+
+.battle-fighter--right.battle-fighter--attack .battle-fighter__portrait img {
+  animation: fighter-lunge-right 250ms ease both;
+}
+
+.battle-fighter--skill .battle-fighter__portrait img {
+  animation: fighter-skill-energy 520ms ease both;
+}
+
+.battle-fighter--hit .battle-fighter__portrait img {
+  animation: fighter-hit-shake 220ms ease both;
+}
+
+@keyframes fighter-range-move {
+  45% {
+    scale: 1.12;
+    filter: brightness(1.25);
+  }
+}
+
+@keyframes fighter-lunge-left {
+  50% {
+    translate: 18px -2px;
+    scale: 1.12;
+  }
+}
+
+@keyframes fighter-lunge-right {
+  50% {
+    translate: -18px -2px;
+    scale: 1.12;
+  }
+}
+
+@keyframes fighter-skill-energy {
+  45% {
+    translate: 0 -7px;
+    scale: 1.16;
+    filter:
+      brightness(1.3)
+      drop-shadow(0 0 10px rgb(91 205 255 / 72%));
+  }
+}
+
+@keyframes fighter-hit-shake {
+  35% {
+    translate: -5px 0;
+    filter: brightness(1.4);
+  }
+  70% {
+    translate: 5px 0;
+  }
+}
+
+.battle-skill-cutin {
+  overflow: hidden;
+  grid-template-columns: 105px minmax(0, 1fr) !important;
+  min-height: 126px !important;
+  border-color: #fff !important;
+  background:
+    linear-gradient(120deg, rgb(20 69 110 / 98%), rgb(4 15 30 / 98%)) !important;
+  color: #fff !important;
+}
+
+.battle-skill-cutin--igl {
+  background:
+    linear-gradient(120deg, rgb(21 91 142 / 98%), rgb(4 15 30 / 98%)) !important;
+}
+
+.battle-skill-cutin--atk {
+  background:
+    linear-gradient(120deg, rgb(164 57 66 / 98%), rgb(30 10 20 / 98%)) !important;
+}
+
+.battle-skill-cutin--sup {
+  background:
+    linear-gradient(120deg, rgb(41 141 95 / 98%), rgb(5 31 25 / 98%)) !important;
+}
+
+.battle-skill-cutin img {
+  position: relative;
+  z-index: 2;
+  width: 105px !important;
+  height: 116px !important;
+  filter:
+    saturate(1.18)
+    contrast(1.05)
+    drop-shadow(0 9px 10px rgb(0 0 0 / 42%)) !important;
+  animation: cutin-character-motion 720ms cubic-bezier(.18,.85,.25,1) both;
+}
+
+.battle-skill-cutin__speed {
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(
+      -17deg,
+      transparent 0 18px,
+      rgb(255 255 255 / 12%) 19px 22px
+    );
+  translate: -15% 0;
+  animation: cutin-speed-lines 720ms ease-out both;
+}
+
+.battle-skill-cutin--close img {
+  scale: 1.13;
+}
+
+.battle-skill-cutin--far img {
+  scale: .94;
+}
+
+@keyframes cutin-character-motion {
+  from {
+    translate: -34px 18px;
+    scale: .82;
+    opacity: 0;
+  }
+  55% {
+    translate: 8px -3px;
+    scale: 1.09;
+  }
+}
+
+@keyframes cutin-speed-lines {
+  to {
+    translate: 20% 0;
+    opacity: .25;
+  }
+}
+
+.battle-range-shift {
+  position: absolute;
+  inset: 26% 8% auto;
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border: 3px solid rgb(255 255 255 / 82%);
+  border-radius: 15px;
+  padding: 8px 11px;
+  background: rgb(4 15 30 / 91%);
+  color: #fff;
+  box-shadow: 0 12px 26px rgb(0 0 0 / 34%);
+  animation: range-shift-arrive 260ms ease both;
+}
+
+.battle-range-shift--right {
+  grid-template-columns: minmax(0, 1fr) 76px;
+  text-align: right;
+}
+
+.battle-range-shift--right img {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.battle-range-shift--right > div {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.battle-range-shift img {
+  width: 76px;
+  height: 76px;
+  object-fit: contain;
+}
+
+.battle-range-shift span,
+.battle-range-shift small {
+  display: block;
+  color: rgb(255 255 255 / 70%);
+  font-size: .46rem;
+  font-weight: 900;
+}
+
+.battle-range-shift strong {
+  display: block;
+  color: var(--tournament-gold);
+  font-size: 1rem;
+}
+
+@keyframes range-shift-arrive {
+  from {
+    translate: 0 12px;
+    opacity: 0;
+  }
+}
+
+@media (max-width: 390px) {
+  .tournament-status__qualification {
+    bottom: -14px;
+    padding: 3px 7px;
+  }
+
+  .round-result-verdict img,
+  .tournament-qualification-verdict img {
+    width: 54px;
+    height: 54px;
+  }
+
+  .battle-skill-cutin {
+    grid-template-columns: 84px minmax(0, 1fr) !important;
+  }
+
+  .battle-skill-cutin img {
+    width: 84px !important;
+    height: 105px !important;
+  }
+}
