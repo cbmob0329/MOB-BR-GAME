@@ -15,7 +15,7 @@ import {
   rankToWeaponValue,
 } from "./game-data.js";
 
-export const BATTLE_CONFIG_VERSION = "mobbr-battle-config-1.4.0";
+export const BATTLE_CONFIG_VERSION = "mobbr-battle-config-1.5.0";
 export const BATTLE_BALANCE_VERSION = "mobbr-battle-balance-0.2.0";
 
 export const COMBAT_STATES = Object.freeze(["alive", "down", "dead"]);
