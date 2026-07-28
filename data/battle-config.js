@@ -15,7 +15,7 @@ import {
   rankToWeaponValue,
 } from "./game-data.js";
 
-export const BATTLE_CONFIG_VERSION = "mobbr-battle-config-1.3.0";
+export const BATTLE_CONFIG_VERSION = "mobbr-battle-config-1.4.0";
 export const BATTLE_BALANCE_VERSION = "mobbr-battle-balance-0.2.0";
 
 export const COMBAT_STATES = Object.freeze(["alive", "down", "dead"]);
@@ -425,7 +425,9 @@ export function calculateMaxHp(stamina, receivedMaxHp = null) {
   }
 
   const validStamina = normalizePlayerStat(stamina, "stamina");
-  const fallbackHp = 300 + validStamina * 6.5;
+  // Generation 28: longer firefights. Stamina 10 starts at 650 HP,
+  // then gains 10 HP for every stamina point.
+  const fallbackHp = 550 + validStamina * 10;
   return Math.round(fallbackHp / 10) * 10;
 }
 
