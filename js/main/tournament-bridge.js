@@ -17,7 +17,7 @@ import {
   getPlacementPoints,
   getTournamentEventsForDate,
   isChampionshipYear,
-} from "../../data/game-data.js?v=27";
+} from "../../data/game-data.js?v=28";
 import {
   CASUAL_TOURNAMENT_RULES,
   FORMAL_CIRCUIT_RULES,
@@ -31,7 +31,7 @@ import {
   selectTeamIds,
   sourcePoolForTeamId,
   teamSeed,
-} from "../../data/circuit-data.js?v=27";
+} from "../../data/circuit-data.js?v=28";
 import {
   LOCAL_CPU_TEAMS,
 } from "../../data/cpu-local-data.js";
@@ -43,7 +43,7 @@ import {
 } from "../../data/cpu-world-data.js";
 import {
   BATTLE_CONFIG_VERSION,
-} from "../../data/battle-config.js";
+} from "../../data/battle-config.js?v=28";
 import {
   CONSUMABLE_ITEMS,
   ITEM_MASTER_VERSION,
@@ -57,9 +57,9 @@ import {
   DuplicateTournamentResultError,
   STORAGE_KEYS,
   calculateChecksum,
-} from "./state.js?v=27";
+} from "./state.js?v=28";
 
-export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-1.5.1";
+export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-1.6.0";
 export const TOURNAMENT_ENTRY_SCHEMA_VERSION =
   "mobbr-tournament-entry-1.0.0";
 export const TOURNAMENT_RESULT_SCHEMA_VERSION =
@@ -2876,32 +2876,105 @@ export function renderTournamentSchedule(snapshot, storage) {
       }
     </section>
 
-    <section class="tournament-calendar">
-      <h2>${snapshot.gameDate.year} TOURNAMENT CALENDAR</h2>
-      ${events.map((event) => {
-        const preset = TOURNAMENT_TYPE_PRESETS[event.tournamentType];
-        const isCurrent = currentIds.has(event.tournamentId);
-        const completed = snapshot.tournament.history.some(
-          (history) => history.tournamentId === event.tournamentId,
-        );
-        return `
-          <article class="tournament-calendar-card ${isCurrent ? "is-current" : ""} ${completed ? "is-completed" : ""}">
-            <div class="tournament-calendar-card__date">
-              <strong>${escapeHtml(eventDateLabel(event))}</strong>
-              <span>${escapeHtml(tournamentScheduleCategory(event))}</span>
-            </div>
-            <img class="tournament-calendar-card__logo" src="${escapeAttribute(getTournamentIcon(event.tournamentType))}" alt="">
-            <div class="tournament-calendar-card__main">
-              <h3>${escapeHtml(preset.tournamentName)}</h3>
-              <p>${escapeHtml(event.stageName)}</p>
-              <small>${escapeHtml(tournamentRuleSummary(event))}</small>
-            </div>
-            <span class="tournament-calendar-card__status">
-              ${completed ? "完了" : isCurrent ? "開催中" : "予定"}
-            </span>
-          </article>
-        `;
-      }).join("")}
+    <section class="tournament-year-calendar">
+      <header class="tournament-year-calendar__header">
+        <div>
+          <span>YEAR SCHEDULE</span>
+          <h2>${snapshot.gameDate.year} TOURNAMENT CALENDAR</h2>
+          <p>正式大会と月例カジュアル大会を、月・週単位で確認できます。</p>
+        </div>
+        <div class="tournament-calendar-legend">
+          <span class="is-formal">正式大会</span>
+          <span class="is-casual">カジュアル</span>
+          <span class="is-current">今週</span>
+        </div>
+      </header>
+
+      <div class="tournament-month-grid">
+        ${Array.from({ length: 12 }, (_value, monthIndex) => {
+          const month = monthIndex + 1;
+          return `
+            <article class="tournament-month-card ${
+              snapshot.gameDate.month === month
+                ? "is-current-month"
+                : ""
+            }">
+              <header>
+                <span>${String(month).padStart(2, "0")}</span>
+                <strong>${month}月</strong>
+              </header>
+
+              <div class="tournament-month-card__weeks">
+                ${Array.from({ length: 4 }, (_weekValue, weekIndex) => {
+                  const week = weekIndex + 1;
+                  const weekEvents =
+                    events.filter(
+                      (event) =>
+                        event.month === month &&
+                        event.week === week,
+                    );
+                  const isCurrentWeek =
+                    snapshot.gameDate.month === month &&
+                    snapshot.gameDate.week === week;
+
+                  return `
+                    <section class="tournament-week-cell ${isCurrentWeek ? "is-current" : ""}">
+                      <div class="tournament-week-cell__label">
+                        <span>W${week}</span>
+                        ${isCurrentWeek ? "<b>NOW</b>" : ""}
+                      </div>
+
+                      <div class="tournament-week-cell__events">
+                        ${
+                          weekEvents.length > 0
+                            ? weekEvents.map((event) => {
+                                const preset =
+                                  TOURNAMENT_TYPE_PRESETS[
+                                    event.tournamentType
+                                  ];
+                                const completed =
+                                  snapshot.tournament.history.some(
+                                    (history) =>
+                                      history.tournamentId ===
+                                      event.tournamentId,
+                                  );
+                                const casual =
+                                  Boolean(event.choiceGroupId);
+                                return `
+                                  <article class="tournament-calendar-event ${
+                                    casual
+                                      ? "is-casual"
+                                      : "is-formal"
+                                  } ${completed ? "is-completed" : ""}">
+                                    <img
+                                      src="${escapeAttribute(getTournamentIcon(event.tournamentType))}"
+                                      alt=""
+                                    >
+                                    <div>
+                                      <span>${casual ? "CASUAL CUP" : "FORMAL"}</span>
+                                      <strong>${escapeHtml(preset.tournamentName)}</strong>
+                                      <small>${escapeHtml(event.stageName)}</small>
+                                    </div>
+                                    <em>${completed ? "完了" : isCurrentWeek ? "開催中" : "予定"}</em>
+                                  </article>
+                                `;
+                              }).join("")
+                            : `
+                              <div class="tournament-calendar-rest">
+                                <span>PREPARATION WEEK</span>
+                                <small>育成・ショップ・作戦準備</small>
+                              </div>
+                            `
+                        }
+                      </div>
+                    </section>
+                  `;
+                }).join("")}
+              </div>
+            </article>
+          `;
+        }).join("")}
+      </div>
     </section>
   `;
 }

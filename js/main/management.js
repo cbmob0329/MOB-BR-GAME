@@ -10,11 +10,11 @@ import {
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=27";
+} from "../../data/game-data.js?v=28";
 import {
   isCasualTournamentType,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=27";
+} from "../../data/circuit-data.js?v=28";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
@@ -62,13 +62,13 @@ import {
 import {
   advanceWeeksToDraft,
   applyResourceDeltaToDraft,
-} from "./state.js?v=27";
+} from "./state.js?v=28";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=27";
+} from "./tournament-bridge.js?v=28";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-1.2.0";
+  "mobbr-management-feature-1.3.0";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -2361,6 +2361,105 @@ export function createManagementController({
     overlay.remove();
   }
 
+  async function playStrategyMeetingCinematic(
+    result,
+    snapshot,
+  ) {
+    const strategy =
+      getStrategy(result.strategyId);
+    const successfulCoaches =
+      new Set(
+        result.coachResults
+          .filter((coach) => coach.success)
+          .map((coach) => coach.coachId),
+      );
+    const overlay =
+      document.createElement("section");
+    overlay.className =
+      "strategy-meeting-cinematic";
+    overlay.innerHTML = `
+      <div
+        class="strategy-meeting-cinematic__grid"
+        aria-hidden="true"
+      ></div>
+      <span>TACTICAL BRIEFING</span>
+      <h2>STRATEGY MEETING</h2>
+
+      <section class="strategy-meeting-cinematic__table">
+        <div class="strategy-meeting-cinematic__rank-ring">
+          ${STRATEGY_RANKS.map((rank, index) => `
+            <i
+              style="--rank-index:${index}"
+              data-rank="${escapeAttribute(rank)}"
+            >
+              <img
+                src="${escapeAttribute(`icon/tak${rank.toLowerCase()}.png`)}"
+                alt=""
+              >
+            </i>
+          `).join("")}
+        </div>
+        <div class="strategy-meeting-cinematic__center">
+          <img src="menu/coach.png" alt="">
+          <strong>ANALYZING</strong>
+        </div>
+        <div class="strategy-meeting-cinematic__coaches">
+          ${snapshot.coaches.map((coach, index) => `
+            <article
+              class="${successfulCoaches.has(coach.coachId) ? "is-rank-up" : ""}"
+              style="--coach-index:${index}"
+            >
+              <img src="${escapeAttribute(coach.image)}" alt="">
+              <span>${escapeHtml(coach.rank)}</span>
+              <strong>${escapeHtml(coach.name ?? "COACH")}</strong>
+            </article>
+          `).join("")}
+        </div>
+      </section>
+
+      <article class="strategy-meeting-cinematic__result">
+        <div
+          class="strategy-meeting-cinematic__flare"
+          aria-hidden="true"
+        ></div>
+        <img
+          class="strategy-meeting-cinematic__rank"
+          src="${escapeAttribute(`icon/tak${result.selectedRank.toLowerCase()}.png`)}"
+          alt=""
+        >
+        <img
+          class="strategy-meeting-cinematic__strategy"
+          src="${escapeAttribute(strategy.icon)}"
+          alt=""
+        >
+        <span>${escapeHtml(result.selectedRank)} RANK / ${escapeHtml(result.acquisitionType)}</span>
+        <strong>${escapeHtml(result.strategyName)}</strong>
+        <small>
+          COACH RANK UP
+          ${result.coachResults.filter((coach) => coach.success).length}
+          / ${result.coachResults.length}
+        </small>
+      </article>
+    `;
+
+    root.append(overlay);
+    requestAnimationFrame(() =>
+      overlay.classList.add(
+        "is-briefing",
+      ),
+    );
+    await wait(950);
+    overlay.classList.add(
+      "is-reveal",
+    );
+    await wait(1300);
+    overlay.classList.add(
+      "is-exit",
+    );
+    await wait(300);
+    overlay.remove();
+  }
+
   async function handleAction(actionElement) {
     const action = actionElement.dataset.action;
 
@@ -2683,6 +2782,10 @@ export function createManagementController({
           performStrategyMeetingToDraft(draft),
         );
         const result = tx.result;
+        await playStrategyMeetingCinematic(
+          result,
+          stateManager.getSnapshot(),
+        );
         await openAlert({
           title: `${result.selectedRank} RANK STRATEGY`,
           body: `<section class="strategy-meeting-show"><div class="strategy-meeting-show__board"><span>TACTICAL BRIEFING</span><strong>${escapeHtml(result.strategyName)}</strong><small>${escapeHtml(result.selectedRank)} RANK / ${escapeHtml(result.acquisitionType)} / 所持 ${result.quantity}</small></div><div class="strategy-meeting-show__board"><span>COACH REVIEW</span><strong>${result.coachResults.filter((coach) => coach.success).length} / ${result.coachResults.length} RANK UP</strong><small>会議内容を各コーチの成長判定へ反映しました</small></div></section>`,

@@ -19,11 +19,11 @@ import {
   getCompanyRankData,
   rankToWeaponValue,
   validateGameDate,
-} from "../../data/game-data.js?v=27";
+} from "../../data/game-data.js?v=28";
 import {
   BATTLE_CONFIG_VERSION,
   getRoleCommonSkills,
-} from "../../data/battle-config.js";
+} from "../../data/battle-config.js?v=28";
 import {
   TRAINING_DATA_VERSION,
 } from "../../data/training-data.js";
@@ -48,7 +48,7 @@ import {
   STRATEGY_RULES,
 } from "../../data/strategy-data.js";
 
-export const SAVE_SCHEMA_VERSION = "mobbr-save-1.4.0";
+export const SAVE_SCHEMA_VERSION = "mobbr-save-1.5.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
 
 export const STORAGE_KEYS = Object.freeze({
@@ -1019,6 +1019,32 @@ function migrateLegacyPlayer(player) {
     migrated.weapon.ammoMax = 12;
   }
 
+  const previousMaxHp =
+    Number.isFinite(migrated.maxHp) && migrated.maxHp > 0
+      ? migrated.maxHp
+      : 500;
+  const previousCurrentHp =
+    Number.isFinite(migrated.currentHp)
+      ? Math.max(0, Math.min(previousMaxHp, migrated.currentHp))
+      : previousMaxHp;
+  const hpRate =
+    previousMaxHp > 0
+      ? previousCurrentHp / previousMaxHp
+      : 1;
+  const stamina =
+    Number.isFinite(migrated.stats?.stamina)
+      ? migrated.stats.stamina
+      : 10;
+  const newBaseline =
+    Math.round((550 + stamina * 10) / 10) * 10;
+  migrated.maxHp =
+    Math.max(newBaseline, Math.round(previousMaxHp * 1.3));
+  migrated.currentHp =
+    Math.max(
+      previousCurrentHp > 0 ? 1 : 0,
+      Math.round(migrated.maxHp * hpRate),
+    );
+
   if (migrated.stats?.sap !== undefined) {
     migrated.stats.support = migrated.stats.support ?? migrated.stats.sap;
     delete migrated.stats.sap;
@@ -1108,7 +1134,8 @@ export function migrateSaveState(
     rawState.schemaVersion === "mobbr-save-1.0.0" ||
     rawState.schemaVersion === "mobbr-save-1.1.0" ||
     rawState.schemaVersion === "mobbr-save-1.2.0" ||
-    rawState.schemaVersion === "mobbr-save-1.3.0"
+    rawState.schemaVersion === "mobbr-save-1.3.0" ||
+    rawState.schemaVersion === "mobbr-save-1.4.0"
   ) {
     const migrated = migrateUnversionedSave(rawState, timestamp);
     validateSaveState(migrated);

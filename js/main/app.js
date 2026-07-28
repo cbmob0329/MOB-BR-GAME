@@ -20,7 +20,7 @@ import {
   SaveError,
   SaveNotFoundError,
   createGameStateManager,
-} from "./state.js?v=27";
+} from "./state.js?v=28";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyWeaponUpgradePlanToDraft,
@@ -33,11 +33,12 @@ import {
   renameWeaponToDraft,
   renderAbilityUpSection,
   renderEquipmentSection,
+  renderPlayerSelector,
   renderSpecialAbilitySection,
   renderTeamDetailsSection,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=27";
+} from "./team.js?v=28";
 import {
   getSpecialAbility,
 } from "../../data/ability-data.js";
@@ -45,13 +46,13 @@ import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=27";
+} from "./management.js?v=28";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=27";
+} from "./tournament-bridge.js?v=28";
 
-export const APP_VERSION = "mobbr-main-app-1.5.0";
+export const APP_VERSION = "mobbr-main-app-1.6.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -881,23 +882,12 @@ function renderPlayerSelectorForDevelopment(
   snapshot,
   selectedPlayerId,
 ) {
-  return `
-    <div class="player-selector player-selector--development">
-      ${snapshot.playerTeam.members.map((player) => `
-        <button
-          type="button"
-          class="${player.playerId === selectedPlayerId ? "is-active" : ""}"
-          data-action="select-team-player"
-          data-player-id="${escapeAttribute(player.playerId)}"
-        >
-          <img src="${escapeAttribute(player.image)}" alt="">
-          <span>${escapeHtml(player.role)}</span>
-          <strong>${escapeHtml(player.name)}</strong>
-        </button>
-      `).join("")}
-    </div>
-  `;
+  return renderPlayerSelector(
+    snapshot,
+    selectedPlayerId,
+  );
 }
+
 
 function teamFeatureTemplate(
   snapshot,
