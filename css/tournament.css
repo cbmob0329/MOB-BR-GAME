@@ -6444,3 +6444,403 @@ html[data-asset-prefix="../../"] .tournament-loading-overlay {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Generation 26: unified exploration, separate results, stronger commentary */
+
+.tournament-screen--exploration-unified {
+  overflow: hidden;
+}
+
+.exploration-unified-scroll {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  overflow-y: auto;
+  padding:
+    calc(var(--safe-top) + 61px)
+    8px
+    176px;
+  overscroll-behavior: contain;
+}
+
+.exploration-unified-block {
+  display: grid;
+  gap: 8px;
+  border: 2px solid rgb(255 255 255 / 17%);
+  border-radius: 17px;
+  padding: 9px;
+  background: rgb(5 15 29 / 89%);
+  box-shadow:
+    0 10px 24px rgb(0 0 0 / 27%),
+    inset 0 1px 0 rgb(255 255 255 / 7%);
+  backdrop-filter: blur(5px);
+}
+
+.exploration-unified-block > header {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  border-bottom: 1px solid rgb(255 255 255 / 11%);
+  padding-bottom: 7px;
+}
+
+.exploration-unified-block > header img {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+}
+
+.exploration-unified-block > header div {
+  display: grid;
+  gap: 1px;
+}
+
+.exploration-unified-block > header span {
+  color: var(--tournament-gold);
+  font-size: .44rem;
+  font-weight: 1000;
+  letter-spacing: .1em;
+}
+
+.exploration-unified-block > header strong {
+  color: #fff;
+  font-size: .6rem;
+}
+
+.exploration-unified-block .exploration-page {
+  min-height: 0;
+}
+
+.exploration-unified-block .exploration-page-note {
+  font-size: .48rem;
+}
+
+.exploration-unified-block .exploration-search-point {
+  min-height: 142px;
+}
+
+.exploration-unified-block .exploration-search-point img {
+  width: min(20vw, 78px);
+  height: min(20vw, 78px);
+}
+
+.tournament-bag-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 6px !important;
+}
+
+.tournament-bag-slot {
+  position: relative;
+  display: grid !important;
+  min-width: 0;
+  aspect-ratio: 1;
+  align-content: center;
+  justify-items: center;
+  gap: 3px !important;
+  overflow: hidden;
+  border: 2px solid rgb(255 255 255 / 15%) !important;
+  border-radius: 13px !important;
+  padding: 5px !important;
+  background:
+    linear-gradient(145deg, rgb(32 48 70 / 95%), rgb(9 18 31 / 98%)) !important;
+  text-align: center;
+}
+
+.tournament-bag-slot > span {
+  position: absolute;
+  top: 4px;
+  left: 5px;
+  color: rgb(255 255 255 / 45%);
+  font-size: .34rem !important;
+}
+
+.tournament-bag-slot > img {
+  width: 50px !important;
+  height: 50px !important;
+  object-fit: contain;
+}
+
+.tournament-bag-slot > strong {
+  width: 100%;
+  overflow: hidden;
+  font-size: .43rem !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tournament-bag-slot > small {
+  display: none;
+}
+
+.tournament-bag-slot > .tournament-button {
+  width: auto !important;
+  min-height: 25px !important;
+  padding: 3px 8px !important;
+  font-size: .4rem !important;
+}
+
+.tournament-bag-slot.is-empty {
+  opacity: .48;
+}
+
+.bag-target-list {
+  position: absolute;
+  z-index: 5;
+  inset: 3px;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  border-radius: 10px;
+  padding: 4px;
+  background: rgb(4 13 25 / 97%);
+}
+
+.bag-target-list button {
+  min-height: 25px;
+  border-radius: 6px;
+  font-size: .36rem;
+}
+
+.facility-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 7px !important;
+}
+
+.facility-grid > article {
+  display: grid;
+  min-width: 0;
+  min-height: 155px;
+  align-content: start;
+  justify-items: center;
+  gap: 4px;
+  border: 2px solid rgb(255 255 255 / 15%) !important;
+  border-radius: 14px !important;
+  padding: 7px !important;
+  background:
+    linear-gradient(145deg, rgb(31 48 70 / 94%), rgb(8 17 29 / 98%)) !important;
+  text-align: center;
+}
+
+.facility-grid h2,
+.facility-grid p {
+  margin: 0;
+}
+
+.facility-grid h2 {
+  font-size: .5rem !important;
+}
+
+.facility-grid p {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: .4rem !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.facility-machine {
+  width: 64px !important;
+  height: 64px !important;
+  border-radius: 14px !important;
+}
+
+.facility-grid .tournament-button {
+  width: auto !important;
+  min-height: 27px !important;
+  padding: 4px 7px !important;
+  font-size: .38rem !important;
+}
+
+.round-result-verdict.is-no-encounter {
+  border-color: #68cfff;
+  background:
+    radial-gradient(circle at 50% 0%, rgb(75 191 255 / 17%), transparent 55%),
+    rgb(4 15 29 / 93%);
+}
+
+.round-result-verdict.is-no-encounter span {
+  color: #83d9ff;
+}
+
+.total-result-callout {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr);
+  gap: 11px;
+  align-items: center;
+  border: 3px solid var(--tournament-gold);
+  border-radius: 17px;
+  padding: 11px;
+  background:
+    radial-gradient(circle at 10% 0%, rgb(246 215 95 / 20%), transparent 42%),
+    rgb(5 15 29 / 94%);
+  color: #fff;
+  box-shadow: 0 12px 25px rgb(0 0 0 / 28%);
+  animation: total-callout-arrive 400ms ease both;
+}
+
+.total-result-callout img {
+  width: 70px;
+  height: 70px;
+  object-fit: contain;
+}
+
+.total-result-callout div {
+  display: grid;
+  gap: 3px;
+}
+
+.total-result-callout span {
+  color: var(--tournament-gold);
+  font-size: .45rem;
+  font-weight: 1000;
+  letter-spacing: .1em;
+}
+
+.total-result-callout strong {
+  font-size: .72rem;
+}
+
+.total-result-callout p,
+.result-page-explanation {
+  margin: 0;
+  color: rgb(255 255 255 / 68%);
+  font-size: .48rem;
+  line-height: 1.5;
+}
+
+.tournament-screen--match-result.is-total-page .compact-result-section {
+  animation: result-total-enter 360ms ease both;
+}
+
+.commentary-panel--live {
+  position: relative;
+  overflow: hidden;
+  border-color: rgb(99 207 255 / 42%) !important;
+  background:
+    radial-gradient(circle at 0 0, rgb(70 196 255 / 14%), transparent 42%),
+    rgb(4 14 27 / 94%) !important;
+  box-shadow:
+    0 11px 24px rgb(0 0 0 / 30%),
+    inset 0 1px 0 rgb(255 255 255 / 7%);
+  animation: commentary-arrive 320ms cubic-bezier(.18,.82,.22,1) both;
+}
+
+.commentary-panel__speaker {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+}
+
+.commentary-panel__speaker img {
+  width: 52px !important;
+  height: 52px !important;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 8px rgb(0 0 0 / 32%));
+  animation: commentator-mic 900ms ease-in-out infinite alternate;
+}
+
+.commentary-panel__speaker span {
+  position: absolute;
+  right: -2px;
+  bottom: 0;
+  border-radius: 999px;
+  padding: 2px 5px;
+  background: #ef4e5a;
+  color: #fff;
+  font-size: .31rem;
+  font-weight: 1000;
+  letter-spacing: .06em;
+  box-shadow: 0 0 9px rgb(239 78 90 / 48%);
+}
+
+.commentary-wave {
+  display: flex;
+  align-items: end;
+  gap: 2px;
+  height: 9px;
+  margin-top: 4px;
+}
+
+.commentary-wave b {
+  width: 3px;
+  min-height: 2px;
+  border-radius: 999px;
+  background: #65d1ff;
+  animation: commentary-wave 550ms ease-in-out infinite alternate;
+}
+
+.commentary-wave b:nth-child(2) {
+  animation-delay: 80ms;
+}
+
+.commentary-wave b:nth-child(3) {
+  animation-delay: 160ms;
+}
+
+.commentary-wave b:nth-child(4) {
+  animation-delay: 240ms;
+}
+
+.commentary-wave b:nth-child(5) {
+  animation-delay: 320ms;
+}
+
+@keyframes total-callout-arrive {
+  from {
+    translate: 0 13px;
+    opacity: 0;
+  }
+}
+
+@keyframes result-total-enter {
+  from {
+    translate: 12px 0;
+    opacity: 0;
+  }
+}
+
+@keyframes commentary-arrive {
+  from {
+    translate: 0 8px;
+    opacity: 0;
+  }
+}
+
+@keyframes commentator-mic {
+  to {
+    translate: 0 -2px;
+    scale: 1.04;
+  }
+}
+
+@keyframes commentary-wave {
+  to {
+    height: 9px;
+    background: var(--tournament-gold);
+  }
+}
+
+@media (max-width: 370px) {
+  .exploration-unified-scroll {
+    padding-inline: 5px;
+  }
+
+  .exploration-unified-block {
+    padding: 6px;
+  }
+
+  .tournament-bag-slot > img {
+    width: 42px !important;
+    height: 42px !important;
+  }
+
+  .facility-grid > article {
+    min-height: 142px;
+  }
+}
