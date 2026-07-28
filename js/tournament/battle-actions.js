@@ -30,7 +30,7 @@ import {
   STAT_IDS,
   clamp,
   rankToCharacterValue,
-} from "../../data/game-data.js";
+} from "../../data/game-data.js?v=25";
 import {
   adjustDebuffForSpecialAbility,
   applyNextBattleSpecialEffects,

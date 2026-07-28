@@ -11,21 +11,29 @@ import { assetPath } from "../assets.js";
 import {
   getChampionshipPoints,
   getPlacementPoints,
-} from "../../data/game-data.js?v=24";
+} from "../../data/game-data.js?v=25";
 import {
   STRATEGY_RULES,
 } from "../../data/strategy-data.js";
 import {
+  FORMAL_CIRCUIT_RULES,
+  isCasualTournamentType,
+} from "../../data/circuit-data.js?v=25";
+import {
+  applyMatchPlanToDraft,
+  getMatchParticipantIds,
+} from "./circuit.js?v=25";
+import {
   getPlayableRoundCount,
-} from "./round.js";
+} from "./round.js?v=25";
 import {
   finalizeTournamentResultData,
   resolvePlacementRewards,
   writeTournamentResultToStorage,
-} from "../main/tournament-bridge.js";
+} from "../main/tournament-bridge.js?v=25";
 
 export const RESULTS_VERSION =
-  "mobbr-tournament-results-1.5.0";
+  "mobbr-tournament-results-1.7.0";
 
 export const RESULT_RULES = Object.freeze({
   defaultMatchPointThreshold: 50,
@@ -258,7 +266,12 @@ function createMatchRankingRows(runtime) {
         ? runtime.activeTeamIds[0]
         : null;
 
-  const scored = runtime.teams.map((team) => {
+  const participantIds = new Set(
+    getMatchParticipantIds(runtime, runtime.match),
+  );
+  const scored = runtime.teams
+    .filter((team) => participantIds.has(team.teamId))
+    .map((team) => {
     const stats = formalRecords.length > 0
       ? createFormalMatchStats(runtime, team.teamId, runtime.match)
       : createLegacyMatchStats(runtime, team, runtime.match);
@@ -334,25 +347,30 @@ function createMatchRankingRows(runtime) {
 
 export function createTournamentTotals(runtime) {
   assertRuntime(runtime);
+  const initialTotals =
+    runtime.entryData.tournament.initialTotals ?? {};
   const totals = Object.fromEntries(
-    runtime.teams.map((team) => [
-      team.teamId,
-      {
-        teamId: team.teamId,
-        teamName: team.teamName,
-        teamLogo: team.teamLogo,
-        isPlayer: team.teamId === runtime.playerTeamId,
-        sumPlacementPoint: 0,
-        sumKp: 0,
-        sumTotal: 0,
-        sumAp: 0,
-        sumDamage: 0,
-        sumDamageTaken: 0,
-        wins: 0,
-        bestPlace: null,
-        matchesPlayed: 0,
-      },
-    ]),
+    runtime.teams.map((team) => {
+      const initial = initialTotals[team.teamId] ?? {};
+      return [
+        team.teamId,
+        {
+          teamId: team.teamId,
+          teamName: team.teamName,
+          teamLogo: team.teamLogo,
+          isPlayer: team.teamId === runtime.playerTeamId,
+          sumPlacementPoint: initial.sumPlacementPoint ?? 0,
+          sumKp: initial.sumKp ?? 0,
+          sumTotal: initial.sumTotal ?? 0,
+          sumAp: initial.sumAp ?? 0,
+          sumDamage: initial.sumDamage ?? 0,
+          sumDamageTaken: initial.sumDamageTaken ?? 0,
+          wins: initial.wins ?? 0,
+          bestPlace: initial.bestPlace ?? null,
+          matchesPlayed: initial.matchesPlayed ?? 0,
+        },
+      ];
+    }),
   );
 
   for (const matchRecord of runtime.matchTotals) {
@@ -411,10 +429,25 @@ function compareFinalTotals(left, right) {
 export function createFinalRankings(runtime) {
   const totals = Object.values(createTournamentTotals(runtime));
   totals.sort(compareFinalTotals);
+
+  const matchPointWinner =
+    runtime.matchPointRuntime?.mpWinner ?? null;
+  if (matchPointWinner) {
+    const winnerIndex = totals.findIndex(
+      (total) => total.teamId === matchPointWinner,
+    );
+    if (winnerIndex > 0) {
+      const [winner] = totals.splice(winnerIndex, 1);
+      totals.unshift(winner);
+    }
+  }
+
   return deepFreeze(
     totals.map((total, index) => ({
       place: index + 1,
       ...deepClone(total),
+      matchPointWinner:
+        total.teamId === matchPointWinner,
     })),
   );
 }
@@ -438,7 +471,7 @@ function updateMatchPointToDraft(draft, matchRecord) {
     completedMatches: 0,
     maxMatches: draft.entryData.tournament.matches,
     suddenDeath: false,
-    suddenDeathRule: "highest_total_after_max_matches",
+    suddenDeathRule: "final_match_champion_after_max_matches",
   };
 
   const state = draft.matchPointRuntime;
@@ -471,8 +504,9 @@ function updateMatchPointToDraft(draft, matchRecord) {
     state.mpWinner === null &&
     state.completedMatches >= state.maxMatches
   ) {
-    const rankings = createFinalRankings(draft);
-    state.mpWinner = rankings[0]?.teamId ?? null;
+    // The final scheduled MATCH is treated as an all-team MATCH POINT round.
+    // Its champion takes the MATCH POINT winner slot.
+    state.mpWinner = matchRecord.championTeamId ?? null;
     state.winnerConfirmedAtMatch = matchRecord.match;
     state.suddenDeath = state.mpWinner !== null;
   }
@@ -500,38 +534,52 @@ export function finalizeCurrentMatchToDraft(draft) {
   const playerRow = rankings.find(
     (row) => row.teamId === draft.playerTeamId,
   );
+  const currentPlan =
+    draft.entryData.tournament.matchPlan?.find(
+      (entry) => entry.match === draft.match,
+    ) ?? null;
   const record = {
     match: draft.match,
+    circuitMatch: currentPlan?.circuitMatch ?? draft.match,
+    sectionId: currentPlan?.sectionId ?? "ALL",
+    sectionName: currentPlan?.sectionName ?? "ALL TEAMS",
+    sectionMatch: currentPlan?.sectionMatch ?? draft.match,
+    participantTeamIds: deepClone(
+      currentPlan?.participantTeamIds ?? rankings.map((row) => row.teamId),
+    ),
+    playerParticipated: playerRow !== undefined,
     provisional: false,
     resultCalculated: true,
     championTeamId: champion.teamId,
     championTeamName: champion.teamName,
-    playerPlace: playerRow.place,
-    placementPoint: playerRow.placementPoint,
-    kp: playerRow.kp,
-    ap: playerRow.ap,
-    damage: playerRow.damage,
-    damageTaken: playerRow.damageTaken,
-    total: playerRow.total,
+    playerPlace: playerRow?.place ?? null,
+    placementPoint: playerRow?.placementPoint ?? 0,
+    kp: playerRow?.kp ?? 0,
+    ap: playerRow?.ap ?? 0,
+    damage: playerRow?.damage ?? 0,
+    damageTaken: playerRow?.damageTaken ?? 0,
+    total: playerRow?.total ?? 0,
     rankings,
   };
   draft.matchTotals.push(record);
 
-  draft.totals.placementPoint += playerRow.placementPoint;
-  draft.totals.kp += playerRow.kp;
-  draft.totals.ap += playerRow.ap;
-  draft.totals.damage += playerRow.damage;
-  draft.totals.damageTaken += playerRow.damageTaken;
-  draft.totals.wins += playerRow.place === 1 ? 1 : 0;
-  draft.totals.bestPlace =
-    draft.totals.bestPlace === null
-      ? playerRow.place
-      : Math.min(draft.totals.bestPlace, playerRow.place);
-  draft.totals.matchCount += 1;
-  draft.totals.roundCount += matchRoundRecords(
-    draft,
-    draft.match,
-  ).length;
+  if (playerRow) {
+    draft.totals.placementPoint += playerRow.placementPoint;
+    draft.totals.kp += playerRow.kp;
+    draft.totals.ap += playerRow.ap;
+    draft.totals.damage += playerRow.damage;
+    draft.totals.damageTaken += playerRow.damageTaken;
+    draft.totals.wins += playerRow.place === 1 ? 1 : 0;
+    draft.totals.bestPlace =
+      draft.totals.bestPlace === null
+        ? playerRow.place
+        : Math.min(draft.totals.bestPlace, playerRow.place);
+    draft.totals.matchCount += 1;
+    draft.totals.roundCount += matchRoundRecords(
+      draft,
+      draft.match,
+    ).length;
+  }
 
   updateMatchPointToDraft(draft, record);
   draft.pendingVisualId = `match-champion:${champion.teamId}`;
@@ -565,7 +613,7 @@ export function prepareNextMatchToDraft(draft) {
 
   draft.match += 1;
   draft.round = 0;
-  draft.activeTeamIds = draft.teams.map((team) => team.teamId);
+  applyMatchPlanToDraft(draft, draft.match);
   draft.eliminated = [];
   draft.currentPairs = [];
   draft.currentOpponentId = null;
@@ -1010,52 +1058,229 @@ export function advanceAwardToDraft(draft) {
   });
 }
 
+function rankingIds(rankings, minimumPlace, maximumPlace) {
+  return rankings
+    .filter(
+      (row) =>
+        row.place >= minimumPlace &&
+        row.place <= maximumPlace,
+    )
+    .map((row) => row.teamId);
+}
+
+export function createCircuitAdvancement(
+  runtime,
+  finalRankings = createFinalRankings(runtime),
+) {
+  const type =
+    runtime.entryData.tournament.tournamentType;
+  const participantSeeds = deepClone(
+    runtime.entryData.tournament.participantSeeds ??
+      runtime.teams.map((team, index) => ({
+        teamId: team.teamId,
+        sourcePool: team.source ?? null,
+        isPlayer: team.teamId === runtime.playerTeamId,
+        groupId: team.groupId ?? null,
+        seedIndex: index + 1,
+      })),
+  );
+  const common = {
+    circuitYear:
+      runtime.entryData.tournament.circuitYear ??
+      runtime.entryData.gameDate?.year ??
+      runtime.entryData.gameDate.year,
+    circuitStageId:
+      runtime.entryData.tournament.circuitStageId ??
+      runtime.entryData.tournament.stageId,
+    participantSeeds,
+    groupAssignments: deepClone(
+      runtime.entryData.tournament.groupAssignments ?? null,
+    ),
+    circuitTotals: deepClone(
+      createTournamentTotals(runtime),
+    ),
+    sourceTournamentIds: deepClone(
+      runtime.entryData.tournament.sourceTournamentIds ?? [],
+    ),
+    directQualifierTeamIds: [],
+    lastChanceTeamIds: [],
+    qualifierTeamIds: [],
+    eliminatedTeamIds: [],
+    representativePlaces: {},
+    stageInProgress: false,
+  };
+
+  if (type === "local") {
+    common.directQualifierTeamIds = rankingIds(
+      finalRankings,
+      1,
+      FORMAL_CIRCUIT_RULES.local.qualifiers,
+    );
+    common.qualifierTeamIds = [...common.directQualifierTeamIds];
+    common.eliminatedTeamIds = rankingIds(finalRankings, 11, 20);
+    return common;
+  }
+
+  if (
+    type === "national_week_1" ||
+    type === "world_qualifier_week_1"
+  ) {
+    common.stageInProgress = true;
+    common.qualifierTeamIds = finalRankings.map((row) => row.teamId);
+    return common;
+  }
+
+  if (type === "national_week_2" || type === "national") {
+    common.directQualifierTeamIds = rankingIds(finalRankings, 1, 8);
+    common.lastChanceTeamIds = rankingIds(finalRankings, 9, 28);
+    common.eliminatedTeamIds = rankingIds(finalRankings, 29, 40);
+    common.qualifierTeamIds = [
+      ...common.directQualifierTeamIds,
+      ...common.lastChanceTeamIds,
+    ];
+    return common;
+  }
+
+  if (type === "national_last_chance") {
+    const matchPointWinner =
+      runtime.matchPointRuntime?.mpWinner ??
+      finalRankings[0]?.teamId ??
+      null;
+    const totalQualifier = finalRankings.find(
+      (row) => row.teamId !== matchPointWinner,
+    )?.teamId ?? null;
+    common.matchPointWinnerTeamId = matchPointWinner;
+    common.totalPointQualifierTeamId = totalQualifier;
+    common.qualifierTeamIds = [
+      matchPointWinner,
+      totalQualifier,
+    ].filter(Boolean);
+    common.directQualifierTeamIds = [...common.qualifierTeamIds];
+    common.eliminatedTeamIds = finalRankings
+      .map((row) => row.teamId)
+      .filter((teamId) => !common.qualifierTeamIds.includes(teamId));
+    if (matchPointWinner) {
+      common.representativePlaces[matchPointWinner] = 9;
+    }
+    if (totalQualifier) {
+      common.representativePlaces[totalQualifier] = 10;
+    }
+    return common;
+  }
+
+  if (
+    type === "world_qualifier_week_2" ||
+    type === "world_qualifier"
+  ) {
+    common.directQualifierTeamIds = rankingIds(finalRankings, 1, 10);
+    common.lastChanceTeamIds = rankingIds(finalRankings, 11, 30);
+    common.eliminatedTeamIds = rankingIds(finalRankings, 31, 40);
+    common.qualifierTeamIds = [
+      ...common.directQualifierTeamIds,
+      ...common.lastChanceTeamIds,
+    ];
+    return common;
+  }
+
+  if (type === "world_last_chance") {
+    common.directQualifierTeamIds = rankingIds(finalRankings, 1, 10);
+    common.qualifierTeamIds = [...common.directQualifierTeamIds];
+    common.eliminatedTeamIds = rankingIds(finalRankings, 11, 20);
+    return common;
+  }
+
+  if (
+    type === "world_final" ||
+    type === "championship" ||
+    isCasualTournamentType(type)
+  ) {
+    common.winnerTeamId = finalRankings[0]?.teamId ?? null;
+    common.qualifierTeamIds = common.winnerTeamId
+      ? [common.winnerTeamId]
+      : [];
+    return common;
+  }
+
+  return common;
+}
+
 export function getQualificationDisplay(
   runtime,
   place = null,
 ) {
-  const rule =
-    runtime.entryData.tournament.qualificationRule ?? {};
+  const type =
+    runtime.entryData.tournament.tournamentType;
+  const playerTeamId = runtime.playerTeamId;
+  const rankings =
+    runtime.finalRankings ?? createFinalRankings(runtime);
+  const advancement = createCircuitAdvancement(runtime, rankings);
   const isFinal =
-    rule.type === "final";
-  const maximumPlace =
-    rule.type === "top_n"
-      ? rule.maximumPlace
-      : rule.type === "configured_stage_rule"
-        ? (
-            Number.isInteger(rule.maximumPlace)
-              ? rule.maximumPlace
-              : 10
-          )
-        : null;
-  const enabled =
-    !isFinal &&
-    Number.isInteger(maximumPlace);
+    ["world_final", "championship"].includes(type) ||
+    isCasualTournamentType(type);
+  const stageInProgress = advancement.stageInProgress === true;
   const qualified =
-    enabled &&
-    Number.isInteger(place)
-      ? place <= maximumPlace
-      : false;
+    stageInProgress ||
+    advancement.qualifierTeamIds.includes(playerTeamId);
+
+  let maximumPlace = null;
+  let lineLabel = "最終大会";
+  let nextStageId = null;
+
+  if (type === "local") {
+    maximumPlace = 10;
+    lineLabel = "通過ライン TOP 10";
+    nextStageId = qualified ? "national_week_1" : null;
+  } else if (type === "national_week_1") {
+    lineLabel = "NATIONAL 2週目へ継続";
+    nextStageId = "national_week_2";
+  } else if (type === "national_week_2" || type === "national") {
+    maximumPlace = 28;
+    lineLabel = "1～8位 World確定 / 9～28位 Last Chance";
+    nextStageId = advancement.directQualifierTeamIds.includes(playerTeamId)
+      ? "world_qualifier_week_1"
+      : advancement.lastChanceTeamIds.includes(playerTeamId)
+        ? "national_last_chance"
+        : null;
+  } else if (type === "national_last_chance") {
+    lineLabel = "MATCH POINT WINNER＋WINNERを除くTOTAL首位";
+    nextStageId = qualified ? "world_qualifier_week_1" : null;
+  } else if (type === "world_qualifier_week_1") {
+    lineLabel = "WORLD予選2週目へ継続";
+    nextStageId = "world_qualifier_week_2";
+  } else if (
+    type === "world_qualifier_week_2" ||
+    type === "world_qualifier"
+  ) {
+    maximumPlace = 30;
+    lineLabel = "1～10位 Final確定 / 11～30位 Last Chance";
+    nextStageId = advancement.directQualifierTeamIds.includes(playerTeamId)
+      ? "world_final"
+      : advancement.lastChanceTeamIds.includes(playerTeamId)
+        ? "world_last_chance"
+        : null;
+  } else if (type === "world_last_chance") {
+    maximumPlace = 10;
+    lineLabel = "通過ライン TOP 10";
+    nextStageId = qualified ? "world_final" : null;
+  }
 
   return {
-    enabled,
+    enabled: !isFinal,
     isFinal,
+    stageInProgress,
     maximumPlace,
     qualified,
-    nextStageId:
-      qualified
-        ? rule.nextTournamentType ?? null
-        : null,
-    lineLabel:
-      enabled
-        ? `通過ライン TOP ${maximumPlace}`
-        : "最終大会",
+    nextStageId,
+    lineLabel,
     verdictLabel:
-      isFinal
-        ? "TOURNAMENT COMPLETE"
-        : qualified
-          ? "QUALIFIED"
-          : "NOT QUALIFIED",
+      stageInProgress
+        ? "STAGE CONTINUES"
+        : isFinal
+          ? "TOURNAMENT COMPLETE"
+          : qualified
+            ? "QUALIFIED"
+            : "NOT QUALIFIED",
+    advancement,
   };
 }
 
@@ -1063,15 +1288,12 @@ function qualificationForResult(
   runtime,
   finalPlace,
 ) {
-  const display =
-    getQualificationDisplay(
-      runtime,
-      finalPlace,
-    );
+  const display = getQualificationDisplay(runtime, finalPlace);
   return {
     qualified: display.qualified,
-    nextStageId:
-      display.nextStageId,
+    nextStageId: display.nextStageId,
+    stageInProgress: display.stageInProgress,
+    advancement: display.advancement,
   };
 }
 
@@ -1189,13 +1411,21 @@ export function createTournamentResultData(
     memberResults,
   );
   const status =
-    playerFinal.place === 1
-      ? "champion"
-      : qualification.qualified
-        ? "qualified"
-        : runtime.entryData.tournament.qualificationRule?.type === "final"
-          ? "completed"
-          : "eliminated";
+    qualification.stageInProgress
+      ? "stage_in_progress"
+      : playerFinal.place === 1 &&
+          ["world_final", "championship"].includes(
+            runtime.entryData.tournament.tournamentType,
+          )
+        ? "champion"
+        : qualification.qualified
+          ? "qualified"
+          : runtime.entryData.tournament.qualificationRule?.type === "final" ||
+              isCasualTournamentType(
+                runtime.entryData.tournament.tournamentType,
+              )
+            ? "completed"
+            : "eliminated";
 
   const partial = {
     schemaVersion: "mobbr-tournament-result-1.0.0",
@@ -1217,6 +1447,15 @@ export function createTournamentResultData(
     finalPlace: playerFinal.place,
     qualified: qualification.qualified,
     nextStageId: qualification.nextStageId,
+    advancement: deepClone(qualification.advancement),
+    circuitYear:
+      runtime.entryData.tournament.circuitYear ??
+      runtime.entryData.gameDate.year,
+    circuitStageId:
+      runtime.entryData.tournament.circuitStageId ??
+      runtime.entryData.tournament.stageId,
+    choiceGroupId:
+      runtime.entryData.tournament.choiceGroupId ?? null,
     matchPointWinner:
       runtime.matchPointRuntime?.mpWinner ===
       runtime.playerTeamId,
@@ -1282,6 +1521,7 @@ export function createTournamentResultData(
         runtime.entryData.tournament.tournamentType,
       finalPlace: playerFinal.place,
       totalPoints: playerFinal.sumTotal,
+      advancement: deepClone(qualification.advancement),
       completedAt,
     },
     summary:
@@ -1363,7 +1603,7 @@ export function renderMatchChampionScreen(runtime) {
     <main class="tournament-screen tournament-screen--match-champion">
       <div class="champion-confetti" aria-hidden="true"></div>
       <section class="match-champion-stage">
-        <span>MATCH ${runtime.match}</span>
+        <span>${escapeHtml(matchRecord.sectionName ?? "MATCH")} / MATCH ${matchRecord.sectionMatch ?? matchRecord.match}</span>
         <h1>MATCH CHAMPION</h1>
         <img
           class="match-champion-logo"
@@ -1383,7 +1623,7 @@ export function renderMatchChampionScreen(runtime) {
       </section>
       <div class="tournament-bottom-area">
         ${commentator(
-          `MATCH ${runtime.match}のチャンピオンは${champion.teamName}！`,
+          `${matchRecord.sectionName ?? `MATCH ${runtime.match}`}のチャンピオンは${champion.teamName}！`,
         )}
         <button
           type="button"
@@ -1418,6 +1658,10 @@ export function renderMatchResultScreen(runtime) {
       runtime,
       cumulativePlayer?.place ?? null,
     );
+  const sectionComplete =
+    record.sectionId &&
+    record.sectionId !== "ALL" &&
+    record.sectionMatch === 3;
 
   const compactRows = (rows, cumulativeMode = false) => rows.map((row) => `
     <article class="compact-result-row ${row.isPlayer ? "is-player" : ""} ${row.place === 1 ? "is-champion" : ""}">
@@ -1434,9 +1678,13 @@ export function renderMatchResultScreen(runtime) {
   return `
     <main class="tournament-screen tournament-screen--match-result" style="--result-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
       <header class="result-header result-header--compact">
-        <span><img src="icon/match.png" alt="">MATCH ${runtime.match}</span>
+        <span><img src="icon/match.png" alt="">${escapeHtml(record.sectionName ?? "MATCH")} / MATCH ${record.sectionMatch ?? runtime.match}</span>
         <h1>MATCH RESULT</h1>
-        <p>CHAMPION ${escapeHtml(record.championTeamName)} / PLAYER ${playerRow.place} PLACE / TOTAL ${playerRow.total}</p>
+        <p>CHAMPION ${escapeHtml(record.championTeamName)} / ${
+          playerRow
+            ? `PLAYER ${playerRow.place} PLACE / TOTAL ${playerRow.total}`
+            : "PLAYER TEAM NOT IN THIS SECTION / CPU高速処理"
+        }</p>
         ${
           qualification.enabled
             ? `
@@ -1447,7 +1695,7 @@ export function renderMatchResultScreen(runtime) {
               }">
                 <b>${escapeHtml(qualification.lineLabel)}</b>
                 <span>
-                  現在TOTAL ${cumulativePlayer.place}位 /
+                  現在TOTAL ${cumulativePlayer?.place ?? "-"}位 /
                   ${
                     qualification.qualified
                       ? "通過圏内"
@@ -1461,7 +1709,7 @@ export function renderMatchResultScreen(runtime) {
       </header>
       <section class="match-result-vertical-scroll">
         <article class="compact-result-section">
-          <h2><img src="icon/battle.png" alt="">MATCH ${runtime.match} RESULT</h2>
+          <h2><img src="icon/battle.png" alt="">${escapeHtml(record.sectionName ?? "MATCH")} / MATCH ${record.sectionMatch ?? runtime.match} RESULT</h2>
           <div class="compact-result-list">${compactRows(record.rankings)}</div>
         </article>
         <article class="compact-result-section compact-result-section--total">
@@ -1474,10 +1722,12 @@ export function renderMatchResultScreen(runtime) {
         ${commentator(
           isFinal
             ? "全MATCHの集計が完了しました。表彰と大会総合結果へ進みます！"
-            : `MATCH ${runtime.match}の結果と大会TOTALを確認しました。`,
+            : sectionComplete
+              ? `${record.sectionName}終了！現在の40チーム総合順位を確認し、次の節へ進みます！`
+              : `${record.sectionName ?? `MATCH ${runtime.match}`}の結果と大会TOTALを確認しました。`,
         )}
         <button type="button" class="tournament-button tournament-button--primary" data-action="match-result-next">
-          ${showMatchPoint ? "MATCH POINT" : isFinal ? "AWARDS" : "NEXT MATCH"}
+          ${showMatchPoint ? "MATCH POINT" : isFinal ? "AWARDS" : sectionComplete ? "NEXT SECTION" : "NEXT MATCH"}
         </button>
       </div>
     </main>
@@ -1507,7 +1757,7 @@ export function renderMatchPointScreen(runtime) {
             ? `
               <img src="${escapeAttribute(winner.teamLogo)}" alt="">
               <h2>${escapeHtml(winner.teamName)}</h2>
-              <p>${state.suddenDeath ? "最終MATCH終了時の総合首位により決着しました。" : `MATCH ${state.winnerConfirmedAtMatch}でMATCH POINT勝利を確定しました。`}</p>
+              <p>${state.suddenDeath ? "最終MATCHは全チームMATCH POINTとして行われ、そのMATCH CHAMPIONが勝者となりました。" : `MATCH ${state.winnerConfirmedAtMatch}でMATCH POINT勝利を確定しました。`}</p>
             `
             : `
               <p>累計${state.threshold}ポイントへ到達。次のMATCHで優勝すると大会王者です。</p>
@@ -1542,6 +1792,9 @@ export function renderMatchPointScreen(runtime) {
 
 export function renderNextMatchWaitScreen(runtime) {
   const nextMatch = runtime.match + 1;
+  const nextPlan = runtime.entryData.tournament.matchPlan?.find(
+    (entry) => entry.match === nextMatch,
+  ) ?? null;
   return `
     <main class="tournament-screen tournament-screen--next-match" style="--result-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
       <section class="next-match-stage">
@@ -1555,14 +1808,15 @@ export function renderNextMatchWaitScreen(runtime) {
                 : "icon/local.png"
         )}" alt="">
         <span>SESSION CONTINUES</span>
-        <h1>MATCH ${nextMatch}</h1>
-        <p>${escapeHtml(runtime.map.name)} / ${runtime.teams.length} TEAMS</p>
+        <h1>MATCH ${nextPlan?.circuitMatch ?? nextMatch}</h1>
+        <p>${escapeHtml(runtime.map.name)} / ${nextPlan?.participantTeamIds?.length ?? runtime.teams.length} TEAMS</p>
+        ${nextPlan?.sectionName && nextPlan.sectionId !== "ALL" ? `<strong class="next-match-stage__section">${escapeHtml(nextPlan.sectionName)} / SECTION MATCH ${nextPlan.sectionMatch}</strong>` : ""}
         <div class="next-match-stage__rules">
           <strong>HP・CT・MATCH効果を初期化</strong>
           <small>大会バッグ・作戦残回数・累計ポイントは保持します</small>
         </div>
         <button type="button" class="tournament-button tournament-button--primary" data-action="next-match-start">
-          MATCH ${nextMatch} START
+          MATCH ${nextPlan?.circuitMatch ?? nextMatch} START
         </button>
       </section>
     </main>
@@ -1648,6 +1902,121 @@ function rewardRows(rewards) {
   ];
 }
 
+function advancementTeamTemplate(runtime, teamId, label, note) {
+  const team = teamById(runtime, teamId);
+  return `
+    <article class="advancement-team-card">
+      <img src="${escapeAttribute(team.teamLogo)}" alt="">
+      <div>
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(team.teamName)}</strong>
+        <small>${escapeHtml(note)}</small>
+      </div>
+    </article>
+  `;
+}
+
+function circuitAdvancementTemplate(runtime, result) {
+  const type = runtime.entryData.tournament.tournamentType;
+  const advancement = result.advancement ?? {};
+
+  if (type === "national_last_chance") {
+    const matchPointWinner = advancement.matchPointWinnerTeamId;
+    const totalQualifier = advancement.totalPointQualifierTeamId;
+    if (!matchPointWinner || !totalQualifier) return "";
+    return `
+      <section class="circuit-advancement-panel national-lc-qualifiers">
+        <span>NATIONAL REPRESENTATIVES COMPLETE</span>
+        <h2>World進出 最後の2枠</h2>
+        <div>
+          ${advancementTeamTemplate(
+            runtime,
+            matchPointWinner,
+            "NATIONAL代表 9位",
+            "MATCH POINT WINNER",
+          )}
+          ${advancementTeamTemplate(
+            runtime,
+            totalQualifier,
+            "NATIONAL代表 10位",
+            "WINNERを除くTOTALポイント1位",
+          )}
+        </div>
+      </section>
+    `;
+  }
+
+  if (type === "national_week_2" || type === "national") {
+    return `
+      <section class="circuit-advancement-panel">
+        <span>NATIONAL STAGE COMPLETE</span>
+        <h2>1～8位 World確定 / 9～28位 Last Chance</h2>
+        <div class="advancement-logo-grid">
+          ${(advancement.directQualifierTeamIds ?? []).map((teamId, index) =>
+            advancementTeamTemplate(runtime, teamId, `${index + 1}位`, "WORLD進出確定")
+          ).join("")}
+        </div>
+        <p>Last Chance進出 ${(advancement.lastChanceTeamIds ?? []).length}チーム / 敗退 ${(advancement.eliminatedTeamIds ?? []).length}チーム</p>
+      </section>
+    `;
+  }
+
+  if (type === "world_qualifier_week_2" || type === "world_qualifier") {
+    return `
+      <section class="circuit-advancement-panel">
+        <span>WORLD QUALIFIER COMPLETE</span>
+        <h2>上位10チーム World Final進出</h2>
+        <div class="advancement-logo-grid">
+          ${(advancement.directQualifierTeamIds ?? []).map((teamId, index) =>
+            advancementTeamTemplate(runtime, teamId, `${index + 1}位`, "WORLD FINAL直接進出")
+          ).join("")}
+        </div>
+        <p>World Last Chance進出 ${(advancement.lastChanceTeamIds ?? []).length}チーム / 敗退 ${(advancement.eliminatedTeamIds ?? []).length}チーム</p>
+      </section>
+    `;
+  }
+
+  if (type === "world_last_chance") {
+    return `
+      <section class="circuit-advancement-panel">
+        <span>WORLD LAST CHANCE COMPLETE</span>
+        <h2>World Final進出10チームが決定</h2>
+        <div class="advancement-logo-grid">
+          ${(advancement.qualifierTeamIds ?? []).map((teamId, index) =>
+            advancementTeamTemplate(runtime, teamId, `${index + 1}位`, "WORLD FINAL進出")
+          ).join("")}
+        </div>
+      </section>
+    `;
+  }
+
+  if (type === "local") {
+    return `
+      <section class="circuit-advancement-panel">
+        <span>LOCAL QUALIFIERS</span>
+        <h2>NATIONAL進出10チーム</h2>
+        <div class="advancement-logo-grid">
+          ${(advancement.qualifierTeamIds ?? []).map((teamId, index) =>
+            advancementTeamTemplate(runtime, teamId, `${index + 1}位`, "NATIONAL進出")
+          ).join("")}
+        </div>
+      </section>
+    `;
+  }
+
+  if (advancement.stageInProgress === true) {
+    return `
+      <section class="circuit-advancement-panel is-continuation">
+        <span>WEEK 1 COMPLETE</span>
+        <h2>40チームTOTALを次週へ保存しました</h2>
+        <p>グループ、獲得ポイント、個人戦績を維持したまま第4～6節へ進みます。</p>
+      </section>
+    `;
+  }
+
+  return "";
+}
+
 export function renderTournamentResultScreen(runtime) {
   const result = runtime.tournamentResultData;
   if (!result) {
@@ -1662,11 +2031,13 @@ export function renderTournamentResultScreen(runtime) {
       result.finalPlace,
     );
   const verdictMessage =
-    qualification.isFinal
-      ? `全日程を戦い抜きました。${result.teamName}のみなさん、お疲れさまでした！`
-      : qualification.qualified
-        ? `${qualification.lineLabel}を突破！次の大会へ進出です！`
-        : `${qualification.lineLabel}には届きませんでした。ここまでの戦いを次へつなげましょう！`;
+    qualification.stageInProgress
+      ? `${qualification.lineLabel}。ここまでの40チームTOTALとグループ状態を保存しました！`
+      : qualification.isFinal
+        ? `全日程を戦い抜きました。${result.teamName}のみなさん、お疲れさまでした！`
+        : qualification.qualified
+          ? `${qualification.lineLabel}を突破！次の大会段階へ進出です！`
+          : `${qualification.lineLabel}には届きませんでした。ここまでの戦いを次へつなげましょう！`;
 
   return `
     <main class="tournament-screen tournament-screen--total-result">
@@ -1691,11 +2062,13 @@ export function renderTournamentResultScreen(runtime) {
         <span>${escapeHtml(qualification.verdictLabel)}</span>
         <h2>
           ${
-            qualification.isFinal
-              ? "大会全日程終了"
-              : qualification.qualified
-                ? "次大会へ進出決定"
-                : "今大会で敗退"
+            qualification.stageInProgress
+              ? "前半日程終了"
+              : qualification.isFinal
+                ? "大会全日程終了"
+                : qualification.qualified
+                  ? "次大会段階へ進出決定"
+                  : "今大会で敗退"
           }
         </h2>
         ${
@@ -1705,6 +2078,7 @@ export function renderTournamentResultScreen(runtime) {
         }
         <p>${escapeHtml(verdictMessage)}</p>
       </section>
+      ${circuitAdvancementTemplate(runtime, result)}
       <section class="total-result-scroll">
         <article class="total-result-section">
           <h2>FINAL RANKING</h2>

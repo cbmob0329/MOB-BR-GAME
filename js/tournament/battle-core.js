@@ -13,7 +13,7 @@ import {
 } from "../../data/battle-config.js";
 import {
   calculateChecksum,
-} from "../main/state.js";
+} from "../main/state.js?v=25";
 import {
   BATTLE_ACTIONS_VERSION,
   appendBattleEvent,

@@ -10,10 +10,10 @@
 import {
   STAT_IDS,
   clamp,
-} from "../../data/game-data.js";
+} from "../../data/game-data.js?v=25";
 
 export const SPECIAL_ABILITY_RUNTIME_VERSION =
-  "mobbr-special-ability-runtime-1.0.0";
+  "mobbr-special-ability-runtime-1.1.0";
 
 export const SUPPORTED_SPECIAL_EFFECT_CODES = Object.freeze([
   "opening_stats",
@@ -144,8 +144,8 @@ function allStats(amount) {
 
 export function normalizeTournamentTier(tournamentType) {
   const value = String(tournamentType ?? "").toLowerCase();
-  if (value === "local") return "local";
-  if (value === "national") return "national";
+  if (value === "local" || value === "casual_denden") return "local";
+  if (value.startsWith("national") || value === "casual_mobutetsu") return "national";
   if (value.startsWith("world")) return "world";
   if (value === "championship") return "championship";
   return value;

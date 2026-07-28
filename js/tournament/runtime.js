@@ -9,14 +9,14 @@
 import {
   STORAGE_KEYS,
   calculateChecksum,
-} from "../main/state.js";
+} from "../main/state.js?v=25";
 import {
   TOURNAMENT_BRIDGE_VERSION,
   TOURNAMENT_ENTRY_SCHEMA_VERSION,
   TOURNAMENT_RESUME_SCHEMA_VERSION,
   readTournamentEntryFromStorage,
   validateTournamentEntryData,
-} from "../main/tournament-bridge.js";
+} from "../main/tournament-bridge.js?v=25";
 import {
   CPU_LOCAL_DATA_VERSION,
   CPU_LOCAL_MASTER_VERSION,
@@ -39,9 +39,16 @@ import {
   resolveCpuRankFromRange,
   resolveCpuWeaponProfile,
 } from "../../data/battle-config.js";
+import {
+  resolveCpuTeamMaster,
+} from "../../data/circuit-data.js?v=25";
+import {
+  applyMatchPlanToDraft,
+  getMatchParticipantIds,
+} from "./circuit.js?v=25";
 
 export const TOURNAMENT_RUNTIME_VERSION =
-  "mobbr-tournament-runtime-1.8.0";
+  "mobbr-tournament-runtime-1.9.0";
 
 export const TOURNAMENT_PHASES = Object.freeze([
   "IDLE",
@@ -402,7 +409,10 @@ export function createOpeningScenes(entry, teams = null) {
 
   const featuredCpu =
     Array.isArray(teams)
-      ? teams.find((team) => team.isPlayer !== true)
+      ? (
+          teams.find((team) => team.guest === true) ??
+          teams.find((team) => team.isPlayer !== true)
+        )
       : null;
 
   const scenes = [
@@ -491,7 +501,9 @@ export function createOpeningScenes(entry, teams = null) {
         ? `注目チーム / ${featuredCpu.members.map((member) => member.role).join("・")}`
         : entry.tournament.cpuPoolId,
       commentary: featuredCpu
-        ? `注目は${featuredCpu.teamName}！役割の噛み合った3人が大会を揺らします！`
+        ? featuredCpu.guest
+          ? `WORLDゲスト、${featuredCpu.teamName}が特別参戦！世界基準の戦いに注目です！`
+          : `注目は${featuredCpu.teamName}！役割の噛み合った3人が大会を揺らします！`
         : "CPUチームの正式ロスターを確認しました。",
       soundId: "cpu_spotlight",
       animationId: "data_scan",
@@ -816,6 +828,55 @@ function createCpuTeamRecord(
 
 export function selectCpuTeamsForEntry(entry) {
   validateTournamentEntryData(entry);
+  const participantSeeds =
+    entry.tournament.participantSeeds;
+
+  if (
+    Array.isArray(participantSeeds) &&
+    participantSeeds.length > 0
+  ) {
+    const random = createSeededRandom(
+      `${entry.entryId}|${entry.checksum}|circuit-participants`,
+    );
+    return deepFreeze(
+      participantSeeds
+        .filter(
+          (seed) =>
+            seed.teamId !== entry.playerTeam.teamId &&
+            seed.isPlayer !== true,
+        )
+        .map((seed, index) => {
+          const master = resolveCpuTeamMaster(
+            seed.teamId,
+            entry.gameDate.year,
+          );
+          if (!master) {
+            throw new TournamentRuntimeValidationError(
+              `Circuit team master not found: ${seed.teamId}`,
+              "CIRCUIT_TEAM_MASTER_NOT_FOUND",
+            );
+          }
+          const record = createCpuTeamRecord(
+            master,
+            entry,
+            index + 1,
+            {
+              source: `circuit-${seed.sourcePool ?? "cpu"}`,
+              selectionMode:
+                seed.guest === true
+                  ? "world_guest"
+                  : "formal_circuit_seed",
+            },
+            random,
+          );
+          record.groupId = seed.groupId ?? null;
+          record.guest = seed.guest === true;
+          record.sourcePlace = seed.sourcePlace ?? null;
+          return record;
+        }),
+    );
+  }
+
   const requiredCount = Math.max(
     0,
     entry.tournament.totalTeams - 1,
@@ -851,10 +912,41 @@ export function selectCpuTeamsForEntry(entry) {
 
 export function createTournamentTeamSlots(entry) {
   validateTournamentEntryData(entry);
-  return deepFreeze([
-    createPlayerTeamRecord(entry),
-    ...selectCpuTeamsForEntry(entry),
-  ]);
+  const player = createPlayerTeamRecord(entry);
+  const cpuTeams = selectCpuTeamsForEntry(entry);
+  const participantSeeds = entry.tournament.participantSeeds;
+
+  if (
+    Array.isArray(participantSeeds) &&
+    participantSeeds.length > 0
+  ) {
+    const cpuById = new Map(
+      cpuTeams.map((team) => [team.teamId, team]),
+    );
+    const ordered = participantSeeds.map((seed) => {
+      if (
+        seed.teamId === entry.playerTeam.teamId ||
+        seed.isPlayer === true
+      ) {
+        return {
+          ...deepClone(player),
+          groupId: seed.groupId ?? null,
+          guest: false,
+        };
+      }
+      const team = cpuById.get(seed.teamId);
+      if (!team) {
+        throw new TournamentRuntimeValidationError(
+          `Circuit slot team missing: ${seed.teamId}`,
+          "CIRCUIT_SLOT_TEAM_MISSING",
+        );
+      }
+      return team;
+    });
+    return deepFreeze(ordered);
+  }
+
+  return deepFreeze([player, ...cpuTeams]);
 }
 
 function createPlayerMemberRuntime(member) {
@@ -1137,7 +1229,11 @@ export function createTournamentRuntime(
     round: 0,
     playerTeamId: entry.playerTeam.teamId,
     teams: deepClone(teams),
-    activeTeamIds: teams.map((team) => team.teamId),
+    activeTeamIds:
+      Array.isArray(entry.tournament.matchPlan) &&
+      entry.tournament.matchPlan.length > 0
+        ? [...entry.tournament.matchPlan[0].participantTeamIds]
+        : teams.map((team) => team.teamId),
     eliminated: [],
     currentPairs:
       initialOpponentId === null
@@ -1182,6 +1278,15 @@ export function createTournamentRuntime(
       completed: false,
     },
     matchPointRuntime: null,
+    currentSection: null,
+    circuitRuntime: {
+      circuitYear: entry.tournament.circuitYear ?? entry.gameDate.year,
+      circuitStageId: entry.tournament.circuitStageId ?? entry.tournament.stageId,
+      stagePart: entry.tournament.stagePart ?? null,
+      matchPlan: deepClone(entry.tournament.matchPlan ?? []),
+      initialTotals: deepClone(entry.tournament.initialTotals ?? {}),
+      sourceTournamentIds: deepClone(entry.tournament.sourceTournamentIds ?? []),
+    },
     roundIntegration: {
       encounterRate: 0.75,
       encounters: {},
@@ -1217,6 +1322,17 @@ export function createTournamentRuntime(
     error: null,
     runtimeChecksum: null,
   };
+
+  if (
+    Array.isArray(entry.tournament.matchPlan) &&
+    entry.tournament.matchPlan.length > 0
+  ) {
+    const originalMatch = runtime.match;
+    runtime.match = 1;
+    applyMatchPlanToDraft(runtime, 1);
+    runtime.match = originalMatch;
+    runtime.round = 0;
+  }
 
   runtime.runtimeChecksum = calculateTournamentRuntimeChecksum(runtime);
   validateTournamentRuntime(runtime, entry);

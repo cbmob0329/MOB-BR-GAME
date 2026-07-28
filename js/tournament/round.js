@@ -8,10 +8,13 @@
 
 import {
   clamp,
-} from "../../data/game-data.js";
+} from "../../data/game-data.js?v=25";
+import {
+  getMatchParticipantCount,
+} from "./circuit.js?v=25";
 
 export const ROUND_INTEGRATION_VERSION =
-  "mobbr-tournament-round-1.3.0";
+  "mobbr-tournament-round-1.4.0";
 
 export const ROUND_INTEGRATION_RULES = Object.freeze({
   encounterRate: 0.75,
@@ -82,7 +85,11 @@ export function getPlayableRoundCount(runtime) {
   if (!Array.isArray(targets) || targets.length === 0) {
     return 0;
   }
-  return targets[0] === runtime.teams.length
+  const participantCount = getMatchParticipantCount(
+    runtime,
+    Math.max(1, runtime.match || 1),
+  );
+  return targets[0] === participantCount
     ? Math.max(1, targets.length - 1)
     : targets.length;
 }
@@ -99,7 +106,10 @@ export function getRoundTarget(runtime, round) {
     );
   }
   const includesStartCount =
-    targets[0] === runtime.teams.length;
+    targets[0] === getMatchParticipantCount(
+      runtime,
+      Math.max(1, runtime.match || 1),
+    );
   const index =
     includesStartCount
       ? round
