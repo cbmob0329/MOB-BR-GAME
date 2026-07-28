@@ -5,7 +5,7 @@
  * UI state, save data, and tournament runtime state must not be stored here.
  */
 
-export const GAME_DATA_VERSION = "mobbr-game-data-1.0.0";
+export const GAME_DATA_VERSION = "mobbr-game-data-1.1.0";
 
 export const GAME_META = Object.freeze({
   id: "mob-br",
@@ -561,10 +561,13 @@ export const PLACEMENT_POINTS = Object.freeze([
 ]);
 
 export function getPlacementPoints(place) {
-  if (!Number.isInteger(place) || place < 1 || place > 20) {
-    throw new RangeError("Placement must be an integer from 1 to 20.");
+  if (!Number.isInteger(place) || place < 1) {
+    throw new RangeError("Placement must be a positive integer.");
   }
-  return PLACEMENT_POINTS[place];
+
+  // NATIONAL tournaments contain 40 teams. Places below the
+  // published top-20 point table are valid placements and receive 0 PP.
+  return PLACEMENT_POINTS[place] ?? 0;
 }
 
 export const TEAM_POINT_RULES = Object.freeze({
