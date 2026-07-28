@@ -9,14 +9,14 @@
 import {
   STORAGE_KEYS,
   calculateChecksum,
-} from "../main/state.js?v=27";
+} from "../main/state.js?v=28";
 import {
   TOURNAMENT_BRIDGE_VERSION,
   TOURNAMENT_ENTRY_SCHEMA_VERSION,
   TOURNAMENT_RESUME_SCHEMA_VERSION,
   readTournamentEntryFromStorage,
   validateTournamentEntryData,
-} from "../main/tournament-bridge.js?v=27";
+} from "../main/tournament-bridge.js?v=28";
 import {
   CPU_LOCAL_DATA_VERSION,
   CPU_LOCAL_MASTER_VERSION,
@@ -38,17 +38,17 @@ import {
   getRoleCommonSkills,
   resolveCpuRankFromRange,
   resolveCpuWeaponProfile,
-} from "../../data/battle-config.js";
+} from "../../data/battle-config.js?v=28";
 import {
   resolveCpuTeamMaster,
-} from "../../data/circuit-data.js?v=27";
+} from "../../data/circuit-data.js?v=28";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=27";
+} from "./circuit.js?v=28";
 
 export const TOURNAMENT_RUNTIME_VERSION =
-  "mobbr-tournament-runtime-1.9.0";
+  "mobbr-tournament-runtime-2.0.0";
 
 export const TOURNAMENT_PHASES = Object.freeze([
   "IDLE",
@@ -950,12 +950,33 @@ export function createTournamentTeamSlots(entry) {
 }
 
 function createPlayerMemberRuntime(member) {
+  const sourceMaxHp =
+    Number.isFinite(member.maxHp) && member.maxHp > 0
+      ? member.maxHp
+      : 500;
+  const sourceHp =
+    Number.isFinite(member.currentHp)
+      ? Math.max(0, Math.min(sourceMaxHp, member.currentHp))
+      : sourceMaxHp;
+  const hpRate =
+    sourceMaxHp > 0
+      ? sourceHp / sourceMaxHp
+      : 1;
+  const scaledMaxHp =
+    Math.max(
+      650,
+      Math.round(sourceMaxHp * 1.3),
+    );
   return {
     playerId: member.playerId,
     teamId: null,
     role: member.role,
-    hp: member.currentHp,
-    maxHp: member.maxHp,
+    hp:
+      Math.max(
+        sourceHp > 0 ? 1 : 0,
+        Math.round(scaledMaxHp * hpRate),
+      ),
+    maxHp: scaledMaxHp,
     combatState: member.currentHp > 0 ? "alive" : "down",
     downCount: 0,
     deathCount: 0,
@@ -982,12 +1003,39 @@ function createPlayerMemberRuntime(member) {
 }
 
 function createPlayerTeamRuntime(entry) {
-  const members = entry.playerTeam.members.map((member) => ({
-    playerId: member.playerId,
-    maxHp: member.maxHp,
-    currentHp: member.currentHp,
-    combatState: member.currentHp > 0 ? "alive" : "down",
-  }));
+  const members = entry.playerTeam.members.map((member) => {
+    const sourceMaxHp =
+      Number.isFinite(member.maxHp) && member.maxHp > 0
+        ? member.maxHp
+        : 500;
+    const sourceHp =
+      Number.isFinite(member.currentHp)
+        ? Math.max(0, Math.min(sourceMaxHp, member.currentHp))
+        : sourceMaxHp;
+    const scaledMaxHp =
+      Math.max(
+        650,
+        Math.round(sourceMaxHp * 1.3),
+      );
+    const currentHp =
+      Math.max(
+        sourceHp > 0 ? 1 : 0,
+        Math.round(
+          scaledMaxHp *
+          (
+            sourceMaxHp > 0
+              ? sourceHp / sourceMaxHp
+              : 1
+          ),
+        ),
+      );
+    return {
+      playerId: member.playerId,
+      maxHp: scaledMaxHp,
+      currentHp,
+      combatState: currentHp > 0 ? "alive" : "down",
+    };
+  });
   return {
     teamId: entry.playerTeam.teamId,
     matchHp: members.map((member) => member.currentHp),

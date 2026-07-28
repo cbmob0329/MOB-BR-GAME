@@ -8,10 +8,10 @@
 
 import {
   clamp,
-} from "../../data/game-data.js?v=27";
+} from "../../data/game-data.js?v=28";
 import {
   getMatchParticipantCount,
-} from "./circuit.js?v=27";
+} from "./circuit.js?v=28";
 
 export const ROUND_INTEGRATION_VERSION =
   "mobbr-tournament-round-1.6.0";

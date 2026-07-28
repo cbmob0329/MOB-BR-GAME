@@ -13,14 +13,14 @@ import {
 import {
   TOURNAMENT_PHASES,
   createTournamentRuntimeManager,
-} from "./runtime.js?v=27";
+} from "./runtime.js?v=28";
 import {
   executeCurrentBattleToDraft,
 } from "./battle-core.js";
 import {
   createBattlePlaybackController,
   renderBattleOutcomeScreen,
-} from "./battle-ui.js?v=27";
+} from "./battle-ui.js?v=28";
 import {
   EXPLORATION_PAGES,
   beginExplorationToDraft,
@@ -41,7 +41,7 @@ import {
   useInventoryItemToDraft,
   useMobSlotToDraft,
   useRespawnTurntableToDraft,
-} from "./exploration.js";
+} from "./exploration.js?v=28";
 import {
   advanceAwardToDraft,
   finalizeCurrentMatchToDraft,
@@ -57,13 +57,13 @@ import {
   renderReturningResultScreen,
   renderTournamentResultScreen,
   writePreparedResultToStorage,
-} from "./results.js?v=27";
+} from "./results.js?v=28";
 
 import {
   applyMatchPlanToDraft,
   circuitSectionLabel,
   isPlayerMatch,
-} from "./circuit.js?v=27";
+} from "./circuit.js?v=28";
 
 import {
   fastForwardMatchToChampionToDraft,
@@ -73,9 +73,9 @@ import {
   getRoundTarget,
   isPlayerActive,
   resolveRoundEncounterToDraft,
-} from "./round.js?v=27";
+} from "./round.js?v=28";
 
-export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-2.4.0";
+export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-2.5.0";
 
 const PHASE_LABELS = Object.freeze({
   IDLE: "待機",
@@ -1012,6 +1012,121 @@ export function createTournamentFlowController({
     });
   }
 
+  function explorationScrollTop() {
+    return (
+      root.querySelector(
+        ".exploration-unified-scroll",
+      )?.scrollTop ?? 0
+    );
+  }
+
+  function renderPreservingExplorationScroll(
+    requestedTop =
+      explorationScrollTop(),
+  ) {
+    render();
+    requestAnimationFrame(() => {
+      const scroller =
+        root.querySelector(
+          ".exploration-unified-scroll",
+        );
+      if (scroller) {
+        scroller.scrollTop =
+          requestedTop;
+      }
+    });
+  }
+
+  function playExplorationItemUsePresentation(
+    result,
+  ) {
+    const presentation =
+      result?.presentation;
+    if (!presentation) {
+      return;
+    }
+
+    const overlay =
+      document.createElement("section");
+    overlay.className =
+      "exploration-item-use-show";
+    overlay.innerHTML = `
+      <div
+        class="exploration-item-use-show__burst"
+        aria-hidden="true"
+      ></div>
+      <span>ITEM ACTIVATED</span>
+      <img
+        src="${escapeAttribute(assetPath(result.image))}"
+        alt=""
+      >
+      <h2>${escapeHtml(result.name)}</h2>
+      <strong>${escapeHtml(result.effectSummary)}</strong>
+
+      <div class="exploration-item-use-show__targets">
+        ${presentation.targets.map((target) => `
+          <article>
+            <img
+              src="${escapeAttribute(assetPath(target.image))}"
+              alt=""
+            >
+            <div>
+              <span>${escapeHtml(target.role)}</span>
+              <b>${escapeHtml(target.name)}</b>
+              ${
+                target.statId
+                  ? `
+                    <small>
+                      ${escapeHtml(target.statLabel)}
+                      ${formatNumber(target.statBefore)}
+                      → <strong>${formatNumber(target.statAfter)}</strong>
+                    </small>
+                  `
+                  : `
+                    <small>
+                      HP
+                      ${formatNumber(target.hpBefore)}
+                      → <strong>${formatNumber(target.hpAfter)}</strong>
+                      / ${formatNumber(target.maxHp)}
+                    </small>
+                  `
+              }
+            </div>
+          </article>
+        `).join("")}
+      </div>
+
+      <aside>
+        <img src="icon/mic.png" alt="">
+        <div>
+          <span>モブマイク / LIVE</span>
+          <p>
+            ${escapeHtml(result.name)}を使用！
+            ${escapeHtml(result.effectSummary)}の効果が反映されました！
+          </p>
+        </div>
+      </aside>
+    `;
+
+    root.append(overlay);
+    requestAnimationFrame(() =>
+      overlay.classList.add(
+        "is-active",
+      ),
+    );
+    setTimeout(
+      () =>
+        overlay.classList.add(
+          "is-exit",
+        ),
+      1500,
+    );
+    setTimeout(
+      () => overlay.remove(),
+      1810,
+    );
+  }
+
   function render() {
     cancelScheduledAction();
     destroyBattlePlayback();
@@ -1598,7 +1713,7 @@ export function createTournamentFlowController({
                 Number(actionElement.dataset.slotIndex),
               ),
           );
-          render();
+          renderPreservingExplorationScroll();
           return;
         }
         if (action === "exploration-item-cancel") {
@@ -1606,7 +1721,7 @@ export function createTournamentFlowController({
             "exploration_item_target_cancelled",
             cancelItemUseToDraft,
           );
-          render();
+          renderPreservingExplorationScroll();
           return;
         }
         if (action === "exploration-item-use") {
@@ -1621,8 +1736,19 @@ export function createTournamentFlowController({
                   actionElement.dataset.playerId ?? null,
               }),
           );
-          showToast(`${transaction.result.name}を使用しました`);
-          render();
+          const scrollTop =
+            explorationScrollTop();
+          showToast(
+            `${transaction.result.name}を使用しました`,
+          );
+          renderPreservingExplorationScroll(
+            scrollTop,
+          );
+          requestAnimationFrame(() =>
+            playExplorationItemUsePresentation(
+              transaction.result,
+            ),
+          );
           return;
         }
         if (action === "facility-respawn") {

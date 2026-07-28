@@ -11,29 +11,29 @@ import { assetPath } from "../assets.js";
 import {
   getChampionshipPoints,
   getPlacementPoints,
-} from "../../data/game-data.js?v=27";
+} from "../../data/game-data.js?v=28";
 import {
   STRATEGY_RULES,
 } from "../../data/strategy-data.js";
 import {
   FORMAL_CIRCUIT_RULES,
   isCasualTournamentType,
-} from "../../data/circuit-data.js?v=27";
+} from "../../data/circuit-data.js?v=28";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=27";
+} from "./circuit.js?v=28";
 import {
   getPlayableRoundCount,
-} from "./round.js?v=27";
+} from "./round.js?v=28";
 import {
   finalizeTournamentResultData,
   resolvePlacementRewards,
   writeTournamentResultToStorage,
-} from "../main/tournament-bridge.js?v=27";
+} from "../main/tournament-bridge.js?v=28";
 
 export const RESULTS_VERSION =
-  "mobbr-tournament-results-1.9.0";
+  "mobbr-tournament-results-2.0.0";
 
 export const RESULT_RULES = Object.freeze({
   defaultMatchPointThreshold: 50,
@@ -2221,26 +2221,125 @@ export function renderTournamentResultScreen(runtime) {
 }
 
 export function renderReturningResultScreen(runtime) {
-  const result = runtime.tournamentResultData;
+  const result =
+    runtime.tournamentResultData;
+  const rewards =
+    result.rewards;
+  const trainingPoints =
+    rewards.trainingPoints ?? {};
+  const badgePackCount =
+    Object.values(
+      rewards.badgePacks ?? {},
+    ).reduce(
+      (sum, value) =>
+        sum + Number(value ?? 0),
+      0,
+    );
+
+  const rewardItems = [
+    {
+      label: "COIN",
+      value: rewards.coin,
+      icon: "icon/coin.png",
+      primary: true,
+    },
+    {
+      label: "DIAMOND",
+      value: rewards.diamond,
+      icon: "icon/daia.png",
+      primary: true,
+    },
+    {
+      label: "RUBY",
+      value: rewards.ruby,
+      icon: "icon/rubi.png",
+      primary: true,
+    },
+    {
+      label: "COMPANY EXP",
+      value: rewards.companyExp,
+      icon: "icon/com.png",
+    },
+    {
+      label: "POWER PT",
+      value: trainingPoints.power,
+      icon: "icon/power.png",
+    },
+    {
+      label: "TECH PT",
+      value: trainingPoints.tech,
+      icon: "icon/tech.png",
+    },
+    {
+      label: "MENTAL PT",
+      value: trainingPoints.mental,
+      icon: "icon/mental.png",
+    },
+    {
+      label: "SHOOT PT",
+      value: trainingPoints.shoot,
+      icon: "icon/shoot.png",
+    },
+    {
+      label: "BADGE PACK",
+      value: badgePackCount,
+      icon: "icon/bagi.png",
+    },
+    {
+      label: "CHAMPIONSHIP PT",
+      value: rewards.championshipPoints,
+      icon: "icon/champ.png",
+    },
+  ].filter(
+    (item) =>
+      Number(item.value ?? 0) > 0,
+  );
+
   return `
     <main class="tournament-screen tournament-screen--returning-result">
-      <section class="returning-result-card">
+      <section class="returning-result-card returning-result-card--reward-summary">
         <span>RESULT READY</span>
         <h1>大会結果を送信しました</h1>
-        <p>
-          ${escapeHtml(result.tournamentId)}<br>
-          ${result.finalPlace}位 /
-          ${escapeHtml(result.resultSignature)}
-        </p>
-        <div class="returning-result-rewards">
-          <strong>COIN ${formatNumber(result.rewards.coin)}</strong>
-          <strong>DIAMOND ${formatNumber(result.rewards.diamond)}</strong>
-          <strong>RUBY ${formatNumber(result.rewards.ruby)}</strong>
+
+        <div class="returning-result-identity">
+          <strong>${escapeHtml(result.tournamentId)}</strong>
+          <span>FINAL PLACE</span>
+          <b>${result.finalPlace}位</b>
+          <small>${escapeHtml(result.resultSignature)}</small>
         </div>
-        <p>
-          メイン画面で署名・報酬表・重複状態を検証後、
-          報酬と記録を一括反映します。
+
+        <section class="returning-result-earned">
+          <header>
+            <img src="icon/coin.png" alt="">
+            <div>
+              <span>TOURNAMENT REWARDS</span>
+              <strong>獲得報酬</strong>
+            </div>
+          </header>
+          <div class="returning-reward-grid">
+            ${
+              rewardItems.length > 0
+                ? rewardItems.map((item) => `
+                    <article class="${item.primary ? "is-primary" : ""}">
+                      <img src="${escapeAttribute(item.icon)}" alt="">
+                      <span>${escapeHtml(item.label)}</span>
+                      <strong>+${formatNumber(item.value)}</strong>
+                    </article>
+                  `).join("")
+                : `
+                  <p class="returning-reward-none">
+                    この段階では報酬はありません。順位とTOTALを次段階へ引き継ぎます。
+                  </p>
+                `
+            }
+          </div>
+        </section>
+
+        <p class="returning-result-note">
+          メイン画面で署名・報酬表・重複状態を検証し、
+          報酬と大会記録を一括反映します。
         </p>
+
         <button
           type="button"
           class="tournament-button tournament-button--primary"
@@ -2252,6 +2351,7 @@ export function renderReturningResultScreen(runtime) {
     </main>
   `;
 }
+
 
 export function validateResultsRuntime(runtime) {
   assertRuntime(runtime);

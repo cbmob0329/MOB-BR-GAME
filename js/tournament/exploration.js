@@ -19,10 +19,10 @@ import {
 } from "../../data/strategy-data.js";
 import {
   getPlayableRoundCount,
-} from "./round.js?v=27";
+} from "./round.js?v=28";
 
 export const EXPLORATION_VERSION =
-  "mobbr-tournament-exploration-1.6.0";
+  "mobbr-tournament-exploration-1.7.0";
 
 export const EXPLORATION_PAGES = Object.freeze([
   "SEARCH",
@@ -145,6 +145,179 @@ function createSeededRandom(seedText) {
     state >>>= 0;
     return state / 0x1_0000_0000;
   };
+}
+
+const ITEM_STAT_LABELS = Object.freeze({
+  stamina: "スタミナ",
+  mind: "精神",
+  physical: "フィジカル",
+  aim: "エイム",
+  agility: "敏捷",
+  technique: "技術",
+  support: "サポート",
+});
+
+export function getItemEffectSummary(itemOrId) {
+  const item =
+    typeof itemOrId === "string"
+      ? getItem(itemOrId)
+      : itemOrId;
+  if (item.effectType === "match_stat") {
+    const stat =
+      ITEM_STAT_LABELS[
+        item.effectValue.stat
+      ] ?? item.effectValue.stat;
+    return `${stat} +${item.effectValue.amount}（このMATCH中）`;
+  }
+  if (item.effectType === "heal_max_hp_rate") {
+    return `最大HPの${Math.round(item.effectValue.rate * 100)}%を回復`;
+  }
+  if (item.effectType === "revive_max_hp_rate") {
+    return `確キル状態から最大HP${Math.round(item.effectValue.rate * 100)}%で復活`;
+  }
+  return item.description;
+}
+
+function activeItemStatBonus(
+  runtimeMember,
+  statId,
+) {
+  return (
+    runtimeMember.temporaryEffects ?? []
+  ).reduce(
+    (sum, effect) =>
+      sum +
+      Number(
+        effect.stats?.[statId] ?? 0,
+      ),
+    0,
+  );
+}
+
+function createItemTargetPreview(
+  runtime,
+  item,
+  member,
+) {
+  const state =
+    runtime.memberRuntime[
+      member.playerId
+    ];
+  const preview = {
+    playerId: member.playerId,
+    role: member.role,
+    name: member.name,
+    image: member.image,
+    combatState: state.combatState,
+    hpBefore: state.hp,
+    hpAfter: state.hp,
+    maxHp: state.maxHp,
+    statId: null,
+    statLabel: null,
+    statBefore: null,
+    statAfter: null,
+  };
+
+  if (
+    item.effectType ===
+    "heal_max_hp_rate"
+  ) {
+    preview.hpAfter =
+      state.combatState === "alive"
+        ? Math.min(
+            state.maxHp,
+            state.hp +
+              Math.floor(
+                state.maxHp *
+                item.effectValue.rate,
+              ),
+          )
+        : state.hp;
+  } else if (
+    item.effectType ===
+    "revive_max_hp_rate"
+  ) {
+    preview.hpAfter =
+      Math.max(
+        1,
+        Math.floor(
+          state.maxHp *
+          item.effectValue.rate,
+        ),
+      );
+  } else if (
+    item.effectType === "match_stat"
+  ) {
+    const statId =
+      item.effectValue.stat;
+    const base =
+      Number(
+        member.stats?.[statId] ?? 0,
+      );
+    const active =
+      activeItemStatBonus(
+        state,
+        statId,
+      );
+    preview.statId = statId;
+    preview.statLabel =
+      ITEM_STAT_LABELS[statId] ??
+      statId;
+    preview.statBefore =
+      base + active;
+    preview.statAfter =
+      preview.statBefore +
+      item.effectValue.amount;
+  }
+
+  return preview;
+}
+
+function itemTargetPreviewTemplate(
+  runtime,
+  item,
+  member,
+) {
+  const preview =
+    createItemTargetPreview(
+      runtime,
+      item,
+      member,
+    );
+  const dead =
+    preview.combatState === "dead";
+  return `
+    <article
+      class="bag-target-preview ${dead ? "is-dead" : ""}"
+    >
+      <img
+        src="${escapeAttribute(assetPath(preview.image))}"
+        alt=""
+      >
+      <div>
+        <span>${escapeHtml(preview.role)}</span>
+        <strong>${escapeHtml(preview.name)}</strong>
+        ${
+          preview.statId
+            ? `
+              <small>
+                ${escapeHtml(preview.statLabel)}
+                ${formatNumber(preview.statBefore)}
+                → <b>${formatNumber(preview.statAfter)}</b>
+              </small>
+            `
+            : `
+              <small>
+                ${dead ? "DEAD" : "HP"}
+                ${formatNumber(preview.hpBefore)}
+                → <b>${formatNumber(preview.hpAfter)}</b>
+                / ${formatNumber(preview.maxHp)}
+              </small>
+            `
+        }
+      </div>
+    </article>
+  `;
 }
 
 function itemStrengthScore(item) {
@@ -793,6 +966,24 @@ export function useInventoryItemToDraft(
     throw new RangeError("このアイテムを使用できる対象がいません。");
   }
 
+  const selectedTargets =
+    item.targetType === "all_alive_members"
+      ? validTargets
+      : validTargets.filter(
+          (member) =>
+            member.playerId ===
+            targetPlayerId,
+        );
+  const beforeTargets =
+    selectedTargets.map(
+      (member) =>
+        createItemTargetPreview(
+          draft,
+          item,
+          member,
+        ),
+    );
+
   let results = [];
   if (item.targetType === "all_alive_members") {
     results = validTargets.map((target) => {
@@ -874,10 +1065,49 @@ export function useInventoryItemToDraft(
   draft.explorationRuntime.pendingItemUse = null;
   syncPlayerTeamRuntime(draft);
 
+  const afterTargets =
+    beforeTargets.map((before) => {
+      const state =
+        draft.memberRuntime[
+          before.playerId
+        ];
+      const result =
+        results.find(
+          (entry) =>
+            entry.playerId ===
+            before.playerId,
+        ) ?? {};
+      return {
+        ...before,
+        combatStateAfter:
+          state.combatState,
+        hpAfter:
+          state.hp,
+        statAfter:
+          before.statId
+            ? (
+                before.statBefore +
+                Number(
+                  result.amount ?? 0,
+                )
+              )
+            : before.statAfter,
+      };
+    });
+
   return deepFreeze({
     itemId: item.itemId,
     name: item.name,
+    image: item.image,
+    effectSummary:
+      getItemEffectSummary(item),
     results,
+    presentation: {
+      targetType:
+        item.targetType,
+      targets:
+        afterTargets,
+    },
   });
 }
 
@@ -1267,7 +1497,9 @@ function facilityPageTemplate(runtime) {
 }
 
 function bagPageTemplate(runtime) {
-  const pendingUse = runtime.explorationRuntime.pendingItemUse;
+  const pendingUse =
+    runtime.explorationRuntime
+      .pendingItemUse;
   return `
     <section class="exploration-page exploration-page--bag">
       <div class="tournament-bag-grid">
@@ -1280,35 +1512,91 @@ function bagPageTemplate(runtime) {
               </article>
             `;
           }
+
           const item = getItem(slot.itemId);
-          const targets = getUsableItemTargets(runtime, slot.itemId);
+          const targets =
+            getUsableItemTargets(
+              runtime,
+              slot.itemId,
+            );
           const isPending =
-            pendingUse?.slotIndex === slotIndex;
+            pendingUse?.slotIndex ===
+            slotIndex;
+          const effectSummary =
+            getItemEffectSummary(item);
+
           return `
             <article class="tournament-bag-slot ${isPending ? "is-pending" : ""}">
               <span>SLOT ${slotIndex + 1}</span>
-              <img src="${escapeAttribute(item.image)}" alt="">
+              <img
+                src="${escapeAttribute(assetPath(item.image))}"
+                alt=""
+              >
               <strong>${escapeHtml(item.name)} ×${slot.quantity}</strong>
-              <small>${escapeHtml(item.description)}</small>
+              <div class="bag-item-effect">
+                <small>EFFECT</small>
+                <b>${escapeHtml(effectSummary)}</b>
+              </div>
+
               ${
                 isPending
                   ? `
                     <div class="bag-target-list">
-                      ${targets.map((target) => `
-                        <button
-                          type="button"
-                          data-action="exploration-item-use"
-                          data-slot-index="${slotIndex}"
-                          data-player-id="${escapeAttribute(target.playerId)}"
+                      <header>
+                        <img
+                          src="${escapeAttribute(assetPath(item.image))}"
+                          alt=""
                         >
-                          ${escapeHtml(target.role)} ${escapeHtml(target.name)}
-                        </button>
-                      `).join("")}
+                        <div>
+                          <span>USE ITEM</span>
+                          <strong>${escapeHtml(item.name)}</strong>
+                          <small>${escapeHtml(effectSummary)}</small>
+                        </div>
+                      </header>
+
+                      <div class="bag-target-preview-list">
+                        ${targets.map(
+                          (target) =>
+                            itemTargetPreviewTemplate(
+                              runtime,
+                              item,
+                              target,
+                            ),
+                        ).join("")}
+                      </div>
+
+                      ${
+                        item.targetType === "all_alive_members"
+                          ? `
+                            <button
+                              type="button"
+                              class="bag-target-confirm"
+                              data-action="exploration-item-use"
+                              data-slot-index="${slotIndex}"
+                            >
+                              生存メンバー全員に使用
+                            </button>
+                          `
+                          : targets.map((target) => `
+                              <button
+                                type="button"
+                                class="bag-target-confirm"
+                                data-action="exploration-item-use"
+                                data-slot-index="${slotIndex}"
+                                data-player-id="${escapeAttribute(target.playerId)}"
+                              >
+                                ${escapeHtml(target.role)}
+                                ${escapeHtml(target.name)}に使用
+                              </button>
+                            `).join("")
+                      }
+
                       <button
                         type="button"
+                        class="bag-target-cancel"
                         data-action="exploration-item-cancel"
                       >
-                        CANCEL
+                        キャンセル
                       </button>
                     </div>
                   `
@@ -1316,15 +1604,11 @@ function bagPageTemplate(runtime) {
                     <button
                       type="button"
                       class="tournament-button tournament-button--secondary"
-                      data-action="${
-                        item.targetType === "all_alive_members"
-                          ? "exploration-item-use"
-                          : "exploration-item-open"
-                      }"
+                      data-action="exploration-item-open"
                       data-slot-index="${slotIndex}"
                       ${targets.length === 0 ? "disabled" : ""}
                     >
-                      使用
+                      効果を確認して使用
                     </button>
                   `
               }
@@ -1332,13 +1616,25 @@ function bagPageTemplate(runtime) {
           `;
         }).join("")}
       </div>
+
       <p class="exploration-page-note">
-        使用回数 ${runtime.inventory.totalUses ?? 0} /
-        持ち込み消費 ${Object.values(runtime.inventory.consumedCarryItems).reduce((sum, value) => sum + value, 0)}
+        使用回数
+        ${runtime.inventory.totalUses ?? 0}
+        /
+        持ち込み消費
+        ${Object.values(
+          runtime.inventory
+            .consumedCarryItems,
+        ).reduce(
+          (sum, value) =>
+            sum + value,
+          0,
+        )}
       </p>
     </section>
   `;
 }
+
 
 function aliveTeamsPageTemplate(runtime) {
   const activeTeams = runtime.activeTeamIds

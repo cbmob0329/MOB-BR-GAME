@@ -25,12 +25,12 @@ import {
   calculateSkillCt,
   isAssistEligible,
   resolveWeaponBattleValue,
-} from "../../data/battle-config.js";
+} from "../../data/battle-config.js?v=28";
 import {
   STAT_IDS,
   clamp,
   rankToCharacterValue,
-} from "../../data/game-data.js?v=27";
+} from "../../data/game-data.js?v=28";
 import {
   adjustDebuffForSpecialAbility,
   applyNextBattleSpecialEffects,
@@ -52,7 +52,7 @@ import {
 } from "./special-abilities.js";
 
 export const BATTLE_ACTIONS_VERSION =
-  "mobbr-battle-actions-1.4.0";
+  "mobbr-battle-actions-1.5.0";
 
 export const BATTLE_ACTION_BALANCE = Object.freeze({
   criticalDamageMultiplier: 1.5,
@@ -1471,6 +1471,10 @@ function reviveParticipant(
     `${target.playerId}-life-${target.lifeSerial}`;
   target.damageContributors = {};
   target.stats.timesRevived += 1;
+  target.postReviveRecoveryPending =
+    target.skills.length >= 3;
+  target.postReviveRecoverySkillId =
+    target.skills[2]?.skillId ?? null;
   actor.stats.revives += 1;
   battle.teamStats[actor.teamId].revives += 1;
   appendBattleEvent(battle, "revive", {
@@ -1492,6 +1496,89 @@ function reviveParticipant(
   return {
     targetPlayerId: target.playerId,
     hp: target.hp,
+  };
+}
+
+function executePostReviveRecovery(
+  battle,
+  actor,
+) {
+  if (
+    actor.combatState !== "alive" ||
+    actor.postReviveRecoveryPending !== true
+  ) {
+    return null;
+  }
+
+  const skill =
+    actor.skills[2] ??
+    actor.skills.at(-1) ??
+    null;
+  actor.postReviveRecoveryPending = false;
+  actor.postReviveRecoverySkillId = null;
+  if (!skill) {
+    return null;
+  }
+
+  appendBattleEvent(
+    battle,
+    "skill_cutin",
+    {
+      actorPlayerId: actor.playerId,
+      actorTeamId: actor.teamId,
+      targetPlayerId: actor.playerId,
+      targetTeamId: actor.teamId,
+      skillId: skill.skillId,
+      skillName:
+        `${skill.name}・復帰リカバリー`,
+      postReviveRecovery: true,
+    },
+  );
+
+  useSkillCharge(actor, skill);
+  const recoveryAmount =
+    Math.max(
+      1,
+      Math.round(actor.maxHp * 0.28),
+    );
+  const healing =
+    healParticipant(
+      battle,
+      actor,
+      actor,
+      recoveryAmount,
+      skill.skillId,
+      `${skill.name}・復帰リカバリー`,
+    );
+
+  addOrRefreshEffect(actor, {
+    code: "post_revive_guard",
+    sourcePlayerId: actor.playerId,
+    remainingSeconds: 3,
+    damageReduction: 0.18,
+  });
+
+  appendBattleEvent(
+    battle,
+    "post_revive_recovery",
+    {
+      actorPlayerId: actor.playerId,
+      actorTeamId: actor.teamId,
+      targetPlayerId: actor.playerId,
+      targetTeamId: actor.teamId,
+      skillId: skill.skillId,
+      skillName:
+        `${skill.name}・復帰リカバリー`,
+      healing,
+      guardSeconds: 3,
+    },
+  );
+
+  return {
+    performed: true,
+    skillId: skill.skillId,
+    healing,
+    postReviveRecovery: true,
   };
 }
 
@@ -2616,6 +2703,18 @@ export function processParticipantTurn(
     return {
       performed: false,
       reason: "actor_inactive",
+    };
+  }
+
+  const recoveryResult =
+    executePostReviveRecovery(
+      battle,
+      participant,
+    );
+  if (recoveryResult?.performed) {
+    return {
+      actionType: "post_revive_recovery",
+      ...recoveryResult,
     };
   }
 
