@@ -19,10 +19,10 @@ import {
 } from "../../data/strategy-data.js";
 import {
   getPlayableRoundCount,
-} from "./round.js?v=25";
+} from "./round.js?v=26";
 
 export const EXPLORATION_VERSION =
-  "mobbr-tournament-exploration-1.5.0";
+  "mobbr-tournament-exploration-1.6.0";
 
 export const EXPLORATION_PAGES = Object.freeze([
   "SEARCH",
@@ -1068,11 +1068,17 @@ function topStatusTemplate(runtime, title) {
 
 function commentaryTemplate(text) {
   return `
-    <aside class="commentary-panel exploration-commentary">
-      <img src="icon/mic.png" alt="モブマイク">
+    <aside class="commentary-panel exploration-commentary commentary-panel--live">
+      <div class="commentary-panel__speaker">
+        <img src="icon/mic.png" alt="モブマイク">
+        <span>LIVE</span>
+      </div>
       <div>
         <strong>モブマイク</strong>
         <p>${escapeHtml(text)}</p>
+        <i class="commentary-wave" aria-hidden="true">
+          <b></b><b></b><b></b><b></b><b></b>
+        </i>
       </div>
     </aside>
   `;
@@ -1436,56 +1442,84 @@ function backpackFullTemplate(runtime) {
 }
 
 export function renderExplorationScreen(runtime) {
-  const key = runtime.explorationRuntime.currentExploreKey;
-  const choice = runtime.explorationRuntime.deterministicChoices[key];
+  const key =
+    runtime.explorationRuntime.currentExploreKey;
+  const choice =
+    runtime.explorationRuntime
+      .deterministicChoices[key];
   if (!key || !choice) {
-    throw new RangeError("Active exploration data is missing.");
+    throw new RangeError(
+      "Active exploration data is missing.",
+    );
   }
-  const page = runtime.explorationRuntime.currentPage;
-  const pageContent =
-    page === "SEARCH"
-      ? searchPageTemplate(runtime, choice)
-      : page === "FACILITY"
-        ? facilityPageTemplate(runtime)
-        : page === "BAG"
-          ? bagPageTemplate(runtime)
-          : aliveTeamsPageTemplate(runtime);
 
   const canComplete =
     choice.searchResolved &&
-    !runtime.explorationRuntime.pendingExploreItem &&
-    !runtime.explorationRuntime.pendingItemUse;
+    !runtime.explorationRuntime
+      .pendingExploreItem &&
+    !runtime.explorationRuntime
+      .pendingItemUse;
 
   return `
     <main
-      class="tournament-screen tournament-screen--exploration"
+      class="tournament-screen tournament-screen--exploration tournament-screen--exploration-unified"
       style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')"
-      data-exploration-swipe
     >
-      <img class="tournament-stage-background" src="${escapeAttribute(assetPath(runtime.map.image))}" alt="">
-      <header class="exploration-mini-header">
-        <img src="icon/ex.png" alt=""><div><span>EXPLORE ${runtime.explorationRuntime.currentExploreIndex}/3</span><strong>${escapeHtml(choice.areaName)}</strong></div><em>ALIVE ${runtime.activeTeamIds.length}</em>
-      </header>
-      <button
-        type="button"
-        class="exploration-backpack-shortcut"
-        data-action="exploration-page"
-        data-page="BAG"
+      <img
+        class="tournament-stage-background"
+        src="${escapeAttribute(assetPath(runtime.map.image))}"
+        alt=""
       >
-        <img src="${escapeAttribute(assetPath("icon/back.png"))}" alt="">
-        <span>BACKPACK</span>
-      </button>
-      <section class="exploration-shell exploration-shell--compact">
-        ${pageTabsTemplate(page)}
-        <div class="exploration-page-viewport" data-exploration-viewport>
-          ${pageContent}
+
+      <header class="exploration-mini-header">
+        <img src="icon/ex.png" alt="">
+        <div>
+          <span>EXPLORE ${runtime.explorationRuntime.currentExploreIndex}/3</span>
+          <strong>${escapeHtml(choice.areaName)}</strong>
         </div>
+        <em>ALIVE ${runtime.activeTeamIds.length}</em>
+      </header>
+
+      <section class="exploration-unified-scroll">
+        <section class="exploration-unified-block exploration-unified-block--search">
+          <header>
+            <img src="icon/ex.png" alt="">
+            <div>
+              <span>SEARCH</span>
+              <strong>探索地点を1つ選択</strong>
+            </div>
+          </header>
+          ${searchPageTemplate(runtime, choice)}
+        </section>
+
+        <section class="exploration-unified-block exploration-unified-block--bag">
+          <header>
+            <img src="${escapeAttribute(assetPath("icon/back.png"))}" alt="">
+            <div>
+              <span>BACKPACK</span>
+              <strong>アイテムを使用</strong>
+            </div>
+          </header>
+          ${bagPageTemplate(runtime)}
+        </section>
+
+        <section class="exploration-unified-block exploration-unified-block--facility">
+          <header>
+            <img src="icon/juke.png" alt="">
+            <div>
+              <span>AREA FACILITY</span>
+              <strong>施設専用アイコン</strong>
+            </div>
+          </header>
+          ${facilityPageTemplate(runtime)}
+        </section>
       </section>
+
       <div class="tournament-bottom-area exploration-bottom-area">
         ${commentaryTemplate(
           choice.searchResolved
-            ? `${choice.resultItemId ? getItem(choice.resultItemId).name : "アイテム"}の探索結果を確定しました。施設やバッグも確認できます。`
-            : `${choice.areaName}を探索中！3つの探索地点から1つ選びましょう！`,
+            ? `${choice.resultItemId ? getItem(choice.resultItemId).name : "アイテム"}を確保！同じ画面でバッグと施設も確認できます！`
+            : `${choice.areaName}を探索中！3地点から選び、バッグと施設も確認しましょう！`,
         )}
         <div class="tournament-actions">
           <button

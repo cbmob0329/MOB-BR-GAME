@@ -13,14 +13,14 @@ import {
 import {
   TOURNAMENT_PHASES,
   createTournamentRuntimeManager,
-} from "./runtime.js?v=25";
+} from "./runtime.js?v=26";
 import {
   executeCurrentBattleToDraft,
 } from "./battle-core.js";
 import {
   createBattlePlaybackController,
   renderBattleOutcomeScreen,
-} from "./battle-ui.js?v=25";
+} from "./battle-ui.js?v=26";
 import {
   EXPLORATION_PAGES,
   beginExplorationToDraft,
@@ -57,13 +57,13 @@ import {
   renderReturningResultScreen,
   renderTournamentResultScreen,
   writePreparedResultToStorage,
-} from "./results.js?v=25";
+} from "./results.js?v=26";
 
 import {
   applyMatchPlanToDraft,
   circuitSectionLabel,
   isPlayerMatch,
-} from "./circuit.js?v=25";
+} from "./circuit.js?v=26";
 
 import {
   fastForwardMatchToChampionToDraft,
@@ -73,9 +73,9 @@ import {
   getRoundTarget,
   isPlayerActive,
   resolveRoundEncounterToDraft,
-} from "./round.js?v=25";
+} from "./round.js?v=26";
 
-export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-2.3.0";
+export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-2.4.0";
 
 const PHASE_LABELS = Object.freeze({
   IDLE: "待機",
@@ -220,11 +220,17 @@ function topStatusTemplate(runtime) {
 
 function commentaryTemplate(text, label = "モブマイク") {
   return `
-    <aside class="commentary-panel">
-      <img src="icon/mic.png" alt="${escapeAttribute(label)}">
+    <aside class="commentary-panel commentary-panel--live">
+      <div class="commentary-panel__speaker">
+        <img src="icon/mic.png" alt="${escapeAttribute(label)}">
+        <span>LIVE</span>
+      </div>
       <div>
         <strong>${escapeHtml(label)}</strong>
         <p>${escapeHtml(text)}</p>
+        <i class="commentary-wave" aria-hidden="true">
+          <b></b><b></b><b></b><b></b><b></b>
+        </i>
       </div>
     </aside>
   `;
@@ -683,23 +689,31 @@ function roundResultTemplate(runtime) {
   const announcement = record.remainingAnnouncements.at(-1);
   const topRows = record.teamResults.slice(0, Math.min(10, record.teamResults.length));
   const roundVerdict =
-    playerRow?.survived
+    record.playerHadNoEncounter
       ? {
-          state: "clear",
-          label: "ROUND CLEAR",
-          title: `ROUND ${runtime.round} 突破`,
+          state: "no-encounter",
+          label: "NO ENCOUNTER",
+          title: "このラウンドは接敵しませんでした",
           message:
-            playerRow.roundPlace <= record.targetCount
-              ? `${record.targetCount}チームの生存枠へ入りました。次のROUNDも集中していきましょう！`
-              : "次のROUNDへ進みます！",
+            "敵チームとの戦闘は発生しませんでした。HPとアイテムを温存したまま次のROUNDへ進みます！",
         }
-      : {
-          state: "out",
-          label: "ELIMINATED",
-          title: `ROUND ${runtime.round} 敗退`,
-          message:
-            "このMATCHでは脱落となりました。チャンピオン決定まで大会を見届けます！",
-        };
+      : playerRow?.survived
+        ? {
+            state: "clear",
+            label: "ROUND CLEAR",
+            title: `ROUND ${runtime.round} 突破`,
+            message:
+              playerRow.roundPlace <= record.targetCount
+                ? `${record.targetCount}チームの生存枠へ入りました。次のROUNDも集中していきましょう！`
+                : "次のROUNDへ進みます！",
+          }
+        : {
+            state: "out",
+            label: "ELIMINATED",
+            title: `ROUND ${runtime.round} 敗退`,
+            message:
+              "このMATCHでは脱落となりました。チャンピオン決定まで大会を見届けます！",
+          };
 
   return provisionalPhaseTemplate(runtime, {
     eyebrow: "ROUND RESULT",
@@ -712,9 +726,11 @@ function roundResultTemplate(runtime) {
       `${playerRow?.survived ? "PLAYER SURVIVED" : "PLAYER ELIMINATED"}`,
     commentary: announcement
       ? `残り${announcement}チーム！決着が近づいてきました！`
-      : record.playerSurvived
-        ? `ROUND ${runtime.round}を突破！次の生存目標へ進みます！`
-        : "プレイヤーチームは脱落しました。大会結果は最後まで進行します。",
+      : record.playerHadNoEncounter
+        ? "このROUNDは接敵なし！消耗を抑えて次の局面へ進めます！"
+        : record.playerSurvived
+          ? `ROUND ${runtime.round}を突破！次の生存目標へ進みます！`
+          : "プレイヤーチームは脱落しました。大会結果は最後まで進行します。",
     primaryAction: "round-result-next",
     primaryLabel:
       record.activeTeamsAfter.length <= 1 ||
@@ -1804,6 +1820,17 @@ export function createTournamentFlowController({
             patch: { pendingVisualId: "match-result" },
           });
           runtimeManager.checkpoint("formal_match_result");
+          render();
+          return;
+        }
+        if (action === "match-result-total") {
+          runtimeManager.update(
+            "match_total_result_opened",
+            (draft) => {
+              draft.pendingVisualId =
+                `match-result-total:${draft.match}`;
+            },
+          );
           render();
           return;
         }

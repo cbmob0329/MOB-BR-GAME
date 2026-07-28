@@ -11,29 +11,29 @@ import { assetPath } from "../assets.js";
 import {
   getChampionshipPoints,
   getPlacementPoints,
-} from "../../data/game-data.js?v=25";
+} from "../../data/game-data.js?v=26";
 import {
   STRATEGY_RULES,
 } from "../../data/strategy-data.js";
 import {
   FORMAL_CIRCUIT_RULES,
   isCasualTournamentType,
-} from "../../data/circuit-data.js?v=25";
+} from "../../data/circuit-data.js?v=26";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=25";
+} from "./circuit.js?v=26";
 import {
   getPlayableRoundCount,
-} from "./round.js?v=25";
+} from "./round.js?v=26";
 import {
   finalizeTournamentResultData,
   resolvePlacementRewards,
   writeTournamentResultToStorage,
-} from "../main/tournament-bridge.js?v=25";
+} from "../main/tournament-bridge.js?v=26";
 
 export const RESULTS_VERSION =
-  "mobbr-tournament-results-1.7.0";
+  "mobbr-tournament-results-1.8.0";
 
 export const RESULT_RULES = Object.freeze({
   defaultMatchPointThreshold: 50,
@@ -1578,11 +1578,17 @@ export function writePreparedResultToStorage(
 
 function commentator(text) {
   return `
-    <aside class="commentary-panel result-commentary">
-      <img src="icon/mic.png" alt="モブマイク">
+    <aside class="commentary-panel result-commentary commentary-panel--live">
+      <div class="commentary-panel__speaker">
+        <img src="icon/mic.png" alt="モブマイク">
+        <span>LIVE</span>
+      </div>
       <div>
         <strong>モブマイク</strong>
         <p>${escapeHtml(text)}</p>
+        <i class="commentary-wave" aria-hidden="true">
+          <b></b><b></b><b></b><b></b><b></b>
+        </i>
       </div>
     </aside>
   `;
@@ -1675,18 +1681,31 @@ export function renderMatchResultScreen(runtime) {
     </article>
   `).join("");
 
+  const totalPage =
+    String(runtime.pendingVisualId ?? "")
+      .startsWith("match-result-total:");
+
   return `
-    <main class="tournament-screen tournament-screen--match-result" style="--result-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
+    <main class="tournament-screen tournament-screen--match-result ${totalPage ? "is-total-page" : "is-match-page"}" style="--result-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
       <header class="result-header result-header--compact">
-        <span><img src="icon/match.png" alt="">${escapeHtml(record.sectionName ?? "MATCH")} / MATCH ${record.sectionMatch ?? runtime.match}</span>
-        <h1>MATCH RESULT</h1>
-        <p>CHAMPION ${escapeHtml(record.championTeamName)} / ${
-          playerRow
-            ? `PLAYER ${playerRow.place} PLACE / TOTAL ${playerRow.total}`
-            : "PLAYER TEAM NOT IN THIS SECTION / CPU高速処理"
-        }</p>
+        <span>
+          <img src="${totalPage ? "icon/damage.png" : "icon/match.png"}" alt="">
+          ${totalPage ? "TOURNAMENT TOTAL" : `${escapeHtml(record.sectionName ?? "MATCH")} / MATCH ${record.sectionMatch ?? runtime.match}`}
+        </span>
+        <h1>${totalPage ? "TOTAL RESULT" : "MATCH RESULT"}</h1>
+        <p>
+          ${
+            totalPage
+              ? `現在の大会総合順位 / ${cumulative.length}チーム`
+              : `CHAMPION ${escapeHtml(record.championTeamName)} / ${
+                  playerRow
+                    ? `PLAYER ${playerRow.place} PLACE / TOTAL ${playerRow.total}`
+                    : "PLAYER TEAM NOT IN THIS SECTION / CPU高速処理"
+                }`
+          }
+        </p>
         ${
-          qualification.enabled
+          totalPage && qualification.enabled
             ? `
               <div class="qualification-line-banner ${
                 qualification.qualified
@@ -1707,27 +1726,74 @@ export function renderMatchResultScreen(runtime) {
             : ""
         }
       </header>
+
       <section class="match-result-vertical-scroll">
-        <article class="compact-result-section">
-          <h2><img src="icon/battle.png" alt="">${escapeHtml(record.sectionName ?? "MATCH")} / MATCH ${record.sectionMatch ?? runtime.match} RESULT</h2>
-          <div class="compact-result-list">${compactRows(record.rankings)}</div>
-        </article>
-        <article class="compact-result-section compact-result-section--total">
-          <h2><img src="icon/damage.png" alt="">TOTAL RESULT</h2>
-          <div class="compact-result-list">${compactRows(cumulative, true)}</div>
-        </article>
-        ${isFinal ? `<section class="all-matches-complete"><img src="icon/champ.png" alt=""><span>ALL MATCHES COMPLETE</span><strong>全MATCHの集計が完了しました</strong></section>` : ""}
+        ${
+          totalPage
+            ? `
+              <article class="compact-result-section compact-result-section--total">
+                <h2><img src="icon/damage.png" alt="">TOTAL RESULT</h2>
+                <p class="result-page-explanation">
+                  ここまでの全MATCHを合計した大会総合順位です。
+                </p>
+                <div class="compact-result-list">${compactRows(cumulative, true)}</div>
+              </article>
+              ${
+                isFinal
+                  ? `<section class="all-matches-complete"><img src="icon/champ.png" alt=""><span>ALL MATCHES COMPLETE</span><strong>全MATCHの集計が完了しました</strong></section>`
+                  : ""
+              }
+            `
+            : `
+              <article class="compact-result-section">
+                <h2><img src="icon/battle.png" alt="">${escapeHtml(record.sectionName ?? "MATCH")} / MATCH ${record.sectionMatch ?? runtime.match} RESULT</h2>
+                <p class="result-page-explanation">
+                  このMATCHだけの順位・順位ポイント・KP・APです。
+                </p>
+                <div class="compact-result-list">${compactRows(record.rankings)}</div>
+              </article>
+              <section class="total-result-callout">
+                <img src="icon/damage.png" alt="">
+                <div>
+                  <span>NEXT VIEW</span>
+                  <strong>TOTAL RESULTはこちら！</strong>
+                  <p>大会全体の現在順位と通過ラインを確認します。</p>
+                </div>
+              </section>
+            `
+        }
       </section>
+
       <div class="tournament-bottom-area result-fixed-bottom">
         ${commentator(
-          isFinal
-            ? "全MATCHの集計が完了しました。表彰と大会総合結果へ進みます！"
-            : sectionComplete
-              ? `${record.sectionName}終了！現在の40チーム総合順位を確認し、次の節へ進みます！`
-              : `${record.sectionName ?? `MATCH ${runtime.match}`}の結果と大会TOTALを確認しました。`,
+          totalPage
+            ? (
+                isFinal
+                  ? "全MATCHのTOTALが確定しました！表彰と大会総合結果へ進みましょう！"
+                  : sectionComplete
+                    ? `${record.sectionName}終了！40チームTOTALを確認して次の節へ進みます！`
+                    : "現在の大会TOTALを確認しました。次のMATCHへ進みます！"
+              )
+            : `${record.sectionName ?? `MATCH ${runtime.match}`}の結果です！続いて大会TOTALを確認しましょう！`,
         )}
-        <button type="button" class="tournament-button tournament-button--primary" data-action="match-result-next">
-          ${showMatchPoint ? "MATCH POINT" : isFinal ? "AWARDS" : sectionComplete ? "NEXT SECTION" : "NEXT MATCH"}
+        <button
+          type="button"
+          class="tournament-button tournament-button--primary"
+          data-action="${totalPage ? "match-result-next" : "match-result-total"}"
+        >
+          ${
+            totalPage
+              ? (
+                  showMatchPoint
+                    ? "MATCH POINT"
+                    : isFinal
+                      ? "AWARDS"
+                      : sectionComplete
+                        ? "NEXT SECTION"
+                        : "NEXT MATCH"
+                )
+              : "TOTAL RESULTはこちら！"
+          }
         </button>
       </div>
     </main>

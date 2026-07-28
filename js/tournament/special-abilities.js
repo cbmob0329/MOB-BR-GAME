@@ -10,10 +10,10 @@
 import {
   STAT_IDS,
   clamp,
-} from "../../data/game-data.js?v=25";
+} from "../../data/game-data.js?v=26";
 
 export const SPECIAL_ABILITY_RUNTIME_VERSION =
-  "mobbr-special-ability-runtime-1.1.0";
+  "mobbr-special-ability-runtime-1.2.0";
 
 export const SUPPORTED_SPECIAL_EFFECT_CODES = Object.freeze([
   "opening_stats",
@@ -140,6 +140,157 @@ function allStats(amount) {
   return Object.fromEntries(
     STAT_IDS.map((statId) => [statId, amount]),
   );
+}
+
+
+export const SPECIAL_ABILITY_POWER_SCALE = 1.1;
+
+function boostPositiveNumber(
+  value,
+  {
+    integer = false,
+    maximum = null,
+  } = {},
+) {
+  if (!Number.isFinite(value) || value <= 0) {
+    return value;
+  }
+  const scaled =
+    value * SPECIAL_ABILITY_POWER_SCALE;
+  const adjusted =
+    integer
+      ? Math.max(value + 1, Math.ceil(scaled))
+      : scaled;
+  return Number.isFinite(maximum)
+    ? Math.min(maximum, adjusted)
+    : adjusted;
+}
+
+function boostStatsObject(stats) {
+  for (const statId of STAT_IDS) {
+    if (
+      Number.isFinite(stats?.[statId]) &&
+      stats[statId] > 0
+    ) {
+      stats[statId] =
+        boostPositiveNumber(
+          stats[statId],
+          { integer: true },
+        );
+    }
+  }
+}
+
+function boostSpecialAbilityProfile(profile) {
+  boostStatsObject(profile.staticStats);
+  boostStatsObject(profile.callBuffStats);
+  boostStatsObject(profile.duringCallStats);
+
+  for (const key of [
+    "maxHpBonus",
+    "allHealPoints",
+    "lowestHpHealPoints",
+    "reviveHpPoints",
+    "attackSkillAccuracyPoints",
+  ]) {
+    profile[key] =
+      boostPositiveNumber(
+        profile[key],
+        { integer: true },
+      );
+  }
+
+  for (const key of [
+    "permanentDamageRate",
+    "permanentDamageReduction",
+    "attackSkillDamageRate",
+    "singleSkillDamageRate",
+    "areaSkillDamageRate",
+    "lastEnemyDamageRate",
+    "lastEnemyPierceRate",
+    "damageReductionPierce",
+    "battleEndRecoveryRate",
+  ]) {
+    profile[key] =
+      boostPositiveNumber(
+        profile[key],
+        { maximum: 0.9 },
+      );
+  }
+
+  for (const collection of [
+    profile.openingEffects,
+    profile.dynamicEffects,
+    profile.reviveGuard,
+    profile.nextBattleIfInjured,
+    profile.afterRangeMove,
+    profile.afterMissAim,
+    profile.hitStreak,
+    profile.enemyLowHpDamage,
+    profile.followAllyTarget,
+    profile.callLowAlly,
+    profile.markTarget,
+    profile.markedTargetTeamDamage,
+    profile.allyDownCallCt,
+    profile.allyRevivedTeamStats,
+    profile.highHpOffense,
+    profile.criticalAllyHeal,
+    profile.afterHealTargetStats,
+  ]) {
+    for (const entry of collection ?? []) {
+      boostStatsObject(entry.stats);
+      boostStatsObject(entry.teamStats);
+      boostStatsObject(entry.selfStats);
+      for (const key of [
+        "rate",
+        "damageRate",
+        "damageReduction",
+        "teamDamageRate",
+        "teamDamageReduction",
+        "pierceRate",
+      ]) {
+        if (
+          Number.isFinite(entry[key]) &&
+          entry[key] > 0
+        ) {
+          entry[key] =
+            boostPositiveNumber(
+              entry[key],
+              { maximum: 0.9 },
+            );
+        }
+      }
+      for (const key of [
+        "points",
+        "aim",
+        "successPoints",
+      ]) {
+        if (
+          Number.isFinite(entry[key]) &&
+          entry[key] > 0
+        ) {
+          entry[key] =
+            boostPositiveNumber(
+              entry[key],
+              { integer: true },
+            );
+        }
+      }
+    }
+  }
+
+  for (const map of [
+    profile.skillHealPoints,
+    profile.battleStartSkillCt,
+    profile.skillBaseCtReduction,
+  ]) {
+    for (const key of Object.keys(map ?? {})) {
+      map[key] =
+        boostPositiveNumber(map[key]);
+    }
+  }
+
+  return profile;
 }
 
 export function normalizeTournamentTier(tournamentType) {
@@ -720,7 +871,7 @@ export function compileSpecialAbilityProfile(
   profile.supportedAbilityKeys.sort();
   profile.unsupportedAbilityKeys.sort();
   profile.supportedEffectCodes.sort();
-  return profile;
+  return boostSpecialAbilityProfile(profile);
 }
 
 export function normalizeUniqueSkill(skill) {

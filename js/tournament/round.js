@@ -8,13 +8,13 @@
 
 import {
   clamp,
-} from "../../data/game-data.js?v=25";
+} from "../../data/game-data.js?v=26";
 import {
   getMatchParticipantCount,
-} from "./circuit.js?v=25";
+} from "./circuit.js?v=26";
 
 export const ROUND_INTEGRATION_VERSION =
-  "mobbr-tournament-round-1.4.0";
+  "mobbr-tournament-round-1.5.0";
 
 export const ROUND_INTEGRATION_RULES = Object.freeze({
   encounterRate: 0.75,
@@ -369,11 +369,15 @@ function recentPlacementAdjustment(runtime, teamId) {
     .filter(Number.isInteger);
   if (recent.length === 0) return 0;
   const consecutiveTopTwo = recent.every((place) => place <= 2);
-  if (consecutiveTopTwo && recent.length >= 2) return -420;
+  const consecutiveChampion =
+    recent.length >= 2 &&
+    recent.every((place) => place === 1);
+  if (consecutiveChampion) return -760;
+  if (consecutiveTopTwo && recent.length >= 2) return -520;
   const last = recent.at(-1);
-  if (last === 1) return -210;
-  if (last === 2) return -130;
-  if (last >= Math.ceil(runtime.teams.length * 0.7)) return 150;
+  if (last === 1) return -310;
+  if (last === 2) return -170;
+  if (last >= Math.ceil(runtime.teams.length * 0.7)) return 165;
   return 0;
 }
 
@@ -563,6 +567,14 @@ export function finalizeRoundFieldToDraft(
 
   const activeBefore =
     [...draft.activeTeamIds];
+  const encounterKey =
+    `${draft.entryId}:${draft.match}:${draft.round}`;
+  const encounterRecord =
+    draft.roundIntegration.encounters[encounterKey] ?? null;
+  const playerHadNoEncounter =
+    activeBefore.includes(draft.playerTeamId) &&
+    encounterRecord?.playerActive === true &&
+    encounterRecord.encountered === false;
   const targetCount = Math.max(
     1,
     Math.min(
@@ -596,7 +608,44 @@ export function finalizeRoundFieldToDraft(
                 teamPower(draft, teamId),
               source: "player_visible_battle",
             }
-          : createFastStats(draft, teamId);
+          : (
+              teamId === draft.playerTeamId &&
+              playerHadNoEncounter
+                ? {
+                    kp: 0,
+                    ap: 0,
+                    damage: 0,
+                    damageTaken: 0,
+                    downs: 0,
+                    confirmedKills: 0,
+                    hpRate:
+                      teamMembers(draft, teamId).reduce(
+                        (sum, member) =>
+                          sum +
+                          (
+                            member.maxHp > 0
+                              ? member.hp / member.maxHp
+                              : 0
+                          ),
+                        0,
+                      ) /
+                      Math.max(
+                        1,
+                        teamMembers(draft, teamId).length,
+                      ),
+                    aliveCount:
+                      teamMembers(draft, teamId).filter(
+                        (member) =>
+                          member.combatState !== "dead" &&
+                          member.hp > 0,
+                      ).length,
+                    battlePower:
+                      teamPower(draft, teamId),
+                    source:
+                      "player_no_encounter",
+                  }
+                : createFastStats(draft, teamId)
+            );
       const forcedEliminated =
         teamMembers(draft, teamId).every(
           (member) =>
@@ -640,6 +689,69 @@ export function finalizeRoundFieldToDraft(
       right.teamId,
     );
   });
+
+  // CPU teams may win twice in succession, but a third consecutive
+  // championship receives a final-round cooldown. This prevents one
+  // simulated powerhouse from monopolizing every MATCH while leaving
+  // normal power-based ordering and player-earned streaks intact.
+  if (
+    targetCount === 1 &&
+    teamResults.length > 1 &&
+    teamResults[0].isPlayer !== true
+  ) {
+    const recentChampionIds =
+      draft.matchTotals
+        .slice(-2)
+        .map(
+          (match) =>
+            match.championTeamId ??
+            match.rankings?.[0]?.teamId ??
+            null,
+        );
+    const repeatedChampion =
+      recentChampionIds.length === 2 &&
+      recentChampionIds[0] !== null &&
+      recentChampionIds.every(
+        (teamId) =>
+          teamId === recentChampionIds[0],
+      ) &&
+      teamResults[0].teamId ===
+        recentChampionIds[0];
+    if (repeatedChampion) {
+      const [leader, challenger] =
+        teamResults;
+      challenger.cpuThreepeatCooldownWin =
+        true;
+      leader.cpuThreepeatCooldown =
+        true;
+      teamResults[0] = challenger;
+      teamResults[1] = leader;
+    }
+  }
+
+  if (playerHadNoEncounter) {
+    const playerIndex =
+      teamResults.findIndex(
+        (row) =>
+          row.teamId === draft.playerTeamId,
+      );
+    if (
+      playerIndex >= targetCount &&
+      targetCount > 0
+    ) {
+      const [playerRow] =
+        teamResults.splice(playerIndex, 1);
+      playerRow.noEncounterProtection = true;
+      teamResults.splice(
+        targetCount - 1,
+        0,
+        playerRow,
+      );
+    } else if (playerIndex >= 0) {
+      teamResults[playerIndex]
+        .noEncounterProtection = true;
+    }
+  }
 
   const survivors =
     teamResults
@@ -740,6 +852,11 @@ export function finalizeRoundFieldToDraft(
     remainingAnnouncements:
       newAnnouncements,
     playerSurvived,
+    playerHadEncounter:
+      encounterRecord?.encountered === true,
+    playerHadNoEncounter,
+    encounterReason:
+      encounterRecord?.reason ?? null,
     playerEliminatedThisRound:
       !playerSurvived &&
       activeBefore.includes(
