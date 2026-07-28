@@ -16,7 +16,7 @@ import {
   getPlacementPoints,
   getTournamentEventsForDate,
   isChampionshipYear,
-} from "../../data/game-data.js";
+} from "../../data/game-data.js?v=24";
 import {
   BATTLE_CONFIG_VERSION,
 } from "../../data/battle-config.js";
@@ -35,7 +35,7 @@ import {
   calculateChecksum,
 } from "./state.js";
 
-export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-1.1.0";
+export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-1.2.0";
 export const TOURNAMENT_ENTRY_SCHEMA_VERSION =
   "mobbr-tournament-entry-1.0.0";
 export const TOURNAMENT_RESULT_SCHEMA_VERSION =
@@ -2065,6 +2065,42 @@ export function createTournamentBridgeController({
     });
   }
 
+  function playTournamentEntryLaunch(event) {
+    const preset =
+      TOURNAMENT_TYPE_PRESETS[event.tournamentType];
+    const overlay =
+      document.createElement("section");
+    overlay.className =
+      "tournament-entry-launch";
+    overlay.innerHTML = `
+      <div class="tournament-entry-launch__scan" aria-hidden="true"></div>
+      <img src="${escapeAttribute(getTournamentIcon(event.tournamentType))}" alt="">
+      <span>ENTRY ACCEPTED</span>
+      <h2>${escapeHtml(preset.tournamentName)}</h2>
+      <p>${escapeHtml(event.stageName)}</p>
+      <div class="tournament-entry-launch__steps">
+        <i>TEAM DATA</i>
+        <i>EQUIPMENT</i>
+        <i>STRATEGY</i>
+        <i>READY</i>
+      </div>
+      <strong>大会会場へ移動します</strong>
+    `;
+    root.append(overlay);
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        overlay.classList.add("is-ready");
+      }, 60);
+      setTimeout(() => {
+        overlay.classList.add("is-exit");
+      }, 1450);
+      setTimeout(() => {
+        overlay.remove();
+        resolve();
+      }, 1780);
+    });
+  }
+
   async function handleAction(actionElement) {
     const action = actionElement.dataset.action;
 
@@ -2098,6 +2134,7 @@ export function createTournamentBridgeController({
           idFactory,
         });
         showToast("大会参加データを保存しました");
+        await playTournamentEntryLaunch(event);
         launchTournamentPage(navigateToTournament);
       } catch (error) {
         await showError("大会へ参加できません", error);

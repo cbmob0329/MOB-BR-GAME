@@ -37,7 +37,7 @@ import {
   renderTeamDetailsSection,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js";
+} from "./team.js?v=24";
 import {
   getSpecialAbility,
 } from "../../data/ability-data.js";
@@ -45,13 +45,13 @@ import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=23";
+} from "./management.js?v=24";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js";
+} from "./tournament-bridge.js?v=24";
 
-export const APP_VERSION = "mobbr-main-app-1.1.0";
+export const APP_VERSION = "mobbr-main-app-1.2.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -611,11 +611,23 @@ function facilityTemplate(
   return `
     <main class="screen screen--sub app-layout">
       ${topStatusTemplate(snapshot)}
-      <div class="page-content facility-menu-page">
-        <section class="facility-hub-hero">
-          <span>${escapeHtml(selected.accent)}</span>
+      <div class="page-content facility-menu-page facility-menu-page--${escapeAttribute(selected.facilityId)}">
+        <section class="facility-entrance-stage">
+          <div class="facility-entrance-stage__lights" aria-hidden="true">
+            <i></i><i></i><i></i>
+          </div>
+          <span>${escapeHtml(selected.accent)} FACILITY</span>
           <h1>${escapeHtml(selected.japaneseName)}</h1>
           <p>${escapeHtml(selected.note)}</p>
+          <div class="facility-entrance-stage__status">
+            <b>${selected.status === "LOCKED" ? "OFFLINE" : "SYSTEM ONLINE"}</b>
+            <em>${escapeHtml(selected.name)}</em>
+          </div>
+        </section>
+        <section class="facility-hub-hero">
+          <span>SELECT MENU</span>
+          <h2>${escapeHtml(selected.name)}</h2>
+          <p>利用する機能を選択してください</p>
         </section>
         ${
           selected.status === "LOCKED"
@@ -2283,54 +2295,167 @@ export function createMainApp({
   function installAcceleratedRepeat(container) {
     let delayTimer = null;
     let repeatTimer = null;
-    let activeButton = null;
+    let activeIdentity = null;
     let startedAt = 0;
+    let repeated = false;
+    let suppressTrustedClickUntil = 0;
+
+    function datasetAttributeName(key) {
+      return `data-${key.replace(
+        /[A-Z]/g,
+        (letter) => `-${letter.toLowerCase()}`,
+      )}`;
+    }
+
+    function captureIdentity(button) {
+      const attributes = Object.entries(button.dataset)
+        .filter(
+          ([key, value]) =>
+            key !== "repeatAction" &&
+            value !== undefined &&
+            value !== "",
+        )
+        .map(([key, value]) => [
+          datasetAttributeName(key),
+          value,
+        ]);
+      return {
+        attributes,
+        action: button.dataset.action,
+      };
+    }
+
+    function resolveButton(identity) {
+      if (!identity) return null;
+      const buttons = container.querySelectorAll(
+        `button[data-action="${CSS.escape(identity.action)}"]`,
+      );
+      return [...buttons].find((button) =>
+        identity.attributes.every(
+          ([name, value]) =>
+            button.getAttribute(name) === value,
+        ),
+      ) ?? null;
+    }
 
     const stop = () => {
-      if (delayTimer) clearTimeout(delayTimer);
-      if (repeatTimer) clearTimeout(repeatTimer);
+      if (delayTimer !== null) {
+        clearTimeout(delayTimer);
+      }
+      if (repeatTimer !== null) {
+        clearTimeout(repeatTimer);
+      }
       delayTimer = null;
       repeatTimer = null;
-      activeButton = null;
+      activeIdentity = null;
     };
 
     const schedule = () => {
-      if (!activeButton || activeButton.disabled) {
+      const button = resolveButton(activeIdentity);
+      if (!button || button.disabled) {
         stop();
         return;
       }
-      activeButton.click();
+
+      repeated = true;
+      suppressTrustedClickUntil =
+        performance.now() + 500;
+      button.click();
+
       const held =
         performance.now() - startedAt;
       const delay =
-        held > 2400
-          ? 45
-          : held > 1500
-            ? 70
-            : held > 850
-              ? 105
-              : 145;
-      repeatTimer = setTimeout(schedule, delay);
+        held > 2600
+          ? 42
+          : held > 1800
+            ? 64
+            : held > 1050
+              ? 92
+              : 132;
+      repeatTimer =
+        setTimeout(schedule, delay);
     };
 
-    container.addEventListener("pointerdown", (event) => {
-      const button = event.target.closest(
-        "button[data-repeat-action]",
-      );
-      if (!button || button.disabled) return;
-      stop();
-      activeButton = button;
-      startedAt = performance.now();
-      delayTimer = setTimeout(schedule, 360);
-    });
+    container.addEventListener(
+      "pointerdown",
+      (event) => {
+        const button =
+          event.target.closest(
+            "button[data-repeat-action]",
+          );
+        if (!button || button.disabled) return;
 
-    for (const eventName of [
+        stop();
+        repeated = false;
+        activeIdentity =
+          captureIdentity(button);
+        startedAt = performance.now();
+
+        try {
+          button.setPointerCapture?.(
+            event.pointerId,
+          );
+        } catch (_error) {
+          // Pointer capture is an enhancement only.
+        }
+
+        delayTimer = setTimeout(
+          schedule,
+          340,
+        );
+      },
+    );
+
+    const finishPointer = () => {
+      stop();
+    };
+    document.addEventListener(
       "pointerup",
+      finishPointer,
+      true,
+    );
+    document.addEventListener(
       "pointercancel",
-      "pointerleave",
-    ]) {
-      container.addEventListener(eventName, stop);
-    }
+      finishPointer,
+      true,
+    );
+    globalThis.addEventListener?.(
+      "blur",
+      finishPointer,
+    );
+
+    container.addEventListener(
+      "click",
+      (event) => {
+        if (
+          repeated &&
+          event.isTrusted &&
+          performance.now() <
+            suppressTrustedClickUntil &&
+          event.target.closest(
+            "button[data-repeat-action]",
+          )
+        ) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          repeated = false;
+        }
+      },
+      true,
+    );
+
+    container.addEventListener(
+      "contextmenu",
+      (event) => {
+        if (
+          event.target.closest(
+            "button[data-repeat-action]",
+          )
+        ) {
+          event.preventDefault();
+        }
+      },
+    );
   }
 
   async function start() {

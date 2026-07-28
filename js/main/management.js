@@ -61,7 +61,7 @@ import {
 } from "./state.js";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-0.7.0";
+  "mobbr-management-feature-0.8.0";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -1438,6 +1438,12 @@ export function renderShopManagement(snapshot) {
 
   return `
     <section class="mobshop-popup" style="--mobshop-bg:url('back/mobshop.png')">
+      <header class="mobshop-neon-header">
+        <span>MOB RETAIL NETWORK</span>
+        <strong>MOB SHOP</strong>
+        <em>OPEN</em>
+      </header>
+      <div class="mobshop-counter-light" aria-hidden="true"><i></i><i></i><i></i></div>
       <div class="mobshop-clerk" aria-label="ロボ店員">
         <div class="mobshop-clerk__head"><i></i><i></i><b></b></div>
         <p>${escapeHtml(categoryDefinition?.dialogue ?? "いらっしゃいませ。4つのカテゴリから選んでください。")}</p>
@@ -1680,6 +1686,12 @@ export function renderRoomManagement(snapshot) {
   const availableItems = getRoomAvailableItems(snapshot);
 
   return `
+    <section class="room-studio-header">
+      <span>MOB ROOM STUDIO</span>
+      <h2>${escapeHtml(activeRoom.name)}</h2>
+      <p>部屋を選び、獲得したコレクションを自由に配置できます。</p>
+      <div><i></i><i></i><i></i><b>EDIT MODE</b></div>
+    </section>
     <section class="room-list">
       ${ROOM_MASTER.map((room) => {
         const owned = snapshot.company.unlockedRoomIds.includes(room.roomId);
