@@ -12,7 +12,7 @@ import {
   characterValueToRank,
 } from "./game-data.js";
 
-export const ABILITY_DATA_VERSION = "mobbr-ability-data-1.0.0";
+export const ABILITY_DATA_VERSION = "mobbr-ability-data-1.1.0";
 export const SPECIAL_ABILITY_MASTER_VERSION =
   "mobbr-special-ability-master-1.0.0";
 
@@ -110,433 +110,433 @@ export const WEAPON_UPGRADE_COSTS = deepFreeze(
     "currentRank": "F1",
     "nextRank": "F2",
     "coin": 12500,
-    "ruby": 1
+    "ruby": 0
   },
   {
     "currentRank": "F2",
     "nextRank": "F3",
     "coin": 15000,
-    "ruby": 1
+    "ruby": 0
   },
   {
     "currentRank": "F3",
     "nextRank": "F4",
     "coin": 17500,
-    "ruby": 1
+    "ruby": 0
   },
   {
     "currentRank": "F4",
     "nextRank": "F5",
     "coin": 20000,
-    "ruby": 1
+    "ruby": 0
   },
   {
     "currentRank": "F5",
     "nextRank": "F6",
     "coin": 22500,
-    "ruby": 1
+    "ruby": 0
   },
   {
     "currentRank": "F6",
     "nextRank": "F7",
     "coin": 25000,
-    "ruby": 1
+    "ruby": 0
   },
   {
     "currentRank": "F7",
     "nextRank": "F8",
     "coin": 27500,
-    "ruby": 1
+    "ruby": 0
   },
   {
     "currentRank": "F8",
     "nextRank": "F9",
     "coin": 30000,
-    "ruby": 2
+    "ruby": 0
   },
   {
     "currentRank": "F9",
     "nextRank": "E1",
     "coin": 35000,
-    "ruby": 2
+    "ruby": 0
   },
   {
     "currentRank": "E1",
     "nextRank": "E2",
     "coin": 40000,
-    "ruby": 2
+    "ruby": 0
   },
   {
     "currentRank": "E2",
     "nextRank": "E3",
     "coin": 45000,
-    "ruby": 2
+    "ruby": 0
   },
   {
     "currentRank": "E3",
     "nextRank": "E4",
     "coin": 50000,
-    "ruby": 2
+    "ruby": 0
   },
   {
     "currentRank": "E4",
     "nextRank": "E5",
     "coin": 55000,
-    "ruby": 2
+    "ruby": 0
   },
   {
     "currentRank": "E5",
     "nextRank": "E6",
     "coin": 60000,
-    "ruby": 2
+    "ruby": 0
   },
   {
     "currentRank": "E6",
     "nextRank": "E7",
     "coin": 65000,
-    "ruby": 2
+    "ruby": 0
   },
   {
     "currentRank": "E7",
     "nextRank": "E8",
     "coin": 70000,
-    "ruby": 3
+    "ruby": 0
   },
   {
     "currentRank": "E8",
     "nextRank": "E9",
     "coin": 75000,
-    "ruby": 3
+    "ruby": 0
   },
   {
     "currentRank": "E9",
     "nextRank": "D1",
     "coin": 75000,
-    "ruby": 3
+    "ruby": 0
   },
   {
     "currentRank": "D1",
     "nextRank": "D2",
     "coin": 84000,
-    "ruby": 3
+    "ruby": 0
   },
   {
     "currentRank": "D2",
     "nextRank": "D3",
     "coin": 93000,
-    "ruby": 3
+    "ruby": 0
   },
   {
     "currentRank": "D3",
     "nextRank": "D4",
     "coin": 102000,
-    "ruby": 3
+    "ruby": 0
   },
   {
     "currentRank": "D4",
     "nextRank": "D5",
     "coin": 111000,
-    "ruby": 3
+    "ruby": 0
   },
   {
     "currentRank": "D5",
     "nextRank": "D6",
     "coin": 120000,
-    "ruby": 3
+    "ruby": 0
   },
   {
     "currentRank": "D6",
     "nextRank": "D7",
     "coin": 129000,
-    "ruby": 4
+    "ruby": 0
   },
   {
     "currentRank": "D7",
     "nextRank": "D8",
     "coin": 138000,
-    "ruby": 4
+    "ruby": 0
   },
   {
     "currentRank": "D8",
     "nextRank": "D9",
     "coin": 147000,
-    "ruby": 4
+    "ruby": 0
   },
   {
     "currentRank": "D9",
     "nextRank": "C1",
     "coin": 140000,
-    "ruby": 4
+    "ruby": 0
   },
   {
     "currentRank": "C1",
     "nextRank": "C2",
     "coin": 155000,
-    "ruby": 4
+    "ruby": 0
   },
   {
     "currentRank": "C2",
     "nextRank": "C3",
     "coin": 170000,
-    "ruby": 4
+    "ruby": 0
   },
   {
     "currentRank": "C3",
     "nextRank": "C4",
     "coin": 185000,
-    "ruby": 4
+    "ruby": 0
   },
   {
     "currentRank": "C4",
     "nextRank": "C5",
     "coin": 200000,
-    "ruby": 4
+    "ruby": 0
   },
   {
     "currentRank": "C5",
     "nextRank": "C6",
     "coin": 215000,
-    "ruby": 5
+    "ruby": 0
   },
   {
     "currentRank": "C6",
     "nextRank": "C7",
     "coin": 230000,
-    "ruby": 5
+    "ruby": 0
   },
   {
     "currentRank": "C7",
     "nextRank": "C8",
     "coin": 245000,
-    "ruby": 5
+    "ruby": 0
   },
   {
     "currentRank": "C8",
     "nextRank": "C9",
     "coin": 260000,
-    "ruby": 5
+    "ruby": 0
   },
   {
     "currentRank": "C9",
     "nextRank": "B1",
     "coin": 250000,
-    "ruby": 5
+    "ruby": 0
   },
   {
     "currentRank": "B1",
     "nextRank": "B2",
     "coin": 275000,
-    "ruby": 5
+    "ruby": 0
   },
   {
     "currentRank": "B2",
     "nextRank": "B3",
     "coin": 300000,
-    "ruby": 5
+    "ruby": 0
   },
   {
     "currentRank": "B3",
     "nextRank": "B4",
     "coin": 325000,
-    "ruby": 5
+    "ruby": 0
   },
   {
     "currentRank": "B4",
     "nextRank": "B5",
     "coin": 350000,
-    "ruby": 6
+    "ruby": 0
   },
   {
     "currentRank": "B5",
     "nextRank": "B6",
     "coin": 375000,
-    "ruby": 6
+    "ruby": 0
   },
   {
     "currentRank": "B6",
     "nextRank": "B7",
     "coin": 400000,
-    "ruby": 6
+    "ruby": 0
   },
   {
     "currentRank": "B7",
     "nextRank": "B8",
     "coin": 425000,
-    "ruby": 6
+    "ruby": 0
   },
   {
     "currentRank": "B8",
     "nextRank": "B9",
     "coin": 450000,
-    "ruby": 6
+    "ruby": 0
   },
   {
     "currentRank": "B9",
     "nextRank": "A1",
     "coin": 450000,
-    "ruby": 6
+    "ruby": 0
   },
   {
     "currentRank": "A1",
     "nextRank": "A2",
     "coin": 490000,
-    "ruby": 6
+    "ruby": 0
   },
   {
     "currentRank": "A2",
     "nextRank": "A3",
     "coin": 530000,
-    "ruby": 6
+    "ruby": 0
   },
   {
     "currentRank": "A3",
     "nextRank": "A4",
     "coin": 570000,
-    "ruby": 7
+    "ruby": 0
   },
   {
     "currentRank": "A4",
     "nextRank": "A5",
     "coin": 610000,
-    "ruby": 7
+    "ruby": 0
   },
   {
     "currentRank": "A5",
     "nextRank": "A6",
     "coin": 650000,
-    "ruby": 7
+    "ruby": 0
   },
   {
     "currentRank": "A6",
     "nextRank": "A7",
     "coin": 690000,
-    "ruby": 7
+    "ruby": 0
   },
   {
     "currentRank": "A7",
     "nextRank": "A8",
     "coin": 730000,
-    "ruby": 7
+    "ruby": 0
   },
   {
     "currentRank": "A8",
     "nextRank": "A9",
     "coin": 770000,
-    "ruby": 7
+    "ruby": 0
   },
   {
     "currentRank": "A9",
     "nextRank": "S1",
     "coin": 800000,
-    "ruby": 7
+    "ruby": 0
   },
   {
     "currentRank": "S1",
     "nextRank": "S2",
     "coin": 865000,
-    "ruby": 7
+    "ruby": 0
   },
   {
     "currentRank": "S2",
     "nextRank": "S3",
     "coin": 930000,
-    "ruby": 8
+    "ruby": 0
   },
   {
     "currentRank": "S3",
     "nextRank": "S4",
     "coin": 995000,
-    "ruby": 8
+    "ruby": 0
   },
   {
     "currentRank": "S4",
     "nextRank": "S5",
     "coin": 1060000,
-    "ruby": 8
+    "ruby": 0
   },
   {
     "currentRank": "S5",
     "nextRank": "S6",
     "coin": 1125000,
-    "ruby": 8
+    "ruby": 0
   },
   {
     "currentRank": "S6",
     "nextRank": "S7",
     "coin": 1190000,
-    "ruby": 8
+    "ruby": 0
   },
   {
     "currentRank": "S7",
     "nextRank": "S8",
     "coin": 1255000,
-    "ruby": 8
+    "ruby": 0
   },
   {
     "currentRank": "S8",
     "nextRank": "S9",
     "coin": 1320000,
-    "ruby": 8
+    "ruby": 0
   },
   {
     "currentRank": "S9",
     "nextRank": "SS1",
     "coin": 1300000,
-    "ruby": 8
+    "ruby": 0
   },
   {
     "currentRank": "SS1",
     "nextRank": "SS2",
     "coin": 1400000,
-    "ruby": 9
+    "ruby": 0
   },
   {
     "currentRank": "SS2",
     "nextRank": "SS3",
     "coin": 1500000,
-    "ruby": 9
+    "ruby": 0
   },
   {
     "currentRank": "SS3",
     "nextRank": "SS4",
     "coin": 1600000,
-    "ruby": 9
+    "ruby": 0
   },
   {
     "currentRank": "SS4",
     "nextRank": "SS5",
     "coin": 1700000,
-    "ruby": 9
+    "ruby": 0
   },
   {
     "currentRank": "SS5",
     "nextRank": "SS6",
     "coin": 1800000,
-    "ruby": 9
+    "ruby": 0
   },
   {
     "currentRank": "SS6",
     "nextRank": "SS7",
     "coin": 1900000,
-    "ruby": 9
+    "ruby": 0
   },
   {
     "currentRank": "SS7",
     "nextRank": "SS8",
     "coin": 2000000,
-    "ruby": 9
+    "ruby": 0
   },
   {
     "currentRank": "SS8",
     "nextRank": "SS9",
     "coin": 2100000,
-    "ruby": 9
+    "ruby": 0
   },
   {
     "currentRank": "SS9",
     "nextRank": "MOB",
     "coin": 2100000,
-    "ruby": 10
+    "ruby": 0
   }
 ]
 );
