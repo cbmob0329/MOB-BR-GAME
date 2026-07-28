@@ -11,7 +11,7 @@ import {
   calculateCharacterOverallRank,
   characterValueToRank,
   weaponValueToRank,
-} from "../../data/game-data.js";
+} from "../../data/game-data.js?v=25";
 import {
   calculateMaxHp,
   getRoleCommonSkills,
@@ -33,7 +33,7 @@ import {
   getWeaponUpgradeCost,
 } from "../../data/ability-data.js";
 
-export const TEAM_FEATURE_VERSION = "mobbr-team-feature-0.6.0";
+export const TEAM_FEATURE_VERSION = "mobbr-team-feature-0.7.0";
 
 const ROLE_ICONS = Object.freeze({
   IGL: "icon/IGL.png",
@@ -411,19 +411,22 @@ function countOwnedCollectionTypes(record) {
 }
 
 function tierFromHistoryEntry(entry) {
+  if (
+    [
+      "stage_in_progress",
+      "cpu_simulated",
+      "not_entered",
+    ].includes(entry.status)
+  ) {
+    return "unknown";
+  }
   const type = String(entry.tournamentType ?? "").toLowerCase();
-  if (type.includes("championship")) {
-    return "championship";
-  }
-  if (type.includes("world")) {
-    return "world";
-  }
-  if (type.includes("national")) {
+  if (type === "championship") return "championship";
+  if (type === "world_final") return "world";
+  if (type === "national" || type === "national_week_2") {
     return "national";
   }
-  if (type.includes("local")) {
-    return "local";
-  }
+  if (type === "local") return "local";
   return "unknown";
 }
 

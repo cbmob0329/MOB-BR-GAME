@@ -20,7 +20,7 @@ import {
   SaveError,
   SaveNotFoundError,
   createGameStateManager,
-} from "./state.js";
+} from "./state.js?v=25";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyWeaponUpgradePlanToDraft,
@@ -37,7 +37,7 @@ import {
   renderTeamDetailsSection,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=24";
+} from "./team.js?v=25";
 import {
   getSpecialAbility,
 } from "../../data/ability-data.js";
@@ -45,13 +45,13 @@ import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=24";
+} from "./management.js?v=25";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=24";
+} from "./tournament-bridge.js?v=25";
 
-export const APP_VERSION = "mobbr-main-app-1.2.0";
+export const APP_VERSION = "mobbr-main-app-1.3.0";
 
 export const ROUTES = Object.freeze({
   title: "title",

@@ -10,7 +10,11 @@ import {
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js";
+} from "../../data/game-data.js?v=25";
+import {
+  isCasualTournamentType,
+  simulateObserverCircuitEvent,
+} from "../../data/circuit-data.js?v=25";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
@@ -58,10 +62,13 @@ import {
 import {
   advanceWeeksToDraft,
   applyResourceDeltaToDraft,
-} from "./state.js";
+} from "./state.js?v=25";
+import {
+  createChampionshipStandings,
+} from "./tournament-bridge.js?v=25";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-0.8.0";
+  "mobbr-management-feature-1.0.0";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -82,44 +89,97 @@ const SHOP_CATEGORY_DEFINITIONS = Object.freeze([
   { id: "good", label: "GOOD", icon: "icon/bagi.png", dialogue: "バッジパックなどの大会記念品です。大会報酬で入手できます。" },
 ]);
 
+function latestHistory(snapshot, types, year = snapshot.gameDate.year) {
+  const typeSet = new Set(Array.isArray(types) ? types : [types]);
+  return [...(snapshot.tournament?.history ?? [])]
+    .reverse()
+    .find((entry) => {
+      if (!typeSet.has(entry.tournamentType)) return false;
+      const entryYear =
+        Number(entry.circuitYear) ||
+        Number(/^\d{4}/.exec(String(entry.tournamentId ?? ""))?.[0]);
+      return !entryYear || entryYear === year;
+    }) ?? null;
+}
+
+function tournamentHistoryIncludesTeam(history, teamId) {
+  if (!history || !teamId) return false;
+  if (
+    (history.advancement?.participantSeeds ?? []).some(
+      (seed) => seed.teamId === teamId || seed.isPlayer === true,
+    )
+  ) {
+    return true;
+  }
+  return (history.rankings ?? []).some(
+    (row) => row.teamId === teamId || row.isPlayer === true,
+  );
+}
+
 function tournamentQualificationNeeded(snapshot, event) {
   const history = snapshot.tournament?.history ?? [];
   if (history.some((entry) => entry.tournamentId === event.tournamentId)) {
     return false;
   }
   const type = event.tournamentType;
+  if (isCasualTournamentType(type)) return false;
   if (type === "local") return true;
-  const qualifiedTypes = new Set(
-    history
-      .filter((entry) => entry.qualified === true || entry.status === "qualified")
-      .map((entry) => entry.nextStageId)
-      .filter(Boolean),
-  );
-  if (qualifiedTypes.has(type)) return true;
-  if (type === "national") {
-    return history.some((entry) =>
-      entry.tournamentType === "local" &&
-      Number.isInteger(entry.finalPlace) &&
-      entry.finalPlace <= 10
-    );
+
+  const year = event.year ?? snapshot.gameDate.year;
+  const playerTeamId = snapshot.playerTeam.teamId;
+  const local = latestHistory(snapshot, "local", year);
+  const nationalWeek1 = latestHistory(snapshot, "national_week_1", year);
+  const nationalWeek2 = latestHistory(snapshot, ["national_week_2", "national"], year);
+  const nationalLastChance = latestHistory(snapshot, "national_last_chance", year);
+  const worldWeek1 = latestHistory(snapshot, "world_qualifier_week_1", year);
+  const worldWeek2 = latestHistory(snapshot, ["world_qualifier_week_2", "world_qualifier"], year);
+  const worldLastChance = latestHistory(snapshot, "world_last_chance", year);
+
+  if (type === "national_week_1") {
+    return local?.qualified === true || local?.finalPlace <= 10;
   }
-  if (type === "world_qualifier" || type === "world_last_chance") {
-    return history.some((entry) =>
-      entry.tournamentType === "national" && entry.qualified === true
-    );
+  if (type === "national_week_2") {
+    const stageReady =
+      nationalWeek1?.status === "stage_in_progress" ||
+      nationalWeek1?.nextStageId === "national_week_2";
+    return stageReady &&
+      tournamentHistoryIncludesTeam(nationalWeek1, playerTeamId);
+  }
+  if (type === "national_last_chance") {
+    return (nationalWeek2?.advancement?.lastChanceTeamIds ?? [])
+      .includes(playerTeamId);
+  }
+  if (type === "world_qualifier_week_1") {
+    const representatives = [
+      ...(nationalWeek2?.advancement?.directQualifierTeamIds ?? []),
+      ...(nationalLastChance?.advancement?.qualifierTeamIds ?? []),
+    ];
+    return representatives.includes(playerTeamId);
+  }
+  if (type === "world_qualifier_week_2") {
+    const stageReady =
+      worldWeek1?.status === "stage_in_progress" ||
+      worldWeek1?.nextStageId === "world_qualifier_week_2";
+    return stageReady &&
+      tournamentHistoryIncludesTeam(worldWeek1, playerTeamId);
+  }
+  if (type === "world_last_chance") {
+    return (worldWeek2?.advancement?.lastChanceTeamIds ?? [])
+      .includes(playerTeamId);
   }
   if (type === "world_final") {
-    return history.some((entry) =>
-      ["world_qualifier", "world_last_chance"].includes(entry.tournamentType) &&
-      entry.qualified === true
-    );
+    return [
+      ...(worldWeek2?.advancement?.directQualifierTeamIds ?? []),
+      ...(worldLastChance?.advancement?.qualifierTeamIds ?? []),
+    ].includes(playerTeamId);
   }
   if (type === "championship") {
-    return history.some((entry) =>
-      entry.tournamentType === "world_final" &&
-      Number.isInteger(entry.finalPlace) &&
-      entry.finalPlace <= 20
-    );
+    return createChampionshipStandings(snapshot, year)
+      .some(
+        (row) =>
+          row.teamId === playerTeamId &&
+          row.place <= 20,
+      );
   }
   return false;
 }
@@ -242,13 +302,17 @@ export function getCardPackUnlockProgress(snapshot) {
     if (!Number.isInteger(place) || place < 1) {
       continue;
     }
-    if (type.includes("national")) {
+    if (
+      (type === "national" || type === "national_week_2") &&
+      entry.status !== "stage_in_progress" &&
+      entry.status !== "cpu_simulated"
+    ) {
       bestPlacements.national =
         bestPlacements.national === null
           ? place
           : Math.min(bestPlacements.national, place);
     }
-    if (type.includes("world") && type.includes("final")) {
+    if (type === "world_final") {
       bestPlacements.world_final =
         bestPlacements.world_final === null
           ? place
@@ -352,19 +416,43 @@ export function executeTrainingToDraft(
 
   for (const detail of tournamentWeek.details) {
     const event = detail.event;
-    if (draft.tournament.history.some((entry) => entry.tournamentId === event.tournamentId)) {
+    if (
+      event.recordOnlyWhenEntered === true ||
+      isCasualTournamentType(event.tournamentType)
+    ) {
       continue;
     }
+    if (
+      draft.tournament.history.some(
+        (entry) => entry.tournamentId === event.tournamentId,
+      )
+    ) {
+      continue;
+    }
+
+    const observerRecord = simulateObserverCircuitEvent(
+      draft,
+      event,
+      { completedAt: clock().toISOString() },
+    );
+    if (observerRecord) {
+      draft.tournament.history.push(observerRecord);
+      continue;
+    }
+
     draft.tournament.history.push({
       tournamentId: event.tournamentId,
       tournamentType: event.tournamentType,
       stageName: event.stageName,
+      circuitYear: event.year ?? draft.gameDate.year,
+      circuitStageId: event.circuitStageId ?? event.stageId,
       finalPlace: null,
       qualified: false,
       status: "not_entered",
       summary: `今週は${event.stageName}が開催されました。出場予定はありませんでした。`,
       rewards: { coin: 0, diamond: 0, ruby: 0, companyExp: 0 },
       rankings: [],
+      advancement: null,
       completedAt: clock().toISOString(),
     });
   }
@@ -1885,7 +1973,15 @@ export function renderNewsManagement(snapshot) {
                 <summary>
                   <span>${escapeHtml(entry.tournamentType)}</span>
                   <strong>${escapeHtml(entry.tournamentId)}</strong>
-                  <em>${Number.isInteger(entry.finalPlace) ? `${entry.finalPlace}位` : "不参加"}</em>
+                  <em>${
+                    Number.isInteger(entry.finalPlace)
+                      ? `${entry.finalPlace}位`
+                      : entry.status === "stage_in_progress"
+                        ? "1週目終了"
+                        : entry.status === "cpu_simulated"
+                          ? "CPU結果"
+                          : "不参加"
+                  }</em>
                 </summary>
                 <div>
                   <p>${escapeHtml(entry.summary ?? "大会結果")}</p>
@@ -1894,10 +1990,17 @@ export function renderNewsManagement(snapshot) {
                     EXP ${formatNumber(entry.rewards?.companyExp ?? 0)}
                   </p>
                   ${
+                    entry.advancement?.matchPointWinnerTeamId
+                      ? `<p>NATIONAL代表9位 ${escapeHtml(entry.advancement.matchPointWinnerTeamId)} / 代表10位 ${escapeHtml(entry.advancement.totalPointQualifierTeamId)}</p>`
+                      : entry.advancement?.directQualifierTeamIds?.length
+                        ? `<p>直接進出 ${entry.advancement.directQualifierTeamIds.length}チーム / Last Chance ${entry.advancement.lastChanceTeamIds?.length ?? 0}チーム</p>`
+                        : ""
+                  }
+                  ${
                     Array.isArray(entry.rankings)
                       ? `
                         <ol>
-                          ${entry.rankings.slice(0, 20).map((ranking) => `
+                          ${entry.rankings.slice(0, 40).map((ranking) => `
                             <li>${escapeHtml(ranking.teamName ?? ranking.teamId)} — ${ranking.place}位</li>
                           `).join("")}
                         </ol>

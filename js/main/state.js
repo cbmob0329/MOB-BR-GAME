@@ -19,7 +19,7 @@ import {
   getCompanyRankData,
   rankToWeaponValue,
   validateGameDate,
-} from "../../data/game-data.js";
+} from "../../data/game-data.js?v=25";
 import {
   BATTLE_CONFIG_VERSION,
   getRoleCommonSkills,
@@ -48,7 +48,7 @@ import {
   STRATEGY_RULES,
 } from "../../data/strategy-data.js";
 
-export const SAVE_SCHEMA_VERSION = "mobbr-save-1.2.0";
+export const SAVE_SCHEMA_VERSION = "mobbr-save-1.3.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
 
 export const STORAGE_KEYS = Object.freeze({
@@ -1100,7 +1100,8 @@ export function migrateSaveState(
     rawState.schemaVersion === null ||
     rawState.schemaVersion === "mobbr-save-0.9.0" ||
     rawState.schemaVersion === "mobbr-save-1.0.0" ||
-    rawState.schemaVersion === "mobbr-save-1.1.0"
+    rawState.schemaVersion === "mobbr-save-1.1.0" ||
+    rawState.schemaVersion === "mobbr-save-1.2.0"
   ) {
     const migrated = migrateUnversionedSave(rawState, timestamp);
     validateSaveState(migrated);
@@ -1454,6 +1455,7 @@ function validateTournamentResultForState(draft, result) {
     "eliminated",
     "qualified",
     "champion",
+    "stage_in_progress",
     "suspended",
   ];
   if (!allowedStatuses.includes(result.status)) {
@@ -1653,9 +1655,13 @@ export function applyTournamentResultToDraft(
   applyConsumedCarryItems(draft, result.consumedCarryItems);
   applyMemberTournamentResults(draft, result.memberResults);
 
-  draft.records.tournamentsEntered += 1;
-  if (result.finalPlace === 1) {
-    draft.records.tournamentWins += 1;
+  const countsAsCompletedTournament =
+    result.status !== "stage_in_progress";
+  if (countsAsCompletedTournament) {
+    draft.records.tournamentsEntered += 1;
+    if (result.finalPlace === 1) {
+      draft.records.tournamentWins += 1;
+    }
   }
 
   if (Array.isArray(result.awards)) {
@@ -1696,6 +1702,10 @@ export function applyTournamentResultToDraft(
     completedAt: result.completedAt ?? nowIso(clock),
     rewards: deepClone(rewards),
     summary: result.summary ?? null,
+    circuitYear: result.circuitYear ?? null,
+    circuitStageId: result.circuitStageId ?? null,
+    choiceGroupId: result.choiceGroupId ?? null,
+    advancement: deepClone(result.advancement ?? null),
   };
 
   draft.tournament.history.push(historyEntry);

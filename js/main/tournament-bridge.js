@@ -13,10 +13,34 @@ import {
   TOURNAMENT_SCHEDULE_TEMPLATE,
   TOURNAMENT_SESSION_RULES,
   getChampionshipPoints,
+  getCompanyRankData,
   getPlacementPoints,
   getTournamentEventsForDate,
   isChampionshipYear,
-} from "../../data/game-data.js?v=24";
+} from "../../data/game-data.js?v=25";
+import {
+  CASUAL_TOURNAMENT_RULES,
+  FORMAL_CIRCUIT_RULES,
+  createGroupAssignments,
+  createGroupMatchPlan,
+  createSimpleMatchPlan,
+  deterministicShuffle,
+  isCasualTournamentType,
+  normalizeCircuitTier,
+  resolveCpuTeamMaster,
+  selectTeamIds,
+  sourcePoolForTeamId,
+  teamSeed,
+} from "../../data/circuit-data.js?v=25";
+import {
+  LOCAL_CPU_TEAMS,
+} from "../../data/cpu-local-data.js";
+import {
+  NATIONAL_CPU_TEAMS,
+} from "../../data/cpu-national-data.js";
+import {
+  getWorldCpuTeamsForYear,
+} from "../../data/cpu-world-data.js";
 import {
   BATTLE_CONFIG_VERSION,
 } from "../../data/battle-config.js";
@@ -33,9 +57,9 @@ import {
   DuplicateTournamentResultError,
   STORAGE_KEYS,
   calculateChecksum,
-} from "./state.js";
+} from "./state.js?v=25";
 
-export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-1.2.0";
+export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-1.5.0";
 export const TOURNAMENT_ENTRY_SCHEMA_VERSION =
   "mobbr-tournament-entry-1.0.0";
 export const TOURNAMENT_RESULT_SCHEMA_VERSION =
@@ -44,7 +68,7 @@ export const TOURNAMENT_RESUME_SCHEMA_VERSION =
   "mobbr-tournament-resume-1.0.0";
 export const TOURNAMENT_ACK_SCHEMA_VERSION =
   "mobbr-tournament-ack-1.0.0";
-export const REWARD_TABLE_VERSION = "mobbr-reward-table-1.0.0";
+export const REWARD_TABLE_VERSION = "mobbr-reward-table-1.1.0";
 
 const TOURNAMENT_PAGE_URL = "./tournament.html";
 const ALLOWED_RESULT_STATUSES = Object.freeze([
@@ -52,6 +76,7 @@ const ALLOWED_RESULT_STATUSES = Object.freeze([
   "eliminated",
   "qualified",
   "champion",
+  "stage_in_progress",
   "suspended",
 ]);
 const FINAL_RESULT_STATUSES = Object.freeze([
@@ -59,6 +84,7 @@ const FINAL_RESULT_STATUSES = Object.freeze([
   "eliminated",
   "qualified",
   "champion",
+  "stage_in_progress",
 ]);
 const RESOURCE_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const TRAINING_POINT_IDS = Object.freeze([
@@ -317,6 +343,17 @@ export const REWARD_TABLES = deepFreeze({
       rewardBand(21, 40, { coin: 30_000, diamond: 3, ruby: 1, companyExp: 10, pointEach: 10, badgePackId: "national_badge_pack", badgePackCount: 1 }),
     ],
   },
+  national_last_chance: {
+    rewardTableId: "reward-national-last-chance-v1",
+    tableVersion: REWARD_TABLE_VERSION,
+    maximumPlace: 20,
+    bands: [
+      rewardBand(1, 1, { coin: 1_500_000, diamond: 60, ruby: 30, companyExp: 30, pointEach: 50, badgePackId: "national_badge_pack", badgePackCount: 5 }),
+      rewardBand(2, 3, { coin: 800_000, diamond: 30, ruby: 15, companyExp: 20, pointEach: 35, badgePackId: "national_badge_pack", badgePackCount: 3 }),
+      rewardBand(4, 10, { coin: 400_000, diamond: 15, ruby: 8, companyExp: 12, pointEach: 20, badgePackId: "national_badge_pack", badgePackCount: 2 }),
+      rewardBand(11, 20, { coin: 100_000, diamond: 5, ruby: 2, companyExp: 5, pointEach: 8, badgePackId: "national_badge_pack", badgePackCount: 1 }),
+    ],
+  },
   world: {
     rewardTableId: "reward-world-v1",
     tableVersion: REWARD_TABLE_VERSION,
@@ -329,6 +366,40 @@ export const REWARD_TABLES = deepFreeze({
       rewardBand(7, 10, { coin: 2_500_000, diamond: 100, ruby: 100, companyExp: 50, pointEach: 30, badgePackId: "world_badge_pack", badgePackCount: 2 }),
       rewardBand(11, 20, { coin: 1_000_000, diamond: 50, ruby: 50, companyExp: 25, pointEach: 15, badgePackId: "world_badge_pack", badgePackCount: 1 }),
       rewardBand(21, 41, { coin: 100_000, diamond: 5, ruby: 5, companyExp: 10, pointEach: 10, badgePackId: "world_badge_pack", badgePackCount: 1 }),
+    ],
+  },
+  stage_progress: {
+    rewardTableId: "reward-stage-progress-v1",
+    tableVersion: REWARD_TABLE_VERSION,
+    maximumPlace: 40,
+    bands: [
+      rewardBand(1, 40, { coin: 0, diamond: 0, ruby: 0, companyExp: 0, pointEach: 0 }),
+    ],
+  },
+  casual_denden: {
+    rewardTableId: "reward-casual-denden-v1",
+    tableVersion: REWARD_TABLE_VERSION,
+    maximumPlace: 20,
+    bands: [
+      rewardBand(1, 1, { coin: 150_000, diamond: 8, ruby: 4, companyExp: 4, pointEach: 8 }),
+      rewardBand(2, 2, { coin: 100_000, diamond: 5, ruby: 3, companyExp: 3, pointEach: 6 }),
+      rewardBand(3, 3, { coin: 70_000, diamond: 4, ruby: 2, companyExp: 2, pointEach: 5 }),
+      rewardBand(4, 6, { coin: 40_000, diamond: 2, ruby: 1, companyExp: 1, pointEach: 3 }),
+      rewardBand(7, 10, { coin: 25_000, diamond: 1, ruby: 1, companyExp: 1, pointEach: 2 }),
+      rewardBand(11, 20, { coin: 10_000, diamond: 0, ruby: 0, companyExp: 0, pointEach: 1 }),
+    ],
+  },
+  casual_mobutetsu: {
+    rewardTableId: "reward-casual-mobutetsu-v1",
+    tableVersion: REWARD_TABLE_VERSION,
+    maximumPlace: 20,
+    bands: [
+      rewardBand(1, 1, { coin: 500_000, diamond: 20, ruby: 10, companyExp: 10, pointEach: 20 }),
+      rewardBand(2, 2, { coin: 300_000, diamond: 12, ruby: 6, companyExp: 8, pointEach: 16 }),
+      rewardBand(3, 3, { coin: 200_000, diamond: 8, ruby: 4, companyExp: 6, pointEach: 12 }),
+      rewardBand(4, 6, { coin: 100_000, diamond: 5, ruby: 2, companyExp: 4, pointEach: 8 }),
+      rewardBand(7, 10, { coin: 60_000, diamond: 3, ruby: 1, companyExp: 2, pointEach: 5 }),
+      rewardBand(11, 20, { coin: 30_000, diamond: 1, ruby: 0, companyExp: 1, pointEach: 3 }),
     ],
   },
   championship: {
@@ -360,61 +431,296 @@ export const REWARD_TABLES = deepFreeze({
 });
 
 export function getTournamentIcon(tournamentType) {
-  if (tournamentType === "national") return "icon/national.png";
-  if (String(tournamentType).startsWith("world")) return "icon/world.png";
-  if (tournamentType === "championship") return "icon/champ.png";
+  const tier = normalizeCircuitTier(tournamentType);
+  if (tier === "national") return "icon/national.png";
+  if (tier === "world") return "icon/world.png";
+  if (tier === "championship") return "icon/champ.png";
   return "icon/local.png";
+}
+
+function historyYear(entry) {
+  const direct = Number(entry?.circuitYear ?? entry?.gameDate?.year);
+  if (Number.isInteger(direct)) return direct;
+  const match = /^(\d{4})-/.exec(String(entry?.tournamentId ?? ""));
+  return match ? Number(match[1]) : null;
+}
+
+function latestHistory(snapshot, tournamentTypes, year = snapshot.gameDate.year) {
+  const types = new Set(
+    Array.isArray(tournamentTypes) ? tournamentTypes : [tournamentTypes],
+  );
+  return [...(snapshot.tournament?.history ?? [])]
+    .reverse()
+    .find(
+      (entry) =>
+        types.has(entry.tournamentType) &&
+        (historyYear(entry) === year || historyYear(entry) === null),
+    ) ?? null;
+}
+
+function advancementTeamIds(history, key) {
+  const value = history?.advancement?.[key];
+  return Array.isArray(value) ? value : [];
+}
+
+function playerIncluded(history, key, playerTeamId) {
+  return advancementTeamIds(history, key).includes(playerTeamId);
+}
+
+function historyIncludesTeam(history, teamId) {
+  if (!history || !teamId) return false;
+  if (
+    (history.advancement?.participantSeeds ?? []).some(
+      (seed) => seed.teamId === teamId || seed.isPlayer === true,
+    )
+  ) {
+    return true;
+  }
+  return (history.rankings ?? []).some(
+    (row) => row.teamId === teamId || row.isPlayer === true,
+  );
+}
+
+function casualChoiceAlreadyUsed(snapshot, event) {
+  if (!event.choiceGroupId) return false;
+  return (snapshot.tournament?.history ?? []).some(
+    (entry) => entry.choiceGroupId === event.choiceGroupId,
+  );
+}
+
+export function createChampionshipStandings(
+  snapshot,
+  championshipYear = snapshot.gameDate.year,
+) {
+  const totals = new Map();
+  for (
+    let year = championshipYear - 2;
+    year <= championshipYear;
+    year += 1
+  ) {
+    const final = latestHistory(snapshot, "world_final", year);
+    if (!final || !Array.isArray(final.rankings)) continue;
+    for (const row of final.rankings) {
+      const current = totals.get(row.teamId) ?? {
+        teamId: row.teamId,
+        teamName: row.teamName ?? row.teamId,
+        teamLogo: row.teamLogo ?? null,
+        championshipPoints: 0,
+        worldWins: 0,
+        topThree: 0,
+        appearances: 0,
+        recentPlace: 999,
+        recentYear: 0,
+      };
+      current.championshipPoints += getChampionshipPoints(row.place);
+      current.worldWins += row.place === 1 ? 1 : 0;
+      current.topThree += row.place <= 3 ? 1 : 0;
+      current.appearances += 1;
+      if (year >= current.recentYear) {
+        current.recentYear = year;
+        current.recentPlace = row.place;
+      }
+      totals.set(row.teamId, current);
+    }
+  }
+
+  return [...totals.values()]
+    .sort((left, right) =>
+      right.championshipPoints - left.championshipPoints ||
+      right.worldWins - left.worldWins ||
+      right.topThree - left.topThree ||
+      right.appearances - left.appearances ||
+      left.recentPlace - right.recentPlace ||
+      left.teamId.localeCompare(right.teamId),
+    )
+    .map((row, index) => ({
+      place: index + 1,
+      ...row,
+      qualified: index < FORMAL_CIRCUIT_RULES.championship.teams,
+    }));
 }
 
 export function getTournamentEntryAvailability(snapshot, event) {
   const history = snapshot.tournament?.history ?? [];
   if (history.some((entry) => entry.tournamentId === event.tournamentId)) {
-    return { eligible: false, reason: "この大会は記録済みです。", status: "completed" };
+    return {
+      eligible: false,
+      reason: "この大会は記録済みです。",
+      status: "completed",
+    };
   }
+  if (casualChoiceAlreadyUsed(snapshot, event)) {
+    return {
+      eligible: false,
+      reason: "今月のカジュアル大会は参加済みです。",
+      status: "completed",
+    };
+  }
+
   const type = event.tournamentType;
+  const playerTeamId = snapshot.playerTeam.teamId;
+  const year = event.year ?? snapshot.gameDate.year;
+
+  if (type === "casual_denden") {
+    return {
+      eligible: true,
+      reason: "企業ランク制限なし。今月は2大会から1つだけ選べます。",
+      status: "optional",
+    };
+  }
+  if (type === "casual_mobutetsu") {
+    const eligible =
+      getCompanyRankData(snapshot.company.rank).index >=
+      getCompanyRankData("C1").index;
+    return {
+      eligible,
+      reason: eligible
+        ? "企業ランクC1以上。Worldゲスト1チームが参戦します。"
+        : "企業ランクC1で解放されます。",
+      status: eligible ? "optional" : "locked",
+    };
+  }
   if (type === "local") {
-    return { eligible: true, reason: "出場予定大会です。", status: "scheduled" };
+    return {
+      eligible: true,
+      reason: "年1回の正式サーキット開幕戦です。",
+      status: "scheduled",
+    };
   }
-  const qualifiedFor = new Set(
-    history
-      .filter((entry) => entry.qualified === true || entry.status === "qualified")
-      .map((entry) => entry.nextStageId)
-      .filter(Boolean),
-  );
-  if (qualifiedFor.has(type)) {
-    return { eligible: true, reason: "前大会の結果により出場資格があります。", status: "qualified" };
+
+  const local = latestHistory(snapshot, "local", year);
+  const nationalWeek1 = latestHistory(snapshot, ["national_week_1"], year);
+  const nationalWeek2 = latestHistory(snapshot, ["national_week_2", "national"], year);
+  const nationalLastChance = latestHistory(snapshot, "national_last_chance", year);
+  const worldWeek1 = latestHistory(snapshot, "world_qualifier_week_1", year);
+  const worldWeek2 = latestHistory(snapshot, ["world_qualifier_week_2", "world_qualifier"], year);
+  const worldLastChance = latestHistory(snapshot, "world_last_chance", year);
+
+  if (type === "national_week_1") {
+    const eligible =
+      local?.qualified === true ||
+      (Number.isInteger(local?.finalPlace) && local.finalPlace <= 10);
+    return {
+      eligible,
+      reason: eligible
+        ? "LOCAL上位10チームとしてNATIONALへ進出しています。"
+        : "LOCAL上位10チームのみ出場できます。",
+      status: eligible ? "qualified" : "observer",
+    };
   }
-  if (
-    type === "national" &&
-    history.some((entry) =>
-      entry.tournamentType === "local" &&
-      Number.isInteger(entry.finalPlace) &&
-      entry.finalPlace <= 10
-    )
-  ) {
-    return { eligible: true, reason: "LOCAL大会の結果により出場資格があります。", status: "qualified" };
+  if (type === "national_week_2") {
+    const stageReady =
+      nationalWeek1?.status === "stage_in_progress" ||
+      nationalWeek1?.nextStageId === "national_week_2" ||
+      nationalWeek1?.qualified === true;
+    const eligible =
+      stageReady &&
+      historyIncludesTeam(nationalWeek1, playerTeamId);
+    return {
+      eligible,
+      reason: eligible
+        ? "NATIONAL 1週目の順位とグループを引き継ぎます。"
+        : stageReady
+          ? "プレイヤーチームはNATIONALへ出場していないため、CPU結果を新聞へ記録します。"
+          : "NATIONAL 1週目の参加データがありません。",
+      status: eligible ? "stage_continue" : "observer",
+    };
   }
-  if (
-    ["world_qualifier", "world_last_chance"].includes(type) &&
-    history.some((entry) => entry.tournamentType === "national" && entry.qualified === true)
-  ) {
-    return { eligible: true, reason: "NATIONAL大会の結果により出場資格があります。", status: "qualified" };
+  if (type === "national_last_chance") {
+    const eligible = playerIncluded(
+      nationalWeek2,
+      "lastChanceTeamIds",
+      playerTeamId,
+    );
+    return {
+      eligible,
+      reason: eligible
+        ? "NATIONAL本戦9～28位としてLast Chanceへ進出しています。"
+        : playerIncluded(nationalWeek2, "directQualifierTeamIds", playerTeamId)
+          ? "World進出が確定しているため、結果のみ新聞へ記録されます。"
+          : "NATIONAL本戦29位以下のため出場できません。",
+      status: eligible ? "qualified" : "observer",
+    };
   }
-  if (
-    type === "world_final" &&
-    history.some((entry) => ["world_qualifier", "world_last_chance"].includes(entry.tournamentType) && entry.qualified === true)
-  ) {
-    return { eligible: true, reason: "WORLD予選の結果により出場資格があります。", status: "qualified" };
+  if (type === "world_qualifier_week_1") {
+    const representatives = [
+      ...advancementTeamIds(nationalWeek2, "directQualifierTeamIds"),
+      ...advancementTeamIds(nationalLastChance, "qualifierTeamIds"),
+    ];
+    const eligible = representatives.includes(playerTeamId);
+    return {
+      eligible,
+      reason: eligible
+        ? "National代表10チームとしてWorld予選へ出場します。"
+        : "National代表10チームのみ出場できます。",
+      status: eligible ? "qualified" : "observer",
+    };
   }
-  if (
-    type === "championship" &&
-    history.some((entry) => entry.tournamentType === "world_final" && Number.isInteger(entry.finalPlace))
-  ) {
-    return { eligible: true, reason: "CHAMPIONSHIP出場対象です。", status: "qualified" };
+  if (type === "world_qualifier_week_2") {
+    const stageReady =
+      worldWeek1?.status === "stage_in_progress" ||
+      worldWeek1?.nextStageId === "world_qualifier_week_2" ||
+      worldWeek1?.qualified === true;
+    const eligible =
+      stageReady &&
+      historyIncludesTeam(worldWeek1, playerTeamId);
+    return {
+      eligible,
+      reason: eligible
+        ? "World予選1週目の40チームTOTALを引き継ぎます。"
+        : stageReady
+          ? "プレイヤーチームはWorld予選へ出場していないため、CPU結果を新聞へ記録します。"
+          : "World予選1週目の参加データがありません。",
+      status: eligible ? "stage_continue" : "observer",
+    };
+  }
+  if (type === "world_last_chance") {
+    const eligible = playerIncluded(
+      worldWeek2,
+      "lastChanceTeamIds",
+      playerTeamId,
+    );
+    return {
+      eligible,
+      reason: eligible
+        ? "World予選11～30位としてLast Chanceへ出場します。"
+        : playerIncluded(worldWeek2, "directQualifierTeamIds", playerTeamId)
+          ? "World Final進出が確定しています。"
+          : "World予選31位以下のため出場できません。",
+      status: eligible ? "qualified" : "observer",
+    };
+  }
+  if (type === "world_final") {
+    const finalists = [
+      ...advancementTeamIds(worldWeek2, "directQualifierTeamIds"),
+      ...advancementTeamIds(worldLastChance, "qualifierTeamIds"),
+    ];
+    const eligible = finalists.includes(playerTeamId);
+    return {
+      eligible,
+      reason: eligible
+        ? "World Final進出20チームに選出されています。"
+        : "World Final進出条件を満たしていません。",
+      status: eligible ? "qualified" : "observer",
+    };
+  }
+  if (type === "championship") {
+    const standings = createChampionshipStandings(snapshot, year);
+    const playerRow = standings.find(
+      (row) => row.teamId === playerTeamId,
+    );
+    const eligible = playerRow?.place <= 20;
+    return {
+      eligible,
+      reason: eligible
+        ? `直近3年間のChampionship Point ${playerRow.place}位で出場します。`
+        : "直近3年間のWorld Final 3大会・Championship Point上位20チームが出場します。",
+      status: eligible ? "qualified" : "observer",
+    };
   }
   return {
     eligible: false,
-    reason: "出場予定はありませんが、大会結果は新聞へ記録されます。",
+    reason: "出場予定はありません。",
     status: "observer",
   };
 }
@@ -423,84 +729,179 @@ export const TOURNAMENT_TYPE_PRESETS = deepFreeze({
   local: {
     tournamentName: "MOB BR LOCAL",
     totalTeams: 20,
+    matches: FORMAL_CIRCUIT_RULES.local.matches,
     cpuPoolId: "cpu-local",
     openingThemeId: "local",
     qualificationRule: {
       ruleId: "local-top-10-to-national",
       type: "top_n",
       maximumPlace: 10,
-      nextTournamentType: "national",
+      nextTournamentType: "national_week_1",
     },
     matchPointRule: { enabled: false },
     rewardTableKey: "local",
   },
+  national_week_1: {
+    tournamentName: "MOB BR NATIONAL",
+    totalTeams: 40,
+    matches: 9,
+    cpuPoolId: "circuit-national",
+    openingThemeId: "national",
+    qualificationRule: {
+      ruleId: "national-week-1-continuation",
+      type: "stage_continuation",
+      nextTournamentType: "national_week_2",
+    },
+    matchPointRule: { enabled: false },
+    rewardTableKey: "stage_progress",
+  },
+  national_week_2: {
+    tournamentName: "MOB BR NATIONAL",
+    totalTeams: 40,
+    matches: 9,
+    cpuPoolId: "circuit-national",
+    openingThemeId: "national",
+    qualificationRule: {
+      ruleId: "national-annual-top8-lc9-28",
+      type: "national_final_stage",
+      directMaximumPlace: 8,
+      lastChanceMinimumPlace: 9,
+      lastChanceMaximumPlace: 28,
+    },
+    matchPointRule: { enabled: false },
+    rewardTableKey: "national",
+  },
+  national_last_chance: {
+    tournamentName: "NATIONAL LAST CHANCE",
+    totalTeams: 20,
+    matches: FORMAL_CIRCUIT_RULES.nationalLastChance.maximumMatches,
+    cpuPoolId: "circuit-national-last-chance",
+    openingThemeId: "national",
+    qualificationRule: {
+      ruleId: "national-lc-two-qualifiers",
+      type: "national_last_chance",
+      nextTournamentType: "world_qualifier_week_1",
+      qualifierCount: 2,
+    },
+    matchPointRule: {
+      enabled: true,
+      ruleId: "national-last-chance-match-point",
+      threshold: FORMAL_CIRCUIT_RULES.nationalLastChance.threshold,
+      winnerMustWinMatchAfterThreshold: true,
+    },
+    rewardTableKey: "national_last_chance",
+  },
+  world_qualifier_week_1: {
+    tournamentName: "MOB BR WORLD QUALIFIER",
+    totalTeams: 40,
+    matches: 9,
+    cpuPoolId: "circuit-world",
+    openingThemeId: "world",
+    qualificationRule: {
+      ruleId: "world-week-1-continuation",
+      type: "stage_continuation",
+      nextTournamentType: "world_qualifier_week_2",
+    },
+    matchPointRule: { enabled: false },
+    rewardTableKey: "stage_progress",
+  },
+  world_qualifier_week_2: {
+    tournamentName: "MOB BR WORLD QUALIFIER",
+    totalTeams: 40,
+    matches: 9,
+    cpuPoolId: "circuit-world",
+    openingThemeId: "world",
+    qualificationRule: {
+      ruleId: "world-top10-lc11-30",
+      type: "world_qualifier_final_stage",
+      directMaximumPlace: 10,
+      lastChanceMinimumPlace: 11,
+      lastChanceMaximumPlace: 30,
+    },
+    matchPointRule: { enabled: false },
+    rewardTableKey: "stage_progress",
+  },
+  world_last_chance: {
+    tournamentName: "WORLD LAST CHANCE",
+    totalTeams: 20,
+    matches: FORMAL_CIRCUIT_RULES.worldLastChance.matches,
+    cpuPoolId: "circuit-world-last-chance",
+    openingThemeId: "world",
+    qualificationRule: {
+      ruleId: "world-last-chance-top10",
+      type: "top_n",
+      maximumPlace: 10,
+      nextTournamentType: "world_final",
+    },
+    matchPointRule: { enabled: false },
+    rewardTableKey: "stage_progress",
+  },
+  world_final: {
+    tournamentName: "MOB BR WORLD FINAL",
+    totalTeams: 20,
+    matches: FORMAL_CIRCUIT_RULES.worldFinal.maximumMatches,
+    cpuPoolId: "circuit-world-final",
+    openingThemeId: "world",
+    qualificationRule: { ruleId: "world-final", type: "final" },
+    matchPointRule: {
+      enabled: true,
+      ruleId: "world-match-point-50",
+      threshold: FORMAL_CIRCUIT_RULES.worldFinal.threshold,
+      winnerMustWinMatchAfterThreshold: true,
+    },
+    rewardTableKey: "world",
+  },
+  casual_denden: {
+    tournamentName: "デンデンカップ",
+    totalTeams: 20,
+    matches: CASUAL_TOURNAMENT_RULES.casual_denden.matches,
+    cpuPoolId: "casual-denden",
+    openingThemeId: "local",
+    qualificationRule: { ruleId: "casual-final", type: "final" },
+    matchPointRule: { enabled: false },
+    rewardTableKey: "casual_denden",
+  },
+  casual_mobutetsu: {
+    tournamentName: "モブテツカップ",
+    totalTeams: 20,
+    matches: CASUAL_TOURNAMENT_RULES.casual_mobutetsu.matches,
+    cpuPoolId: "casual-mobutetsu",
+    openingThemeId: "national",
+    qualificationRule: { ruleId: "casual-final", type: "final" },
+    matchPointRule: { enabled: false },
+    rewardTableKey: "casual_mobutetsu",
+  },
+  championship: {
+    tournamentName: "MOB BR CHAMPIONSHIP",
+    totalTeams: 20,
+    matches: 5,
+    cpuPoolId: "championship-top-20",
+    openingThemeId: "championship",
+    qualificationRule: { ruleId: "championship-final", type: "final" },
+    matchPointRule: { enabled: false },
+    rewardTableKey: "championship",
+  },
+
+  // Compatibility aliases for pre-Generation 25 save data.
   national: {
     tournamentName: "MOB BR NATIONAL",
     totalTeams: 40,
-    cpuPoolId: "cpu-national",
+    matches: 9,
+    cpuPoolId: "circuit-national",
     openingThemeId: "national",
-    qualificationRule: {
-      ruleId: "national-stage-rule-v1",
-      type: "configured_stage_rule",
-      nextTournamentType: "world_qualifier",
-    },
+    qualificationRule: { ruleId: "legacy-national", type: "national_final_stage" },
     matchPointRule: { enabled: false },
     rewardTableKey: "national",
   },
   world_qualifier: {
     tournamentName: "MOB BR WORLD QUALIFIER",
-    totalTeams: 20,
-    cpuPoolId: "cpu-world",
+    totalTeams: 40,
+    matches: 9,
+    cpuPoolId: "circuit-world",
     openingThemeId: "world",
-    qualificationRule: {
-      ruleId: "world-qualifier-rule-v1",
-      type: "configured_stage_rule",
-      nextTournamentType: "world_final",
-      lastChanceEnabled: true,
-    },
+    qualificationRule: { ruleId: "legacy-world-qualifier", type: "world_qualifier_final_stage" },
     matchPointRule: { enabled: false },
     rewardTableKey: "world",
-  },
-  world_last_chance: {
-    tournamentName: "MOB BR WORLD LAST CHANCE",
-    totalTeams: 20,
-    cpuPoolId: "cpu-world",
-    openingThemeId: "world",
-    qualificationRule: {
-      ruleId: "world-last-chance-rule-v1",
-      type: "configured_stage_rule",
-      nextTournamentType: "world_final",
-    },
-    matchPointRule: { enabled: false },
-    rewardTableKey: "world",
-  },
-  world_final: {
-    tournamentName: "MOB BR WORLD FINAL",
-    totalTeams: 20,
-    cpuPoolId: "cpu-world",
-    openingThemeId: "world",
-    qualificationRule: { ruleId: "final", type: "final" },
-    matchPointRule: {
-      enabled: true,
-      ruleId: "world-match-point-configured-by-runtime",
-      threshold: null,
-      winnerMustWinMatchAfterThreshold: true,
-    },
-    rewardTableKey: "world",
-  },
-  championship: {
-    tournamentName: "MOB BR CHAMPIONSHIP",
-    totalTeams: 20,
-    cpuPoolId: "championship-top-20",
-    openingThemeId: "championship",
-    qualificationRule: { ruleId: "championship-final", type: "final" },
-    matchPointRule: {
-      enabled: true,
-      ruleId: "championship-match-point-configured-by-runtime",
-      threshold: null,
-      winnerMustWinMatchAfterThreshold: true,
-    },
-    rewardTableKey: "championship",
   },
 });
 
@@ -557,33 +958,19 @@ export function resolvePlacementRewards(rewardTableSnapshot, place) {
 
 export function getAnnualTournamentSchedule(year) {
   assertPositiveInteger(year, "Schedule year");
-  const events = TOURNAMENT_SCHEDULE_TEMPLATE.map((event) => ({
-    ...deepClone(event),
-    year,
-    seasonId: `${year}-sp${event.split}`,
-    tournamentId: `${year}-${event.stageId}`,
-  }));
-  if (isChampionshipYear(year)) {
-    events.push({
-      year,
-      month: 12,
-      week: 4,
-      split: null,
-      tournamentType: "championship",
-      stageId: "championship",
-      stageName: "CHAMPIONSHIP",
-      seasonId: `${year}-championship`,
-      tournamentId: `${year}-championship`,
-    });
+  const events = [];
+  for (let month = 1; month <= 12; month += 1) {
+    for (let week = 1; week <= 4; week += 1) {
+      events.push(
+        ...getTournamentEventsForDate({ year, month, week }),
+      );
+    }
   }
   return deepFreeze(events);
 }
 
 function createSeasonNumber(event) {
-  if (event.tournamentType === "championship") {
-    return null;
-  }
-  return event.split ?? (event.month <= 6 ? 1 : 2);
+  return event.tournamentType === "championship" ? null : 1;
 }
 
 function createSessionId(event, idFactory) {
@@ -717,6 +1104,426 @@ export function calculateTournamentEntryChecksum(entry) {
   return calculateChecksum(createEntryChecksumPayload(entry));
 }
 
+function rankingsTeamIds(history, minimumPlace, maximumPlace) {
+  return (history?.rankings ?? [])
+    .filter(
+      (row) =>
+        Number.isInteger(row.place) &&
+        row.place >= minimumPlace &&
+        row.place <= maximumPlace,
+    )
+    .sort((left, right) => left.place - right.place)
+    .map((row) => row.teamId);
+}
+
+function participantSeedsFromIds(
+  teamIds,
+  {
+    playerTeamId,
+    groupAssignments = null,
+    guestTeamId = null,
+  },
+) {
+  const groupByTeamId = {};
+  if (groupAssignments) {
+    for (const [groupId, ids] of Object.entries(groupAssignments)) {
+      for (const teamId of ids) groupByTeamId[teamId] = groupId;
+    }
+  }
+  return teamIds.map((teamId, index) => ({
+    teamId,
+    sourcePool:
+      teamId === playerTeamId
+        ? "player"
+        : sourcePoolForTeamId(teamId),
+    isPlayer: teamId === playerTeamId,
+    groupId: groupByTeamId[teamId] ?? null,
+    seedIndex: index + 1,
+    guest: teamId === guestTeamId,
+  }));
+}
+
+function historyParticipantSeeds(history, playerTeamId) {
+  const stored = history?.advancement?.participantSeeds;
+  if (Array.isArray(stored) && stored.length > 0) {
+    return deepClone(stored);
+  }
+  const ids = (history?.rankings ?? []).map((row) => row.teamId);
+  return participantSeedsFromIds(ids, { playerTeamId });
+}
+
+function requireHistory(snapshot, types, year, label) {
+  const history = latestHistory(snapshot, types, year);
+  if (!history) {
+    throw new TournamentEntryValidationError(
+      `${label}の結果データが見つかりません。`,
+      "CIRCUIT_SOURCE_RESULT_MISSING",
+    );
+  }
+  return history;
+}
+
+function uniqueTeamIds(teamIds, expectedCount, label) {
+  const unique = [...new Set(teamIds.filter(Boolean))];
+  if (unique.length !== expectedCount) {
+    throw new TournamentEntryValidationError(
+      `${label} must contain ${expectedCount} unique teams; received ${unique.length}.`,
+      "CIRCUIT_PARTICIPANT_COUNT_MISMATCH",
+    );
+  }
+  return unique;
+}
+
+export function createTournamentCircuitContext(snapshot, event) {
+  const type = event.tournamentType;
+  const year = event.year ?? snapshot.gameDate.year;
+  const playerTeamId = snapshot.playerTeam.teamId;
+  const seed = `${year}:${event.stageId}:${snapshot.saveSlotId}`;
+  const base = {
+    circuitYear: year,
+    circuitStageId: event.circuitStageId ?? event.stageId,
+    stagePart: event.stagePart ?? null,
+    choiceGroupId: event.choiceGroupId ?? null,
+    optional: event.optional === true,
+    recordOnlyWhenEntered: event.recordOnlyWhenEntered === true,
+    participantSeeds: null,
+    groupAssignments: null,
+    matchPlan: null,
+    initialTotals: {},
+    guestTeamId: null,
+    sourceTournamentIds: [],
+    championshipStandings: null,
+  };
+
+  if (type === "local") {
+    return base;
+  }
+
+  if (type === "championship") {
+    const standings = createChampionshipStandings(snapshot, year);
+    const teamIds = uniqueTeamIds(
+      standings
+        .slice(0, FORMAL_CIRCUIT_RULES.championship.teams)
+        .map((row) => row.teamId),
+      FORMAL_CIRCUIT_RULES.championship.teams,
+      "CHAMPIONSHIP participants",
+    );
+    return {
+      ...base,
+      sourceTournamentIds: [
+        ...new Set(
+          snapshot.tournament.history
+            .filter((entry) => {
+              const entryYear = historyYear(entry);
+              return (
+                entry.tournamentType === "world_final" &&
+                entryYear >= year - 2 &&
+                entryYear <= year
+              );
+            })
+            .map((entry) => entry.tournamentId),
+        ),
+      ],
+      participantSeeds: participantSeedsFromIds(teamIds, { playerTeamId }),
+      matchPlan: createSimpleMatchPlan(
+        teamIds,
+        TOURNAMENT_TYPE_PRESETS.championship.matches,
+      ),
+      championshipStandings: standings.slice(0, 20),
+    };
+  }
+
+  if (type === "casual_denden") {
+    const localIds = selectTeamIds(
+      LOCAL_CPU_TEAMS,
+      CASUAL_TOURNAMENT_RULES.casual_denden.localSlots,
+      `${seed}:local`,
+    );
+    const lowerNationalPool = NATIONAL_CPU_TEAMS.slice(20);
+    const nationalIds = selectTeamIds(
+      lowerNationalPool,
+      CASUAL_TOURNAMENT_RULES.casual_denden.nationalLowerSlots,
+      `${seed}:national-lower`,
+    );
+    const teamIds = [playerTeamId, ...localIds, ...nationalIds];
+    return {
+      ...base,
+      participantSeeds: participantSeedsFromIds(teamIds, { playerTeamId }),
+      matchPlan: createSimpleMatchPlan(
+        teamIds,
+        CASUAL_TOURNAMENT_RULES.casual_denden.matches,
+      ),
+    };
+  }
+
+  if (type === "casual_mobutetsu") {
+    const strongPool = [
+      ...LOCAL_CPU_TEAMS.slice(10),
+      ...NATIONAL_CPU_TEAMS.slice(0, 24),
+    ];
+    const strongIds = selectTeamIds(
+      strongPool,
+      CASUAL_TOURNAMENT_RULES.casual_mobutetsu.localNationalStrongSlots,
+      `${seed}:strong`,
+    );
+    const worldGuestId = selectTeamIds(
+      getWorldCpuTeamsForYear(year),
+      1,
+      `${seed}:world-guest`,
+    )[0];
+    const teamIds = [playerTeamId, ...strongIds, worldGuestId];
+    return {
+      ...base,
+      guestTeamId: worldGuestId,
+      participantSeeds: participantSeedsFromIds(teamIds, {
+        playerTeamId,
+        guestTeamId: worldGuestId,
+      }),
+      matchPlan: createSimpleMatchPlan(
+        teamIds,
+        CASUAL_TOURNAMENT_RULES.casual_mobutetsu.matches,
+      ),
+    };
+  }
+
+  if (type === "national_week_1") {
+    const local = requireHistory(snapshot, "local", year, "LOCAL");
+    const localQualifierIds = uniqueTeamIds(
+      advancementTeamIds(local, "directQualifierTeamIds").length > 0
+        ? advancementTeamIds(local, "directQualifierTeamIds")
+        : rankingsTeamIds(local, 1, 10),
+      10,
+      "LOCAL qualifiers",
+    );
+    const nationalIds = selectTeamIds(
+      NATIONAL_CPU_TEAMS,
+      30,
+      `${seed}:national-30`,
+      localQualifierIds,
+    );
+    const teamIds = uniqueTeamIds(
+      [...localQualifierIds, ...nationalIds],
+      40,
+      "NATIONAL participants",
+    );
+    const groupAssignments = createGroupAssignments(teamIds, {
+      playerTeamId,
+      seed,
+    });
+    return {
+      ...base,
+      sourceTournamentIds: [local.tournamentId],
+      groupAssignments,
+      participantSeeds: participantSeedsFromIds(teamIds, {
+        playerTeamId,
+        groupAssignments,
+      }),
+      matchPlan: createGroupMatchPlan(
+        groupAssignments,
+        FORMAL_CIRCUIT_RULES.national.week1Sections,
+        { matchNumberOffset: 0 },
+      ),
+    };
+  }
+
+  if (type === "national_week_2") {
+    const week1 = requireHistory(
+      snapshot,
+      "national_week_1",
+      year,
+      "NATIONAL 1週目",
+    );
+    const seeds = historyParticipantSeeds(week1, playerTeamId);
+    const groupAssignments =
+      week1.advancement?.groupAssignments;
+    if (!groupAssignments || seeds.length !== 40) {
+      throw new TournamentEntryValidationError(
+        "NATIONAL 1週目のグループデータが不完全です。",
+        "CIRCUIT_GROUP_DATA_MISSING",
+      );
+    }
+    return {
+      ...base,
+      sourceTournamentIds: [week1.tournamentId],
+      participantSeeds: seeds,
+      groupAssignments: deepClone(groupAssignments),
+      initialTotals: deepClone(
+        week1.advancement?.circuitTotals ?? {},
+      ),
+      matchPlan: createGroupMatchPlan(
+        groupAssignments,
+        FORMAL_CIRCUIT_RULES.national.week2Sections,
+        { matchNumberOffset: 9 },
+      ),
+    };
+  }
+
+  if (type === "national_last_chance") {
+    const national = requireHistory(
+      snapshot,
+      ["national_week_2", "national"],
+      year,
+      "NATIONAL本戦",
+    );
+    const teamIds = uniqueTeamIds(
+      advancementTeamIds(national, "lastChanceTeamIds").length > 0
+        ? advancementTeamIds(national, "lastChanceTeamIds")
+        : rankingsTeamIds(national, 9, 28),
+      20,
+      "NATIONAL Last Chance participants",
+    );
+    return {
+      ...base,
+      sourceTournamentIds: [national.tournamentId],
+      participantSeeds: participantSeedsFromIds(teamIds, { playerTeamId }),
+      matchPlan: createSimpleMatchPlan(
+        teamIds,
+        FORMAL_CIRCUIT_RULES.nationalLastChance.maximumMatches,
+      ),
+    };
+  }
+
+  if (type === "world_qualifier_week_1") {
+    const national = requireHistory(
+      snapshot,
+      ["national_week_2", "national"],
+      year,
+      "NATIONAL本戦",
+    );
+    const lastChance = requireHistory(
+      snapshot,
+      "national_last_chance",
+      year,
+      "NATIONAL Last Chance",
+    );
+    const representatives = uniqueTeamIds(
+      [
+        ...advancementTeamIds(national, "directQualifierTeamIds"),
+        ...advancementTeamIds(lastChance, "qualifierTeamIds"),
+      ],
+      10,
+      "National representatives",
+    );
+    const worldIds = selectTeamIds(
+      getWorldCpuTeamsForYear(year),
+      30,
+      `${seed}:world-30`,
+      representatives,
+    );
+    const teamIds = uniqueTeamIds(
+      [...representatives, ...worldIds],
+      40,
+      "WORLD qualifier participants",
+    );
+    const groupAssignments = createGroupAssignments(teamIds, {
+      playerTeamId,
+      seed,
+    });
+    return {
+      ...base,
+      sourceTournamentIds: [national.tournamentId, lastChance.tournamentId],
+      participantSeeds: participantSeedsFromIds(teamIds, {
+        playerTeamId,
+        groupAssignments,
+      }),
+      groupAssignments,
+      matchPlan: createGroupMatchPlan(
+        groupAssignments,
+        FORMAL_CIRCUIT_RULES.worldQualifier.week1Sections,
+        { matchNumberOffset: 0 },
+      ),
+    };
+  }
+
+  if (type === "world_qualifier_week_2") {
+    const week1 = requireHistory(
+      snapshot,
+      "world_qualifier_week_1",
+      year,
+      "WORLD予選1週目",
+    );
+    const seeds = historyParticipantSeeds(week1, playerTeamId);
+    const groupAssignments = week1.advancement?.groupAssignments;
+    if (!groupAssignments || seeds.length !== 40) {
+      throw new TournamentEntryValidationError(
+        "WORLD予選1週目のグループデータが不完全です。",
+        "CIRCUIT_GROUP_DATA_MISSING",
+      );
+    }
+    return {
+      ...base,
+      sourceTournamentIds: [week1.tournamentId],
+      participantSeeds: seeds,
+      groupAssignments: deepClone(groupAssignments),
+      initialTotals: deepClone(week1.advancement?.circuitTotals ?? {}),
+      matchPlan: createGroupMatchPlan(
+        groupAssignments,
+        FORMAL_CIRCUIT_RULES.worldQualifier.week2Sections,
+        { matchNumberOffset: 9 },
+      ),
+    };
+  }
+
+  if (type === "world_last_chance") {
+    const qualifier = requireHistory(
+      snapshot,
+      ["world_qualifier_week_2", "world_qualifier"],
+      year,
+      "WORLD予選",
+    );
+    const teamIds = uniqueTeamIds(
+      advancementTeamIds(qualifier, "lastChanceTeamIds").length > 0
+        ? advancementTeamIds(qualifier, "lastChanceTeamIds")
+        : rankingsTeamIds(qualifier, 11, 30),
+      20,
+      "WORLD Last Chance participants",
+    );
+    return {
+      ...base,
+      sourceTournamentIds: [qualifier.tournamentId],
+      participantSeeds: participantSeedsFromIds(teamIds, { playerTeamId }),
+      matchPlan: createSimpleMatchPlan(
+        teamIds,
+        FORMAL_CIRCUIT_RULES.worldLastChance.matches,
+      ),
+    };
+  }
+
+  if (type === "world_final") {
+    const qualifier = requireHistory(
+      snapshot,
+      ["world_qualifier_week_2", "world_qualifier"],
+      year,
+      "WORLD予選",
+    );
+    const lastChance = requireHistory(
+      snapshot,
+      "world_last_chance",
+      year,
+      "WORLD Last Chance",
+    );
+    const teamIds = uniqueTeamIds(
+      [
+        ...advancementTeamIds(qualifier, "directQualifierTeamIds"),
+        ...advancementTeamIds(lastChance, "qualifierTeamIds"),
+      ],
+      20,
+      "WORLD Final participants",
+    );
+    return {
+      ...base,
+      sourceTournamentIds: [qualifier.tournamentId, lastChance.tournamentId],
+      participantSeeds: participantSeedsFromIds(teamIds, { playerTeamId }),
+      matchPlan: createSimpleMatchPlan(
+        teamIds,
+        FORMAL_CIRCUIT_RULES.worldFinal.maximumMatches,
+      ),
+    };
+  }
+
+  return base;
+}
+
 export function createTournamentEntryData(
   snapshot,
   event,
@@ -763,8 +1570,14 @@ export function createTournamentEntryData(
     (seasonNumber === null
       ? `${event.year}-championship`
       : `${event.year}-sp${seasonNumber}`);
+  const circuitContext = createTournamentCircuitContext(
+    snapshot,
+    event,
+  );
   const totalTeams =
-    tournamentOverrides.totalTeams ?? preset.totalTeams;
+    tournamentOverrides.totalTeams ??
+    circuitContext.participantSeeds?.length ??
+    preset.totalTeams;
 
   const entry = {
     schemaVersion: TOURNAMENT_ENTRY_SCHEMA_VERSION,
@@ -794,6 +1607,7 @@ export function createTournamentEntryData(
       totalTeams,
       matches:
         tournamentOverrides.matches ??
+        preset.matches ??
         TOURNAMENT_SESSION_RULES.matchesPerSession,
       roundTargets: deepClone(
         tournamentOverrides.roundTargets ??
@@ -813,6 +1627,26 @@ export function createTournamentEntryData(
         tournamentOverrides.openingThemeId ?? preset.openingThemeId,
       includesLastChance: event.includesLastChance === true,
       absentPlayerFastSimulation: true,
+      circuitTier: normalizeCircuitTier(tournamentType),
+      circuitYear: circuitContext.circuitYear,
+      circuitStageId: circuitContext.circuitStageId,
+      stagePart: circuitContext.stagePart,
+      choiceGroupId: circuitContext.choiceGroupId,
+      optional: circuitContext.optional,
+      recordOnlyWhenEntered: circuitContext.recordOnlyWhenEntered,
+      participantSeeds: deepClone(circuitContext.participantSeeds),
+      groupAssignments: deepClone(circuitContext.groupAssignments),
+      matchPlan: deepClone(circuitContext.matchPlan),
+      initialTotals: deepClone(circuitContext.initialTotals),
+      guestTeamId: circuitContext.guestTeamId,
+      sourceTournamentIds: deepClone(circuitContext.sourceTournamentIds),
+      championshipStandings: deepClone(
+        circuitContext.championshipStandings,
+      ),
+      suppressAwards: [
+        "national_week_1",
+        "world_qualifier_week_1",
+      ].includes(tournamentType),
     },
     company: {
       companyId: snapshot.company.companyId,
@@ -1877,6 +2711,28 @@ function escapeAttribute(value) {
   return escapeHtml(value).replaceAll("`", "&#096;");
 }
 
+function tournamentScheduleCategory(event) {
+  if (event.choiceGroupId) return "CASUAL CHOICE";
+  if (event.tournamentType === "championship") return "CHAMPIONSHIP";
+  return "ANNUAL CIRCUIT";
+}
+
+function tournamentRuleSummary(event) {
+  const type = event.tournamentType;
+  if (type === "local") return "20チーム / 5MATCH / 上位10がNATIONALへ";
+  if (type === "national_week_1") return "40チーム・A～D / 第1～3節 / 9MATCH";
+  if (type === "national_week_2") return "第4～6節 / 9MATCH / 1～8位World確定 / 9～28位Last Chance";
+  if (type === "national_last_chance") return "20チーム / 35POINT MATCH POINT / MP勝者＋残りTOTAL首位";
+  if (type === "world_qualifier_week_1") return "National代表10＋World30 / 第1～3節 / 9MATCH";
+  if (type === "world_qualifier_week_2") return "第4～6節 / 9MATCH / 上位10Final / 11～30位Last Chance";
+  if (type === "world_last_chance") return "20チーム / 3MATCH / 上位10がWorld Finalへ";
+  if (type === "world_final") return "20チーム / 50POINT MATCH POINT / 世界王者決定";
+  if (type === "casual_denden") return "20チーム / 3MATCH / Local14＋National下位5";
+  if (type === "casual_mobutetsu") return "企業C1以上 / 5MATCH / Worldゲスト1チーム";
+  if (type === "championship") return "3年に1回 / Championship Point上位20";
+  return "大会ルールを確認してください";
+}
+
 function eventDateLabel(event) {
   return `${event.month}月 第${event.week}週`;
 }
@@ -1970,6 +2826,14 @@ export function renderTournamentSchedule(snapshot, storage) {
 
   return `
     ${bridgePanel}
+    <section class="annual-circuit-overview">
+      <span>ANNUAL FORMAL CIRCUIT</span>
+      <h2>${snapshot.gameDate.year} 正式大会</h2>
+      <div>
+        <b>LOCAL</b><i>→</i><b>NATIONAL</b><i>→</i><b>NATIONAL LC</b><i>→</i><b>WORLD予選</b><i>→</i><b>WORLD LC</b><i>→</i><b>WORLD FINAL</b>
+      </div>
+      <p>正式サーキットは年1回。毎月のカジュアル週はデンデンカップとモブテツカップから1大会だけ選択できます。</p>
+    </section>
     <section class="tournament-current-week">
       <h2>CURRENT WEEK</h2>
       <p>${snapshot.gameDate.year}年 ${snapshot.gameDate.month}月 第${snapshot.gameDate.week}週</p>
@@ -1984,13 +2848,14 @@ export function renderTournamentSchedule(snapshot, storage) {
               const availability = getTournamentEntryAvailability(snapshot, event);
               const disabled = status.state !== "idle" || !availability.eligible;
               return `
-                <article class="tournament-current-card ${availability.eligible ? "is-entry" : "is-observer"}">
+                <article class="tournament-current-card ${availability.eligible ? "is-entry" : "is-observer"} ${event.choiceGroupId ? "is-casual-choice" : "is-formal-stage"}">
                   <img class="tournament-type-logo" src="${escapeAttribute(getTournamentIcon(event.tournamentType))}" alt="">
-                  <span>${availability.eligible ? "NOW OPEN" : "TOURNAMENT NOTICE"}</span>
+                  <span>${event.choiceGroupId ? "MONTHLY CASUAL CHOICE" : availability.eligible ? "FORMAL STAGE OPEN" : "TOURNAMENT NOTICE"}</span>
                   <h3>${escapeHtml(preset.tournamentName)}</h3>
                   <p>${escapeHtml(event.stageName)}</p>
+                  <div class="tournament-rule-summary">${escapeHtml(tournamentRuleSummary(event))}</div>
                   <small>${escapeHtml(availability.reason)}</small>
-                  <small>1位報酬 ${escapeHtml(formatRewards(rewards))}</small>
+                  ${preset.rewardTableKey === "stage_progress" ? `<small>この週は順位・TOTALを次段階へ引き継ぎます</small>` : `<small>1位報酬 ${escapeHtml(formatRewards(rewards))}</small>`}
                   <button
                     type="button"
                     class="primary-button"
@@ -1998,7 +2863,7 @@ export function renderTournamentSchedule(snapshot, storage) {
                     data-tournament-id="${escapeAttribute(event.tournamentId)}"
                     ${disabled ? "disabled" : ""}
                   >
-                    ${availability.eligible ? "大会に参加" : "出場予定なし"}
+                    ${availability.eligible ? event.choiceGroupId ? "この大会を選ぶ" : "大会に参加" : availability.status === "locked" ? "LOCKED" : "出場予定なし"}
                   </button>
                 </article>
               `;
@@ -2023,12 +2888,13 @@ export function renderTournamentSchedule(snapshot, storage) {
           <article class="tournament-calendar-card ${isCurrent ? "is-current" : ""} ${completed ? "is-completed" : ""}">
             <div class="tournament-calendar-card__date">
               <strong>${escapeHtml(eventDateLabel(event))}</strong>
-              <span>${event.split ? `SP${event.split}` : "SPECIAL"}</span>
+              <span>${escapeHtml(tournamentScheduleCategory(event))}</span>
             </div>
             <img class="tournament-calendar-card__logo" src="${escapeAttribute(getTournamentIcon(event.tournamentType))}" alt="">
             <div class="tournament-calendar-card__main">
               <h3>${escapeHtml(preset.tournamentName)}</h3>
               <p>${escapeHtml(event.stageName)}</p>
+              <small>${escapeHtml(tournamentRuleSummary(event))}</small>
             </div>
             <span class="tournament-calendar-card__status">
               ${completed ? "完了" : isCurrent ? "開催中" : "予定"}
@@ -2121,8 +2987,10 @@ export function createTournamentBridgeController({
       }
       if (!(await openConfirm({
         title: `${TOURNAMENT_TYPE_PRESETS[event.tournamentType].tournamentName}へ参加しますか？`,
-        body: "<p>現在の選手・武器・作戦・バッグ・特殊能力を大会参加スナップショットとして固定します。</p>",
-        confirmLabel: "大会へ進む",
+        body: event.choiceGroupId
+          ? "<p>今月のカジュアル大会は1つだけ選択できます。参加しない場合は記録されません。</p><p>現在の選手・武器・作戦・バッグ・特殊能力を参加データとして固定します。</p>"
+          : "<p>現在の選手・武器・作戦・バッグ・特殊能力を大会参加スナップショットとして固定します。</p>",
+        confirmLabel: event.choiceGroupId ? "この大会を選ぶ" : "大会へ進む",
       }))) return true;
 
       try {
