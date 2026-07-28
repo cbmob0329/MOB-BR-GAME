@@ -8218,3 +8218,122 @@ html[data-asset-prefix="../../"] .tournament-loading-overlay {
   .commentary-panel--live p {
   color: #fff !important;
 }
+
+/* Generation 29: commentary contrast is always dark, never paper-white. */
+.tournament-screen .commentary-panel,
+.tournament-screen .result-commentary,
+.tournament-screen .battle-commentary-panel,
+.tournament-screen .battle-outcome-bottom .commentary-panel,
+.tournament-screen .battle-outcome-bottom .battle-commentary-panel {
+  border: 2px solid rgb(98 209 255 / 42%) !important;
+  background:
+    radial-gradient(circle at 0 0, rgb(64 190 255 / 15%), transparent 42%),
+    linear-gradient(145deg, rgb(8 24 42 / 98%), rgb(3 12 23 / 99%)) !important;
+  color: #fff !important;
+  box-shadow:
+    0 11px 25px rgb(0 0 0 / 36%),
+    inset 0 1px 0 rgb(255 255 255 / 7%) !important;
+}
+
+.tournament-screen .commentary-panel > div,
+.tournament-screen .result-commentary > div,
+.tournament-screen .battle-commentary-panel > div,
+.tournament-screen .commentary-panel strong,
+.tournament-screen .result-commentary strong,
+.tournament-screen .battle-commentary-panel strong,
+.tournament-screen .commentary-panel p,
+.tournament-screen .result-commentary p,
+.tournament-screen .battle-commentary-panel p {
+  color: #fff !important;
+  background: transparent !important;
+  text-shadow: 0 1px 3px rgb(0 0 0 / 45%) !important;
+}
+
+.tournament-screen .commentary-panel strong,
+.tournament-screen .result-commentary strong,
+.tournament-screen .battle-commentary-panel strong {
+  color: #7fe1ff !important;
+}
+
+.tournament-screen .commentary-panel img,
+.tournament-screen .result-commentary img,
+.tournament-screen .battle-commentary-panel img {
+  border-color: rgb(105 214 255 / 24%) !important;
+  background: rgb(6 20 36 / 72%) !important;
+}
+
+/* Battle feels continuous rather than one slow turn at a time. */
+.battle-fighter--attack .battle-fighter__portrait,
+.battle-fighter--skill .battle-fighter__portrait {
+  animation-duration: 150ms !important;
+}
+
+.battle-fx-layer,
+.battle-cut-in,
+.skill-cutin,
+.range-shift-cutin {
+  animation-duration: 240ms !important;
+}
+
+.battle-screen-flash,
+.battle-projectile,
+.battle-damage-number {
+  animation-duration: 180ms !important;
+}
+
+.battle-decision-cut {
+  position: absolute;
+  z-index: 80;
+  inset: 50% auto auto 50%;
+  display: grid;
+  width: min(82vw, 380px);
+  justify-items: center;
+  gap: 3px;
+  translate: -50% -50%;
+  border: 3px solid rgb(255 255 255 / 28%);
+  border-radius: 18px;
+  padding: 15px 12px;
+  background:
+    radial-gradient(circle at center, rgb(76 195 255 / 17%), transparent 58%),
+    rgb(4 14 27 / 96%);
+  color: #fff;
+  text-align: center;
+  box-shadow: 0 18px 42px rgb(0 0 0 / 48%);
+  animation: battle-decision-enter 280ms cubic-bezier(.16,.88,.24,1) both;
+}
+
+.battle-decision-cut--squad_wipe {
+  border-color: #f5d75e;
+  background:
+    radial-gradient(circle at center, rgb(245 215 94 / 18%), transparent 58%),
+    rgb(23 17 7 / 97%);
+}
+
+.battle-decision-cut > span {
+  color: #7fe1ff;
+  font-size: .5rem;
+  font-weight: 1000;
+  letter-spacing: .14em;
+}
+
+.battle-decision-cut--squad_wipe > span,
+.battle-decision-cut--squad_wipe > strong {
+  color: #f5d75e;
+}
+
+.battle-decision-cut > strong {
+  font-size: .94rem;
+}
+
+.battle-decision-cut > small {
+  color: rgb(255 255 255 / 68%);
+  font-size: .43rem;
+}
+
+@keyframes battle-decision-enter {
+  from {
+    translate: -50% calc(-50% + 14px);
+    scale: .78;
+    opacity: 0;
+  }
+}

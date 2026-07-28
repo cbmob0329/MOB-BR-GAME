@@ -6796,3 +6796,255 @@ img.asset-missing {
       rotate(calc(var(--rank-index) * -60deg));
   }
 }
+
+/* Generation 29: player skill lab */
+.development-tabs {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.development-tabs button {
+  grid-template-columns: 32px minmax(0, 1fr);
+  padding: 6px;
+}
+
+.development-tabs img {
+  width: 32px;
+  height: 32px;
+}
+
+.skill-lab-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  border: 2px solid rgb(116 217 255 / 28%);
+  border-radius: 17px;
+  padding: 11px;
+  background:
+    radial-gradient(circle at 0 0, rgb(64 191 255 / 17%), transparent 42%),
+    linear-gradient(145deg, rgb(17 42 68 / 96%), rgb(7 17 31 / 98%));
+  color: #fff;
+}
+
+.skill-lab-overview > div {
+  display: grid;
+  gap: 2px;
+}
+
+.skill-lab-overview span {
+  color: #7edfff;
+  font-size: .44rem;
+  font-weight: 1000;
+  letter-spacing: .11em;
+}
+
+.skill-lab-overview h2,
+.skill-lab-overview p {
+  margin: 0;
+}
+
+.skill-lab-overview h2 {
+  font-size: .78rem;
+}
+
+.skill-lab-overview p {
+  color: rgb(255 255 255 / 66%);
+  font-size: .46rem;
+  line-height: 1.45;
+}
+
+.skill-lab-overview > strong {
+  border-radius: 999px;
+  padding: 6px 9px;
+  background: rgb(245 215 94 / 12%);
+  color: #f5d75e;
+  font-size: .45rem;
+  white-space: nowrap;
+}
+
+.skill-upgrade-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.skill-upgrade-card {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  overflow: hidden;
+  border: 2px solid rgb(255 255 255 / 13%);
+  border-radius: 17px;
+  padding: 10px;
+  background:
+    linear-gradient(135deg, rgb(30 52 78 / 96%), rgb(8 18 31 / 98%));
+  color: #fff;
+  box-shadow: 0 10px 23px rgb(0 0 0 / 24%);
+}
+
+.skill-upgrade-card::after {
+  position: absolute;
+  right: -35px;
+  bottom: -42px;
+  width: 125px;
+  height: 125px;
+  border: 1px solid rgb(113 218 255 / 13%);
+  border-radius: 50%;
+  content: "";
+  box-shadow:
+    0 0 0 15px rgb(113 218 255 / 4%),
+    0 0 0 31px rgb(113 218 255 / 3%);
+  pointer-events: none;
+}
+
+.skill-upgrade-card.is-max {
+  border-color: rgb(245 215 94 / 38%);
+}
+
+.skill-upgrade-card > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.skill-upgrade-card > header span {
+  color: #79ddff;
+  font-size: .42rem;
+  font-weight: 1000;
+  letter-spacing: .1em;
+}
+
+.skill-upgrade-card > header strong {
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: rgb(255 255 255 / 8%);
+  color: #fff;
+  font-size: .46rem;
+}
+
+.skill-upgrade-card__name {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+}
+
+.skill-upgrade-card__name > img {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+  filter: drop-shadow(0 7px 8px rgb(0 0 0 / 28%));
+}
+
+.skill-upgrade-card__name > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.skill-upgrade-card__name h3,
+.skill-upgrade-card__name small {
+  margin: 0;
+}
+
+.skill-upgrade-card__name h3 {
+  overflow: hidden;
+  font-size: .7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skill-upgrade-card__name small {
+  overflow: hidden;
+  color: rgb(255 255 255 / 45%);
+  font-size: .36rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skill-upgrade-card__metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.skill-upgrade-card__metrics span {
+  display: grid;
+  gap: 2px;
+  border-radius: 9px;
+  padding: 7px;
+  background: rgb(255 255 255 / 6%);
+  color: rgb(255 255 255 / 56%);
+  font-size: .39rem;
+}
+
+.skill-upgrade-card__metrics strong {
+  color: #7ee0ff;
+  font-size: .52rem;
+}
+
+.skill-upgrade-card__next {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 7px;
+  align-items: center;
+  border-radius: 9px;
+  padding: 7px;
+  background: rgb(245 215 94 / 8%);
+}
+
+.skill-upgrade-card__next span,
+.skill-upgrade-card__next strong {
+  color: #f5d75e;
+  font-size: .42rem;
+}
+
+.skill-upgrade-card__next small {
+  overflow: hidden;
+  color: rgb(255 255 255 / 61%);
+  font-size: .38rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.skill-upgrade-card__next.is-max {
+  grid-template-columns: 1fr;
+  justify-items: center;
+}
+
+.skill-upgrade-card__actions {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.skill-upgrade-card__actions button {
+  min-height: 38px;
+}
+
+@media (max-width: 390px) {
+  .development-tabs button {
+    grid-template-columns: 27px minmax(0, 1fr);
+    gap: 0 4px;
+    padding: 5px 3px;
+  }
+
+  .development-tabs img {
+    width: 27px;
+    height: 27px;
+  }
+
+  .development-tabs strong {
+    font-size: .48rem;
+  }
+
+  .skill-lab-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .skill-lab-overview > strong {
+    justify-self: start;
+  }
+}
