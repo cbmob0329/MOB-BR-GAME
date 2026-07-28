@@ -4663,3 +4663,97 @@ img.asset-missing {
     translate: 0 540%;
   }
 }
+
+/* Generation 25: annual circuit schedule and monthly casual choice */
+
+.annual-circuit-overview {
+  display: grid;
+  gap: 7px;
+  border: 3px solid rgb(246 215 95 / 48%);
+  border-radius: 19px;
+  padding: 14px;
+  background:
+    linear-gradient(135deg, rgb(14 31 54 / 96%), rgb(8 18 33 / 98%));
+  color: #fff;
+  box-shadow: 0 12px 28px rgb(0 0 0 / 28%);
+}
+
+.annual-circuit-overview > span {
+  color: var(--accent);
+  font-size: .52rem;
+  font-weight: 1000;
+  letter-spacing: .1em;
+}
+
+.annual-circuit-overview h2,
+.annual-circuit-overview p {
+  margin: 0;
+}
+
+.annual-circuit-overview h2 {
+  font-size: 1rem;
+}
+
+.annual-circuit-overview > div {
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  align-items: center;
+  border-radius: 10px;
+  padding: 8px;
+  background: rgb(255 255 255 / 7%);
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.annual-circuit-overview > div::-webkit-scrollbar {
+  display: none;
+}
+
+.annual-circuit-overview b {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 4px 7px;
+  background: rgb(246 215 95 / 14%);
+  color: #fff4a7;
+  font-size: .45rem;
+}
+
+.annual-circuit-overview i {
+  color: rgb(255 255 255 / 45%);
+  font-style: normal;
+}
+
+.annual-circuit-overview p {
+  color: rgb(255 255 255 / 72%);
+  font-size: .55rem;
+  line-height: 1.55;
+}
+
+.tournament-current-card.is-casual-choice {
+  border-color: rgb(82 207 255 / 58%);
+  background:
+    linear-gradient(145deg, rgb(24 60 85 / 94%), rgb(11 25 43 / 98%));
+}
+
+.tournament-current-card.is-formal-stage {
+  border-color: rgb(246 215 95 / 48%);
+}
+
+.tournament-rule-summary {
+  border-radius: 9px;
+  padding: 7px 8px;
+  background: rgb(255 255 255 / 8%);
+  color: #fff;
+  font-size: .53rem;
+  font-weight: 850;
+  line-height: 1.5;
+}
+
+.tournament-calendar-card__main small {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: .46rem;
+  line-height: 1.45;
+}

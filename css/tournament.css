@@ -6340,3 +6340,107 @@ html[data-asset-prefix="../../"] .tournament-loading-overlay {
     height: 105px !important;
   }
 }
+
+/* Generation 25: circuit advancement presentation */
+
+.circuit-advancement-panel {
+  display: grid;
+  gap: 9px;
+  width: min(100%, 760px);
+  margin-inline: auto;
+  border: 3px solid rgb(246 215 95 / 58%);
+  border-radius: 18px;
+  padding: 13px;
+  background: rgb(5 15 30 / 92%);
+  color: #fff;
+  box-shadow: 0 13px 30px rgb(0 0 0 / 32%);
+}
+
+.circuit-advancement-panel > span {
+  color: var(--tournament-gold);
+  font-size: .54rem;
+  font-weight: 1000;
+  letter-spacing: .11em;
+}
+
+.circuit-advancement-panel h2,
+.circuit-advancement-panel p {
+  margin: 0;
+}
+
+.circuit-advancement-panel h2 {
+  font-size: .92rem;
+}
+
+.circuit-advancement-panel p {
+  color: rgb(255 255 255 / 76%);
+  font-size: .54rem;
+  line-height: 1.55;
+}
+
+.circuit-advancement-panel.is-continuation {
+  border-color: #64c8ff;
+  text-align: center;
+}
+
+.national-lc-qualifiers > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.advancement-logo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.advancement-team-card {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 12px;
+  padding: 7px;
+  background: rgb(255 255 255 / 6%);
+}
+
+.advancement-team-card img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.advancement-team-card > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.advancement-team-card span {
+  color: var(--tournament-gold);
+  font-size: .43rem;
+  font-weight: 950;
+}
+
+.advancement-team-card strong {
+  overflow: hidden;
+  font-size: .58rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.advancement-team-card small {
+  color: rgb(255 255 255 / 66%);
+  font-size: .42rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 390px) {
+  .national-lc-qualifiers > div,
+  .advancement-logo-grid {
+    grid-template-columns: 1fr;
+  }
+}
