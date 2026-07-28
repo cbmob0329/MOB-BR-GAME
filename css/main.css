@@ -6192,3 +6192,607 @@ img.asset-missing {
     min-height: 96px;
   }
 }
+
+
+/* Generation 28: ability portraits, tactical cinematic, calendar schedule */
+
+.development-workspace .team-player-selector {
+  margin-bottom: 0;
+}
+
+.development-workspace .team-player-tab {
+  overflow: hidden;
+}
+
+.development-workspace .team-player-tab img,
+.development-workspace .player-portrait--selector {
+  width: 58px !important;
+  height: 68px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  object-fit: contain !important;
+  object-position: center bottom !important;
+  background: transparent !important;
+  transform: none !important;
+  filter: drop-shadow(0 6px 5px rgb(0 0 0 / 28%));
+}
+
+.strategy-meeting-cinematic {
+  position: fixed;
+  z-index: 12500;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 7px;
+  overflow: hidden;
+  padding: 18px;
+  background:
+    radial-gradient(circle at center, rgb(76 196 255 / 16%), transparent 42%),
+    rgb(4 13 25 / 98%);
+  color: #fff;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 260ms ease;
+}
+
+.strategy-meeting-cinematic.is-briefing {
+  opacity: 1;
+}
+
+.strategy-meeting-cinematic.is-exit {
+  opacity: 0;
+}
+
+.strategy-meeting-cinematic > span {
+  color: #7ee0ff;
+  font-size: .57rem;
+  font-weight: 1000;
+  letter-spacing: .14em;
+}
+
+.strategy-meeting-cinematic > h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.strategy-meeting-cinematic__grid {
+  position: absolute;
+  inset: -20%;
+  background:
+    linear-gradient(rgb(84 201 255 / 7%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(84 201 255 / 7%) 1px, transparent 1px);
+  background-size: 34px 34px;
+  transform: perspective(500px) rotateX(62deg);
+  transform-origin: center bottom;
+  animation: strategy-grid-flow 1.2s linear infinite;
+}
+
+.strategy-meeting-cinematic__table {
+  position: relative;
+  width: min(88vw, 430px);
+  aspect-ratio: 1;
+  border: 2px solid rgb(108 219 255 / 24%);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgb(34 96 138 / 40%) 0 28%, rgb(8 26 46 / 95%) 29% 61%, rgb(34 96 138 / 22%) 62% 63%, transparent 64%);
+  box-shadow:
+    0 0 0 12px rgb(77 190 255 / 5%),
+    0 0 45px rgb(65 192 255 / 18%);
+}
+
+.strategy-meeting-cinematic__center {
+  position: absolute;
+  z-index: 3;
+  inset: 50% auto auto 50%;
+  display: grid;
+  width: 106px;
+  height: 106px;
+  place-content: center;
+  justify-items: center;
+  gap: 3px;
+  translate: -50% -50%;
+  border: 3px solid #7bdfff;
+  border-radius: 50%;
+  background: rgb(7 25 43 / 96%);
+}
+
+.strategy-meeting-cinematic__center img {
+  width: 57px;
+  height: 57px;
+  object-fit: contain;
+}
+
+.strategy-meeting-cinematic__center strong {
+  color: #90e6ff;
+  font-size: .43rem;
+}
+
+.strategy-meeting-cinematic__rank-ring {
+  position: absolute;
+  inset: 0;
+  animation: strategy-rank-ring 4.4s linear infinite;
+}
+
+.strategy-meeting-cinematic__rank-ring i {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  translate: -50% -50%;
+  transform:
+    rotate(calc(var(--rank-index) * 60deg))
+    translateY(-155px)
+    rotate(calc(var(--rank-index) * -60deg));
+  border-radius: 50%;
+  background: rgb(255 255 255 / 8%);
+  box-shadow: 0 6px 14px rgb(0 0 0 / 25%);
+}
+
+.strategy-meeting-cinematic__rank-ring img {
+  width: 43px;
+  height: 43px;
+  object-fit: contain;
+}
+
+.strategy-meeting-cinematic__coaches {
+  position: absolute;
+  inset: 0;
+}
+
+.strategy-meeting-cinematic__coaches article {
+  position: absolute;
+  z-index: 4;
+  display: grid;
+  width: 74px;
+  justify-items: center;
+  gap: 2px;
+  color: #fff;
+}
+
+.strategy-meeting-cinematic__coaches article:nth-child(1) {
+  top: 17px;
+  left: 28px;
+}
+
+.strategy-meeting-cinematic__coaches article:nth-child(2) {
+  top: 17px;
+  right: 28px;
+}
+
+.strategy-meeting-cinematic__coaches article:nth-child(3) {
+  right: 28px;
+  bottom: 17px;
+}
+
+.strategy-meeting-cinematic__coaches article:nth-child(4) {
+  bottom: 17px;
+  left: 28px;
+}
+
+.strategy-meeting-cinematic__coaches img {
+  width: 61px;
+  height: 61px;
+  border: 2px solid rgb(255 255 255 / 22%);
+  border-radius: 50%;
+  object-fit: contain;
+  background: rgb(255 255 255 / 6%);
+}
+
+.strategy-meeting-cinematic__coaches article.is-rank-up img {
+  border-color: #f5d75e;
+  box-shadow: 0 0 16px rgb(245 215 94 / 58%);
+  animation: strategy-coach-rank-up 500ms ease-in-out infinite alternate;
+}
+
+.strategy-meeting-cinematic__coaches span {
+  position: absolute;
+  top: 0;
+  right: 3px;
+  display: grid;
+  width: 23px;
+  height: 23px;
+  place-items: center;
+  border-radius: 50%;
+  background: #f5d75e;
+  color: #152037;
+  font-size: .38rem;
+  font-weight: 1000;
+}
+
+.strategy-meeting-cinematic__coaches strong {
+  width: 74px;
+  overflow: hidden;
+  font-size: .38rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.strategy-meeting-cinematic__result {
+  position: absolute;
+  z-index: 8;
+  inset: 50% auto auto 50%;
+  display: grid;
+  width: min(83vw, 340px);
+  justify-items: center;
+  gap: 4px;
+  translate: -50% -50%;
+  opacity: 0;
+  scale: .62;
+}
+
+.strategy-meeting-cinematic.is-reveal .strategy-meeting-cinematic__table {
+  opacity: .15;
+  scale: 1.22;
+  transition:
+    opacity 350ms ease,
+    scale 350ms ease;
+}
+
+.strategy-meeting-cinematic.is-reveal .strategy-meeting-cinematic__result {
+  animation: strategy-result-reveal 580ms cubic-bezier(.16,.87,.24,1) forwards;
+}
+
+.strategy-meeting-cinematic__rank {
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+}
+
+.strategy-meeting-cinematic__strategy {
+  width: 142px;
+  height: 142px;
+  object-fit: contain;
+  filter: drop-shadow(0 15px 16px rgb(0 0 0 / 38%));
+}
+
+.strategy-meeting-cinematic__result span {
+  color: #f5d75e;
+  font-size: .48rem;
+  font-weight: 1000;
+}
+
+.strategy-meeting-cinematic__result strong {
+  font-size: .84rem;
+}
+
+.strategy-meeting-cinematic__result small {
+  color: rgb(255 255 255 / 68%);
+  font-size: .43rem;
+}
+
+.strategy-meeting-cinematic__flare {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 285px;
+  height: 285px;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background:
+    repeating-conic-gradient(
+      rgb(245 215 94 / 23%) 0 8deg,
+      transparent 9deg 20deg
+    );
+  animation: strategy-flare 1.4s linear infinite;
+}
+
+@keyframes strategy-grid-flow {
+  to {
+    background-position: 34px 34px;
+  }
+}
+
+@keyframes strategy-rank-ring {
+  to {
+    rotate: 360deg;
+  }
+}
+
+@keyframes strategy-coach-rank-up {
+  to {
+    translate: 0 -4px;
+    scale: 1.05;
+  }
+}
+
+@keyframes strategy-result-reveal {
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes strategy-flare {
+  to {
+    rotate: 360deg;
+  }
+}
+
+.tournament-year-calendar {
+  display: grid;
+  gap: 11px;
+  margin-bottom: 15px;
+}
+
+.tournament-year-calendar__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  border: 2px solid rgb(255 255 255 / 14%);
+  border-radius: 18px;
+  padding: 13px;
+  background:
+    radial-gradient(circle at 0 0, rgb(74 191 255 / 15%), transparent 42%),
+    rgb(10 21 37 / 94%);
+  color: #fff;
+}
+
+.tournament-year-calendar__header span {
+  color: var(--accent);
+  font-size: .47rem;
+  font-weight: 1000;
+  letter-spacing: .11em;
+}
+
+.tournament-year-calendar__header h2,
+.tournament-year-calendar__header p {
+  margin: 0;
+}
+
+.tournament-year-calendar__header h2 {
+  margin-top: 2px;
+  font-size: .95rem;
+}
+
+.tournament-year-calendar__header p {
+  margin-top: 3px;
+  color: rgb(255 255 255 / 65%);
+  font-size: .5rem;
+}
+
+.tournament-calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 4px;
+}
+
+.tournament-calendar-legend span {
+  border-radius: 999px;
+  padding: 4px 7px;
+  color: #fff;
+  font-size: .39rem;
+  letter-spacing: 0;
+}
+
+.tournament-calendar-legend .is-formal {
+  background: rgb(70 147 225 / 42%);
+}
+
+.tournament-calendar-legend .is-casual {
+  background: rgb(206 102 188 / 42%);
+}
+
+.tournament-calendar-legend .is-current {
+  background: rgb(245 215 94 / 30%);
+  color: #f8dd75;
+}
+
+.tournament-month-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tournament-month-card {
+  display: grid;
+  min-width: 0;
+  overflow: hidden;
+  border: 2px solid rgb(255 255 255 / 12%);
+  border-radius: 16px;
+  background: rgb(10 18 30 / 93%);
+  box-shadow: 0 10px 23px rgb(0 0 0 / 23%);
+}
+
+.tournament-month-card.is-current-month {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 2px rgb(242 210 86 / 8%),
+    0 12px 27px rgb(0 0 0 / 27%);
+}
+
+.tournament-month-card > header {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 8px 9px;
+  background:
+    linear-gradient(90deg, rgb(75 191 255 / 16%), transparent);
+  color: #fff;
+}
+
+.tournament-month-card > header span {
+  color: #7ee0ff;
+  font-size: .48rem;
+  font-weight: 1000;
+}
+
+.tournament-month-card > header strong {
+  font-size: .72rem;
+}
+
+.tournament-month-card__weeks {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  min-width: 0;
+}
+
+.tournament-week-cell {
+  min-width: 0;
+  border-top: 1px solid rgb(255 255 255 / 8%);
+  border-right: 1px solid rgb(255 255 255 / 8%);
+  padding: 4px;
+}
+
+.tournament-week-cell:last-child {
+  border-right: 0;
+}
+
+.tournament-week-cell.is-current {
+  background:
+    linear-gradient(180deg, rgb(245 215 94 / 17%), rgb(245 215 94 / 4%));
+}
+
+.tournament-week-cell__label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+  margin-bottom: 4px;
+}
+
+.tournament-week-cell__label span {
+  color: rgb(255 255 255 / 62%);
+  font-size: .36rem;
+  font-weight: 1000;
+}
+
+.tournament-week-cell__label b {
+  border-radius: 999px;
+  padding: 1px 3px;
+  background: #f5d75e;
+  color: #172034;
+  font-size: .27rem;
+}
+
+.tournament-week-cell__events {
+  display: grid;
+  gap: 3px;
+}
+
+.tournament-calendar-event {
+  display: grid;
+  min-width: 0;
+  justify-items: center;
+  gap: 2px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 7px;
+  padding: 4px 2px;
+  background: rgb(255 255 255 / 5%);
+  color: #fff;
+  text-align: center;
+}
+
+.tournament-calendar-event.is-formal {
+  border-color: rgb(93 181 255 / 30%);
+  background: rgb(72 144 215 / 11%);
+}
+
+.tournament-calendar-event.is-casual {
+  border-color: rgb(236 119 213 / 30%);
+  background: rgb(202 92 183 / 11%);
+}
+
+.tournament-calendar-event.is-completed {
+  opacity: .58;
+}
+
+.tournament-calendar-event > img {
+  width: 31px;
+  height: 31px;
+  object-fit: contain;
+}
+
+.tournament-calendar-event > div {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: 1px;
+}
+
+.tournament-calendar-event span {
+  color: #8cdefe;
+  font-size: .24rem;
+  font-weight: 1000;
+}
+
+.tournament-calendar-event.is-casual span {
+  color: #f0a7e4;
+}
+
+.tournament-calendar-event strong,
+.tournament-calendar-event small {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tournament-calendar-event strong {
+  font-size: .31rem;
+}
+
+.tournament-calendar-event small {
+  color: rgb(255 255 255 / 56%);
+  font-size: .24rem;
+}
+
+.tournament-calendar-event em {
+  border-radius: 999px;
+  padding: 1px 4px;
+  background: rgb(255 255 255 / 8%);
+  color: rgb(255 255 255 / 64%);
+  font-size: .23rem;
+  font-style: normal;
+}
+
+.tournament-calendar-rest {
+  display: grid;
+  min-height: 64px;
+  place-content: center;
+  gap: 2px;
+  color: rgb(255 255 255 / 31%);
+  text-align: center;
+}
+
+.tournament-calendar-rest span {
+  font-size: .25rem;
+  font-weight: 950;
+}
+
+.tournament-calendar-rest small {
+  display: none;
+}
+
+@media (max-width: 620px) {
+  .tournament-month-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tournament-year-calendar__header {
+    grid-template-columns: 1fr;
+  }
+
+  .tournament-calendar-legend {
+    justify-content: start;
+  }
+}
+
+@media (max-width: 390px) {
+  .strategy-meeting-cinematic__table {
+    width: min(94vw, 390px);
+  }
+
+  .strategy-meeting-cinematic__rank-ring i {
+    transform:
+      rotate(calc(var(--rank-index) * 60deg))
+      translateY(-137px)
+      rotate(calc(var(--rank-index) * -60deg));
+  }
+}
