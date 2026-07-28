@@ -10,11 +10,11 @@ import {
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=28";
+} from "../../data/game-data.js?v=29";
 import {
   isCasualTournamentType,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=28";
+} from "../../data/circuit-data.js?v=29";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
@@ -62,10 +62,10 @@ import {
 import {
   advanceWeeksToDraft,
   applyResourceDeltaToDraft,
-} from "./state.js?v=28";
+} from "./state.js?v=29";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=28";
+} from "./tournament-bridge.js?v=29";
 
 export const MANAGEMENT_FEATURE_VERSION =
   "mobbr-management-feature-1.3.0";

@@ -11,11 +11,11 @@ import {
   calculateCharacterOverallRank,
   characterValueToRank,
   weaponValueToRank,
-} from "../../data/game-data.js?v=28";
+} from "../../data/game-data.js?v=29";
 import {
   calculateMaxHp,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=28";
+} from "../../data/battle-config.js?v=29";
 import {
   WEAPON_SKINS,
   getWeaponSkin,
@@ -33,7 +33,7 @@ import {
   getWeaponUpgradeCost,
 } from "../../data/ability-data.js";
 
-export const TEAM_FEATURE_VERSION = "mobbr-team-feature-0.8.0";
+export const TEAM_FEATURE_VERSION = "mobbr-team-feature-0.9.0";
 
 const ROLE_ICONS = Object.freeze({
   IGL: "icon/IGL.png",
@@ -47,6 +47,26 @@ const POINT_LABELS = Object.freeze({
   mental: "MENTAL",
   shoot: "SHOOT",
 });
+
+export const SKILL_MAX_LEVEL = 5;
+export const SKILL_UPGRADE_COSTS = Object.freeze({
+  1: 120_000,
+  2: 300_000,
+  3: 650_000,
+  4: 1_200_000,
+});
+
+export function getSkillLevelProfile(level) {
+  const validLevel = Math.max(1, Math.min(SKILL_MAX_LEVEL, Number(level) || 1));
+  const steps = validLevel - 1;
+  return Object.freeze({
+    level: validLevel,
+    cooldownRate: 1 - steps * 0.025,
+    powerMultiplier: 1 + steps * 0.035,
+    cooldownReductionPercent: steps * 2.5,
+    powerIncreasePercent: steps * 3.5,
+  });
+}
 
 function escapeHtml(value) {
   return String(value)
@@ -137,16 +157,115 @@ function subtractPointCost(pointPool, cost) {
 export function ensurePlayerSkillsToDraft(draft) {
   assertDraft(draft);
   for (const player of draft.playerTeam.members) {
-    if (!Array.isArray(player.skills) || player.skills.length !== 3) {
-      player.skills = getRoleCommonSkills(player.role).map((skill) => ({
-        skillId: skill.id,
-        name: skill.name,
-        type: skill.type,
-        target: skill.target,
-        baseCt: skill.baseCt,
-      }));
+    const existingById = new Map(
+      (Array.isArray(player.skills) ? player.skills : []).map(
+        (skill) => [skill.skillId, skill],
+      ),
+    );
+    player.skills = getRoleCommonSkills(player.role).map((master) => {
+      const existing = existingById.get(master.id) ?? {};
+      return {
+        skillId: master.id,
+        name: master.name,
+        customName:
+          typeof existing.customName === "string" && existing.customName.trim()
+            ? existing.customName.trim().slice(0, 24)
+            : null,
+        level:
+          Number.isInteger(existing.level)
+            ? Math.max(1, Math.min(SKILL_MAX_LEVEL, existing.level))
+            : 1,
+        type: master.type,
+        target: master.target,
+        baseCt: master.baseCt,
+      };
+    });
+  }
+}
+
+export function upgradePlayerSkillToDraft(draft, playerId, skillId) {
+  assertDraft(draft);
+  ensurePlayerSkillsToDraft(draft);
+  const player = getPlayer(draft, playerId);
+  const skill = player.skills.find((entry) => entry.skillId === skillId);
+  if (!skill) throw new RangeError(`Unknown player skill: ${skillId}`);
+  const currentLevel = Math.max(1, Math.min(SKILL_MAX_LEVEL, skill.level ?? 1));
+  if (currentLevel >= SKILL_MAX_LEVEL) {
+    throw new RangeError("このスキルは最大レベルです。");
+  }
+  const coinCost = SKILL_UPGRADE_COSTS[currentLevel];
+  if (draft.resources.coin < coinCost) {
+    throw new RangeError("スキル強化に必要なCOINが不足しています。");
+  }
+  draft.resources.coin -= coinCost;
+  skill.level = currentLevel + 1;
+  return {
+    playerId,
+    skillId,
+    name: skill.customName ?? skill.name,
+    previousLevel: currentLevel,
+    currentLevel: skill.level,
+    coinCost,
+    profile: getSkillLevelProfile(skill.level),
+  };
+}
+
+export function renamePlayerSkillToDraft(draft, playerId, skillId, requestedName) {
+  assertDraft(draft);
+  ensurePlayerSkillsToDraft(draft);
+  const player = getPlayer(draft, playerId);
+  const skill = player.skills.find((entry) => entry.skillId === skillId);
+  if (!skill) throw new RangeError(`Unknown player skill: ${skillId}`);
+  const customName = String(requestedName ?? "").trim();
+  if (!customName) {
+    skill.customName = null;
+  } else if (customName.length > 24) {
+    throw new RangeError("スキル名は24文字以内にしてください。");
+  } else {
+    skill.customName = customName;
+  }
+  return {
+    playerId,
+    skillId,
+    name: skill.customName ?? skill.name,
+    defaultName: skill.name,
+    reset: skill.customName === null,
+  };
+}
+
+export function applyTestMaxPlayerBuildToDraft(draft) {
+  assertDraft(draft);
+  ensurePlayerSkillsToDraft(draft);
+  const maximumWeaponValue = 72;
+  const maximumWeaponRank = weaponValueToRank(maximumWeaponValue);
+  for (const player of draft.playerTeam.members) {
+    for (const statId of STAT_IDS) {
+      player.stats[statId] = 73;
+    }
+    const overall = calculateCharacterOverallRank(player.stats);
+    player.characterRank = overall.rank;
+    player.characterRankValue = overall.internalAverage;
+    player.maxHp = calculateMaxHp(player.stats.stamina);
+    player.currentHp = player.maxHp;
+    for (const statId of ["close", "mid", "far"]) {
+      player.weapon.internalValues[statId] = maximumWeaponValue;
+      player.weapon.rangeRanks[statId] = maximumWeaponRank;
+    }
+    for (const statId of ["fireRate", "reload"]) {
+      player.weapon.internalValues[statId] = maximumWeaponValue;
+    }
+    player.weapon.fireRateRank = maximumWeaponRank;
+    player.weapon.reloadRank = maximumWeaponRank;
+    for (const skill of player.skills) {
+      skill.level = SKILL_MAX_LEVEL;
     }
   }
+  return {
+    playerCount: draft.playerTeam.members.length,
+    statValue: 73,
+    weaponValue: maximumWeaponValue,
+    skillLevel: SKILL_MAX_LEVEL,
+  };
 }
 
 export function getSelectedPlayerId(snapshot, requestedPlayerId = null) {
@@ -1056,6 +1175,71 @@ function conditionLabel(detail) {
     ? ` ${condition.tier.toUpperCase()}`
     : "";
   return `${labels[condition.type] ?? condition.type}${tier} ${formatNumber(current)} / ${formatNumber(required)}`;
+}
+
+export function renderSkillUpgradeSection(
+  snapshot,
+  selectedPlayerId,
+  { includeSelector = true } = {},
+) {
+  const playerId = getSelectedPlayerId(snapshot, selectedPlayerId);
+  const player = getPlayer(snapshot, playerId);
+  const masterById = new Map(
+    getRoleCommonSkills(player.role).map((skill) => [skill.id, skill]),
+  );
+  const skills = (player.skills ?? []).map((skill) => {
+    const master = masterById.get(skill.skillId) ?? skill;
+    const level = Math.max(1, Math.min(SKILL_MAX_LEVEL, skill.level ?? 1));
+    return {
+      ...skill,
+      master,
+      level,
+      profile: getSkillLevelProfile(level),
+      nextProfile: getSkillLevelProfile(Math.min(SKILL_MAX_LEVEL, level + 1)),
+      displayName: skill.customName ?? skill.name ?? master.name,
+      nextCost: level < SKILL_MAX_LEVEL ? SKILL_UPGRADE_COSTS[level] : null,
+    };
+  });
+
+  return `
+    <div class="team-feature-live-section" data-live-section="skill">
+      ${includeSelector ? renderPlayerSelector(snapshot, playerId) : ""}
+      <section class="skill-lab-overview">
+        <div>
+          <span>PLAYER SKILL LAB</span>
+          <h2>${escapeHtml(player.role)} SKILL CUSTOMIZE</h2>
+          <p>最大LV5。通常攻撃と武器の価値を残しながら、CTと効果を少しずつ強化します。</p>
+        </div>
+        <strong>COIN ${formatNumber(snapshot.resources.coin)}</strong>
+      </section>
+      <section class="skill-upgrade-grid">
+        ${skills.map((skill, index) => `
+          <article class="skill-upgrade-card ${skill.level >= SKILL_MAX_LEVEL ? "is-max" : ""}">
+            <header><span>SKILL ${index + 1}</span><strong>LV ${skill.level}</strong></header>
+            <div class="skill-upgrade-card__name">
+              <img src="icon/sp.png" alt="">
+              <div><h3>${escapeHtml(skill.displayName)}</h3><small>DEFAULT ${escapeHtml(skill.name ?? skill.master.name)}</small></div>
+            </div>
+            <div class="skill-upgrade-card__metrics">
+              <span>CT <strong>${skill.profile.cooldownReductionPercent.toFixed(1)}%短縮</strong></span>
+              <span>効果 <strong>+${skill.profile.powerIncreasePercent.toFixed(1)}%</strong></span>
+            </div>
+            ${skill.nextCost !== null ? `
+              <div class="skill-upgrade-card__next">
+                <span>NEXT LV ${skill.level + 1}</span>
+                <small>CT ${skill.nextProfile.cooldownReductionPercent.toFixed(1)}%短縮 / 効果 +${skill.nextProfile.powerIncreasePercent.toFixed(1)}%</small>
+                <strong>COIN ${formatNumber(skill.nextCost)}</strong>
+              </div>
+            ` : `<div class="skill-upgrade-card__next is-max"><strong>MAX LEVEL</strong></div>`}
+            <div class="skill-upgrade-card__actions">
+              <button type="button" class="secondary-button" data-action="rename-player-skill" data-player-id="${escapeAttribute(playerId)}" data-skill-id="${escapeAttribute(skill.skillId)}">名称変更</button>
+              <button type="button" class="primary-button" data-action="upgrade-player-skill" data-player-id="${escapeAttribute(playerId)}" data-skill-id="${escapeAttribute(skill.skillId)}" ${skill.nextCost !== null && snapshot.resources.coin >= skill.nextCost ? "" : "disabled"}>${skill.nextCost === null ? "MAX" : "スキル強化"}</button>
+            </div>
+          </article>
+        `).join("")}
+      </section>
+    </div>
+  `;
 }
 
 export function renderSpecialAbilitySection(

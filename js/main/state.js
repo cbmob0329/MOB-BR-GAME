@@ -19,11 +19,11 @@ import {
   getCompanyRankData,
   rankToWeaponValue,
   validateGameDate,
-} from "../../data/game-data.js?v=28";
+} from "../../data/game-data.js?v=29";
 import {
   BATTLE_CONFIG_VERSION,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=28";
+} from "../../data/battle-config.js?v=29";
 import {
   TRAINING_DATA_VERSION,
 } from "../../data/training-data.js";
@@ -48,7 +48,7 @@ import {
   STRATEGY_RULES,
 } from "../../data/strategy-data.js";
 
-export const SAVE_SCHEMA_VERSION = "mobbr-save-1.5.0";
+export const SAVE_SCHEMA_VERSION = "mobbr-save-1.6.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
 
 export const STORAGE_KEYS = Object.freeze({
@@ -408,6 +408,8 @@ function createInitialPlayer(definition, playerName, weaponName) {
     skills: getRoleCommonSkills(definition.role).map((skill) => ({
       skillId: skill.id,
       name: skill.name,
+      customName: null,
+      level: 1,
       type: skill.type,
       target: skill.target,
       baseCt: skill.baseCt,
@@ -1050,6 +1052,31 @@ function migrateLegacyPlayer(player) {
     delete migrated.stats.sap;
   }
 
+  const skillMasters = getRoleCommonSkills(migrated.role);
+  const existingSkills = new Map(
+    (Array.isArray(migrated.skills) ? migrated.skills : []).map(
+      (skill) => [skill.skillId, skill],
+    ),
+  );
+  migrated.skills = skillMasters.map((master) => {
+    const existing = existingSkills.get(master.id) ?? {};
+    return {
+      skillId: master.id,
+      name: master.name,
+      customName:
+        typeof existing.customName === "string" && existing.customName.trim()
+          ? existing.customName.trim().slice(0, 24)
+          : null,
+      level:
+        Number.isInteger(existing.level)
+          ? Math.max(1, Math.min(5, existing.level))
+          : 1,
+      type: master.type,
+      target: master.target,
+      baseCt: master.baseCt,
+    };
+  });
+
   delete migrated.secondaryWeapon;
   delete migrated.ult;
 
@@ -1135,7 +1162,8 @@ export function migrateSaveState(
     rawState.schemaVersion === "mobbr-save-1.1.0" ||
     rawState.schemaVersion === "mobbr-save-1.2.0" ||
     rawState.schemaVersion === "mobbr-save-1.3.0" ||
-    rawState.schemaVersion === "mobbr-save-1.4.0"
+    rawState.schemaVersion === "mobbr-save-1.4.0" ||
+    rawState.schemaVersion === "mobbr-save-1.5.0"
   ) {
     const migrated = migrateUnversionedSave(rawState, timestamp);
     validateSaveState(migrated);

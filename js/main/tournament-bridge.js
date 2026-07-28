@@ -17,7 +17,7 @@ import {
   getPlacementPoints,
   getTournamentEventsForDate,
   isChampionshipYear,
-} from "../../data/game-data.js?v=28";
+} from "../../data/game-data.js?v=29";
 import {
   CASUAL_TOURNAMENT_RULES,
   FORMAL_CIRCUIT_RULES,
@@ -31,7 +31,7 @@ import {
   selectTeamIds,
   sourcePoolForTeamId,
   teamSeed,
-} from "../../data/circuit-data.js?v=28";
+} from "../../data/circuit-data.js?v=29";
 import {
   LOCAL_CPU_TEAMS,
 } from "../../data/cpu-local-data.js";
@@ -43,7 +43,7 @@ import {
 } from "../../data/cpu-world-data.js";
 import {
   BATTLE_CONFIG_VERSION,
-} from "../../data/battle-config.js?v=28";
+} from "../../data/battle-config.js?v=29";
 import {
   CONSUMABLE_ITEMS,
   ITEM_MASTER_VERSION,
@@ -57,9 +57,9 @@ import {
   DuplicateTournamentResultError,
   STORAGE_KEYS,
   calculateChecksum,
-} from "./state.js?v=28";
+} from "./state.js?v=29";
 
-export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-1.6.0";
+export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-1.7.0";
 export const TOURNAMENT_ENTRY_SCHEMA_VERSION =
   "mobbr-tournament-entry-1.0.0";
 export const TOURNAMENT_RESULT_SCHEMA_VERSION =
@@ -1754,6 +1754,31 @@ function validateMember(member) {
       `${member.role} must have exactly three skills.`,
       "INVALID_PLAYER_SKILLS",
     );
+  }
+  for (const skill of member.skills) {
+    if (
+      !Number.isInteger(skill.level ?? 1) ||
+      (skill.level ?? 1) < 1 ||
+      (skill.level ?? 1) > 5
+    ) {
+      throw new TournamentEntryValidationError(
+        `Invalid skill level for ${member.playerId}.`,
+        "INVALID_PLAYER_SKILL_LEVEL",
+      );
+    }
+    if (
+      skill.customName !== null &&
+      skill.customName !== undefined &&
+      (
+        typeof skill.customName !== "string" ||
+        skill.customName.trim().length > 24
+      )
+    ) {
+      throw new TournamentEntryValidationError(
+        `Invalid custom skill name for ${member.playerId}.`,
+        "INVALID_PLAYER_SKILL_NAME",
+      );
+    }
   }
   if (!Array.isArray(member.specialAbilities)) {
     throw new TournamentEntryValidationError(

@@ -20,9 +20,10 @@ import {
   SaveError,
   SaveNotFoundError,
   createGameStateManager,
-} from "./state.js?v=28";
+} from "./state.js?v=29";
 import {
   applyPlayerStatUpgradePlanToDraft,
+  applyTestMaxPlayerBuildToDraft,
   applyWeaponUpgradePlanToDraft,
   calculatePlayerStatUpgradePlan,
   calculateWeaponUpgradePlan,
@@ -34,11 +35,14 @@ import {
   renderAbilityUpSection,
   renderEquipmentSection,
   renderPlayerSelector,
+  renderSkillUpgradeSection,
   renderSpecialAbilitySection,
   renderTeamDetailsSection,
+  renamePlayerSkillToDraft,
+  upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=28";
+} from "./team.js?v=29";
 import {
   getSpecialAbility,
 } from "../../data/ability-data.js";
@@ -46,13 +50,13 @@ import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=28";
+} from "./management.js?v=29";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=28";
+} from "./tournament-bridge.js?v=29";
 
-export const APP_VERSION = "mobbr-main-app-1.6.0";
+export const APP_VERSION = "mobbr-main-app-1.7.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -861,6 +865,7 @@ function settingsTemplate(snapshot, currentRoute, fromTitle = false) {
               <div class="test-mode-actions">
                 <button type="button" data-action="test-grant-resources">通貨を補充</button>
                 <button type="button" data-action="test-grant-points">全選手PT補充</button>
+                <button type="button" data-action="test-max-player-build">選手・武器・スキルMAX</button>
                 <button type="button" data-action="test-advance-week" data-weeks="1">+1週</button>
                 <button type="button" data-action="test-advance-week" data-weeks="4">+4週</button>
                 <button type="button" data-action="test-advance-week" data-weeks="12">+12週</button>
@@ -907,8 +912,8 @@ function teamFeatureTemplate(
 
   if (route === ROUTES.ability) {
     const activeDevelopmentMode =
-      developmentMode === "weapon"
-        ? "weapon"
+      ["ability", "weapon", "skill"].includes(developmentMode)
+        ? developmentMode
         : "ability";
     content = `
       <section class="development-workspace" data-live-section="development">
@@ -934,6 +939,16 @@ function teamFeatureTemplate(
             <span>WEAPON</span>
             <strong>武器強化</strong>
           </button>
+          <button
+            type="button"
+            class="${activeDevelopmentMode === "skill" ? "is-active" : ""}"
+            data-action="select-development-tab"
+            data-development-tab="skill"
+          >
+            <img src="icon/sp.png" alt="">
+            <span>SKILL</span>
+            <strong>スキル強化</strong>
+          </button>
         </nav>
         <div class="development-body" data-development-body>
           ${
@@ -944,12 +959,18 @@ function teamFeatureTemplate(
                   abilityPlan,
                   { includeSelector: false },
                 )
-              : renderEquipmentSection(
-                  snapshot,
-                  playerId,
-                  weaponPlan,
-                  { includeSelector: false },
-                )
+              : activeDevelopmentMode === "weapon"
+                ? renderEquipmentSection(
+                    snapshot,
+                    playerId,
+                    weaponPlan,
+                    { includeSelector: false },
+                  )
+                : renderSkillUpgradeSection(
+                    snapshot,
+                    playerId,
+                    { includeSelector: false },
+                  )
           }
         </div>
       </section>
@@ -1327,7 +1348,13 @@ export function createMainApp({
               weaponUpgradePlan,
               { includeSelector: false },
             )
-          : renderSpecialAbilitySection(
+          : sectionType === "skill"
+            ? renderSkillUpgradeSection(
+                snapshot,
+                playerId,
+                { includeSelector: false },
+              )
+            : renderSpecialAbilitySection(
               snapshot,
               playerId,
               selectedAbilityColor,
@@ -2176,6 +2203,19 @@ export function createMainApp({
       renderPreservingPageScroll();
       return;
     }
+    if (action === "test-max-player-build") {
+      const snapshot = stateManager.getSnapshot();
+      if (!snapshot?.settings?.testMode) return;
+      const transaction = stateManager.transact(
+        "test_mode_player_build_maxed",
+        (draft) => applyTestMaxPlayerBuildToDraft(draft),
+      );
+      showToast(
+        `TEST MODE：${transaction.result.playerCount}選手を完全MAXへ設定しました`,
+      );
+      renderPreservingPageScroll();
+      return;
+    }
     if (action === "test-advance-week") {
       const snapshot = stateManager.getSnapshot();
       if (!snapshot?.settings?.testMode) return;
@@ -2204,8 +2244,10 @@ export function createMainApp({
     }
     if (action === "select-development-tab") {
       developmentMode =
-        actionElement.dataset.developmentTab === "weapon"
-          ? "weapon"
+        ["ability", "weapon", "skill"].includes(
+          actionElement.dataset.developmentTab,
+        )
+          ? actionElement.dataset.developmentTab
           : "ability";
       renderPreservingPageScroll();
       return;
@@ -2411,6 +2453,75 @@ export function createMainApp({
       } catch (error) {
         await openAlert({
           title: "スキンを変更できません",
+          body: `<p>${escapeHtml(error.message)}</p>`,
+          code: getErrorCode(error),
+        });
+      }
+      return;
+    }
+    if (action === "upgrade-player-skill") {
+      const playerId = actionElement.dataset.playerId;
+      const skillId = actionElement.dataset.skillId;
+      const snapshot = stateManager.getSnapshot();
+      const player = snapshot.playerTeam.members.find(
+        (member) => member.playerId === playerId,
+      );
+      const skill = player?.skills?.find(
+        (entry) => entry.skillId === skillId,
+      );
+      if (!skill) return;
+      const confirmed = await openConfirm({
+        title: `${skill.customName ?? skill.name}を強化しますか？`,
+        body: `<p>通常攻撃と武器の価値を残すため、CTと効果を段階的に強化します。</p><p>現在LV ${skill.level ?? 1}</p>`,
+        confirmLabel: "スキル強化",
+      });
+      if (!confirmed) return;
+      try {
+        const transaction = stateManager.transact(
+          "player_skill_upgraded",
+          (draft) => upgradePlayerSkillToDraft(draft, playerId, skillId),
+        );
+        showToast(
+          `${transaction.result.name} LV${transaction.result.currentLevel}へ強化`,
+        );
+        updateTeamFeatureLiveSection("skill");
+      } catch (error) {
+        await openAlert({
+          title: "スキルを強化できません",
+          body: `<p>${escapeHtml(error.message)}</p>`,
+          code: getErrorCode(error),
+        });
+      }
+      return;
+    }
+    if (action === "rename-player-skill") {
+      const playerId = actionElement.dataset.playerId;
+      const skillId = actionElement.dataset.skillId;
+      const snapshot = stateManager.getSnapshot();
+      const player = snapshot.playerTeam.members.find(
+        (member) => member.playerId === playerId,
+      );
+      const skill = player?.skills?.find(
+        (entry) => entry.skillId === skillId,
+      );
+      if (!skill) return;
+      const nextName = await openTextPrompt({
+        title: "スキル名を変更",
+        body: `<p>大会実況とスキルカットインにも反映されます。空欄で初期名へ戻します。</p>`,
+        initialValue: skill.customName ?? skill.name,
+        maximumLength: 24,
+      });
+      if (nextName === false) return;
+      try {
+        const transaction = stateManager.transact(
+          "player_skill_renamed",
+          (draft) => renamePlayerSkillToDraft(draft, playerId, skillId, nextName),
+        );
+        showToast(`${transaction.result.name}へ変更しました`);
+        updateTeamFeatureLiveSection("skill");
+      } catch (error) {
+        await openAlert({
+          title: "スキル名を変更できません",
           body: `<p>${escapeHtml(error.message)}</p>`,
           code: getErrorCode(error),
         });
