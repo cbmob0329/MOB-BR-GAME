@@ -20,7 +20,7 @@ import {
 import {
   createBattlePlaybackController,
   renderBattleOutcomeScreen,
-} from "./battle-ui.js";
+} from "./battle-ui.js?v=24";
 import {
   EXPLORATION_PAGES,
   beginExplorationToDraft,
@@ -45,6 +45,7 @@ import {
 import {
   advanceAwardToDraft,
   finalizeCurrentMatchToDraft,
+  getQualificationDisplay,
   prepareAwardsToDraft,
   prepareNextMatchToDraft,
   prepareTournamentResultToDraft,
@@ -56,7 +57,7 @@ import {
   renderReturningResultScreen,
   renderTournamentResultScreen,
   writePreparedResultToStorage,
-} from "./results.js";
+} from "./results.js?v=24";
 
 import {
   fastForwardMatchToChampionToDraft,
@@ -68,7 +69,7 @@ import {
   resolveRoundEncounterToDraft,
 } from "./round.js";
 
-export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-2.0.0";
+export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-2.1.0";
 
 const PHASE_LABELS = Object.freeze({
   IDLE: "待機",
@@ -166,6 +167,8 @@ function topStatusTemplate(runtime) {
   const activeTeams = runtime.activeTeamIds.length;
   const match = runtime.match > 0 ? runtime.match : "-";
   const round = runtime.round > 0 ? runtime.round : "-";
+  const qualification =
+    getQualificationDisplay(runtime);
   return `
     <header class="tournament-status">
       <div class="tournament-status__main">
@@ -176,6 +179,16 @@ function topStatusTemplate(runtime) {
         </div>
         <div class="tournament-status__phase">${escapeHtml(formatTournamentPhase(runtime.phase))}</div>
       </div>
+      ${
+        qualification.enabled
+          ? `
+            <div class="tournament-status__qualification">
+              <span>QUALIFY</span>
+              <strong>TOP ${qualification.maximumPlace}</strong>
+            </div>
+          `
+          : ""
+      }
       <div class="tournament-status__metrics">
         <span><img src="icon/match.png" alt="">MATCH <strong>${match}</strong></span>
         <span><img src="icon/round.png" alt="">ROUND <strong>${round}</strong></span>
@@ -642,6 +655,24 @@ function roundResultTemplate(runtime) {
   );
   const announcement = record.remainingAnnouncements.at(-1);
   const topRows = record.teamResults.slice(0, Math.min(10, record.teamResults.length));
+  const roundVerdict =
+    playerRow?.survived
+      ? {
+          state: "clear",
+          label: "ROUND CLEAR",
+          title: `ROUND ${runtime.round} 突破`,
+          message:
+            playerRow.roundPlace <= record.targetCount
+              ? `${record.targetCount}チームの生存枠へ入りました。次のROUNDも集中していきましょう！`
+              : "次のROUNDへ進みます！",
+        }
+      : {
+          state: "out",
+          label: "ELIMINATED",
+          title: `ROUND ${runtime.round} 敗退`,
+          message:
+            "このMATCHでは脱落となりました。チャンピオン決定まで大会を見届けます！",
+        };
 
   return provisionalPhaseTemplate(runtime, {
     eyebrow: "ROUND RESULT",
@@ -664,6 +695,16 @@ function roundResultTemplate(runtime) {
         ? "MATCH CHAMPION"
         : "NEXT ROUND",
     content: `
+      <section class="round-result-verdict is-${roundVerdict.state}">
+        <img src="icon/mic.png" alt="モブマイク">
+        <span>${escapeHtml(roundVerdict.label)}</span>
+        <h2>${escapeHtml(roundVerdict.title)}</h2>
+        <strong>
+          FIELD ${playerRow?.roundPlace ?? "-"}位 /
+          生存ライン ${record.targetCount}位以内
+        </strong>
+        <p>${escapeHtml(roundVerdict.message)}</p>
+      </section>
       <div class="round-field-summary">
         <div class="remaining-team-cut ${announcement ? "is-announcement" : ""}">
           <span>ALIVE TEAMS</span>

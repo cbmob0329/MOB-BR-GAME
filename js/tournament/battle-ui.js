@@ -14,7 +14,7 @@ import {
   createCommentaryDirector,
 } from "./commentary.js";
 
-export const BATTLE_UI_VERSION = "mobbr-battle-ui-1.4.0";
+export const BATTLE_UI_VERSION = "mobbr-battle-ui-1.5.0";
 export const BATTLE_REPLAY_SCHEMA_VERSION =
   "mobbr-battle-replay-1.0.0";
 
@@ -220,11 +220,21 @@ function transientForEvent(event, model) {
     skillName: event.skillName ?? event.sourceName ?? null,
     actorName: actor?.name ?? null,
     actorImage: actor?.image ?? null,
+    actorRole: actor?.role ?? null,
+    actorDistance: actor?.distance ?? null,
+    previousDistance: event.previousDistance ?? null,
+    currentDistance: event.currentDistance ?? actor?.distance ?? null,
     actorTeamName: actor ? model.teams[actor.teamId]?.teamName ?? null : null,
     targetName: target?.name ?? null,
     targetTeamName: target ? model.teams[target.teamId]?.teamName ?? null : null,
   };
 
+  if (event.type === "distance_changed") {
+    return {
+      ...base,
+      effect: "range_shift",
+    };
+  }
   if (
     [
       "normal_attack_hit",
@@ -565,12 +575,34 @@ function fxLayerTemplate(transient) {
       >+${formatNumber(transient.healing)}</strong>
     `;
   } else if (transient.effect === "skill_cutin") {
+    const roleClass =
+      String(transient.actorRole ?? "atk")
+        .toLowerCase();
+    const distanceClass =
+      String(transient.actorDistance ?? "mid")
+        .toLowerCase();
     effect = `
-      <div class="battle-skill-cutin">
+      <div class="battle-skill-cutin battle-skill-cutin--${escapeAttribute(roleClass)} battle-skill-cutin--${escapeAttribute(distanceClass)}">
+        <div class="battle-skill-cutin__speed" aria-hidden="true"></div>
         <img src="${escapeAttribute(transient.actorImage ?? "")}" alt="">
         <div>
-          <span>SKILL ACTIVATE</span>
+          <span>SKILL ACTIVATE / ${escapeHtml((transient.actorDistance ?? "MID").toUpperCase())}</span>
           <strong>${escapeHtml(transient.skillName ?? "SPECIAL SKILL")}</strong>
+          <small>${escapeHtml(transient.actorRole ?? "")} ${escapeHtml(transient.actorName ?? "")}</small>
+        </div>
+      </div>
+    `;
+  } else if (transient.effect === "range_shift") {
+    effect = `
+      <div class="battle-range-shift battle-range-shift--${escapeAttribute(transient.actorSide)}">
+        <img src="${escapeAttribute(transient.actorImage ?? "")}" alt="">
+        <div>
+          <span>RANGE SHIFT</span>
+          <strong>
+            ${escapeHtml((transient.previousDistance ?? "MID").toUpperCase())}
+            →
+            ${escapeHtml((transient.currentDistance ?? "MID").toUpperCase())}
+          </strong>
           <small>${escapeHtml(transient.actorName ?? "")}</small>
         </div>
       </div>
@@ -829,9 +861,11 @@ export function createBattlePlaybackController({
         ? 720
         : ["down", "confirmed_kill", "revive"].includes(previousEvent.type)
           ? 1050
-          : previousEvent.type === "underdog_momentum"
-            ? 620
-            : 0
+          : previousEvent.type === "distance_changed"
+            ? 260
+            : previousEvent.type === "underdog_momentum"
+              ? 620
+              : 0
       : 0;
     const delay = reducedMotion
       ? Math.min(25, eventDelay / safeRate)

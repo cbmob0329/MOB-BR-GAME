@@ -11,7 +11,7 @@ import { assetPath } from "../assets.js";
 import {
   getChampionshipPoints,
   getPlacementPoints,
-} from "../../data/game-data.js";
+} from "../../data/game-data.js?v=24";
 import {
   STRATEGY_RULES,
 } from "../../data/strategy-data.js";
@@ -25,7 +25,7 @@ import {
 } from "../main/tournament-bridge.js";
 
 export const RESULTS_VERSION =
-  "mobbr-tournament-results-1.4.0";
+  "mobbr-tournament-results-1.5.0";
 
 export const RESULT_RULES = Object.freeze({
   defaultMatchPointThreshold: 50,
@@ -790,7 +790,7 @@ function createCpuMemberAwardStats(
     weaponShots: shots,
     weaponHits: Math.min(shots, Math.round(shots * accuracy)),
     weaponDamage: Math.round(damage * 0.78),
-    weaponReloads: Math.round(shots / 8),
+    weaponReloads: Math.round(shots / 12),
   };
 }
 
@@ -1010,32 +1010,68 @@ export function advanceAwardToDraft(draft) {
   });
 }
 
-function qualificationForResult(runtime, finalPlace) {
+export function getQualificationDisplay(
+  runtime,
+  place = null,
+) {
   const rule =
     runtime.entryData.tournament.qualificationRule ?? {};
-  if (rule.type === "top_n") {
-    return {
-      qualified: finalPlace <= rule.maximumPlace,
-      nextStageId: finalPlace <= rule.maximumPlace
-        ? rule.nextTournamentType ?? null
-        : null,
-    };
-  }
-  if (rule.type === "configured_stage_rule") {
-    const maximumPlace =
-      Number.isInteger(rule.maximumPlace)
-        ? rule.maximumPlace
-        : 10;
-    return {
-      qualified: finalPlace <= maximumPlace,
-      nextStageId: finalPlace <= maximumPlace
-        ? rule.nextTournamentType ?? null
-        : null,
-    };
-  }
+  const isFinal =
+    rule.type === "final";
+  const maximumPlace =
+    rule.type === "top_n"
+      ? rule.maximumPlace
+      : rule.type === "configured_stage_rule"
+        ? (
+            Number.isInteger(rule.maximumPlace)
+              ? rule.maximumPlace
+              : 10
+          )
+        : null;
+  const enabled =
+    !isFinal &&
+    Number.isInteger(maximumPlace);
+  const qualified =
+    enabled &&
+    Number.isInteger(place)
+      ? place <= maximumPlace
+      : false;
+
   return {
-    qualified: false,
-    nextStageId: null,
+    enabled,
+    isFinal,
+    maximumPlace,
+    qualified,
+    nextStageId:
+      qualified
+        ? rule.nextTournamentType ?? null
+        : null,
+    lineLabel:
+      enabled
+        ? `通過ライン TOP ${maximumPlace}`
+        : "最終大会",
+    verdictLabel:
+      isFinal
+        ? "TOURNAMENT COMPLETE"
+        : qualified
+          ? "QUALIFIED"
+          : "NOT QUALIFIED",
+  };
+}
+
+function qualificationForResult(
+  runtime,
+  finalPlace,
+) {
+  const display =
+    getQualificationDisplay(
+      runtime,
+      finalPlace,
+    );
+  return {
+    qualified: display.qualified,
+    nextStageId:
+      display.nextStageId,
   };
 }
 
@@ -1375,6 +1411,13 @@ export function renderMatchResultScreen(runtime) {
   const isFinal = runtime.match >= totalMatches || matchPointWinner !== null;
   const cumulative = createFinalRankings(runtime);
   const playerRow = record.rankings.find((row) => row.isPlayer);
+  const cumulativePlayer =
+    cumulative.find((row) => row.isPlayer);
+  const qualification =
+    getQualificationDisplay(
+      runtime,
+      cumulativePlayer?.place ?? null,
+    );
 
   const compactRows = (rows, cumulativeMode = false) => rows.map((row) => `
     <article class="compact-result-row ${row.isPlayer ? "is-player" : ""} ${row.place === 1 ? "is-champion" : ""}">
@@ -1394,6 +1437,27 @@ export function renderMatchResultScreen(runtime) {
         <span><img src="icon/match.png" alt="">MATCH ${runtime.match}</span>
         <h1>MATCH RESULT</h1>
         <p>CHAMPION ${escapeHtml(record.championTeamName)} / PLAYER ${playerRow.place} PLACE / TOTAL ${playerRow.total}</p>
+        ${
+          qualification.enabled
+            ? `
+              <div class="qualification-line-banner ${
+                qualification.qualified
+                  ? "is-inside"
+                  : "is-outside"
+              }">
+                <b>${escapeHtml(qualification.lineLabel)}</b>
+                <span>
+                  現在TOTAL ${cumulativePlayer.place}位 /
+                  ${
+                    qualification.qualified
+                      ? "通過圏内"
+                      : "通過圏外"
+                  }
+                </span>
+              </div>
+            `
+            : ""
+        }
       </header>
       <section class="match-result-vertical-scroll">
         <article class="compact-result-section">
@@ -1592,6 +1656,17 @@ export function renderTournamentResultScreen(runtime) {
   const playerRanking = result.rankings.find(
     (row) => row.teamId === runtime.playerTeamId,
   );
+  const qualification =
+    getQualificationDisplay(
+      runtime,
+      result.finalPlace,
+    );
+  const verdictMessage =
+    qualification.isFinal
+      ? `全日程を戦い抜きました。${result.teamName}のみなさん、お疲れさまでした！`
+      : qualification.qualified
+        ? `${qualification.lineLabel}を突破！次の大会へ進出です！`
+        : `${qualification.lineLabel}には届きませんでした。ここまでの戦いを次へつなげましょう！`;
 
   return `
     <main class="tournament-screen tournament-screen--total-result">
@@ -1605,6 +1680,31 @@ export function renderTournamentResultScreen(runtime) {
           KP ${playerRanking.sumKp}
         </p>
       </header>
+      <section class="tournament-qualification-verdict ${
+        qualification.qualified
+          ? "is-qualified"
+          : qualification.isFinal
+            ? "is-complete"
+            : "is-not-qualified"
+      }">
+        <img src="icon/mic.png" alt="モブマイク">
+        <span>${escapeHtml(qualification.verdictLabel)}</span>
+        <h2>
+          ${
+            qualification.isFinal
+              ? "大会全日程終了"
+              : qualification.qualified
+                ? "次大会へ進出決定"
+                : "今大会で敗退"
+          }
+        </h2>
+        ${
+          qualification.enabled
+            ? `<strong>${escapeHtml(qualification.lineLabel)} / 最終 ${result.finalPlace}位</strong>`
+            : `<strong>最終 ${result.finalPlace}位</strong>`
+        }
+        <p>${escapeHtml(verdictMessage)}</p>
+      </section>
       <section class="total-result-scroll">
         <article class="total-result-section">
           <h2>FINAL RANKING</h2>
@@ -1661,7 +1761,7 @@ export function renderTournamentResultScreen(runtime) {
       </section>
       <div class="tournament-bottom-area result-fixed-bottom">
         ${commentator(
-          `${result.teamName}は最終${result.finalPlace}位！結果と報酬をメインへ返却します。`,
+          verdictMessage,
         )}
         <button
           type="button"
