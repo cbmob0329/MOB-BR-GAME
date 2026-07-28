@@ -10,10 +10,10 @@ import {
   BATTLE_END_TIE_BREAKERS,
   BATTLE_TIMING,
   STATE_RULES,
-} from "../../data/battle-config.js?v=28";
+} from "../../data/battle-config.js?v=29";
 import {
   calculateChecksum,
-} from "../main/state.js?v=28";
+} from "../main/state.js?v=29";
 import {
   BATTLE_ACTIONS_VERSION,
   appendBattleEvent,
@@ -26,10 +26,10 @@ import {
   prepareParticipantSpecialAfterBattle,
   addOrRefreshEffect,
   updateParticipantTimers,
-} from "./battle-actions.js?v=28";
+} from "./battle-actions.js?v=29";
 
 export const BATTLE_CORE_VERSION =
-  "mobbr-battle-core-1.4.0";
+  "mobbr-battle-core-1.5.0";
 export const BATTLE_STATE_SCHEMA_VERSION =
   "mobbr-battle-state-1.0.0";
 
@@ -228,6 +228,8 @@ function createInitialParticipantStates(participants) {
           participant.skills.map((skill) => ({
             skillId: skill.skillId,
             name: skill.name,
+            level: skill.level ?? 1,
+            powerMultiplier: skill.powerMultiplier ?? 1,
             baseCt: skill.baseCt,
             type: skill.type,
           })),
@@ -349,6 +351,8 @@ export function createBattleFromTournamentRuntime(
     rules: {
       allowFinishDowned,
       allowOpeningDraw,
+      openingMutualDisengage:
+        runtime.round === 1,
     },
     participants: Object.fromEntries(
       participants.map((participant) => [
@@ -636,6 +640,58 @@ function finishBattle(
   return battle.result;
 }
 
+function settleSquadWipeKillPoints(
+  battle,
+  winnerTeamId,
+  loserTeamId,
+) {
+  const winners = getTeamParticipants(battle, winnerTeamId);
+  const fallbackKiller =
+    winners.find((member) => member.combatState === "alive") ??
+    winners[0];
+  const awarded = [];
+  for (const target of getTeamParticipants(battle, loserTeamId)) {
+    if (target.combatState === "dead") continue;
+    const credited =
+      battle.participants[target.downedByPlayerId] ??
+      fallbackKiller;
+    if (!credited) continue;
+    target.combatState = "dead";
+    target.hp = STATE_RULES.deadHp;
+    target.downedAt = null;
+    target.stats.deaths += 1;
+    credited.stats.kills += 1;
+    battle.teamStats[winnerTeamId].confirmedKills += 1;
+    battle.teamStats[winnerTeamId].kp += 1;
+    battle.teamStats[loserTeamId].deaths += 1;
+    awarded.push({
+      targetPlayerId: target.playerId,
+      actorPlayerId: credited.playerId,
+    });
+    appendBattleEvent(battle, "confirmed_kill", {
+      actorPlayerId: credited.playerId,
+      actorTeamId: winnerTeamId,
+      targetPlayerId: target.playerId,
+      targetTeamId: loserTeamId,
+      sourceType: "squad_wipe_confirmation",
+      sourceId: "squad_wipe",
+      sourceName: "部隊全滅",
+      kp: 1,
+      assists: [],
+      automaticSquadWipe: true,
+    });
+  }
+  if (awarded.length > 0) {
+    appendBattleEvent(battle, "squad_wipe", {
+      winnerTeamId,
+      loserTeamId,
+      totalKp: battle.teamStats[winnerTeamId].kp,
+      awards: awarded,
+    });
+  }
+  return awarded;
+}
+
 export function evaluateBattleEnd(
   battle,
   {
@@ -660,16 +716,23 @@ export function evaluateBattleEnd(
         ...resolved,
       });
     }
+    const winnerTeamId =
+      leftAlive > 0
+        ? battle.leftTeamId
+        : battle.rightTeamId;
+    const loserTeamId =
+      leftAlive > 0
+        ? battle.rightTeamId
+        : battle.leftTeamId;
+    settleSquadWipeKillPoints(
+      battle,
+      winnerTeamId,
+      loserTeamId,
+    );
     return finishBattle(battle, {
-      endReason: "all_alive_members_down",
-      winnerTeamId:
-        leftAlive > 0
-          ? battle.leftTeamId
-          : battle.rightTeamId,
-      loserTeamId:
-        leftAlive > 0
-          ? battle.rightTeamId
-          : battle.leftTeamId,
+      endReason: "squad_wipe",
+      winnerTeamId,
+      loserTeamId,
       draw: false,
       tieBreaker: "aliveCount",
     });
@@ -680,6 +743,24 @@ export function evaluateBattleEnd(
     battle.elapsedSeconds >=
       battle.durationSeconds
   ) {
+    if (
+      battle.rules.openingMutualDisengage === true &&
+      leftAlive > 0 &&
+      rightAlive > 0
+    ) {
+      appendBattleEvent(battle, "mutual_disengage", {
+        leftTeamId: battle.leftTeamId,
+        rightTeamId: battle.rightTeamId,
+        reason: "both_teams_withdraw",
+      });
+      return finishBattle(battle, {
+        endReason: "mutual_disengage",
+        winnerTeamId: null,
+        loserTeamId: null,
+        draw: true,
+        tieBreaker: "opening_mutual_disengage",
+      });
+    }
     const resolved =
       resolveTimeLimitWinner(battle);
     return finishBattle(battle, {

@@ -11,26 +11,26 @@ import { assetPath } from "../assets.js";
 import {
   getChampionshipPoints,
   getPlacementPoints,
-} from "../../data/game-data.js?v=28";
+} from "../../data/game-data.js?v=29";
 import {
   STRATEGY_RULES,
 } from "../../data/strategy-data.js";
 import {
   FORMAL_CIRCUIT_RULES,
   isCasualTournamentType,
-} from "../../data/circuit-data.js?v=28";
+} from "../../data/circuit-data.js?v=29";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=28";
+} from "./circuit.js?v=29";
 import {
   getPlayableRoundCount,
-} from "./round.js?v=28";
+} from "./round.js?v=29";
 import {
   finalizeTournamentResultData,
   resolvePlacementRewards,
   writeTournamentResultToStorage,
-} from "../main/tournament-bridge.js?v=28";
+} from "../main/tournament-bridge.js?v=29";
 
 export const RESULTS_VERSION =
   "mobbr-tournament-results-2.0.0";

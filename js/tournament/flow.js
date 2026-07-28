@@ -13,14 +13,14 @@ import {
 import {
   TOURNAMENT_PHASES,
   createTournamentRuntimeManager,
-} from "./runtime.js?v=28";
+} from "./runtime.js?v=29";
 import {
   executeCurrentBattleToDraft,
 } from "./battle-core.js";
 import {
   createBattlePlaybackController,
   renderBattleOutcomeScreen,
-} from "./battle-ui.js?v=28";
+} from "./battle-ui.js?v=29";
 import {
   EXPLORATION_PAGES,
   beginExplorationToDraft,
@@ -41,7 +41,7 @@ import {
   useInventoryItemToDraft,
   useMobSlotToDraft,
   useRespawnTurntableToDraft,
-} from "./exploration.js?v=28";
+} from "./exploration.js?v=29";
 import {
   advanceAwardToDraft,
   finalizeCurrentMatchToDraft,
@@ -57,13 +57,13 @@ import {
   renderReturningResultScreen,
   renderTournamentResultScreen,
   writePreparedResultToStorage,
-} from "./results.js?v=28";
+} from "./results.js?v=29";
 
 import {
   applyMatchPlanToDraft,
   circuitSectionLabel,
   isPlayerMatch,
-} from "./circuit.js?v=28";
+} from "./circuit.js?v=29";
 
 import {
   fastForwardMatchToChampionToDraft,
@@ -73,9 +73,9 @@ import {
   getRoundTarget,
   isPlayerActive,
   resolveRoundEncounterToDraft,
-} from "./round.js?v=28";
+} from "./round.js?v=29";
 
-export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-2.5.0";
+export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-2.6.0";
 
 const PHASE_LABELS = Object.freeze({
   IDLE: "待機",
@@ -315,7 +315,7 @@ function openingTemplate(runtime) {
         ${commentaryTemplate(scene.commentary)}
         <div class="tournament-actions tournament-actions--opening">
           <button type="button" class="tournament-button tournament-button--ghost" data-action="opening-skip" ${scene.canSkip ? "" : "disabled"}>SKIP</button>
-          <button type="button" class="tournament-button tournament-button--primary" data-action="opening-next">${isLast ? "TEAM INTRO" : "NEXT"}</button>
+          <button type="button" class="tournament-button tournament-button--primary" data-action="opening-next">${isLast ? "MATCH DEPLOYMENT" : "NEXT"}</button>
         </div>
       </div>
     </main>
@@ -404,7 +404,7 @@ function teamIntroTemplate(runtime) {
       </div>
       <div class="tournament-bottom-area">
         ${commentaryTemplate(
-          `${runtime.entryData.playerTeam.teamName}を含む全${runtime.teams.length}チームを紹介します！`,
+          `${runtime.entryData.playerTeam.teamName}のエントリーを確認！MATCH DEPLOYMENTへ進みます！`,
         )}
         <div class="tournament-actions">
           <button
@@ -1170,7 +1170,22 @@ export function createTournamentFlowController({
         }
         break;
       case "TEAM_INTRO":
-        root.innerHTML = teamIntroTemplate(runtime);
+        // Generation 29: old resumes may still point at TEAM_INTRO.
+        // Skip the redundant all-team list and continue to deployment.
+        root.innerHTML = deploymentTemplate(runtime);
+        scheduleAction(() => {
+          try {
+            runtimeManager.transition("DEPLOYMENT", {
+              reason: "legacy_team_intro_skipped",
+            });
+            runtimeManager.checkpoint(
+              "legacy_team_intro_to_deployment",
+            );
+            render();
+          } catch (error) {
+            handleRuntimeError(error);
+          }
+        }, 0);
         break;
       case "DEPLOYMENT":
         root.innerHTML = deploymentTemplate(runtime);
@@ -1416,7 +1431,7 @@ export function createTournamentFlowController({
       }
     } else {
       runtimeManager.completeOpening({ skipped: false });
-      runtimeManager.checkpoint("team_intro_start");
+      runtimeManager.checkpoint("deployment_start_after_opening");
     }
     render();
   }
@@ -1494,7 +1509,7 @@ export function createTournamentFlowController({
         }
         if (action === "opening-skip") {
           runtimeManager.completeOpening({ skipped: true });
-          runtimeManager.checkpoint("opening_skipped_to_team_intro");
+          runtimeManager.checkpoint("opening_skipped_to_deployment");
           render();
           return;
         }

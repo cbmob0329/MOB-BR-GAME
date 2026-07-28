@@ -25,12 +25,12 @@ import {
   calculateSkillCt,
   isAssistEligible,
   resolveWeaponBattleValue,
-} from "../../data/battle-config.js?v=28";
+} from "../../data/battle-config.js?v=29";
 import {
   STAT_IDS,
   clamp,
   rankToCharacterValue,
-} from "../../data/game-data.js?v=28";
+} from "../../data/game-data.js?v=29";
 import {
   adjustDebuffForSpecialAbility,
   applyNextBattleSpecialEffects,
@@ -52,7 +52,7 @@ import {
 } from "./special-abilities.js";
 
 export const BATTLE_ACTIONS_VERSION =
-  "mobbr-battle-actions-1.5.0";
+  "mobbr-battle-actions-1.6.0";
 
 export const BATTLE_ACTION_BALANCE = Object.freeze({
   criticalDamageMultiplier: 1.5,
@@ -223,6 +223,7 @@ function getDamageTakenMultiplier(
   );
   return (
     temporary *
+    (1 - clamp(participant.playerMasteryDamageReduction ?? 0, 0, 0.2)) *
     getSpecialDamageTakenMultiplier(
       participant,
       { attackerPierceRate },
@@ -478,15 +479,26 @@ export function createBattleParticipant({
 
   const skills = member.skills.map((rawSkill) => {
     const skill = normalizeUniqueSkill(rawSkill);
+    const level = Math.max(1, Math.min(5, Number(skill.level) || 1));
+    const levelSteps = level - 1;
+    const skillCooldownRate = 1 - levelSteps * 0.025;
     return {
       skillId: skill.skillId,
-      name: skill.name,
+      name:
+        typeof skill.customName === "string" && skill.customName.trim()
+          ? skill.customName.trim()
+          : skill.name,
+      defaultName: skill.name,
+      customName: skill.customName ?? null,
+      level,
+      powerMultiplier: 1 + levelSteps * 0.035,
       type: skill.type,
       target: skill.target,
       baseCt: Math.max(
         2.8,
         Math.round(
           skill.baseCt *
+            skillCooldownRate *
             (1 - clamp(((battleStats.agility ?? 1) + (battleStats.mind ?? 1) - 2) / 520, 0, 0.16)) *
             (0.96 + ((String(member.playerId).charCodeAt(String(member.playerId).length - 1) || 0) % 9) * 0.01) *
             100,
@@ -530,6 +542,15 @@ export function createBattleParticipant({
   );
   specialProfile.maxHpBonus =
     newlyAppliedMaxHpBonus;
+  const averagePlayerStat =
+    STAT_IDS.reduce(
+      (sum, statId) => sum + Number(battleStats[statId] ?? 1),
+      0,
+    ) / STAT_IDS.length;
+  const playerDevelopmentMastery =
+    team.isPlayer === true
+      ? clamp((averagePlayerStat - 18) / 55, 0, 1)
+      : 0;
 
   return {
     playerId: member.playerId,
@@ -541,6 +562,14 @@ export function createBattleParticipant({
     role: member.role,
     image: member.image,
     characterRank: member.characterRank,
+    isPlayerTeam: team.isPlayer === true,
+    playerDevelopmentMastery,
+    playerMasteryDamageMultiplier:
+      1 + playerDevelopmentMastery * 0.12,
+    playerMasteryAccuracy:
+      playerDevelopmentMastery * 0.05,
+    playerMasteryDamageReduction:
+      playerDevelopmentMastery * 0.08,
     battleStats: deepClone(battleStats),
     strategyStatBonus: modifiers.statBonus,
     strategyRangeDamage: modifiers.rangeDamage,
@@ -857,6 +886,8 @@ export function confirmDownedTarget(
 
   target.combatState = "dead";
   target.downedAt = null;
+  target.downedByPlayerId = null;
+  target.downedByTeamId = null;
   target.hp = STATE_RULES.deadHp;
   target.stats.deaths += 1;
   actor.stats.kills += 1;
@@ -1015,6 +1046,8 @@ export function applyBattleDamage(
   if (target.hp <= 0) {
     target.combatState = "down";
     target.downedAt = battle.elapsedSeconds;
+    target.downedByPlayerId = actor.playerId;
+    target.downedByTeamId = actor.teamId;
     target.hp = STATE_RULES.downHp;
     target.stats.downsTaken += 1;
     actor.stats.downsGiven += 1;
@@ -1131,6 +1164,7 @@ function calculateAttackDamage(
     );
   let temporaryMultiplier =
     getDamageDealtMultiplier(actor) *
+    (actor.playerMasteryDamageMultiplier ?? 1) *
     special.damageMultiplier;
   if (actor.firstHitDamageAvailable) {
     temporaryMultiplier *=
@@ -1237,6 +1271,7 @@ export function performNormalAttack(
             distanceAccuracyModifier(actor),
           temporaryModifier:
             getTemporaryAccuracyModifier(actor) +
+            (actor.playerMasteryAccuracy ?? 0) +
             special.accuracyModifier,
         });
   const hit =
@@ -1462,6 +1497,8 @@ function reviveParticipant(
   }
   target.combatState = "alive";
   target.downedAt = null;
+  target.downedByPlayerId = null;
+  target.downedByTeamId = null;
   target.hp = calculateReviveHp(
     target.maxHp,
     reviveRate,
@@ -1539,7 +1576,13 @@ function executePostReviveRecovery(
   const recoveryAmount =
     Math.max(
       1,
-      Math.round(actor.maxHp * 0.28),
+      Math.round(
+        actor.maxHp *
+        Math.min(
+          0.34,
+          0.28 * (skill.powerMultiplier ?? 1),
+        ),
+      ),
     );
   const healing =
     healParticipant(
@@ -1638,9 +1681,11 @@ function executeBattleCall(
 
   useSkillCharge(actor, skill);
   const duration =
-    BATTLE_ACTION_BALANCE.callBuff
-      .durationSeconds +
-    modifiers.callDurationBonus;
+    (
+      BATTLE_ACTION_BALANCE.callBuff
+        .durationSeconds +
+      modifiers.callDurationBonus
+    ) * (skill.powerMultiplier ?? 1);
   for (const target of targets) {
     addOrRefreshEffect(target, {
       code: "igl_battle_call",
@@ -1752,6 +1797,7 @@ function executeSingleAttackSkill(
           distanceAccuracyModifier(actor),
         temporaryModifier:
           getTemporaryAccuracyModifier(actor) +
+          (actor.playerMasteryAccuracy ?? 0) +
           0.03 +
           special.accuracyModifier,
       });
@@ -1777,7 +1823,8 @@ function executeSingleAttackSkill(
         actor,
         target,
         {
-          multiplier,
+          multiplier:
+            multiplier * (skill.powerMultiplier ?? 1),
           critical,
           skillId: skill.skillId,
         },
@@ -1886,6 +1933,7 @@ function executeSmokeLauncher(
           distanceAccuracyModifier(actor),
         temporaryModifier:
           getTemporaryAccuracyModifier(actor) +
+          (actor.playerMasteryAccuracy ?? 0) +
           special.accuracyModifier,
       });
     const hit =
@@ -1919,7 +1967,8 @@ function executeSmokeLauncher(
           multiplier:
             BATTLE_ACTION_BALANCE
               .smokeLauncher
-              .damageMultiplier,
+              .damageMultiplier *
+            (skill.powerMultiplier ?? 1),
           skillId: skill.skillId,
           area: true,
         },
@@ -2135,8 +2184,10 @@ function executeShieldCharge(
       battle,
       actor,
       target,
-      target.maxHp * rate +
-        modifiers.healPoints,
+      (
+        target.maxHp * rate +
+        modifiers.healPoints
+      ) * (skill.powerMultiplier ?? 1),
       skill.skillId,
       skill.name,
     );
@@ -2255,9 +2306,11 @@ function executeDroneHeal(
             battle,
             actor,
             target,
-            target.maxHp *
-              rate +
-              points,
+            (
+              target.maxHp *
+                rate +
+              points
+            ) * (skill.powerMultiplier ?? 1),
             skill.skillId,
             skill.name,
           ),
@@ -2317,10 +2370,16 @@ function executeRespawnField(
       skill.skillId,
     );
   const reviveRate =
-    modifiers.reviveRateOverride ??
-    skill.reviveHpRate ??
-    STATE_RULES
-      .reviveFieldBaseHpRate;
+    Math.min(
+      0.6,
+      (
+        modifiers.reviveRateOverride ??
+        skill.reviveHpRate ??
+        STATE_RULES
+          .reviveFieldBaseHpRate
+      ) +
+      ((skill.powerMultiplier ?? 1) - 1) * 0.2,
+    );
   const results =
     targets
       .map((target) => {
@@ -2722,7 +2781,7 @@ export function processParticipantTurn(
     battle,
     participant,
   );
-  if (skillResult.performed) {
+  if (skillResult?.performed) {
     return {
       actionType: "skill",
       ...skillResult,

@@ -14,7 +14,7 @@ import {
   createCommentaryDirector,
 } from "./commentary.js";
 
-export const BATTLE_UI_VERSION = "mobbr-battle-ui-1.6.0";
+export const BATTLE_UI_VERSION = "mobbr-battle-ui-1.7.0";
 export const BATTLE_REPLAY_SCHEMA_VERSION =
   "mobbr-battle-replay-1.0.0";
 
@@ -268,6 +268,12 @@ function transientForEvent(event, model) {
   if (event.type === "revive") {
     return { ...base, effect: "revive" };
   }
+  if (event.type === "squad_wipe") {
+    return { ...base, effect: "squad_wipe" };
+  }
+  if (event.type === "mutual_disengage") {
+    return { ...base, effect: "mutual_disengage" };
+  }
   return base;
 }
 
@@ -369,6 +375,12 @@ export function applyBattleReplayEvent(model, event) {
         target.combatState = "alive";
         target.actionState = "revive";
       }
+      break;
+    case "squad_wipe":
+      next.actionBanner = "SQUAD WIPE / 3 KP";
+      break;
+    case "mutual_disengage":
+      next.actionBanner = "DISENGAGE / お互い引く判断";
       break;
     case "reload_start":
       if (actor) {
@@ -483,7 +495,7 @@ function skillCtTemplate(participant) {
           <span
             class="${ready ? "is-ready" : ""}"
             style="--ct-charge:${(chargeRate * 360).toFixed(1)}deg"
-            title="${escapeAttribute(skill.name)}"
+            title="${escapeAttribute(`${skill.name} LV${skill.level ?? 1}`)}"
           >
             <i>${ready ? "OK" : remaining.toFixed(0)}</i>
           </span>
@@ -638,6 +650,17 @@ function fxLayerTemplate(transient) {
           </strong>
           <small>${escapeHtml(transient.actorName ?? "")}</small>
         </div>
+      </div>
+    `;
+  } else if (
+    ["squad_wipe", "mutual_disengage"].includes(transient.effect)
+  ) {
+    const wipe = transient.effect === "squad_wipe";
+    effect = `
+      <div class="battle-decision-cut battle-decision-cut--${escapeAttribute(transient.effect)}">
+        <span>${wipe ? "SQUAD WIPE" : "DISENGAGE"}</span>
+        <strong>${wipe ? "3 KP CONFIRMED" : "お互い引く判断"}</strong>
+        <small>${wipe ? "最後のダウンまで確キルとして集計" : "全滅には至らず初動を仕切り直します"}</small>
       </div>
     `;
   } else if (
@@ -922,19 +945,23 @@ export function createBattlePlaybackController({
     const eventDelay = Math.max(0, event.time - previousTime) * 1000;
     const previousEvent = eventIndex > 0 ? model.events[eventIndex - 1] : null;
     const previousPresentationHold = !reducedMotion && previousEvent
-      ? previousEvent.type.startsWith("skill_")
-        ? 720
-        : ["down", "confirmed_kill", "revive"].includes(previousEvent.type)
-          ? 1050
+      ? previousEvent.type === "skill_cutin"
+        ? 280
+        : ["down", "confirmed_kill", "revive", "squad_wipe"].includes(previousEvent.type)
+          ? 440
           : previousEvent.type === "distance_changed"
-            ? 260
+            ? 110
             : previousEvent.type === "underdog_momentum"
-              ? 620
+              ? 320
               : 0
       : 0;
     const delay = reducedMotion
       ? Math.min(25, eventDelay / safeRate)
-      : Math.max(18, eventDelay / safeRate + previousPresentationHold / safeRate);
+      : Math.max(
+          6,
+          eventDelay * 0.68 / safeRate +
+          previousPresentationHold / safeRate,
+        );
     const token = generation;
 
     timeoutId = timer.setTimeout(() => {

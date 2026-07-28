@@ -9,14 +9,14 @@
 import {
   STORAGE_KEYS,
   calculateChecksum,
-} from "../main/state.js?v=28";
+} from "../main/state.js?v=29";
 import {
   TOURNAMENT_BRIDGE_VERSION,
   TOURNAMENT_ENTRY_SCHEMA_VERSION,
   TOURNAMENT_RESUME_SCHEMA_VERSION,
   readTournamentEntryFromStorage,
   validateTournamentEntryData,
-} from "../main/tournament-bridge.js?v=28";
+} from "../main/tournament-bridge.js?v=29";
 import {
   CPU_LOCAL_DATA_VERSION,
   CPU_LOCAL_MASTER_VERSION,
@@ -38,17 +38,17 @@ import {
   getRoleCommonSkills,
   resolveCpuRankFromRange,
   resolveCpuWeaponProfile,
-} from "../../data/battle-config.js?v=28";
+} from "../../data/battle-config.js?v=29";
 import {
   resolveCpuTeamMaster,
-} from "../../data/circuit-data.js?v=28";
+} from "../../data/circuit-data.js?v=29";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=28";
+} from "./circuit.js?v=29";
 
 export const TOURNAMENT_RUNTIME_VERSION =
-  "mobbr-tournament-runtime-2.0.0";
+  "mobbr-tournament-runtime-2.1.0";
 
 export const TOURNAMENT_PHASES = Object.freeze([
   "IDLE",
@@ -116,7 +116,7 @@ export const PHASE_TRANSITIONS = Object.freeze({
   IDLE: Object.freeze(["ENTRY_VALIDATION", "ERROR"]),
   ENTRY_VALIDATION: Object.freeze(["LOADING", "ERROR"]),
   LOADING: Object.freeze(["OPENING", "SUSPENDED", "ERROR"]),
-  OPENING: Object.freeze(["TEAM_INTRO", "SUSPENDED", "ERROR"]),
+  OPENING: Object.freeze(["DEPLOYMENT", "TEAM_INTRO", "SUSPENDED", "ERROR"]),
   TEAM_INTRO: Object.freeze(["DEPLOYMENT", "SUSPENDED", "ERROR"]),
   DEPLOYMENT: Object.freeze([
     "INITIAL_EXPLORATION",
@@ -2096,18 +2096,20 @@ export function createTournamentRuntimeManager({
         throw new TournamentPhaseTransitionError(
           "Opening can only be completed from OPENING phase.",
           draft.phase,
-          "TEAM_INTRO",
+          "DEPLOYMENT",
         );
       }
       draft.opening.completed = true;
       draft.opening.skipped = skipped === true;
       draft.opening.sceneIndex = draft.opening.scenes.length - 1;
       draft.opening.sceneId = draft.opening.scenes.at(-1).sceneId;
-      draft.pendingVisualId = "team-intro";
+      draft.pendingVisualId = "deployment";
       refreshRuntimeChecksum(draft);
-      const next = transitionTournamentRuntime(draft, "TEAM_INTRO", {
+      const next = transitionTournamentRuntime(draft, "DEPLOYMENT", {
         clock,
-        reason: skipped ? "opening_skipped" : "opening_completed",
+        reason: skipped
+          ? "opening_skipped_to_deployment"
+          : "opening_completed_to_deployment",
       });
       return replaceRuntime(next, "opening_completed", { skipped });
     });

@@ -6,7 +6,7 @@
  * replacing confirmed-kill, revive, down, and result commentary.
  */
 
-export const COMMENTARY_VERSION = "mobbr-commentary-1.1.0";
+export const COMMENTARY_VERSION = "mobbr-commentary-1.2.0";
 export const COMMENTATOR = Object.freeze({
   id: "mob-mic",
   name: "モブマイク",
@@ -127,6 +127,15 @@ const TEMPLATES = Object.freeze({
     "{targetName}を確キル！{actorTeamName}にKPです！",
     "{weaponName}で確キル成立！KP獲得！",
   ]),
+  squad_wipe: Object.freeze([
+    "部隊全滅！倒し切った3人分、3KPが確定します！",
+    "完璧なワイプ！最後のダウンまで含めて3キル獲得です！",
+  ]),
+  mutual_disengage: Object.freeze([
+    "初動は決着せず！両チームとも消耗を抑えて引く判断です！",
+    "全滅には至らず、お互いに仕切り直しを選択しました！",
+  ]),
+
   revive: Object.freeze([
     "{actorName}が{targetName}を復活させました！",
     "リスポーン成功！{targetName}が戦線復帰！",
@@ -372,6 +381,21 @@ function commentaryDefinition(event, context) {
         priority: COMMENTARY_PRIORITIES.confirmedKill,
         tags: ["confirmed_kill", "kp"],
       };
+    case "squad_wipe":
+      return {
+        category: "squad_wipe",
+        priority: 100,
+        tags: ["squad_wipe", "kp"],
+        variables: {},
+      };
+    case "mutual_disengage":
+      return {
+        category: "mutual_disengage",
+        priority: 78,
+        tags: ["opening", "withdraw"],
+        variables: {},
+      };
+
     case "revive":
       return {
         category: "revive",
@@ -587,6 +611,9 @@ export function createBattleOutcomeCommentary(runtime) {
   if (!result) {
     return "戦闘結果を確認できません。";
   }
+  if (result.endReason === "mutual_disengage") {
+    return "初動は全滅に至らず！両チームとも消耗を抑えて引く判断です！";
+  }
   if (result.draw) {
     return "DRAW！両チーム譲らない戦いになりました！";
   }
@@ -594,7 +621,9 @@ export function createBattleOutcomeCommentary(runtime) {
     (team) => team.teamId === result.winnerTeamId,
   );
   if (result.winnerTeamId === runtime.playerTeamId) {
-    return `VICTORY！${winner?.teamName ?? "プレイヤーチーム"}が戦闘を制しました！`;
+    return result.endReason === "squad_wipe"
+      ? `SQUAD WIPE！${winner?.teamName ?? "プレイヤーチーム"}が3KPを確定しました！`
+      : `VICTORY！${winner?.teamName ?? "プレイヤーチーム"}が戦闘を制しました！`;
   }
   return `DEFEAT。${winner?.teamName ?? "対戦チーム"}がこの戦闘を制しました。`;
 }
