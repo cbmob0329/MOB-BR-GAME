@@ -5,7 +5,7 @@
  * UI state, save data, and tournament runtime state must not be stored here.
  */
 
-export const GAME_DATA_VERSION = "mobbr-game-data-1.1.0";
+export const GAME_DATA_VERSION = "mobbr-game-data-1.2.0";
 
 export const GAME_META = Object.freeze({
   id: "mob-br",
@@ -394,119 +394,152 @@ export function isChampionshipYear(year) {
   return year >= 1991 && (year - 1991) % 3 === 0;
 }
 
-export const TOURNAMENT_SCHEDULE_TEMPLATE = Object.freeze([
+export const CASUAL_WEEK_BY_MONTH = Object.freeze({
+  1: 3,
+  2: 3,
+  3: 3,
+  4: 3,
+  5: 3,
+  6: 4,
+  7: 4,
+  8: 3,
+  9: 4,
+  10: 3,
+  11: 3,
+  12: 2,
+});
+
+export const FORMAL_TOURNAMENT_SCHEDULE_TEMPLATE = Object.freeze([
   Object.freeze({
     month: 4,
     week: 1,
-    split: 1,
+    circuitYearStage: 1,
     tournamentType: "local",
-    stageId: "sp1_local",
-    stageName: "SP1 LOCAL",
-  }),
-  Object.freeze({
-    month: 5,
-    week: 1,
-    split: 1,
-    tournamentType: "national",
-    stageId: "sp1_national_week_1",
-    stageName: "SP1 NATIONAL 1週目",
-  }),
-  Object.freeze({
-    month: 5,
-    week: 2,
-    split: 1,
-    tournamentType: "national",
-    stageId: "sp1_national_week_2",
-    stageName: "SP1 NATIONAL 2週目",
+    stageId: "annual_local",
+    stageName: "MOB BR LOCAL",
   }),
   Object.freeze({
     month: 6,
     week: 1,
-    split: 1,
-    tournamentType: "world_qualifier",
-    stageId: "sp1_world_qualifier_week_1",
-    stageName: "SP1 WORLD 予選1週目",
+    circuitYearStage: 2,
+    tournamentType: "national_week_1",
+    stageId: "annual_national_week_1",
+    stageName: "MOB BR NATIONAL 1週目",
+    circuitStageId: "national",
+    stagePart: 1,
   }),
   Object.freeze({
     month: 6,
     week: 2,
-    split: 1,
-    tournamentType: "world_qualifier",
-    stageId: "sp1_world_qualifier_week_2_last_chance",
-    stageName: "SP1 WORLD 予選2週目・LAST CHANCE",
-    includesLastChance: true,
+    circuitYearStage: 3,
+    tournamentType: "national_week_2",
+    stageId: "annual_national_week_2",
+    stageName: "MOB BR NATIONAL 2週目",
+    circuitStageId: "national",
+    stagePart: 2,
   }),
   Object.freeze({
-    month: 6,
-    week: 3,
-    split: 1,
-    tournamentType: "world_final",
-    stageId: "sp1_world_final",
-    stageName: "SP1 WORLD FINAL",
-  }),
-  Object.freeze({
-    month: 8,
-    week: 1,
-    split: 2,
-    tournamentType: "local",
-    stageId: "sp2_local",
-    stageName: "SP2 LOCAL",
+    month: 7,
+    week: 2,
+    circuitYearStage: 4,
+    tournamentType: "national_last_chance",
+    stageId: "annual_national_last_chance",
+    stageName: "NATIONAL LAST CHANCE",
+    circuitStageId: "national_last_chance",
   }),
   Object.freeze({
     month: 9,
     week: 1,
-    split: 2,
-    tournamentType: "national",
-    stageId: "sp2_national_week_1",
-    stageName: "SP2 NATIONAL 1週目",
+    circuitYearStage: 5,
+    tournamentType: "world_qualifier_week_1",
+    stageId: "annual_world_qualifier_week_1",
+    stageName: "MOB BR WORLD 予選1週目",
+    circuitStageId: "world_qualifier",
+    stagePart: 1,
   }),
   Object.freeze({
     month: 9,
     week: 2,
-    split: 2,
-    tournamentType: "national",
-    stageId: "sp2_national_week_2",
-    stageName: "SP2 NATIONAL 2週目",
+    circuitYearStage: 6,
+    tournamentType: "world_qualifier_week_2",
+    stageId: "annual_world_qualifier_week_2",
+    stageName: "MOB BR WORLD 予選2週目",
+    circuitStageId: "world_qualifier",
+    stagePart: 2,
   }),
   Object.freeze({
-    month: 12,
+    month: 10,
     week: 1,
-    split: 2,
-    tournamentType: "world_qualifier",
-    stageId: "sp2_world_qualifier_week_1",
-    stageName: "SP2 WORLD 予選1週目",
+    circuitYearStage: 7,
+    tournamentType: "world_last_chance",
+    stageId: "annual_world_last_chance",
+    stageName: "WORLD LAST CHANCE",
+    circuitStageId: "world_last_chance",
   }),
   Object.freeze({
-    month: 12,
-    week: 2,
-    split: 2,
-    tournamentType: "world_qualifier",
-    stageId: "sp2_world_qualifier_week_2_last_chance",
-    stageName: "SP2 WORLD 予選2週目・LAST CHANCE",
-    includesLastChance: true,
-  }),
-  Object.freeze({
-    month: 12,
-    week: 3,
-    split: 2,
+    month: 11,
+    week: 1,
+    circuitYearStage: 8,
     tournamentType: "world_final",
-    stageId: "sp2_world_final",
-    stageName: "SP2 WORLD FINAL",
+    stageId: "annual_world_final",
+    stageName: "MOB BR WORLD FINAL",
+    circuitStageId: "world_final",
   }),
 ]);
 
+export const TOURNAMENT_SCHEDULE_TEMPLATE = FORMAL_TOURNAMENT_SCHEDULE_TEMPLATE;
+
+function createCasualEvents(year, month, week) {
+  const casualWeek = CASUAL_WEEK_BY_MONTH[month];
+  if (week !== casualWeek) return [];
+  const choiceGroupId = `${year}-${String(month).padStart(2, "0")}-casual`;
+  return [
+    Object.freeze({
+      year,
+      month,
+      week,
+      split: null,
+      tournamentType: "casual_denden",
+      stageId: `casual_denden_${String(month).padStart(2, "0")}`,
+      stageName: "デンデンカップ",
+      seasonId: `${year}-annual-circuit`,
+      tournamentId: `${choiceGroupId}-denden`,
+      choiceGroupId,
+      optional: true,
+      recordOnlyWhenEntered: true,
+    }),
+    Object.freeze({
+      year,
+      month,
+      week,
+      split: null,
+      tournamentType: "casual_mobutetsu",
+      stageId: `casual_mobutetsu_${String(month).padStart(2, "0")}`,
+      stageName: "モブテツカップ",
+      seasonId: `${year}-annual-circuit`,
+      tournamentId: `${choiceGroupId}-mobutetsu`,
+      choiceGroupId,
+      optional: true,
+      recordOnlyWhenEntered: true,
+    }),
+  ];
+}
+
 export function getTournamentEventsForDate(gameDate) {
   const { year, month, week } = validateGameDate(gameDate);
-  const events = TOURNAMENT_SCHEDULE_TEMPLATE
+  const events = FORMAL_TOURNAMENT_SCHEDULE_TEMPLATE
     .filter((event) => event.month === month && event.week === week)
     .map((event) =>
       Object.freeze({
         ...event,
         year,
-        seasonId: `${year}-sp${event.split}`,
+        split: null,
+        seasonId: `${year}-annual-circuit`,
         tournamentId: `${year}-${event.stageId}`,
       }),
     );
+
+  events.push(...createCasualEvents(year, month, week));
 
   if (month === 12 && week === 4 && isChampionshipYear(year)) {
     events.push(
@@ -520,6 +553,7 @@ export function getTournamentEventsForDate(gameDate) {
         stageName: "CHAMPIONSHIP",
         seasonId: `${year}-championship`,
         tournamentId: `${year}-championship`,
+        circuitStageId: "championship",
       }),
     );
   }
