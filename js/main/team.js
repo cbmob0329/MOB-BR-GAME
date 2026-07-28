@@ -11,7 +11,7 @@ import {
   calculateCharacterOverallRank,
   characterValueToRank,
   weaponValueToRank,
-} from "../../data/game-data.js?v=26";
+} from "../../data/game-data.js?v=27";
 import {
   calculateMaxHp,
   getRoleCommonSkills,

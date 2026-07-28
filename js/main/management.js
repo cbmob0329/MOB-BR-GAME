@@ -10,11 +10,11 @@ import {
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=26";
+} from "../../data/game-data.js?v=27";
 import {
   isCasualTournamentType,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=26";
+} from "../../data/circuit-data.js?v=27";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
@@ -62,13 +62,13 @@ import {
 import {
   advanceWeeksToDraft,
   applyResourceDeltaToDraft,
-} from "./state.js?v=26";
+} from "./state.js?v=27";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=26";
+} from "./tournament-bridge.js?v=27";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-1.1.0";
+  "mobbr-management-feature-1.2.0";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -80,6 +80,7 @@ const MANAGEMENT_VIEW_STATE = {
   selectedPackType: null,
   selectedPackId: null,
   trainingSelections: {},
+  strategyRank: null,
 };
 
 const SHOP_CATEGORY_DEFINITIONS = Object.freeze([
@@ -1516,7 +1517,7 @@ export function renderShopManagement(snapshot) {
     categoryContent = `
       <section class="management-section">
         <div class="management-section__heading">
-          <h2>ITEM</h2><span>アイコンをタップして数量を入力</span>
+          <h2>ITEM</h2><span>タップ後、＋／−で購入数を選択</span>
         </div>
         <div class="shop-item-grid">
           ${CONSUMABLE_ITEMS.map((item) => shopItemTile(item, snapshot)).join("")}
@@ -1656,63 +1657,104 @@ export function renderItemBagManagement(snapshot) {
 }
 
 export function renderCoachManagement(snapshot) {
-  const totalPoints = calculateCoachTeamPoints(snapshot.coaches);
+  const totalPoints =
+    calculateCoachTeamPoints(snapshot.coaches);
   const probabilities =
     getStrategyMeetingProbabilities(totalPoints);
+  const rankIcon = (rank) =>
+    `icon/tak${rank.toLowerCase()}.png`;
+
   return `
-    <section class="management-summary">
-      <strong>COACH PT ${formatNumber(totalPoints)}</strong>
-      <span>在籍 ${snapshot.coaches.length} / ${COACH_RULES.maximumCoachCount}</span>
+    <section class="coach-command-center">
+      <div class="coach-command-center__core">
+        <span>TACTICAL STAFF</span>
+        <strong>COACH PT ${formatNumber(totalPoints)}</strong>
+        <small>在籍 ${snapshot.coaches.length} / ${COACH_RULES.maximumCoachCount}</small>
+      </div>
+      <div class="coach-orbit">
+        ${snapshot.coaches.map((coach, index) => {
+          const rankData =
+            getCoachRankData(coach.rank);
+          return `
+            <article class="coach-orbit__member" style="--coach-index:${index}">
+              <img src="${escapeAttribute(coach.image)}" alt="">
+              <span>${escapeHtml(coach.rank)}</span>
+              <strong>${escapeHtml(coach.name ?? "初期コーチ")}</strong>
+              <small>${rankData.points} PT</small>
+            </article>
+          `;
+        }).join("")}
+      </div>
     </section>
-    <section class="management-card-grid">
-      ${snapshot.coaches.map((coach) => {
-        const rankData = getCoachRankData(coach.rank);
-        return `
-          <article class="coach-card">
-            <img src="${escapeAttribute(coach.image)}" alt="">
-            <div>
-              <h3>${escapeHtml(coach.name ?? "初期コーチ")}</h3>
-              <p>RANK ${escapeHtml(coach.rank)} / ${rankData.points} PT</p>
-              <small>
-                ランクアップ率 ${(rankData.rankUpChance * 100).toFixed(2)}%
-              </small>
-            </div>
-          </article>
-        `;
-      }).join("")}
-    </section>
-    <section class="content-panel strategy-meeting-panel">
-      <h2>作戦会議</h2>
+
+    <section class="content-panel strategy-meeting-panel strategy-meeting-panel--console">
+      <header>
+        <img src="menu/coach.png" alt="">
+        <div>
+          <span>TACTICAL BRIEFING</span>
+          <h2>作戦会議</h2>
+          <p>コーチPTで高ランク作戦の抽選率が上昇します。</p>
+        </div>
+      </header>
       <div class="strategy-probabilities">
         ${["C", "B", "A", "S", "SS"].map((rank) => `
-          <span>${rank} ${probabilities[rank].toFixed(1)}%</span>
+          <span>
+            <img src="${escapeAttribute(rankIcon(rank))}" alt="">
+            <b>${rank}</b>
+            <strong>${probabilities[rank].toFixed(1)}%</strong>
+          </span>
         `).join("")}
       </div>
-      <div class="cost-tags">
-        ${currencyPriceTemplate(STRATEGY_MEETING_RULES.cost)}
+      <div class="strategy-meeting-panel__footer">
+        <div class="cost-tags">
+          ${currencyPriceTemplate(STRATEGY_MEETING_RULES.cost)}
+        </div>
+        <button
+          type="button"
+          class="primary-button"
+          data-action="strategy-meeting"
+        >
+          作戦会議を行う
+        </button>
       </div>
-      <button
-        type="button"
-        class="primary-button"
-        data-action="strategy-meeting"
-      >
-        作戦会議を行う
-      </button>
     </section>
-    <section class="content-panel">
-      <h2>所持作戦</h2>
-      <div class="strategy-inventory">
-        ${STRATEGIES.map((strategy) => `
-          <div>
-            <img src="${escapeAttribute(strategy.icon)}" alt="">
-            <span>${escapeHtml(strategy.id)} ${escapeHtml(strategy.name)}</span>
-            <strong>
-              ${strategy.rank === "D"
-                ? "∞"
-                : snapshot.inventory.strategies[strategy.id] ?? 0}
-            </strong>
-          </div>
-        `).join("")}
+
+    <section class="content-panel owned-strategy-console">
+      <header>
+        <div>
+          <span>OWNED STRATEGY</span>
+          <h2>所持作戦</h2>
+          <p>ランクアイコンをタップすると、そのランクの作戦一覧を表示します。</p>
+        </div>
+      </header>
+      <div class="strategy-rank-launchers">
+        ${STRATEGY_RANKS.map((rank) => {
+          const strategies =
+            getStrategiesByRank(rank);
+          const ownedCount =
+            rank === "D"
+              ? strategies.length
+              : strategies.reduce(
+                  (sum, strategy) =>
+                    sum +
+                    (
+                      snapshot.inventory
+                        .strategies[strategy.id] ?? 0
+                    ),
+                  0,
+                );
+          return `
+            <button
+              type="button"
+              data-action="inspect-strategy-rank"
+              data-strategy-rank="${escapeAttribute(rank)}"
+            >
+              <img src="${escapeAttribute(rankIcon(rank))}" alt="${escapeAttribute(rank)}">
+              <strong>${escapeHtml(rank)}</strong>
+              <span>${rank === "D" ? "∞" : formatNumber(ownedCount)}</span>
+            </button>
+          `;
+        }).join("")}
       </div>
     </section>
   `;
@@ -2202,6 +2244,123 @@ export function createManagementController({
     return true;
   }
 
+  function wait(milliseconds) {
+    return new Promise((resolve) =>
+      setTimeout(resolve, milliseconds),
+    );
+  }
+
+  async function playTrainingCinematic(
+    snapshot,
+    assignments,
+    memberResults,
+  ) {
+    const overlay =
+      document.createElement("section");
+    overlay.className =
+      "training-cinematic";
+    overlay.innerHTML = `
+      <div class="training-cinematic__scan" aria-hidden="true"></div>
+      <span>TRAINING START</span>
+      <h2>WEEKLY PROGRAM</h2>
+      <div class="training-cinematic__members">
+        ${assignments.map((assignment, index) => {
+          const player =
+            snapshot.playerTeam.members.find(
+              (member) =>
+                member.playerId ===
+                assignment.playerId,
+            );
+          const program =
+            TRAINING_PROGRAMS.find(
+              (entry) =>
+                entry.id ===
+                assignment.programId,
+            );
+          const result =
+            memberResults.find(
+              (entry) =>
+                entry.playerId ===
+                assignment.playerId,
+            );
+          return `
+            <article style="--cinematic-index:${index}">
+              <div class="training-cinematic__portrait">
+                <img
+                  class="player-portrait"
+                  data-role="${escapeAttribute(player.role)}"
+                  src="${escapeAttribute(player.image)}"
+                  alt=""
+                >
+                <i aria-hidden="true"></i>
+              </div>
+              <img
+                class="training-cinematic__program"
+                src="${escapeAttribute(program.image)}"
+                alt=""
+              >
+              <strong>${escapeHtml(player.name)}</strong>
+              <span>${escapeHtml(program.name)}</span>
+              <small>
+                P+${result.gain.power}
+                T+${result.gain.tech}
+                M+${result.gain.mental}
+                S+${result.gain.shoot}
+              </small>
+            </article>
+          `;
+        }).join("")}
+      </div>
+      <div class="training-cinematic__phase">
+        <b>READY</b>
+        <strong>POINT UP!</strong>
+      </div>
+    `;
+    root.append(overlay);
+    requestAnimationFrame(() =>
+      overlay.classList.add("is-running"),
+    );
+    await wait(720);
+    overlay.classList.add("is-point-up");
+    await wait(920);
+    overlay.classList.add("is-exit");
+    await wait(280);
+    overlay.remove();
+  }
+
+  async function playSkinGachaCinematic(result) {
+    const overlay =
+      document.createElement("section");
+    overlay.className =
+      "skin-gacha-cinematic";
+    overlay.innerHTML = `
+      <div class="skin-gacha-cinematic__tunnel" aria-hidden="true"></div>
+      <span>WEAPON SKIN GACHA</span>
+      <h2>SCANNING...</h2>
+      <div class="skin-gacha-cinematic__capsule">
+        <img src="menu/gacha.png" alt="">
+        <i></i><i></i><i></i>
+      </div>
+      <article class="skin-gacha-cinematic__result">
+        <div class="skin-gacha-cinematic__flare" aria-hidden="true"></div>
+        <img src="${escapeAttribute(result.image)}" alt="">
+        <span>NEW WEAPON SKIN</span>
+        <strong>${escapeHtml(result.name)}</strong>
+        <small>未所持プール 残り${formatNumber(result.remainingPoolCount)}</small>
+      </article>
+    `;
+    root.append(overlay);
+    requestAnimationFrame(() =>
+      overlay.classList.add("is-scanning"),
+    );
+    await wait(880);
+    overlay.classList.add("is-reveal");
+    await wait(1250);
+    overlay.classList.add("is-exit");
+    await wait(300);
+    overlay.remove();
+  }
+
   async function handleAction(actionElement) {
     const action = actionElement.dataset.action;
 
@@ -2280,6 +2439,11 @@ export function createManagementController({
         );
         const total = tx.result.total;
         const latest = stateManager.getSnapshot();
+        await playTrainingCinematic(
+          latest,
+          assignments,
+          tx.result.memberResults,
+        );
         const bonusRecord = tx.result.weekAdvance.weeks[0]?.weeklyBonus?.record;
         const memberRows = tx.result.memberResults.map((memberResult, index) => {
           const player = latest.playerTeam.members.find((entry) => entry.playerId === memberResult.playerId);
@@ -2296,13 +2460,19 @@ export function createManagementController({
 
         await openAlert({
           title: "TRAINING COMPLETE",
-          body: `<section class="training-result-show training-result-show--complete"><span>TRAINING FINISHED</span><h3>${escapeHtml(formatManagementGameDate(beforeTrainingDate))}</h3><div class="training-result-members">${memberRows}</div></section>`,
-          buttonLabel: "能力ポイント確認",
-        });
-
-        await openAlert({
-          title: "ABILITY POINT GET",
-          body: `<section class="ability-point-notice"><span>各選手へ個別に加算されました</span><div class="training-result-total"><span>POWER <strong>+${formatNumber(total.power)}</strong></span><span>TECH <strong>+${formatNumber(total.tech)}</strong></span><span>MENTAL <strong>+${formatNumber(total.mental)}</strong></span><span>SHOOT <strong>+${formatNumber(total.shoot)}</strong></span></div><p>TEAM画面の選手TAP、またはチームラボのABILITY UPから強化できます。</p></section>`,
+          body: `
+            <section class="training-result-show training-result-show--complete">
+              <span>ABILITY POINT GET</span>
+              <h3>${escapeHtml(formatManagementGameDate(beforeTrainingDate))}</h3>
+              <div class="training-result-members">${memberRows}</div>
+              <div class="training-result-total">
+                <span>POWER <strong>+${formatNumber(total.power)}</strong></span>
+                <span>TECH <strong>+${formatNumber(total.tech)}</strong></span>
+                <span>MENTAL <strong>+${formatNumber(total.mental)}</strong></span>
+                <span>SHOOT <strong>+${formatNumber(total.shoot)}</strong></span>
+              </div>
+            </section>
+          `,
           buttonLabel: "新しい週へ",
         });
 
@@ -2436,12 +2606,69 @@ export function createManagementController({
         const tx = stateManager.transact("weapon_skin_gacha_drawn", (draft) =>
           performWeaponSkinGachaToDraft(draft),
         );
+        await playSkinGachaCinematic(
+          tx.result,
+        );
         await openAlert({
           title: "NEW WEAPON SKIN",
-          body: `<p><strong>${escapeHtml(tx.result.name)}</strong></p><img src="${escapeAttribute(tx.result.image)}" alt="" style="width:140px;margin:12px auto;object-fit:contain">`,
+          body: `
+            <section class="skin-gacha-result-card">
+              <div class="skin-gacha-result-card__light" aria-hidden="true"></div>
+              <img src="${escapeAttribute(tx.result.image)}" alt="">
+              <span>ACQUIRED</span>
+              <strong>${escapeHtml(tx.result.name)}</strong>
+              <small>未所持プール 残り${formatNumber(tx.result.remainingPoolCount)}</small>
+            </section>
+          `,
+          buttonLabel: "受け取る",
         });
         renderPreservingScroll();
       } catch (error) { await showError("ガチャを実行できません", error); }
+      return true;
+    }
+
+    if (action === "inspect-strategy-rank") {
+      const rank =
+        actionElement.dataset.strategyRank;
+      const snapshot =
+        stateManager.getSnapshot();
+      const strategies =
+        getStrategiesByRank(rank);
+      await openAlert({
+        title: `${rank} RANK STRATEGY`,
+        body: `
+          <section class="strategy-rank-modal">
+            <header>
+              <img src="${escapeAttribute(`icon/tak${rank.toLowerCase()}.png`)}" alt="">
+              <div>
+                <span>OWNED STRATEGY LIST</span>
+                <strong>${escapeHtml(rank)} RANK</strong>
+              </div>
+            </header>
+            <div class="strategy-rank-modal__list">
+              ${strategies.map((strategy) => {
+                const quantity =
+                  rank === "D"
+                    ? "∞"
+                    : snapshot.inventory
+                        .strategies[strategy.id] ?? 0;
+                return `
+                  <article class="${quantity === 0 ? "is-unowned" : ""}">
+                    <img src="${escapeAttribute(strategy.icon)}" alt="">
+                    <div>
+                      <span>${escapeHtml(strategy.id)}</span>
+                      <strong>${escapeHtml(strategy.name)}</strong>
+                      <p>${escapeHtml(strategy.description ?? "大会中に使用する作戦です。")}</p>
+                    </div>
+                    <em>${quantity}</em>
+                  </article>
+                `;
+              }).join("")}
+            </div>
+          </section>
+        `,
+        buttonLabel: "閉じる",
+      });
       return true;
     }
 

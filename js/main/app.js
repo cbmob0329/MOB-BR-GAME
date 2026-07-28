@@ -20,7 +20,7 @@ import {
   SaveError,
   SaveNotFoundError,
   createGameStateManager,
-} from "./state.js?v=26";
+} from "./state.js?v=27";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyWeaponUpgradePlanToDraft,
@@ -37,7 +37,7 @@ import {
   renderTeamDetailsSection,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=26";
+} from "./team.js?v=27";
 import {
   getSpecialAbility,
 } from "../../data/ability-data.js";
@@ -45,13 +45,13 @@ import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=26";
+} from "./management.js?v=27";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=26";
+} from "./tournament-bridge.js?v=27";
 
-export const APP_VERSION = "mobbr-main-app-1.4.0";
+export const APP_VERSION = "mobbr-main-app-1.5.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -288,12 +288,6 @@ const TEAM_MENU = Object.freeze([
     icon: "menu/traning.png",
   },
   {
-    route: ROUTES.equipment,
-    name: "Equipment",
-    note: "武器とバッグ",
-    icon: "menu/eq.png",
-  },
-  {
     route: ROUTES.record,
     name: "Record",
     note: "通算記録",
@@ -313,8 +307,8 @@ const TEAM_MENU = Object.freeze([
   },
   {
     route: ROUTES.ability,
-    name: "Ability Up",
-    note: "7能力強化",
+    name: "Development",
+    note: "能力・武器強化",
     icon: "icon/ab.png",
   },
   {
@@ -676,15 +670,35 @@ function facilityTemplate(
             <em>${escapeHtml(selected.name)}</em>
           </div>
         </section>
-        <section class="facility-hub-hero">
-          <span>SELECT MENU</span>
-          <h2>${escapeHtml(selected.name)}</h2>
-          <p>利用する機能を選択してください</p>
-        </section>
         ${
           selected.status === "LOCKED"
             ? `<section class="facility-locked-panel"><strong>LOCKED</strong><p>料理機能は今後のアップデートで追加予定です。</p></section>`
-            : `<section class="facility-menu-grid">${menu.map((item) => menuCardTemplate(item)).join("")}</section>`
+            : selected.facilityId === "team_lab"
+              ? `
+                <section class="team-lab-orbit" aria-label="チームラボ機能">
+                  <div class="team-lab-orbit__rings" aria-hidden="true"><i></i><i></i><i></i></div>
+                  <div class="team-lab-orbit__core">
+                    <img src="menu/team.png" alt="">
+                    <span>TEAM LAB</span>
+                    <strong>SELECT APP</strong>
+                  </div>
+                  <div class="team-lab-orbit__apps" style="--app-count:${menu.length}">
+                    ${menu.map((item, index) => `
+                      <button
+                        type="button"
+                        class="team-lab-orbit__app"
+                        style="--app-index:${index}"
+                        data-action="navigate"
+                        data-route="${escapeAttribute(item.route)}"
+                      >
+                        <img src="${escapeAttribute(item.icon)}" alt="">
+                        <span>${escapeHtml(item.name)}</span>
+                      </button>
+                    `).join("")}
+                  </div>
+                </section>
+              `
+              : `<section class="facility-menu-grid">${menu.map((item) => menuCardTemplate(item)).join("")}</section>`
         }
       </div>
       ${bottomNavTemplate(currentRoute)}
@@ -894,20 +908,18 @@ function teamFeatureTemplate(
     abilityColor = "blue",
     abilityPlan = {},
     weaponPlan = {},
+    developmentMode = "ability",
   } = {},
 ) {
   const meta = ROUTE_META[route];
   const playerId = getSelectedPlayerId(snapshot, selectedPlayerId);
   let content = "";
 
-  if (
-    route === ROUTES.ability ||
-    route === ROUTES.equipment
-  ) {
+  if (route === ROUTES.ability) {
     const activeDevelopmentMode =
-      route === ROUTES.equipment
+      developmentMode === "weapon"
         ? "weapon"
-        : developmentMode;
+        : "ability";
     content = `
       <section class="development-workspace" data-live-section="development">
         ${renderPlayerSelectorForDevelopment(snapshot, playerId)}
@@ -1008,16 +1020,22 @@ function managementFeatureTemplate(snapshot, route, currentRoute) {
             ← FACILITY
           </button>
         </div>
-        <section class="management-command-bar management-command-bar--${escapeAttribute(route)}">
-          <img src="${escapeAttribute(meta.icon)}" alt="">
-          <div>
-            <span>COMPANY APPLICATION</span>
-            <h1>${escapeHtml(meta.title)}</h1>
-            <p>${escapeHtml(meta.description)}</p>
-          </div>
-          <em>READY</em>
-        </section>
-        <section class="management-app-content">
+        ${
+          route === ROUTES.shop
+            ? ""
+            : `
+              <section class="management-command-bar management-command-bar--${escapeAttribute(route)}">
+                <img src="${escapeAttribute(meta.icon)}" alt="">
+                <div>
+                  <span>COMPANY APPLICATION</span>
+                  <h1>${escapeHtml(meta.title)}</h1>
+                  <p>${escapeHtml(meta.description)}</p>
+                </div>
+                <em>READY</em>
+              </section>
+            `
+        }
+        <section class="management-app-content management-app-content--${escapeAttribute(route)}">
           ${renderManagementSection(snapshot, route)}
         </section>
       </div>
@@ -1199,7 +1217,12 @@ function wizardTemplate(stepIndex, data, errorMessage = "") {
 }
 
 function normaliseRoute(route) {
-  return Object.values(ROUTES).includes(route) ? route : ROUTES.home;
+  if (route === ROUTES.equipment) {
+    return ROUTES.ability;
+  }
+  return Object.values(ROUTES).includes(route)
+    ? route
+    : ROUTES.home;
 }
 
 function preloadImages(paths, timeoutMs = 1400) {
@@ -1766,7 +1789,6 @@ export function createMainApp({
     }
     if (
       route === ROUTES.ability ||
-      route === ROUTES.equipment ||
       route === ROUTES.specialAbility
     ) {
       selectedTeamPlayerId = getSelectedPlayerId(
@@ -1786,6 +1808,7 @@ export function createMainApp({
         abilityColor: selectedAbilityColor,
         abilityPlan: abilityUpgradePlan,
         weaponPlan: weaponUpgradePlan,
+        developmentMode,
       });
       return;
     }
@@ -1918,7 +1941,9 @@ export function createMainApp({
   }
 
   function navigate(nextRoute) {
-    const normalized = normaliseRoute(nextRoute);
+    const requestedRoute = nextRoute;
+    const normalized =
+      normaliseRoute(nextRoute);
     const snapshot = stateManager.getSnapshot();
 
     if (!snapshot) {
@@ -1936,9 +1961,11 @@ export function createMainApp({
       showToast("画面位置を保存できませんでした");
     }
 
-    if (normalized === ROUTES.equipment) {
+    if (requestedRoute === ROUTES.equipment) {
       developmentMode = "weapon";
-    } else if (normalized === ROUTES.ability) {
+    } else if (
+      requestedRoute === ROUTES.ability
+    ) {
       developmentMode = "ability";
     }
     route = normalized;
@@ -2177,8 +2204,7 @@ export function createMainApp({
       if (route === ROUTES.specialAbility) {
         updateTeamFeatureLiveSection("special");
       } else if (
-        route === ROUTES.ability ||
-        route === ROUTES.equipment
+        route === ROUTES.ability
       ) {
         renderPreservingPageScroll();
       } else {
