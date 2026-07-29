@@ -13,14 +13,17 @@ import {
 import {
   TOURNAMENT_PHASES,
   createTournamentRuntimeManager,
-} from "./runtime.js?v=30";
+} from "./runtime.js?v=31";
 import {
   executeCurrentBattleToDraft,
 } from "./battle-core.js";
 import {
+  getItem,
+} from "../../data/shop-data.js";
+import {
   createBattlePlaybackController,
   renderBattleOutcomeScreen,
-} from "./battle-ui.js?v=30";
+} from "./battle-ui.js?v=31";
 import {
   EXPLORATION_PAGES,
   beginExplorationToDraft,
@@ -28,6 +31,7 @@ import {
   completeExplorationToDraft,
   confirmStrategyToDraft,
   getDueRoundExplorationIndex,
+  getItemEffectSummary,
   installExplorationSwipe,
   openItemUseToDraft,
   renderExplorationScreen,
@@ -41,7 +45,7 @@ import {
   useInventoryItemToDraft,
   useMobSlotToDraft,
   useRespawnTurntableToDraft,
-} from "./exploration.js?v=30";
+} from "./exploration.js?v=31";
 import {
   advanceAwardToDraft,
   finalizeCurrentMatchToDraft,
@@ -57,13 +61,13 @@ import {
   renderReturningResultScreen,
   renderTournamentResultScreen,
   writePreparedResultToStorage,
-} from "./results.js?v=30";
+} from "./results.js?v=31";
 
 import {
   applyMatchPlanToDraft,
   circuitSectionLabel,
   isPlayerMatch,
-} from "./circuit.js?v=30";
+} from "./circuit.js?v=31";
 
 import {
   fastForwardMatchToChampionToDraft,
@@ -73,9 +77,9 @@ import {
   getRoundTarget,
   isPlayerActive,
   resolveRoundEncounterToDraft,
-} from "./round.js?v=30";
+} from "./round.js?v=31";
 
-export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-2.7.0";
+export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-2.8.0";
 
 const PHASE_LABELS = Object.freeze({
   IDLE: "待機",
@@ -1025,6 +1029,396 @@ export function createTournamentFlowController({
     });
   }
 
+  function canUseBattleItemOnParticipant(
+    item,
+    participant,
+    playerParticipants,
+  ) {
+    if (!participant) {
+      return false;
+    }
+    if (
+      item.targetType ===
+      "single_alive_member"
+    ) {
+      if (
+        participant.combatState !==
+        "alive"
+      ) {
+        return false;
+      }
+      if (
+        item.effectType ===
+        "heal_max_hp_rate"
+      ) {
+        return (
+          participant.hp <
+          participant.maxHp
+        );
+      }
+      return true;
+    }
+    if (
+      item.targetType ===
+      "single_dead_member"
+    ) {
+      return (
+        participant.combatState ===
+        "dead"
+      );
+    }
+    if (
+      item.targetType ===
+      "all_alive_members"
+    ) {
+      return playerParticipants.some(
+        (member) =>
+          member.combatState ===
+            "alive" &&
+          member.hp < member.maxHp,
+      );
+    }
+    return false;
+  }
+
+  function openBattleItemPicker({
+    playerId,
+    participant,
+    options,
+  }) {
+    if (modalResolver) {
+      closeModal(false);
+    }
+    return new Promise((resolve) => {
+      modalResolver = resolve;
+      modalRoot.classList.add(
+        "is-open",
+      );
+      modalRoot.innerHTML = `
+        <div class="tournament-modal-backdrop battle-item-modal-backdrop">
+          <section
+            class="tournament-modal-card battle-item-modal-card"
+            role="dialog"
+            aria-modal="true"
+          >
+            <span>BATTLE BAG</span>
+            <h2>${escapeHtml(participant.name)}に使用</h2>
+            <p>
+              戦闘を一時停止しています。
+              使用するアイテムを選択してください。
+            </p>
+            <div class="battle-item-modal-target">
+              <img src="${escapeAttribute(assetPath(participant.image))}" alt="">
+              <div>
+                <span>${escapeHtml(participant.role)}</span>
+                <strong>HP ${formatNumber(participant.hp)} / ${formatNumber(participant.maxHp)}</strong>
+                <small>${escapeHtml(participant.combatState.toUpperCase())}</small>
+              </div>
+            </div>
+            <div class="battle-item-choice-list">
+              ${options.map(({ slotIndex, slot, item }) => `
+                <button
+                  type="button"
+                  data-modal-action="battle-item"
+                  data-slot-index="${slotIndex}"
+                  data-player-id="${escapeAttribute(playerId)}"
+                >
+                  <img src="${escapeAttribute(assetPath(item.image))}" alt="">
+                  <div>
+                    <span>SLOT ${slotIndex + 1} / ×${slot.quantity}</span>
+                    <strong>${escapeHtml(item.name)}</strong>
+                    <small>${escapeHtml(getItemEffectSummary(item))}</small>
+                  </div>
+                </button>
+              `).join("")}
+            </div>
+            <button
+              type="button"
+              class="tournament-button tournament-button--secondary"
+              data-modal-action="cancel"
+            >
+              戦闘へ戻る
+            </button>
+          </section>
+        </div>
+      `;
+    });
+  }
+
+  function reconcileBattleItemUse(
+    draft,
+    model,
+    item,
+    result,
+    originalStates,
+  ) {
+    for (
+      const target
+      of result.presentation?.targets ?? []
+    ) {
+      const original =
+        originalStates[
+          target.playerId
+        ];
+      const runtimeMember =
+        draft.memberRuntime[
+          target.playerId
+        ];
+      if (
+        !original ||
+        !runtimeMember
+      ) {
+        continue;
+      }
+
+      const appliedTemporaryEffects =
+        runtimeMember.temporaryEffects;
+      const appliedHealing =
+        Math.max(
+          0,
+          Number(target.hpAfter ?? 0) -
+          Number(target.hpBefore ?? 0),
+        );
+
+      runtimeMember.hp =
+        original.hp;
+      runtimeMember.maxHp =
+        original.maxHp;
+      runtimeMember.combatState =
+        original.combatState;
+
+      if (
+        item.effectType ===
+        "match_stat"
+      ) {
+        runtimeMember.temporaryEffects =
+          appliedTemporaryEffects;
+      } else if (
+        item.effectType ===
+        "revive_max_hp_rate"
+      ) {
+        runtimeMember.hp =
+          Math.max(
+            1,
+            Number(
+              target.hpAfter ?? 1,
+            ),
+          );
+        runtimeMember.combatState =
+          "alive";
+      } else if (
+        original.combatState !==
+        "dead"
+      ) {
+        runtimeMember.hp =
+          Math.min(
+            original.maxHp,
+            original.hp +
+              appliedHealing,
+          );
+        if (runtimeMember.hp > 0) {
+          runtimeMember.combatState =
+            "alive";
+        }
+      }
+
+      const teamState =
+        draft.teamRuntime[
+          draft.playerTeamId
+        ];
+      const memberIndex =
+        draft.teams
+          .find(
+            (team) =>
+              team.teamId ===
+              draft.playerTeamId,
+          )
+          ?.members
+          .findIndex(
+            (member) =>
+              member.playerId ===
+              target.playerId,
+          ) ?? -1;
+      if (
+        teamState &&
+        memberIndex >= 0
+      ) {
+        teamState.matchHp[
+          memberIndex
+        ] = runtimeMember.hp;
+        teamState.persistentHp[
+          memberIndex
+        ] = runtimeMember.hp;
+        teamState.combatState[
+          memberIndex
+        ] = runtimeMember.combatState;
+      }
+    }
+
+    draft.pendingVisualId =
+      "battle-item-used";
+    return result;
+  }
+
+  async function useBattleItem({
+    playerId,
+    model,
+  }) {
+    const snapshot =
+      runtimeManager.getSnapshot();
+    const participant =
+      model.participants[
+        playerId
+      ];
+    if (!participant) {
+      return null;
+    }
+
+    const playerParticipants =
+      Object.values(
+        model.participants,
+      ).filter(
+        (member) =>
+          member.teamId ===
+          model.playerTeamId,
+      );
+    const options =
+      snapshot.inventory.slots
+        .map((slot, slotIndex) => {
+          if (
+            !slot ||
+            slot.quantity < 1
+          ) {
+            return null;
+          }
+          const item =
+            getItem(slot.itemId);
+          return canUseBattleItemOnParticipant(
+            item,
+            participant,
+            playerParticipants,
+          )
+            ? {
+                slotIndex,
+                slot,
+                item,
+              }
+            : null;
+        })
+        .filter(Boolean);
+
+    if (options.length === 0) {
+      showToast(
+        "この選手に使用できるバッグアイテムがありません",
+      );
+      return null;
+    }
+
+    const selection =
+      await openBattleItemPicker({
+        playerId,
+        participant,
+        options,
+      });
+    if (
+      !selection ||
+      !Number.isInteger(
+        selection.slotIndex,
+      )
+    ) {
+      return null;
+    }
+
+    const chosen =
+      options.find(
+        (option) =>
+          option.slotIndex ===
+          selection.slotIndex,
+      );
+    if (!chosen) {
+      return null;
+    }
+
+    const transaction =
+      runtimeManager.update(
+        "battle_inventory_item_used",
+        (draft) => {
+          const originalStates =
+            Object.fromEntries(
+              Object.entries(
+                draft.memberRuntime,
+              )
+                .filter(
+                  ([, member]) =>
+                    member.teamId ===
+                    draft.playerTeamId,
+                )
+                .map(
+                  ([id, member]) => [
+                    id,
+                    {
+                      hp: member.hp,
+                      maxHp:
+                        member.maxHp,
+                      combatState:
+                        member.combatState,
+                      temporaryEffects:
+                        structuredClone(
+                          member.temporaryEffects ?? [],
+                        ),
+                    },
+                  ],
+                ),
+            );
+
+          for (
+            const current
+            of playerParticipants
+          ) {
+            const runtimeMember =
+              draft.memberRuntime[
+                current.playerId
+              ];
+            if (!runtimeMember) {
+              continue;
+            }
+            runtimeMember.hp =
+              current.hp;
+            runtimeMember.maxHp =
+              current.maxHp;
+            runtimeMember.combatState =
+              current.combatState;
+          }
+
+          const result =
+            useInventoryItemToDraft(
+              draft,
+              {
+                slotIndex:
+                  selection.slotIndex,
+                targetPlayerId:
+                  chosen.item.targetType ===
+                    "all_alive_members"
+                    ? null
+                    : playerId,
+              },
+            );
+          return reconcileBattleItemUse(
+            draft,
+            model,
+            chosen.item,
+            result,
+            originalStates,
+          );
+        },
+      );
+
+    showToast(
+      `${transaction.result.name}を戦闘中に使用しました`,
+    );
+    return transaction.result;
+  }
+
   function explorationScrollTop() {
     return (
       root.querySelector(
@@ -1296,6 +1690,8 @@ export function createTournamentFlowController({
               }
             },
             onError: handleRuntimeError,
+            onRequestItemUse:
+              useBattleItem,
           });
         activeBattlePlayback.start();
         break;
@@ -2161,7 +2557,19 @@ export function createTournamentFlowController({
     if (!actionElement) {
       return;
     }
-    closeModal(actionElement.dataset.modalAction === "confirm");
+    const action =
+      actionElement.dataset.modalAction;
+    if (action === "battle-item") {
+      closeModal({
+        slotIndex: Number(
+          actionElement.dataset.slotIndex,
+        ),
+        playerId:
+          actionElement.dataset.playerId,
+      });
+      return;
+    }
+    closeModal(action === "confirm");
   });
 
   document.addEventListener("visibilitychange", () => {

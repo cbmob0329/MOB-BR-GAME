@@ -14,7 +14,7 @@ import {
   createCommentaryDirector,
 } from "./commentary.js";
 
-export const BATTLE_UI_VERSION = "mobbr-battle-ui-1.8.0";
+export const BATTLE_UI_VERSION = "mobbr-battle-ui-1.9.0";
 export const BATTLE_REPLAY_SCHEMA_VERSION =
   "mobbr-battle-replay-1.0.0";
 
@@ -608,6 +608,10 @@ function participantTemplate(
         </div>
         ${skillCtTemplate(participant)}
       </div>
+      <span class="battle-fighter__tap-command" aria-hidden="true">
+        <img src="icon/back.png" alt="">
+        TAP ITEM
+      </span>
     </article>
   `;
 }
@@ -732,7 +736,7 @@ function fxLayerTemplate(transient) {
     effect = `
       <div class="battle-hit-flash" style="left:${toX}%;top:${toY}%"></div>
       <div class="battle-hit-shards" style="left:${toX}%;top:${toY}%">
-        ${Array.from({ length: 9 }, (_value, index) => `<i style="--shard-index:${index}"></i>`).join("")}
+        ${Array.from({ length: 6 }, (_value, index) => `<i style="--shard-index:${index}"></i>`).join("")}
       </div>
       <strong
         class="battle-floating-number battle-floating-number--damage ${transient.critical ? "is-critical" : ""}"
@@ -746,15 +750,6 @@ function fxLayerTemplate(transient) {
         style="left:${toX}%;top:${toY}%"
       >+${formatNumber(transient.healing)}</strong>
     `;
-  } else if (transient.effect === "post_revive_recovery") {
-    effect = `
-      <div class="battle-recovery-pulse" style="left:${toX}%;top:${toY}%"></div>
-      <div class="battle-recovery-cut">
-        <span>RETURN SKILL 3</span>
-        <strong>${escapeHtml(transient.skillName ?? "復帰リカバリー")}</strong>
-        <small>${escapeHtml(transient.actorName ?? "選手")}がHPを立て直します</small>
-      </div>
-    `;
   } else if (
     transient.effect === "combat_strafe" ||
     transient.effect === "evasive_dodge"
@@ -764,24 +759,6 @@ function fxLayerTemplate(transient) {
         <i></i><i></i><i></i>
       </div>
       ${transient.effect === "evasive_dodge" ? `<strong class="battle-dodge-label" style="left:${toX}%;top:${toY}%">DODGE!</strong>` : ""}
-    `;
-  } else if (transient.effect === "skill_cutin") {
-    const roleClass =
-      String(transient.actorRole ?? "atk")
-        .toLowerCase();
-    const distanceClass =
-      String(transient.actorDistance ?? "mid")
-        .toLowerCase();
-    effect = `
-      <div class="battle-skill-cutin battle-skill-cutin--${escapeAttribute(roleClass)} battle-skill-cutin--${escapeAttribute(distanceClass)}">
-        <div class="battle-skill-cutin__speed" aria-hidden="true"></div>
-        <img src="${escapeAttribute(transient.actorImage ?? "")}" alt="">
-        <div>
-          <span>SKILL ACTIVATE / ${escapeHtml((transient.actorDistance ?? "MID").toUpperCase())}</span>
-          <strong>${escapeHtml(transient.skillName ?? "SPECIAL SKILL")}</strong>
-          <small>${escapeHtml(transient.actorRole ?? "")} ${escapeHtml(transient.actorName ?? "")}</small>
-        </div>
-      </div>
     `;
   } else if (transient.effect === "range_shift") {
     effect = `
@@ -798,46 +775,123 @@ function fxLayerTemplate(transient) {
         </div>
       </div>
     `;
-  } else if (
-    ["squad_wipe", "mutual_disengage"].includes(transient.effect)
-  ) {
-    const wipe = transient.effect === "squad_wipe";
+  } else if (transient.effect === "battle_item_use") {
     effect = `
-      <div class="battle-decision-cut battle-decision-cut--${escapeAttribute(transient.effect)}">
-        <span>${wipe ? "SQUAD WIPE" : "DISENGAGE"}</span>
-        <strong>${wipe ? "3 KP CONFIRMED" : "お互い引く判断"}</strong>
-        <small>${wipe ? "最後のダウンまで確キルとして集計" : "両チーム生存のためROUND生存枠へ保護"}</small>
-      </div>
-    `;
-  } else if (
-    ["down", "confirmed_kill", "revive"].includes(transient.effect)
-  ) {
-    const stateLabel =
-      transient.effect === "down"
-        ? "DOWN"
-        : transient.effect === "confirmed_kill"
-          ? "CONFIRMED KILL"
-          : "REVIVE";
-    const stateCommentary =
-      transient.effect === "down"
-        ? `${transient.targetName ?? "選手"}がダウン！救援か確キルか、一瞬の判断です！`
-        : transient.effect === "confirmed_kill"
-          ? `${transient.targetName ?? "選手"}を確キル！${transient.actorTeamName ?? "攻撃側"}にKP！`
-          : `${transient.targetName ?? "選手"}が戦線復帰！`;
-    effect = `
-      <div class="battle-state-shock battle-state-shock--${escapeAttribute(transient.effect)}"></div>
-      <div class="battle-state-cut battle-state-cut--${escapeAttribute(transient.effect)}">
-        <img class="battle-state-cut__target" src="${escapeAttribute(transient.targetImage ?? "icon/mic.png")}" alt="">
-        <div>
-          <strong>${escapeHtml(stateLabel)}</strong>
-          <span>${escapeHtml(stateCommentary)}</span>
-        </div>
-      </div>
+      <div class="battle-item-pulse" style="left:${toX}%;top:${toY}%"></div>
+      <strong
+        class="battle-floating-number battle-floating-number--heal"
+        style="left:${toX}%;top:${toY}%"
+      >${escapeHtml(transient.valueLabel ?? "ITEM")}</strong>
     `;
   }
 
   return `<div class="battle-fx-layer" aria-hidden="true">${effect}</div>`;
 }
+
+function isPersistentCutinEvent(event) {
+  return [
+    "skill_cutin",
+    "post_revive_recovery",
+    "down",
+    "confirmed_kill",
+    "revive",
+    "squad_wipe",
+    "mutual_disengage",
+  ].includes(event.type);
+}
+
+function persistentCutinTemplate(
+  transient,
+  slot,
+  sequence,
+) {
+  const positionClass =
+    slot === "bottom"
+      ? "is-bottom"
+      : "is-top";
+  const delay =
+    Math.min(240, sequence * 90);
+
+  if (transient.effect === "skill_cutin") {
+    return `
+      <article
+        class="battle-persistent-cutin battle-persistent-cutin--skill ${positionClass}"
+        style="--cutin-delay:${delay}ms"
+      >
+        <img src="${escapeAttribute(transient.actorImage ?? "")}" alt="">
+        <div>
+          <span>SKILL ACTIVATE / ${escapeHtml((transient.actorDistance ?? "MID").toUpperCase())}</span>
+          <strong>${escapeHtml(transient.skillName ?? "SPECIAL SKILL")}</strong>
+          <small>${escapeHtml(transient.actorRole ?? "")} ${escapeHtml(transient.actorName ?? "")}</small>
+        </div>
+      </article>
+    `;
+  }
+
+  if (transient.effect === "post_revive_recovery") {
+    return `
+      <article
+        class="battle-persistent-cutin battle-persistent-cutin--recovery ${positionClass}"
+        style="--cutin-delay:${delay}ms"
+      >
+        <img src="${escapeAttribute(transient.actorImage ?? "")}" alt="">
+        <div>
+          <span>RETURN SKILL 3</span>
+          <strong>${escapeHtml(transient.skillName ?? "復帰リカバリー")}</strong>
+          <small>${escapeHtml(transient.actorName ?? "選手")}がHPを立て直します</small>
+        </div>
+      </article>
+    `;
+  }
+
+  if (
+    transient.effect === "squad_wipe" ||
+    transient.effect === "mutual_disengage"
+  ) {
+    const wipe =
+      transient.effect === "squad_wipe";
+    return `
+      <article
+        class="battle-persistent-cutin battle-persistent-cutin--decision ${wipe ? "is-wipe" : "is-draw"} ${positionClass}"
+        style="--cutin-delay:${delay}ms"
+      >
+        <div>
+          <span>${wipe ? "SQUAD WIPE" : "DISENGAGE"}</span>
+          <strong>${wipe ? "3 KP CONFIRMED" : "お互い引く判断"}</strong>
+          <small>${wipe ? "最後のダウンまで確キルとして集計" : "両チームともROUND生存"}</small>
+        </div>
+      </article>
+    `;
+  }
+
+  const label =
+    transient.effect === "down"
+      ? "DOWN"
+      : transient.effect === "confirmed_kill"
+        ? "CONFIRMED KILL"
+        : "REVIVE";
+  const message =
+    transient.effect === "down"
+      ? `${transient.targetName ?? "選手"}がダウン！`
+      : transient.effect === "confirmed_kill"
+        ? `${transient.targetName ?? "選手"}を確キル！`
+        : `${transient.targetName ?? "選手"}が戦線復帰！`;
+
+  return `
+    <article
+      class="battle-persistent-cutin battle-persistent-cutin--state battle-persistent-cutin--${escapeAttribute(transient.effect)} ${positionClass}"
+      style="--cutin-delay:${delay}ms"
+    >
+      <img src="${escapeAttribute(transient.targetImage ?? "icon/mic.png")}" alt="">
+      <div>
+        <span>${escapeHtml(label)}</span>
+        <strong>${escapeHtml(message)}</strong>
+        <small>${escapeHtml(transient.actorTeamName ?? transient.targetTeamName ?? "")}</small>
+      </div>
+    </article>
+  `;
+}
+
 
 function commentaryPanelTemplate(
   commentary,
@@ -890,16 +944,8 @@ function resultCutTemplate(model) {
 }
 
 export function renderBattleReplayScreen(runtime, model) {
-  const impactClass =
-    model.transient?.effect === "damage"
-      ? "is-impact"
-      : model.transient?.effect === "down"
-        ? "is-down-impact"
-        : model.transient?.effect === "confirmed_kill"
-          ? "is-kill-impact"
-          : "";
   return `
-    <main class="tournament-screen tournament-screen--battle-replay ${impactClass}" style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
+    <main class="tournament-screen tournament-screen--battle-replay" style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
       <img class="tournament-stage-background" src="${escapeAttribute(assetPath(runtime.map.image))}" alt="">
       ${statusHeaderTemplate(runtime, model)}
       <section class="battle-arena">
@@ -1002,6 +1048,7 @@ export function createBattlePlaybackController({
   runtime,
   onComplete,
   onError = (error) => console.error(error),
+  onRequestItemUse = null,
   playbackRate =
     Number(runtime?.entryData?.settings?.commentarySpeed) || 1,
   reducedMotion =
@@ -1025,7 +1072,20 @@ export function createBattlePlaybackController({
   let generation = 0;
   let swipeStartX = null;
   let swipeStartY = null;
-  let manualFormationShift = 0;
+  let swipePlayerId = null;
+  let suppressTapUntil = 0;
+  const manualPlayerShifts =
+    new Map();
+  let paused = false;
+  let cutinSequence = 0;
+  const cutinTimers =
+    new Set();
+  const persistentCutinLayer =
+    globalThis.document?.createElement?.("div") ?? null;
+  if (persistentCutinLayer) {
+    persistentCutinLayer.className =
+      "battle-persistent-cutin-layer";
+  }
 
   const safeRate =
     Number.isFinite(playbackRate) && playbackRate > 0
@@ -1033,26 +1093,259 @@ export function createBattlePlaybackController({
       : 1;
 
   function render() {
-    if (!destroyed) {
-      root.innerHTML =
-        renderBattleReplayScreen(
-          runtime,
-          model,
+    if (destroyed) {
+      return;
+    }
+    root.innerHTML =
+      renderBattleReplayScreen(
+        runtime,
+        model,
+      );
+
+    for (
+      const [playerId, shift]
+      of manualPlayerShifts.entries()
+    ) {
+      const fighter =
+        [...root.querySelectorAll(
+          ".battle-fighter[data-player-id]",
+        )].find(
+          (entry) =>
+            entry.dataset.playerId ===
+            playerId,
         );
-      root.dataset.battleManualShift =
-        String(manualFormationShift);
-      const guide =
-        root.querySelector(
-          ".battle-swipe-guide strong",
-        );
-      if (guide) {
-        guide.textContent =
-          manualFormationShift < 0
-            ? "FAR VIEW"
-            : manualFormationShift > 0
-              ? "CLOSE VIEW"
-              : "← SWIPE →";
+      if (fighter) {
+        fighter.dataset.manualShift =
+          String(shift);
       }
+    }
+
+    const guide =
+      root.querySelector(
+        ".battle-swipe-guide strong",
+      );
+    if (guide) {
+      guide.textContent =
+        "CHARACTER SWIPE / TAP ITEM";
+    }
+
+    if (persistentCutinLayer) {
+      root.append(
+        persistentCutinLayer,
+      );
+    }
+  }
+
+  function clearCutinTimers() {
+    for (const timerId of cutinTimers) {
+      timer.clearTimeout(timerId);
+    }
+    cutinTimers.clear();
+    persistentCutinLayer?.replaceChildren();
+  }
+
+  function enqueuePersistentCutin(event) {
+    if (
+      !persistentCutinLayer ||
+      !isPersistentCutinEvent(event)
+    ) {
+      return;
+    }
+
+    const transient =
+      transientForEvent(event, model);
+    const sequence =
+      cutinSequence++;
+    const slot =
+      sequence % 2 === 0
+        ? "top"
+        : "bottom";
+    const template =
+      globalThis.document.createElement(
+        "template",
+      );
+    template.innerHTML =
+      persistentCutinTemplate(
+        transient,
+        slot,
+        sequence % 3,
+      ).trim();
+    const element =
+      template.content.firstElementChild;
+    if (!element) {
+      return;
+    }
+
+    persistentCutinLayer.append(
+      element,
+    );
+    requestAnimationFrame(() =>
+      element.classList.add(
+        "is-visible",
+      ),
+    );
+
+    const timerId =
+      timer.setTimeout(() => {
+        element.classList.add(
+          "is-exit",
+        );
+        const removeTimer =
+          timer.setTimeout(() => {
+            element.remove();
+            cutinTimers.delete(
+              removeTimer,
+            );
+          }, 220);
+        cutinTimers.add(removeTimer);
+        cutinTimers.delete(timerId);
+      }, 1080);
+    cutinTimers.add(timerId);
+  }
+
+  function pause() {
+    if (
+      destroyed ||
+      completed ||
+      paused
+    ) {
+      return;
+    }
+    paused = true;
+    clearTimer();
+    model.status = "paused";
+    render();
+  }
+
+  function resume() {
+    if (
+      destroyed ||
+      completed ||
+      !paused
+    ) {
+      return;
+    }
+    paused = false;
+    model.status = "playing";
+    render();
+    scheduleNext();
+  }
+
+  function applyBattleItemResult(result) {
+    if (!result?.presentation) {
+      return;
+    }
+    for (
+      const target
+      of result.presentation.targets ?? []
+    ) {
+      const participant =
+        model.participants[
+          target.playerId
+        ];
+      if (!participant) {
+        continue;
+      }
+      if (
+        Number.isFinite(
+          target.hpAfter,
+        )
+      ) {
+        participant.hp =
+          Math.max(
+            0,
+            Math.min(
+              participant.maxHp,
+              target.hpAfter,
+            ),
+          );
+        if (
+          participant.hp > 0 &&
+          participant.combatState !==
+            "alive"
+        ) {
+          participant.combatState =
+            "alive";
+        }
+      }
+      participant.actionState =
+        "heal";
+    }
+
+    const first =
+      result.presentation.targets?.[0];
+    model.transient = {
+      effect: "battle_item_use",
+      targetPlayerId:
+        first?.playerId ?? null,
+      targetSide:
+        first?.playerId
+          ? (
+              model.participants[
+                first.playerId
+              ]?.teamId ===
+              model.leftTeamId
+                ? "left"
+                : "right"
+            )
+          : "left",
+      targetOrder:
+        first?.playerId
+          ? model.teams[
+              model.participants[
+                first.playerId
+              ]?.teamId
+            ]?.members.indexOf(
+              first.playerId,
+            ) ?? 0
+          : 0,
+      valueLabel:
+        result.effectSummary ??
+        result.name,
+    };
+    model.commentary = {
+      name: COMMENTATOR.name,
+      image: COMMENTATOR.image,
+      text:
+        `${result.name}を使用！` +
+        `${result.effectSummary ?? "効果を反映"}！`,
+      priority: 9,
+      eventId:
+        `battle-item:${Date.now()}`,
+    };
+    model.commentaryHistory = [
+      ...(model.commentaryHistory ?? []),
+      model.commentary.text,
+    ].slice(-5);
+    render();
+  }
+
+  async function requestBattleItem(
+    playerId,
+  ) {
+    if (
+      typeof onRequestItemUse !==
+      "function"
+    ) {
+      return;
+    }
+    pause();
+    try {
+      const result =
+        await onRequestItemUse({
+          playerId,
+          model:
+            deepFreeze(
+              deepClone(model),
+            ),
+        });
+      if (result) {
+        applyBattleItemResult(result);
+      }
+    } catch (error) {
+      onError(error);
+    } finally {
+      resume();
     }
   }
 
@@ -1078,6 +1371,9 @@ export function createBattlePlaybackController({
   function processEvent(event) {
     model = deepClone(applyBattleReplayEvent(model, event));
     const commentary = director.consumeBattleEvent(event, context);
+    if (isPersistentCutinEvent(event)) {
+      enqueuePersistentCutin(event);
+    }
     if (commentary.displayed) {
       model.commentary = {
         name: COMMENTATOR.name,
@@ -1095,7 +1391,11 @@ export function createBattlePlaybackController({
   }
 
   function scheduleNext() {
-    if (destroyed || completed) {
+    if (
+      destroyed ||
+      completed ||
+      paused
+    ) {
       return;
     }
     if (eventIndex >= model.events.length) {
@@ -1116,17 +1416,21 @@ export function createBattlePlaybackController({
         : model.events[eventIndex - 1].time;
     const eventDelay = Math.max(0, event.time - previousTime) * 1000;
     const previousEvent = eventIndex > 0 ? model.events[eventIndex - 1] : null;
-    const previousPresentationHold = !reducedMotion && previousEvent
-      ? previousEvent.type === "skill_cutin"
-        ? 280
-        : ["down", "confirmed_kill", "revive", "squad_wipe"].includes(previousEvent.type)
-          ? 440
-          : previousEvent.type === "distance_changed"
-            ? 110
-            : previousEvent.type === "underdog_momentum"
-              ? 320
+    const previousPresentationHold =
+      !reducedMotion &&
+      previousEvent
+        ? isPersistentCutinEvent(
+            previousEvent,
+          )
+          ? 135
+          : previousEvent.type ===
+              "distance_changed"
+            ? 90
+            : previousEvent.type ===
+                "underdog_momentum"
+              ? 220
               : 0
-      : 0;
+        : 0;
     const delay = reducedMotion
       ? Math.min(25, eventDelay / safeRate)
       : Math.max(
@@ -1151,38 +1455,65 @@ export function createBattlePlaybackController({
   }
 
   function handleClick(event) {
-    const action = event.target?.closest?.("[data-action]")?.dataset?.action;
-    if (action === "battle-playback-skip") {
+    const action =
+      event.target
+        ?.closest?.("[data-action]")
+        ?.dataset?.action;
+    if (
+      action ===
+      "battle-playback-skip"
+    ) {
       skip();
+      return;
+    }
+    if (
+      Date.now() <
+      suppressTapUntil
+    ) {
+      return;
+    }
+    const fighter =
+      event.target?.closest?.(
+        ".battle-team-column.is-player .battle-fighter[data-player-id]",
+      );
+    if (fighter) {
+      requestBattleItem(
+        fighter.dataset.playerId,
+      );
     }
   }
 
-
   function handlePointerDown(event) {
-    if (
-      !event.target?.closest?.(
-        ".battle-team-column.is-player",
-      )
-    ) {
+    const fighter =
+      event.target?.closest?.(
+        ".battle-team-column.is-player .battle-fighter[data-player-id]",
+      );
+    if (!fighter) {
       return;
     }
     swipeStartX = event.clientX;
     swipeStartY = event.clientY;
+    swipePlayerId =
+      fighter.dataset.playerId;
   }
 
   function handlePointerUp(event) {
     if (
       swipeStartX === null ||
-      swipeStartY === null
+      swipeStartY === null ||
+      !swipePlayerId
     ) {
       return;
     }
+    const playerId =
+      swipePlayerId;
     const deltaX =
       event.clientX - swipeStartX;
     const deltaY =
       event.clientY - swipeStartY;
     swipeStartX = null;
     swipeStartY = null;
+    swipePlayerId = null;
 
     if (
       Math.abs(deltaX) < 34 ||
@@ -1192,35 +1523,32 @@ export function createBattlePlaybackController({
       return;
     }
 
-    manualFormationShift =
+    suppressTapUntil =
+      Date.now() + 360;
+    const current =
+      manualPlayerShifts.get(
+        playerId,
+      ) ?? 0;
+    const next =
       Math.max(
         -1,
         Math.min(
           1,
-          manualFormationShift +
+          current +
             (deltaX > 0 ? 1 : -1),
         ),
       );
-    root.dataset.battleManualShift =
-      String(manualFormationShift);
-
-    const guide =
-      root.querySelector(
-        ".battle-swipe-guide strong",
-      );
-    if (guide) {
-      guide.textContent =
-        manualFormationShift < 0
-          ? "FAR VIEW"
-          : manualFormationShift > 0
-            ? "CLOSE VIEW"
-            : "MID VIEW";
-    }
+    manualPlayerShifts.set(
+      playerId,
+      next,
+    );
+    render();
   }
 
   function handlePointerCancel() {
     swipeStartX = null;
     swipeStartY = null;
+    swipePlayerId = null;
   }
 
   function start() {
@@ -1279,11 +1607,14 @@ export function createBattlePlaybackController({
       "pointercancel",
       handlePointerCancel,
     );
-    delete root.dataset.battleManualShift;
+    clearCutinTimers();
+    persistentCutinLayer?.remove();
   }
 
   const controller = Object.freeze({
     start,
+    pause,
+    resume,
     skip,
     destroy,
     getModel: () => deepFreeze(deepClone(model)),

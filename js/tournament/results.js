@@ -11,29 +11,29 @@ import { assetPath } from "../assets.js";
 import {
   getChampionshipPoints,
   getPlacementPoints,
-} from "../../data/game-data.js?v=30";
+} from "../../data/game-data.js?v=31";
 import {
   STRATEGY_RULES,
 } from "../../data/strategy-data.js";
 import {
   FORMAL_CIRCUIT_RULES,
   isCasualTournamentType,
-} from "../../data/circuit-data.js?v=30";
+} from "../../data/circuit-data.js?v=31";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=30";
+} from "./circuit.js?v=31";
 import {
   getPlayableRoundCount,
-} from "./round.js?v=30";
+} from "./round.js?v=31";
 import {
   finalizeTournamentResultData,
   resolvePlacementRewards,
   writeTournamentResultToStorage,
-} from "../main/tournament-bridge.js?v=30";
+} from "../main/tournament-bridge.js?v=31";
 
 export const RESULTS_VERSION =
-  "mobbr-tournament-results-2.1.0";
+  "mobbr-tournament-results-2.2.0";
 
 export const RESULT_RULES = Object.freeze({
   defaultMatchPointThreshold: 50,
@@ -43,6 +43,8 @@ export const RESULT_RULES = Object.freeze({
     "ASSIST_LEADER",
     "HEALING_LEADER",
     "ACCURACY_LEADER",
+    "UNDERDOG_HERO",
+    "SURVIVAL_SPIRIT",
     "MVP",
     "FINAL_PODIUM",
   ]),
@@ -707,6 +709,7 @@ function cumulativePlayerMemberResults(runtime) {
         image: member.image,
         teamId: runtime.playerTeamId,
         teamName: playerTeam.teamName,
+        teamLogo: playerTeam.teamLogo,
         weaponId: member.weapon.weaponId,
         weaponName: member.weapon.weaponName,
         weaponImage: member.weapon.image ?? null,
@@ -720,6 +723,14 @@ function cumulativePlayerMemberResults(runtime) {
         ),
         deaths: Math.max(0, Math.floor(stats.deaths ?? 0)),
         revives: Math.max(0, Math.floor(stats.revives ?? 0)),
+        timesRevived: Math.max(
+          0,
+          Math.floor(
+            stats.reviveCount ??
+            stats.timesRevived ??
+            0,
+          ),
+        ),
         damage: Math.max(0, Math.floor(stats.damage ?? 0)),
         damageTaken: Math.max(
           0,
@@ -816,6 +827,7 @@ function createCpuMemberAwardStats(
     image: member.image,
     teamId: team.teamId,
     teamName: team.teamName,
+    teamLogo: team.teamLogo,
     teamPlace,
     weaponName: member.weapon.weaponName,
     weaponImage: member.weapon.image ?? null,
@@ -827,6 +839,30 @@ function createCpuMemberAwardStats(
       Math.round(damage * (0.7 + stableUnit(`${seed}|taken`))),
     ),
     healing,
+    revives:
+      member.role === "SUP"
+        ? Math.round(
+            stableUnit(
+              `${seed}|revives`,
+            ) * 3,
+          )
+        : Math.round(
+            stableUnit(
+              `${seed}|revives`,
+            ),
+          ),
+    timesRevived:
+      Math.round(
+        stableUnit(
+          `${seed}|times-revived`,
+        ) * 2,
+      ),
+    deaths:
+      Math.round(
+        stableUnit(
+          `${seed}|deaths`,
+        ),
+      ),
     shots,
     hits: Math.min(shots, Math.round(shots * accuracy)),
     accuracy,
@@ -927,6 +963,12 @@ function individualRankingComment(
   if (category === "ACCURACY_LEADER") {
     return `${name}は命中率${value}。無駄弾を抑えながら重要な射撃を当てています。`;
   }
+  if (category === "UNDERDOG_HERO") {
+    return `${name}は${value}。企業順位が厳しい状況でも、個人の火力・支援・生存で試合を動かしました。`;
+  }
+  if (category === "SURVIVAL_SPIRIT") {
+    return `${name}は${value}。被弾後も立て直し、蘇生・回復・生存で戦線を長く維持しました。`;
+  }
   if (category === "MVP") {
     return `${name}は${value}。キル・火力・支援・生存を総合して大会を最も動かした選手です。`;
   }
@@ -1001,7 +1043,7 @@ function createAward(
 ) {
   const ranking = [...players]
     .sort(compareAwardEntries(primaryField))
-    .slice(0, 3)
+    .slice(0, 10)
     .map((player, index) => ({
       place: index + 1,
       playerId: player.playerId,
@@ -1010,6 +1052,7 @@ function createAward(
       image: player.image,
       teamId: player.teamId,
       teamName: player.teamName,
+      teamLogo: player.teamLogo,
       teamPlace: player.teamPlace,
       value: player[primaryField] ?? 0,
       valueLabel: valueFormatter(player[primaryField] ?? 0),
@@ -1051,6 +1094,55 @@ export function createTournamentAwards(runtime) {
     ...player,
     mvpScore: Math.round(mvpScore(player) * 100) / 100,
   }));
+  const underdogPlayers =
+    players.map((player) => ({
+      ...player,
+      underdogScore:
+        Math.round(
+          (
+            mvpScore(player) * 0.32 +
+            Math.max(
+              0,
+              Number(
+                player.teamPlace ?? 1,
+              ) - 5,
+            ) * 115 +
+            Number(
+              player.damage ?? 0,
+            ) * 0.05
+          ) * 100,
+        ) / 100,
+    }));
+  const survivalPlayers =
+    players.map((player) => ({
+      ...player,
+      survivalSpiritScore:
+        Math.round(
+          (
+            Number(
+              player.survivalTime ?? 0,
+            ) * 1.1 +
+            Number(
+              player.damageTaken ?? 0,
+            ) * 0.07 +
+            Number(
+              player.revives ?? 0,
+            ) * 170 +
+            Number(
+              player.timesRevived ?? 0,
+            ) * 130 +
+            Number(
+              player.healing ?? 0,
+            ) * 0.09 +
+            Math.max(
+              0,
+              Number(
+                player.teamPlace ?? 1,
+              ) - 5,
+            ) * 45
+          ) * 100,
+        ) / 100,
+    }));
 
   const awards = [
     createAward(
@@ -1087,6 +1179,20 @@ export function createTournamentAwards(runtime) {
       "accuracy",
       players.filter((player) => player.shots > 0),
       (value) => `${Math.round(value * 100)}%`,
+    ),
+    createAward(
+      "UNDERDOG_HERO",
+      "UNDERDOG HERO",
+      "underdogScore",
+      underdogPlayers,
+      (value) => `${formatNumber(Math.round(value))} IMPACT`,
+    ),
+    createAward(
+      "SURVIVAL_SPIRIT",
+      "SURVIVAL SPIRIT",
+      "survivalSpiritScore",
+      survivalPlayers,
+      (value) => `${formatNumber(Math.round(value))} SPIRIT`,
     ),
     createAward(
       "MVP",
@@ -2009,7 +2115,7 @@ export function renderAwardScreen(runtime) {
         <h1>${escapeHtml(award.label)}</h1>
       </header>
       <section class="award-podium ${isPodium ? "award-podium--teams" : ""}">
-        ${award.ranking.map((entry) => `
+        ${award.ranking.slice(0, isPodium ? 5 : 3).map((entry) => `
           <article class="award-place award-place--${entry.place}">
             <span>${entry.place}</span>
             <img
@@ -2040,6 +2146,28 @@ export function renderAwardScreen(runtime) {
           </article>
         `).join("")}
       </section>
+      ${
+        !isPodium &&
+        award.ranking.length > 3
+          ? `
+            <section class="award-compact-ranking">
+              <header>
+                <span>4TH–10TH</span>
+                <strong>RANKING</strong>
+              </header>
+              <div>
+                ${award.ranking.slice(3, 10).map((entry) => `
+                  <article>
+                    <b>${entry.place}</b>
+                    <img src="${escapeAttribute(entry.teamLogo ?? "")}" alt="">
+                    <strong>${escapeHtml(entry.playerName)}</strong>
+                  </article>
+                `).join("")}
+              </div>
+            </section>
+          `
+          : ""
+      }
       <div class="tournament-bottom-area result-fixed-bottom">
         ${commentator(award.commentary)}
         <button
