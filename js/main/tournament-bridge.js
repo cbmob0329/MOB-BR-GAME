@@ -17,7 +17,7 @@ import {
   getPlacementPoints,
   getTournamentEventsForDate,
   isChampionshipYear,
-} from "../../data/game-data.js?v=30";
+} from "../../data/game-data.js?v=31";
 import {
   CASUAL_TOURNAMENT_RULES,
   FORMAL_CIRCUIT_RULES,
@@ -31,7 +31,7 @@ import {
   selectTeamIds,
   sourcePoolForTeamId,
   teamSeed,
-} from "../../data/circuit-data.js?v=30";
+} from "../../data/circuit-data.js?v=31";
 import {
   LOCAL_CPU_TEAMS,
 } from "../../data/cpu-local-data.js";
@@ -43,7 +43,7 @@ import {
 } from "../../data/cpu-world-data.js";
 import {
   BATTLE_CONFIG_VERSION,
-} from "../../data/battle-config.js?v=30";
+} from "../../data/battle-config.js?v=31";
 import {
   CONSUMABLE_ITEMS,
   ITEM_MASTER_VERSION,
@@ -57,9 +57,9 @@ import {
   DuplicateTournamentResultError,
   STORAGE_KEYS,
   calculateChecksum,
-} from "./state.js?v=30";
+} from "./state.js?v=31";
 
-export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-1.7.0";
+export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-1.8.0";
 export const TOURNAMENT_ENTRY_SCHEMA_VERSION =
   "mobbr-tournament-entry-1.0.0";
 export const TOURNAMENT_RESULT_SCHEMA_VERSION =
@@ -3012,6 +3012,8 @@ export function createTournamentBridgeController({
   openAlert,
   showToast,
   render,
+  playProgression = null,
+  companyProgressionPayload = null,
   navigateToTournament = (url) => globalThis.location.assign(url),
   clock = () => new Date(),
   idFactory = createGeneratedId,
@@ -3149,6 +3151,8 @@ export function createTournamentBridgeController({
 
     if (action === "import-tournament-result") {
       try {
+        const beforeCompany =
+          stateManager.getSnapshot().company;
         const imported = importPendingTournamentResult({
           stateManager,
           storage: validStorage,
@@ -3159,6 +3163,21 @@ export function createTournamentBridgeController({
           return true;
         }
         const result = imported.result;
+        if (
+          Number(result.rewards?.companyExp ?? 0) > 0 &&
+          typeof playProgression === "function" &&
+          typeof companyProgressionPayload === "function"
+        ) {
+          await playProgression(
+            companyProgressionPayload({
+              beforeCompany,
+              afterCompany:
+                imported.state.company,
+              companyExpResult:
+                imported.applyResult.companyExpResult,
+            }),
+          );
+        }
         await openAlert({
           title: "大会結果を反映しました",
           body: `
@@ -3186,12 +3205,29 @@ export function createTournamentBridgeController({
     );
     if (status.state !== "result_pending") return false;
     try {
+      const beforeCompany =
+        stateManager.getSnapshot().company;
       const imported = importPendingTournamentResult({
         stateManager,
         storage: validStorage,
         clock,
       });
       if (imported.imported) {
+        if (
+          Number(imported.result.rewards?.companyExp ?? 0) > 0 &&
+          typeof playProgression === "function" &&
+          typeof companyProgressionPayload === "function"
+        ) {
+          await playProgression(
+            companyProgressionPayload({
+              beforeCompany,
+              afterCompany:
+                imported.state.company,
+              companyExpResult:
+                imported.applyResult.companyExpResult,
+            }),
+          );
+        }
         await openAlert({
           title: "大会結果を受信しました",
           body: `

@@ -19,11 +19,11 @@ import {
   getCompanyRankData,
   rankToWeaponValue,
   validateGameDate,
-} from "../../data/game-data.js?v=30";
+} from "../../data/game-data.js?v=31";
 import {
   BATTLE_CONFIG_VERSION,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=30";
+} from "../../data/battle-config.js?v=31";
 import {
   TRAINING_DATA_VERSION,
 } from "../../data/training-data.js";
@@ -49,7 +49,7 @@ import {
   getStrategy,
 } from "../../data/strategy-data.js";
 
-export const SAVE_SCHEMA_VERSION = "mobbr-save-1.7.0";
+export const SAVE_SCHEMA_VERSION = "mobbr-save-1.8.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
 
 export const STORAGE_KEYS = Object.freeze({
@@ -1165,7 +1165,8 @@ export function migrateSaveState(
     rawState.schemaVersion === "mobbr-save-1.3.0" ||
     rawState.schemaVersion === "mobbr-save-1.4.0" ||
     rawState.schemaVersion === "mobbr-save-1.5.0" ||
-    rawState.schemaVersion === "mobbr-save-1.6.0"
+    rawState.schemaVersion === "mobbr-save-1.6.0" ||
+    rawState.schemaVersion === "mobbr-save-1.7.0"
   ) {
     const migrated = migrateUnversionedSave(rawState, timestamp);
     validateSaveState(migrated);
@@ -1412,6 +1413,7 @@ export function addCompanyExpToDraft(
 
   return deepFreeze({
     ...deepClone(result),
+    gainedExp,
     rankUpRewardTotal,
   });
 }

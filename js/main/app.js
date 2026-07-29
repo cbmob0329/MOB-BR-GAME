@@ -20,7 +20,7 @@ import {
   SaveError,
   SaveNotFoundError,
   createGameStateManager,
-} from "./state.js?v=30";
+} from "./state.js?v=31";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -42,21 +42,24 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=30";
+} from "./team.js?v=31";
 import {
   getSpecialAbility,
 } from "../../data/ability-data.js";
 import {
+  getCompanyRankData,
+} from "../../data/game-data.js";
+import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=30";
+} from "./management.js?v=31";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=30";
+} from "./tournament-bridge.js?v=31";
 
-export const APP_VERSION = "mobbr-main-app-1.8.0";
+export const APP_VERSION = "mobbr-main-app-1.9.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -77,6 +80,21 @@ export const ROUTES = Object.freeze({
   items: "items",
   ability: "ability",
   specialAbility: "specialAbility",
+});
+
+const GROWTH_STAT_LABELS = Object.freeze({
+  stamina: "スタミナ",
+  mind: "精神",
+  physical: "フィジカル",
+  aim: "エイム",
+  agility: "敏捷",
+  technique: "技術",
+  support: "サポート",
+  close: "近距離武器",
+  mid: "中距離武器",
+  far: "遠距離武器",
+  fireRate: "連射性能",
+  reload: "リロード",
 });
 
 const WEEKLY_EMPLOYEE_MESSAGES = Object.freeze([
@@ -525,6 +543,33 @@ function individualWeaponProfileTemplate(
 }
 
 function topStatusTemplate(snapshot) {
+  const rankData =
+    getCompanyRankData(
+      snapshot.company.rank,
+    );
+  const expToNext =
+    rankData.expToNext;
+  const remaining =
+    expToNext === null
+      ? 0
+      : Math.max(
+          0,
+          expToNext -
+          snapshot.company.exp,
+        );
+  const progress =
+    expToNext === null
+      ? 100
+      : Math.max(
+          0,
+          Math.min(
+            100,
+            snapshot.company.exp /
+              expToNext *
+              100,
+          ),
+        );
+
   return `
     <header class="top-status">
       <div class="top-status__panel">
@@ -535,7 +580,24 @@ function topStatusTemplate(snapshot) {
               src="${escapeAttribute(snapshot.company.badgeImage)}"
               alt=""
             >
-            <span>${escapeHtml(snapshot.company.companyName)}</span>
+            <div class="top-status__company-main">
+              <div>
+                <span>${escapeHtml(snapshot.company.companyName)}</span>
+                <b>${escapeHtml(snapshot.company.rank)}</b>
+              </div>
+              <div class="company-rank-mini-progress">
+                <i>
+                  <span style="width:${progress.toFixed(2)}%"></span>
+                </i>
+                <small>
+                  ${
+                    expToNext === null
+                      ? "MAX RANK"
+                      : `NEXT ${escapeHtml(rankData.nextRank)} / あと${formatNumber(remaining)} PT`
+                  }
+                </small>
+              </div>
+            </div>
           </div>
           <div class="top-status__date">
             ${escapeHtml(formatGameDate(snapshot.gameDate))}
@@ -1327,6 +1389,8 @@ export function createMainApp({
   let weaponPlanPlayerId = null;
   let modalQuantityValue = 1;
   let weekStartPresentationOpen = false;
+  let progressionQueue =
+    Promise.resolve();
   let toastTimer = null;
   let modalResolver = null;
 
@@ -1653,6 +1717,219 @@ export function createMainApp({
     });
   }
 
+
+  function waitForUi(milliseconds) {
+    return new Promise((resolve) =>
+      setTimeout(resolve, milliseconds),
+    );
+  }
+
+  function progressionEntryTemplate(entry) {
+    return `
+      <article>
+        ${
+          entry.icon
+            ? `<img src="${escapeAttribute(assetPath(entry.icon))}" alt="">`
+            : `<i>${escapeHtml(String(entry.label ?? "UP").slice(0, 1))}</i>`
+        }
+        <div>
+          <span>${escapeHtml(entry.label ?? "VALUE")}</span>
+          <strong>
+            ${escapeHtml(entry.before ?? "")}
+            <b>→</b>
+            ${escapeHtml(entry.after ?? "")}
+          </strong>
+          ${
+            entry.note
+              ? `<small>${escapeHtml(entry.note)}</small>`
+              : ""
+          }
+        </div>
+      </article>
+    `;
+  }
+
+  async function runProgressionPresentation({
+    kind = "growth",
+    label = "POWER UP",
+    title = "成長しました",
+    subject = "",
+    entries = [],
+    company = null,
+    rankUp = false,
+  } = {}) {
+    const overlay =
+      document.createElement(
+        "section",
+      );
+    overlay.className =
+      `progression-presentation progression-presentation--${kind} ${rankUp ? "is-rank-up" : ""}`;
+    overlay.innerHTML = `
+      <div class="progression-presentation__rays" aria-hidden="true"></div>
+      <span>${escapeHtml(label)}</span>
+      <h2>${escapeHtml(title)}</h2>
+      ${
+        subject
+          ? `<strong class="progression-presentation__subject">${escapeHtml(subject)}</strong>`
+          : ""
+      }
+      ${
+        company
+          ? `
+            <section class="company-rank-growth">
+              <div class="company-rank-growth__rank">
+                <small>COMPANY RANK</small>
+                <strong>${escapeHtml(company.beforeRank)}</strong>
+                <b>→</b>
+                <strong>${escapeHtml(company.afterRank)}</strong>
+              </div>
+              <div class="company-rank-growth__gauge">
+                <span>
+                  <i style="--company-start:${company.startPercent}%;--company-end:${company.endPercent}%"></i>
+                </span>
+                <small>
+                  +${formatNumber(company.gained)} PT
+                  ${
+                    company.afterRequirement === null
+                      ? "/ MAX RANK"
+                      : `/ ${formatNumber(company.afterExp)} / ${formatNumber(company.afterRequirement)}`
+                  }
+                </small>
+              </div>
+            </section>
+          `
+          : ""
+      }
+      <div class="progression-presentation__entries">
+        ${entries.map(progressionEntryTemplate).join("")}
+      </div>
+      ${
+        rankUp
+          ? `
+            <div class="progression-rank-up-call">
+              <span>RANK UP!</span>
+              <strong>${escapeHtml(company?.afterRank ?? title)}</strong>
+            </div>
+          `
+          : ""
+      }
+    `;
+    root.append(overlay);
+    requestAnimationFrame(() =>
+      overlay.classList.add(
+        "is-active",
+      ),
+    );
+    await waitForUi(
+      rankUp ? 1750 : 1250,
+    );
+    overlay.classList.add(
+      "is-exit",
+    );
+    await waitForUi(260);
+    overlay.remove();
+  }
+
+  function playProgressionPresentation(
+    payload,
+  ) {
+    progressionQueue =
+      progressionQueue
+        .catch(() => undefined)
+        .then(() =>
+          runProgressionPresentation(
+            payload,
+          ),
+        );
+    return progressionQueue;
+  }
+
+  function companyProgressionPayload({
+    beforeCompany,
+    afterCompany,
+    companyExpResult,
+  }) {
+    const beforeRankData =
+      getCompanyRankData(
+        beforeCompany.rank,
+      );
+    const afterRankData =
+      getCompanyRankData(
+        afterCompany.rank,
+      );
+    const beforePercent =
+      beforeRankData.expToNext === null
+        ? 100
+        : Math.min(
+            100,
+            beforeCompany.exp /
+              beforeRankData.expToNext *
+              100,
+          );
+    const afterPercent =
+      afterRankData.expToNext === null
+        ? 100
+        : Math.min(
+            100,
+            afterCompany.exp /
+              afterRankData.expToNext *
+              100,
+          );
+    const rankUps =
+      companyExpResult?.rankUps ?? [];
+    return {
+      kind: "company",
+      label:
+        rankUps.length > 0
+          ? "COMPANY RANK UP"
+          : "COMPANY POINT",
+      title:
+        rankUps.length > 0
+          ? `${beforeCompany.rank} → ${afterCompany.rank}`
+          : "企業ランクポイント獲得",
+      subject:
+        afterCompany.companyName ??
+        "",
+      company: {
+        beforeRank:
+          beforeCompany.rank,
+        afterRank:
+          afterCompany.rank,
+        startPercent:
+          beforeCompany.rank ===
+          afterCompany.rank
+            ? beforePercent
+            : 0,
+        endPercent:
+          afterPercent,
+        gained:
+          companyExpResult?.gainedExp ??
+          companyExpResult?.addedExp ??
+          0,
+        afterExp:
+          afterCompany.exp,
+        afterRequirement:
+          afterRankData.expToNext,
+      },
+      rankUp:
+        rankUps.length > 0,
+      entries:
+        rankUps.length > 0
+          ? rankUps.map((rankUp) => ({
+              label:
+                `${rankUp.from} → ${rankUp.to}`,
+              before:
+                rankUp.from,
+              after:
+                rankUp.to,
+              note:
+                `COIN +${formatNumber(rankUp.reward.coin ?? 0)} / DIAMOND +${formatNumber(rankUp.reward.diamond ?? 0)} / RUBY +${formatNumber(rankUp.reward.ruby ?? 0)}`,
+              icon:
+                "icon/com.png",
+            }))
+          : [],
+    };
+  }
 
   async function showPendingWeekStartPresentation() {
     if (
@@ -2099,6 +2376,9 @@ export function createMainApp({
     openAlert,
     showToast,
     render,
+    playProgression:
+      playProgressionPresentation,
+    companyProgressionPayload,
     navigateToTournament: (url) => window.location.assign(url),
   });
 
@@ -2353,6 +2633,35 @@ export function createMainApp({
           (draft) => applyPlayerStatUpgradePlanToDraft(draft, playerId, abilityUpgradePlan),
         );
         abilityUpgradePlan = {};
+        const latest =
+          stateManager.getSnapshot();
+        const player =
+          latest.playerTeam.members.find(
+            (member) =>
+              member.playerId ===
+              playerId,
+          );
+        await playProgressionPresentation({
+          kind: "ability",
+          label: "ABILITY UP",
+          title: "選手能力アップ",
+          subject: player?.name ?? "",
+          entries:
+            transaction.result.results.map(
+              (result) => ({
+                label:
+                  GROWTH_STAT_LABELS[
+                    result.statId
+                  ] ?? result.statId,
+                before:
+                  `${result.previousRank} / ${result.previousValue}`,
+                after:
+                  `${result.currentRank} / ${result.currentValue}`,
+                icon:
+                  "icon/ab.png",
+              }),
+            ),
+        });
         showToast(`${transaction.result.totalUpgrades}段階を強化しました`);
         updateTeamFeatureLiveSection("ability");
       } catch (error) {
@@ -2424,6 +2733,37 @@ export function createMainApp({
             ),
         );
         weaponUpgradePlan = {};
+        const latest =
+          stateManager.getSnapshot();
+        const player =
+          latest.playerTeam.members.find(
+            (member) =>
+              member.playerId ===
+              playerId,
+          );
+        await playProgressionPresentation({
+          kind: "weapon",
+          label: "WEAPON UP",
+          title: "武器能力アップ",
+          subject:
+            `${player?.name ?? ""} / ${player?.weapon.weaponName ?? ""}`,
+          entries:
+            transaction.result.results.map(
+              (result) => ({
+                label:
+                  GROWTH_STAT_LABELS[
+                    result.weaponStatId
+                  ] ??
+                  result.weaponStatId,
+                before:
+                  result.previousRank,
+                after:
+                  result.currentRank,
+                icon:
+                  "menu/eq.png",
+              }),
+            ),
+        });
         showToast(
           `${transaction.result.totalUpgrades}段階を強化しました`,
         );
@@ -2459,6 +2799,34 @@ export function createMainApp({
               weaponStatId,
             ),
         );
+        const latest =
+          stateManager.getSnapshot();
+        const player =
+          latest.playerTeam.members.find(
+            (member) =>
+              member.playerId ===
+              playerId,
+          );
+        await playProgressionPresentation({
+          kind: "weapon",
+          label: "WEAPON UP",
+          title: "武器能力アップ",
+          subject:
+            `${player?.name ?? ""} / ${player?.weapon.weaponName ?? ""}`,
+          entries: [{
+            label:
+              GROWTH_STAT_LABELS[
+                transaction.result.weaponStatId
+              ] ??
+              transaction.result.weaponStatId,
+            before:
+              transaction.result.previousRank,
+            after:
+              transaction.result.currentRank,
+            icon:
+              "menu/eq.png",
+          }],
+        });
         showToast(
           `${transaction.result.previousRank} → ${transaction.result.currentRank}`,
         );
@@ -2543,6 +2911,33 @@ export function createMainApp({
           "player_skill_upgraded",
           (draft) => upgradePlayerSkillToDraft(draft, playerId, skillId),
         );
+        const latest =
+          stateManager.getSnapshot();
+        const player =
+          latest.playerTeam.members.find(
+            (member) =>
+              member.playerId ===
+              playerId,
+          );
+        await playProgressionPresentation({
+          kind: "skill",
+          label: "SKILL LEVEL UP",
+          title:
+            transaction.result.name,
+          subject:
+            player?.name ?? "",
+          entries: [{
+            label: "SKILL LEVEL",
+            before:
+              `LV ${transaction.result.previousLevel}`,
+            after:
+              `LV ${transaction.result.currentLevel}`,
+            note:
+              `CT ${transaction.result.profile.cooldownReductionPercent.toFixed(1)}%短縮 / 効果 +${transaction.result.profile.powerIncreasePercent.toFixed(1)}%`,
+            icon:
+              "icon/sp.png",
+          }],
+        });
         showToast(
           `${transaction.result.name} LV${transaction.result.currentLevel}へ強化`,
         );
@@ -2672,6 +3067,31 @@ export function createMainApp({
               abilityKey,
             ),
         );
+        const latest =
+          stateManager.getSnapshot();
+        const player =
+          latest.playerTeam.members.find(
+            (member) =>
+              member.playerId ===
+              playerId,
+          );
+        await playProgressionPresentation({
+          kind: "special",
+          label: "SPECIAL ABILITY",
+          title: "特殊能力習得",
+          subject:
+            player?.name ?? "",
+          entries: [{
+            label:
+              transaction.result.name,
+            before: "LOCKED",
+            after: "ACTIVE",
+            note:
+              "大会中は装備不要で常時有効",
+            icon:
+              "icon/sp.png",
+          }],
+        });
         showToast(`${transaction.result.name}を習得しました`);
         updateTeamFeatureLiveSection("special");
       } catch (error) {
@@ -2705,6 +3125,31 @@ export function createMainApp({
               abilityKey,
             ),
         );
+        const latest =
+          stateManager.getSnapshot();
+        const player =
+          latest.playerTeam.members.find(
+            (member) =>
+              member.playerId ===
+              playerId,
+          );
+        await playProgressionPresentation({
+          kind: "special",
+          label: "SPECIAL ABILITY",
+          title: "特殊能力習得",
+          subject:
+            player?.name ?? "",
+          entries: [{
+            label:
+              transaction.result.name,
+            before: "LOCKED",
+            after: "ACTIVE",
+            note:
+              "大会中は装備不要で常時有効",
+            icon:
+              "icon/sp.png",
+          }],
+        });
         showToast(`${transaction.result.name}を習得しました`);
         updateTeamFeatureLiveSection("special");
       } catch (error) {
