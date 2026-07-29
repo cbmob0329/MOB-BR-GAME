@@ -19,11 +19,11 @@ import {
   getCompanyRankData,
   rankToWeaponValue,
   validateGameDate,
-} from "../../data/game-data.js?v=31";
+} from "../../data/game-data.js?v=32";
 import {
   BATTLE_CONFIG_VERSION,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=31";
+} from "../../data/battle-config.js?v=32";
 import {
   TRAINING_DATA_VERSION,
 } from "../../data/training-data.js";

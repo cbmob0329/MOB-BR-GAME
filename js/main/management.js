@@ -10,11 +10,11 @@ import {
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=31";
+} from "../../data/game-data.js?v=32";
 import {
   isCasualTournamentType,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=31";
+} from "../../data/circuit-data.js?v=32";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
@@ -62,10 +62,10 @@ import {
 import {
   advanceWeeksToDraft,
   applyResourceDeltaToDraft,
-} from "./state.js?v=31";
+} from "./state.js?v=32";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=31";
+} from "./tournament-bridge.js?v=32";
 
 export const MANAGEMENT_FEATURE_VERSION =
   "mobbr-management-feature-1.4.0";
@@ -1532,7 +1532,7 @@ export function renderShopManagement(snapshot) {
           ${CARD_PACKS.map((pack) => {
             const unlocked = isCardPackUnlocked(pack.packId, unlockProgress);
             return `
-              <button type="button" class="shop-category-product" data-action="inspect-shop-pack" data-pack-type="card" data-pack-id="${escapeAttribute(pack.packId)}" ${unlocked ? "" : "disabled"}>
+              <button type="button" class="shop-category-product ${unlocked ? "" : "is-silhouette-locked"}" data-action="inspect-shop-pack" data-pack-type="card" data-pack-id="${escapeAttribute(pack.packId)}" ${unlocked ? "" : "disabled"}>
                 <img src="${escapeAttribute(pack.image)}" alt="">
                 <strong>${escapeHtml(pack.name)}</strong>
                 <small>${unlocked ? currencyPriceTemplate(pack.price) : "大会条件未達"}</small>
@@ -1850,7 +1850,9 @@ function cardPackCollectionStatsTemplate(
 }
 
 function packOpenButtons(type, packs, inventory) {
-  return packs.map((pack) => {
+  return packs
+    .filter((pack) => (inventory[pack.packId] ?? 0) > 0)
+    .map((pack) => {
     const count = inventory[pack.packId] ?? 0;
     const selected = MANAGEMENT_VIEW_STATE.selectedPackType === type && MANAGEMENT_VIEW_STATE.selectedPackId === pack.packId;
     return `
@@ -2129,63 +2131,27 @@ export function renderRecordManagement(snapshot) {
 export function renderNewsManagement(snapshot) {
   const history = [...(snapshot.tournament.history ?? [])].reverse();
   return `
-    <section class="news-list">
-      ${
-        history.length
-          ? history.map((entry) => `
-              <details class="news-entry">
-                <summary>
-                  <span>${escapeHtml(entry.tournamentType)}</span>
-                  <strong>${escapeHtml(entry.tournamentId)}</strong>
-                  <em>${
-                    Number.isInteger(entry.finalPlace)
-                      ? `${entry.finalPlace}位`
-                      : entry.status === "stage_in_progress"
-                        ? "1週目終了"
-                        : entry.status === "cpu_simulated"
-                          ? "CPU結果"
-                          : "不参加"
-                  }</em>
-                </summary>
-                <div>
-                  <p>${escapeHtml(entry.summary ?? "大会結果")}</p>
-                  <p>
-                    COIN ${formatNumber(entry.rewards?.coin ?? 0)} /
-                    EXP ${formatNumber(entry.rewards?.companyExp ?? 0)}
-                  </p>
-                  ${
-                    entry.advancement?.matchPointWinnerTeamId
-                      ? `<p>NATIONAL代表9位 ${escapeHtml(entry.advancement.matchPointWinnerTeamId)} / 代表10位 ${escapeHtml(entry.advancement.totalPointQualifierTeamId)}</p>`
-                      : entry.advancement?.directQualifierTeamIds?.length
-                        ? `<p>直接進出 ${entry.advancement.directQualifierTeamIds.length}チーム / Last Chance ${entry.advancement.lastChanceTeamIds?.length ?? 0}チーム</p>`
-                        : ""
-                  }
-                  ${
-                    Array.isArray(entry.rankings)
-                      ? `
-                        <ol>
-                          ${entry.rankings.slice(0, 40).map((ranking) => `
-                            <li>${escapeHtml(ranking.teamName ?? ranking.teamId)} — ${ranking.place}位</li>
-                          `).join("")}
-                        </ol>
-                      `
-                      : ""
-                  }
-                </div>
-              </details>
-            `).join("")
-          : `
-            <section class="content-panel placeholder-panel">
-              <img class="placeholder-panel__icon" src="icon/news.png" alt="">
-              <h2>大会新聞はまだありません</h2>
-              <p class="placeholder-panel__text">
-                大会が行われるたびに結果が追加されます。
-              </p>
-            </section>
-          `
-      }
-    </section>
-  `;
+    <section class="news-newspaper-grid">
+      ${history.length ? history.map((entry, index) => {
+        const year = entry.year ?? entry.gameDate?.year ?? String(entry.tournamentId ?? "").match(/\d{4}/)?.[0] ?? snapshot.gameDate.year;
+        const month = entry.month ?? entry.gameDate?.month ?? "--";
+        const week = entry.week ?? entry.gameDate?.week ?? "--";
+        return `
+          <details class="news-newspaper" style="--news-index:${index}">
+            <summary>
+              <div class="news-newspaper__masthead"><span>MOB BR TIMES</span><b>${year}.${month}.W${week}</b></div>
+              <img src="icon/news.png" alt="">
+              <div><strong>${escapeHtml(entry.tournamentId ?? entry.tournamentType)}</strong><small>${escapeHtml(entry.tournamentType)}</small></div>
+              <em>${Number.isInteger(entry.finalPlace) ? `${entry.finalPlace}位` : entry.status === "stage_in_progress" ? "継続中" : entry.status === "cpu_simulated" ? "CPU結果" : "速報"}</em>
+            </summary>
+            <article>
+              <h2>${escapeHtml(entry.summary ?? "大会結果速報")}</h2>
+              <p>COIN ${formatNumber(entry.rewards?.coin ?? 0)} / EXP ${formatNumber(entry.rewards?.companyExp ?? 0)}</p>
+              ${Array.isArray(entry.rankings) ? `<ol>${entry.rankings.slice(0,40).map(r=>`<li><b>${r.place}</b><span>${escapeHtml(r.teamName ?? r.teamId)}</span></li>`).join("")}</ol>` : ""}
+            </article>
+          </details>`;
+      }).join("") : `<section class="content-panel placeholder-panel"><img class="placeholder-panel__icon" src="icon/news.png" alt=""><h2>大会新聞はまだありません</h2><p class="placeholder-panel__text">大会結果が年月週付きの新聞として追加されます。</p></section>`}
+    </section>`;
 }
 
 export function renderManagementSection(snapshot, route) {

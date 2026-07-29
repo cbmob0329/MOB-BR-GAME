@@ -11,11 +11,11 @@ import {
   calculateCharacterOverallRank,
   characterValueToRank,
   weaponValueToRank,
-} from "../../data/game-data.js?v=31";
+} from "../../data/game-data.js?v=32";
 import {
   calculateMaxHp,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=31";
+} from "../../data/battle-config.js?v=32";
 import {
   WEAPON_SKINS,
   getWeaponSkin,

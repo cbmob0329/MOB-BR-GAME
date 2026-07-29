@@ -20,7 +20,7 @@ import {
   SaveError,
   SaveNotFoundError,
   createGameStateManager,
-} from "./state.js?v=31";
+} from "./state.js?v=32";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -42,7 +42,7 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=31";
+} from "./team.js?v=32";
 import {
   getSpecialAbility,
 } from "../../data/ability-data.js";
@@ -53,13 +53,13 @@ import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=31";
+} from "./management.js?v=32";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=31";
+} from "./tournament-bridge.js?v=32";
 
-export const APP_VERSION = "mobbr-main-app-1.9.0";
+export const APP_VERSION = "mobbr-main-app-2.0.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -272,6 +272,7 @@ const FACILITY_DEFINITIONS = Object.freeze([
   { facilityId: "mob_shop", name: "MOB SHOP", japaneseName: "MOB SHOP", note: "ショップ・パック・商品購入", status: "OPEN", accent: "SHOP", homeImage: "back/homeshop.png" },
   { facilityId: "cooking", name: "COOKING", japaneseName: "料理", note: "食材購入とキッチン機能", status: "LOCKED", accent: "COMING SOON", homeImage: "back/homekit.png" },
   { facilityId: "mob_room", name: "MOB ROOM", japaneseName: "モブルーム", note: "部屋を選択してコレクションを配置", status: "OPEN", accent: "ROOM", homeImage: "back/homeroom.png" },
+  { facilityId: "collection", name: "COLLECTION", japaneseName: "コレクション", note: "カード・バッジ・パックファイル", status: "OPEN", accent: "ARCHIVE", homeImage: "back/sub.png" },
 ]);
 
 const FACILITY_MENUS = Object.freeze({
@@ -2441,6 +2442,10 @@ export function createMainApp({
     }
     if (action === "open-facility") {
       selectedFacilityId = actionElement.dataset.facilityId ?? "team_lab";
+      if (selectedFacilityId === "collection") {
+        navigate(ROUTES.collection);
+        return;
+      }
       navigate(ROUTES.facility);
       return;
     }
