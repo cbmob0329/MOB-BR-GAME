@@ -11,29 +11,29 @@ import { assetPath } from "../assets.js";
 import {
   getChampionshipPoints,
   getPlacementPoints,
-} from "../../data/game-data.js?v=29";
+} from "../../data/game-data.js?v=30";
 import {
   STRATEGY_RULES,
 } from "../../data/strategy-data.js";
 import {
   FORMAL_CIRCUIT_RULES,
   isCasualTournamentType,
-} from "../../data/circuit-data.js?v=29";
+} from "../../data/circuit-data.js?v=30";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=29";
+} from "./circuit.js?v=30";
 import {
   getPlayableRoundCount,
-} from "./round.js?v=29";
+} from "./round.js?v=30";
 import {
   finalizeTournamentResultData,
   resolvePlacementRewards,
   writeTournamentResultToStorage,
-} from "../main/tournament-bridge.js?v=29";
+} from "../main/tournament-bridge.js?v=30";
 
 export const RESULTS_VERSION =
-  "mobbr-tournament-results-2.0.0";
+  "mobbr-tournament-results-2.1.0";
 
 export const RESULT_RULES = Object.freeze({
   defaultMatchPointThreshold: 50,
@@ -906,6 +906,92 @@ function mvpScore(player) {
   );
 }
 
+function individualRankingComment(
+  category,
+  entry,
+) {
+  const name = entry.playerName ?? entry.name ?? "選手";
+  const value = entry.valueLabel ?? "好成績";
+  if (category === "KILL_LEADER") {
+    return `${name}は${value}。ダウン後まで仕留め切る判断と、勝負所のフォーカスが光りました。`;
+  }
+  if (category === "DAMAGE_LEADER") {
+    return `${name}は${value}。射線を維持し、継続して敵のHPを削ったことが高評価です。`;
+  }
+  if (category === "ASSIST_LEADER") {
+    return `${name}は${value}。味方と同じ対象へ圧力を掛け、確キルへつなげる連携が優秀でした。`;
+  }
+  if (category === "HEALING_LEADER") {
+    return `${name}は${value}。危険な場面で回復を通し、チームの戦闘継続時間を伸ばしました。`;
+  }
+  if (category === "ACCURACY_LEADER") {
+    return `${name}は命中率${value}。無駄弾を抑えながら重要な射撃を当てています。`;
+  }
+  if (category === "MVP") {
+    return `${name}は${value}。キル・火力・支援・生存を総合して大会を最も動かした選手です。`;
+  }
+  return `${name}は${value}を記録し、チームの順位獲得へ貢献しました。`;
+}
+
+function totalRankingComment(
+  team,
+  index,
+) {
+  const place = index + 1;
+  const pp = team.sumPlacementPoint ?? 0;
+  const kp = team.sumKp ?? 0;
+  const total = team.sumTotal ?? team.total ?? 0;
+  if (place === 1) {
+    return `${team.teamName}が優勝。順位ポイント${pp}と${kp}KPを両立し、TOTAL ${total}で大会を支配しました。`;
+  }
+  if (place === 2) {
+    return `${team.teamName}は2位。終盤まで優勝争いを続ける安定感があり、取りこぼしの少なさが強みでした。`;
+  }
+  if (place === 3) {
+    return `${team.teamName}は3位。${kp}KPの攻撃性と上位維持を両立し、表彰台へ入りました。`;
+  }
+  if (place === 4) {
+    return `${team.teamName}は4位。大崩れを避けながらTOTAL ${total}を確保した、再現性の高い大会運びでした。`;
+  }
+  return `${team.teamName}は5位。上位集団へ残り続け、次大会でも通用する総合力を示しました。`;
+}
+
+function memberPerformanceComment(member) {
+  const accuracy =
+    Number(member.shots ?? 0) > 0
+      ? Math.round(
+          Number(member.hits ?? 0) /
+          Number(member.shots) *
+          100,
+        )
+      : 0;
+  const candidates = [
+    {
+      value: Number(member.kills ?? 0) * 140,
+      text: `${member.kills ?? 0}キル。敵を倒し切るフィニッシュ力が最大の長所でした。`,
+    },
+    {
+      value: Number(member.damage ?? 0) * 0.18,
+      text: `${formatNumber(member.damage ?? 0)}ダメージ。継続射撃でチームの戦闘を前へ進めました。`,
+    },
+    {
+      value: Number(member.assists ?? 0) * 90,
+      text: `${member.assists ?? 0}アシスト。味方とのフォーカスと援護が順位獲得につながりました。`,
+    },
+    {
+      value: Number(member.healing ?? 0) * 0.25,
+      text: `${formatNumber(member.healing ?? 0)}回復。味方を戦線へ残す支援が効果的でした。`,
+    },
+    {
+      value: accuracy * 5,
+      text: `命中率${accuracy}%。射撃精度を保ち、弾薬を有効に使いました。`,
+    },
+  ];
+  return candidates.sort(
+    (left, right) => right.value - left.value,
+  )[0].text;
+}
+
 function createAward(
   category,
   label,
@@ -935,6 +1021,14 @@ function createAward(
         damage: player.weaponDamage ?? player.damage ?? 0,
         reloads: player.weaponReloads ?? 0,
       },
+    }))
+    .map((entry) => ({
+      ...entry,
+      commentary:
+        individualRankingComment(
+          category,
+          entry,
+        ),
     }));
   return {
     awardId: category.toLowerCase(),
@@ -1006,16 +1100,21 @@ export function createTournamentAwards(runtime) {
       category: "FINAL_PODIUM",
       label: "FINAL PODIUM",
       primaryField: "finalPlace",
-      ranking: finalRankings.slice(0, 3).map((team) => ({
+      ranking: finalRankings.slice(0, 5).map((team, index) => ({
         place: team.place,
         teamId: team.teamId,
         teamName: team.teamName,
         teamLogo: team.teamLogo,
         value: team.sumTotal,
         valueLabel: `${team.sumTotal} TOTAL`,
+        commentary:
+          totalRankingComment(
+            team,
+            index,
+          ),
       })),
       winnerPlayerId: null,
-      commentary: `大会優勝は${finalRankings[0].teamName}！`,
+      commentary: `TOTAL上位5チームを講評します。優勝は${finalRankings[0].teamName}！`,
     },
   ];
 
@@ -1935,6 +2034,9 @@ export function renderAwardScreen(runtime) {
                 ? `<em>${escapeHtml(entry.weaponName)}</em>`
                 : ""
             }
+            <p class="award-entry-comment">
+              ${escapeHtml(entry.commentary ?? "この大会で高いパフォーマンスを記録しました。")}
+            </p>
           </article>
         `).join("")}
       </section>
@@ -2163,6 +2265,19 @@ export function renderTournamentResultScreen(runtime) {
               </div>
             `).join("")}
           </div>
+          <section class="top-five-commentary">
+            <header>
+              <img src="icon/mic.png" alt="モブマイク">
+              <div><span>TOP 5 REVIEW</span><strong>モブマイク総評</strong></div>
+            </header>
+            ${result.rankings.slice(0, 5).map((row, index) => `
+              <article>
+                <b>${index + 1}</b>
+                <img src="${escapeAttribute(row.teamLogo)}" alt="">
+                <p>${escapeHtml(totalRankingComment(row, index))}</p>
+              </article>
+            `).join("")}
+          </section>
         </article>
         <article class="total-result-section">
           <h2>REWARD PREVIEW</h2>
@@ -2191,6 +2306,7 @@ export function renderTournamentResultScreen(runtime) {
                   DMG ${formatNumber(member.damage)} /
                   HEAL ${formatNumber(member.healing)}
                 </small>
+                <p>${escapeHtml(memberPerformanceComment(member))}</p>
               </div>
             `).join("")}
           </div>

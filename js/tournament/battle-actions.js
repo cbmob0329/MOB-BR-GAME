@@ -25,12 +25,12 @@ import {
   calculateSkillCt,
   isAssistEligible,
   resolveWeaponBattleValue,
-} from "../../data/battle-config.js?v=29";
+} from "../../data/battle-config.js?v=30";
 import {
   STAT_IDS,
   clamp,
   rankToCharacterValue,
-} from "../../data/game-data.js?v=29";
+} from "../../data/game-data.js?v=30";
 import {
   adjustDebuffForSpecialAbility,
   applyNextBattleSpecialEffects,
@@ -52,7 +52,7 @@ import {
 } from "./special-abilities.js";
 
 export const BATTLE_ACTIONS_VERSION =
-  "mobbr-battle-actions-1.6.0";
+  "mobbr-battle-actions-1.7.0";
 
 export const BATTLE_ACTION_BALANCE = Object.freeze({
   criticalDamageMultiplier: 1.5,
@@ -1241,139 +1241,277 @@ export function performNormalAttack(
     };
   }
 
-  actor.weapon.ammo -= 1;
-  actor.stats.shots += 1;
-  actor.stats.weaponShots += 1;
-  battle.teamStats[actor.teamId].shots += 1;
-
   const effectiveStats =
     getEffectiveBattleStats(actor);
-  const targetStats =
-    getEffectiveBattleStats(target);
-  const special =
-    getSpecialAttackModifiers(
+  const fireRateValue =
+    Number(actor.weapon.values.fireRate) || 1;
+  const requestedBurst =
+    2 + Math.floor(fireRateValue / 38);
+  const burstCount = Math.max(
+    1,
+    Math.min(
+      4,
+      actor.weapon.ammo,
+      requestedBurst,
+    ),
+  );
+  const damageScaleByBurst = {
+    1: 1,
+    2: 0.48,
+    3: 0.32,
+    4: 0.24,
+  };
+  const bulletDamageScale =
+    damageScaleByBurst[burstCount] ??
+    1 / burstCount;
+
+  if (nextBattleRandom(battle) < 0.58) {
+    appendBattleEvent(
       battle,
-      actor,
-      target,
+      "combat_strafe",
       {
-        normal: true,
+        actorPlayerId: actor.playerId,
+        actorTeamId: actor.teamId,
+        targetPlayerId: target.playerId,
+        targetTeamId: target.teamId,
+        direction:
+          nextBattleRandom(battle) < 0.5
+            ? "up"
+            : "down",
       },
     );
-  const hitChance =
-    target.combatState === "down"
-      ? 1
-      : calculateHitChance({
-          actorStats: effectiveStats,
-          targetStats,
-          weaponRangeValue:
-            attackWeaponRangeValue(actor),
-          rangeModifier:
-            distanceAccuracyModifier(actor),
-          temporaryModifier:
-            getTemporaryAccuracyModifier(actor) +
-            (actor.playerMasteryAccuracy ?? 0) +
-            special.accuracyModifier,
-        });
-  const hit =
-    nextBattleRandom(battle) < hitChance;
-  let result;
+  }
 
-  if (hit) {
-    actor.stats.hits += 1;
-    actor.stats.weaponHits += 1;
-    battle.teamStats[actor.teamId].hits += 1;
+  appendBattleEvent(
+    battle,
+    "burst_fire_start",
+    {
+      actorPlayerId: actor.playerId,
+      actorTeamId: actor.teamId,
+      targetPlayerId: target.playerId,
+      targetTeamId: target.teamId,
+      weaponId: actor.weapon.weaponId,
+      weaponName: actor.weapon.weaponName,
+      burstCount,
+      ammoBefore: actor.weapon.ammo,
+    },
+  );
 
-    const critical =
-      target.combatState === "alive" &&
-      nextBattleRandom(battle) <
-        calculateCriticalChance(
-          effectiveStats,
-        );
-    if (critical) {
-      actor.stats.criticalHits += 1;
+  let hitCount = 0;
+  let totalDamage = 0;
+  let firstAppliedDamage = false;
+  let lastResult = {
+    applied: false,
+    actualDamage: 0,
+  };
+
+  for (
+    let bulletIndex = 0;
+    bulletIndex < burstCount;
+    bulletIndex += 1
+  ) {
+    if (
+      actor.weapon.ammo <= 0 ||
+      target.combatState === "dead"
+    ) {
+      break;
     }
 
-    const attack =
-      calculateAttackDamage(
+    actor.weapon.ammo -= 1;
+    actor.stats.shots += 1;
+    actor.stats.weaponShots += 1;
+    battle.teamStats[actor.teamId].shots += 1;
+
+    const currentTargetStats =
+      getEffectiveBattleStats(target);
+    const special =
+      getSpecialAttackModifiers(
         battle,
         actor,
         target,
         {
-          critical,
           normal: true,
         },
       );
-    result = applyBattleDamage(
+    const recoilPenalty =
+      bulletIndex * 0.012;
+    const hitChance = Math.max(
+      0.05,
+      Math.min(
+        0.995,
+        (
+          target.combatState === "down"
+            ? 1
+            : calculateHitChance({
+                actorStats: effectiveStats,
+                targetStats:
+                  currentTargetStats,
+                weaponRangeValue:
+                  attackWeaponRangeValue(actor),
+                rangeModifier:
+                  distanceAccuracyModifier(actor),
+                temporaryModifier:
+                  getTemporaryAccuracyModifier(actor) +
+                  (actor.playerMasteryAccuracy ?? 0) +
+                  special.accuracyModifier -
+                  recoilPenalty,
+              })
+        ),
+      ),
+    );
+    const hit =
+      nextBattleRandom(battle) < hitChance;
+
+    if (hit) {
+      hitCount += 1;
+      actor.stats.hits += 1;
+      actor.stats.weaponHits += 1;
+      battle.teamStats[actor.teamId].hits += 1;
+
+      const critical =
+        target.combatState === "alive" &&
+        nextBattleRandom(battle) <
+          calculateCriticalChance(
+            effectiveStats,
+          );
+      if (critical) {
+        actor.stats.criticalHits += 1;
+      }
+
+      const attack =
+        calculateAttackDamage(
+          battle,
+          actor,
+          target,
+          {
+            critical,
+            normal: true,
+          },
+        );
+      const bulletDamage = Math.max(
+        1,
+        Math.round(
+          attack.damage *
+          bulletDamageScale,
+        ),
+      );
+      lastResult = applyBattleDamage(
+        battle,
+        actor,
+        target,
+        bulletDamage,
+        {
+          sourceType: "normal_attack",
+          sourceId:
+            actor.weapon.weaponId,
+          sourceName:
+            actor.weapon.weaponName,
+          critical,
+          attackerPierceRate:
+            attack.special.pierceRate,
+        },
+      );
+      const actualDamage =
+        lastResult.actualDamage ?? 0;
+      totalDamage += actualDamage;
+      actor.stats.weaponDamage +=
+        actualDamage;
+      if (
+        lastResult.applied &&
+        !firstAppliedDamage
+      ) {
+        consumeFirstHitEffect(
+          battle,
+          actor,
+        );
+        firstAppliedDamage = true;
+      }
+
+      appendBattleEvent(
+        battle,
+        "normal_attack_hit",
+        {
+          actorPlayerId: actor.playerId,
+          actorTeamId: actor.teamId,
+          targetPlayerId: target.playerId,
+          targetTeamId: target.teamId,
+          hitChance,
+          critical,
+          ammo: actor.weapon.ammo,
+          damage: actualDamage,
+          burstIndex: bulletIndex + 1,
+          burstCount,
+          specialDamageMultiplier:
+            attack.special
+              .damageMultiplier,
+        },
+      );
+    } else {
+      actor.stats.misses += 1;
+      appendBattleEvent(
+        battle,
+        "normal_attack_miss",
+        {
+          actorPlayerId: actor.playerId,
+          actorTeamId: actor.teamId,
+          targetPlayerId: target.playerId,
+          targetTeamId: target.teamId,
+          hitChance,
+          ammo: actor.weapon.ammo,
+          burstIndex: bulletIndex + 1,
+          burstCount,
+        },
+      );
+      if (
+        bulletIndex === 0 &&
+        target.combatState === "alive"
+      ) {
+        appendBattleEvent(
+          battle,
+          "evasive_dodge",
+          {
+            actorPlayerId:
+              target.playerId,
+            actorTeamId:
+              target.teamId,
+            targetPlayerId:
+              actor.playerId,
+            targetTeamId:
+              actor.teamId,
+            direction:
+              nextBattleRandom(battle) < 0.5
+                ? "up"
+                : "down",
+          },
+        );
+      }
+    }
+
+    recordSpecialAttackOutcome(
       battle,
       actor,
       target,
-      attack.damage,
       {
-        sourceType: "normal_attack",
-        sourceId:
-          actor.weapon.weaponId,
-        sourceName:
-          actor.weapon.weaponName,
-        critical,
-        attackerPierceRate:
-          attack.special.pierceRate,
+        hit,
+        normal: true,
       },
     );
-    actor.stats.weaponDamage +=
-      result.actualDamage ?? 0;
-    if (result.applied) {
-      consumeFirstHitEffect(
-        battle,
-        actor,
-      );
-    }
-
-    appendBattleEvent(
-      battle,
-      "normal_attack_hit",
-      {
-        actorPlayerId: actor.playerId,
-        actorTeamId: actor.teamId,
-        targetPlayerId: target.playerId,
-        targetTeamId: target.teamId,
-        hitChance,
-        critical,
-        ammo: actor.weapon.ammo,
-        damage:
-          result.actualDamage ?? 0,
-        specialDamageMultiplier:
-          attack.special
-            .damageMultiplier,
-      },
-    );
-  } else {
-    actor.stats.misses += 1;
-    appendBattleEvent(
-      battle,
-      "normal_attack_miss",
-      {
-        actorPlayerId: actor.playerId,
-        actorTeamId: actor.teamId,
-        targetPlayerId: target.playerId,
-        targetTeamId: target.teamId,
-        hitChance,
-        ammo: actor.weapon.ammo,
-      },
-    );
-    result = {
-      applied: false,
-      missed: true,
-      actualDamage: 0,
-    };
   }
 
-  recordSpecialAttackOutcome(
+  appendBattleEvent(
     battle,
-    actor,
-    target,
+    "burst_fire_end",
     {
-      hit,
-      normal: true,
+      actorPlayerId: actor.playerId,
+      actorTeamId: actor.teamId,
+      targetPlayerId: target.playerId,
+      targetTeamId: target.teamId,
+      weaponId: actor.weapon.weaponId,
+      weaponName: actor.weapon.weaponName,
+      burstCount,
+      hitCount,
+      totalDamage,
+      ammo: actor.weapon.ammo,
     },
   );
 
@@ -1391,12 +1529,14 @@ export function performNormalAttack(
 
   return {
     performed: true,
-    hit,
+    hit: hitCount > 0,
     targetPlayerId:
       target.playerId,
-    hitChance,
+    burstCount,
+    hitCount,
+    totalDamage,
     ammo: actor.weapon.ammo,
-    ...result,
+    ...lastResult,
   };
 }
 

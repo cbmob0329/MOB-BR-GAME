@@ -8,13 +8,13 @@
 
 import {
   clamp,
-} from "../../data/game-data.js?v=29";
+} from "../../data/game-data.js?v=30";
 import {
   getMatchParticipantCount,
-} from "./circuit.js?v=29";
+} from "./circuit.js?v=30";
 
 export const ROUND_INTEGRATION_VERSION =
-  "mobbr-tournament-round-1.6.0";
+  "mobbr-tournament-round-1.7.0";
 
 export const ROUND_INTEGRATION_RULES = Object.freeze({
   encounterRate: 0.75,
@@ -729,6 +729,47 @@ export function finalizeRoundFieldToDraft(
     }
   }
 
+  const drawProtectedTeamIds =
+    new Set(
+      draft.lastBattleResult?.draw === true
+        ? [
+            draft.lastBattleResult.leftTeamId,
+            draft.lastBattleResult.rightTeamId,
+          ].filter((teamId) =>
+            activeBefore.includes(teamId),
+          )
+        : [],
+    );
+
+  if (
+    drawProtectedTeamIds.size > 0 &&
+    targetCount >= drawProtectedTeamIds.size
+  ) {
+    const protectedRows =
+      teamResults.filter((row) =>
+        drawProtectedTeamIds.has(row.teamId),
+      );
+    const normalRows =
+      teamResults.filter((row) =>
+        !drawProtectedTeamIds.has(row.teamId),
+      );
+    const safeNormalCount =
+      Math.max(
+        0,
+        targetCount - protectedRows.length,
+      );
+    for (const row of protectedRows) {
+      row.drawProtection = true;
+    }
+    teamResults.splice(
+      0,
+      teamResults.length,
+      ...normalRows.slice(0, safeNormalCount),
+      ...protectedRows,
+      ...normalRows.slice(safeNormalCount),
+    );
+  }
+
   if (playerHadNoEncounter) {
     const playerIndex =
       teamResults.findIndex(
@@ -854,6 +895,10 @@ export function finalizeRoundFieldToDraft(
     playerSurvived,
     playerHadEncounter:
       encounterRecord?.encountered === true,
+    playerBattleDraw:
+      draft.lastBattleResult?.draw === true,
+    drawProtectedTeamIds:
+      [...drawProtectedTeamIds],
     playerHadNoEncounter,
     encounterReason:
       encounterRecord?.reason ?? null,

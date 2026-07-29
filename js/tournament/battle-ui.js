@@ -14,7 +14,7 @@ import {
   createCommentaryDirector,
 } from "./commentary.js";
 
-export const BATTLE_UI_VERSION = "mobbr-battle-ui-1.7.0";
+export const BATTLE_UI_VERSION = "mobbr-battle-ui-1.8.0";
 export const BATTLE_REPLAY_SCHEMA_VERSION =
   "mobbr-battle-replay-1.0.0";
 
@@ -184,6 +184,9 @@ export function createBattleReplayModel(runtime) {
       priority: 0,
       eventId: null,
     },
+    commentaryHistory: [
+      `${leftTeam.teamName}対${rightTeam.teamName}、まもなく戦闘開始です！`,
+    ],
     transient: null,
   });
 }
@@ -220,7 +223,12 @@ function transientForEvent(event, model) {
     skillName: event.skillName ?? event.sourceName ?? null,
     actorName: actor?.name ?? null,
     actorImage: actor?.image ?? null,
+    targetImage: target?.image ?? null,
     actorRole: actor?.role ?? null,
+    targetRole: target?.role ?? null,
+    burstCount: event.burstCount ?? 1,
+    burstIndex: event.burstIndex ?? 1,
+    direction: event.direction ?? null,
     actorDistance: actor?.distance ?? null,
     previousDistance: event.previousDistance ?? null,
     currentDistance: event.currentDistance ?? actor?.distance ?? null,
@@ -233,6 +241,27 @@ function transientForEvent(event, model) {
     return {
       ...base,
       effect: "range_shift",
+    };
+  }
+  if (event.type === "burst_fire_start") {
+    return {
+      ...base,
+      effect: "projectile_barrage",
+    };
+  }
+  if (
+    event.type === "combat_strafe" ||
+    event.type === "evasive_dodge"
+  ) {
+    return {
+      ...base,
+      effect: event.type,
+    };
+  }
+  if (event.type === "post_revive_recovery") {
+    return {
+      ...base,
+      effect: "post_revive_recovery",
     };
   }
   if (
@@ -321,9 +350,22 @@ export function applyBattleReplayEvent(model, event) {
   if (actor) {
     if (
       event.type.includes("attack") ||
-      event.type === "skill_area_attack"
+      event.type === "skill_area_attack" ||
+      event.type === "burst_fire_start" ||
+      event.type === "burst_fire_end"
     ) {
       actor.actionState = "attack";
+    }
+    if (
+      event.type === "combat_strafe" ||
+      event.type === "evasive_dodge"
+    ) {
+      actor.actionState = "move";
+      actor.motionDirection =
+        event.direction ?? "up";
+    }
+    if (event.type === "post_revive_recovery") {
+      actor.actionState = "heal";
     }
     if (
       event.type.startsWith("skill_") ||
@@ -374,6 +416,16 @@ export function applyBattleReplayEvent(model, event) {
         target.hp = event.hp ?? Math.floor(target.maxHp * 0.3);
         target.combatState = "alive";
         target.actionState = "revive";
+      }
+      break;
+    case "post_revive_recovery":
+      if (actor) {
+        actor.hp = Math.min(
+          actor.maxHp,
+          actor.hp + Number(event.healing ?? 0),
+        );
+        actor.combatState = "alive";
+        actor.actionState = "heal";
       }
       break;
     case "squad_wipe":
@@ -578,10 +630,29 @@ function teamColumnTemplate(model, teamId, side) {
   `;
 }
 
-function fxLayerTemplate(transient) {
-  if (!transient) {
-    return `<div class="battle-fx-layer" aria-hidden="true"></div>`;
+function ambientCrossfireTemplate(model) {
+  if (model.status === "complete") {
+    return "";
   }
+  return `
+    <div class="battle-crossfire-field" aria-hidden="true">
+      ${Array.from({ length: 18 }, (_value, index) => `
+        <i
+          class="${index % 2 === 0 ? "is-left-to-right" : "is-right-to-left"}"
+          style="--cross-y:${8 + (index * 17) % 86}%;--cross-delay:${(index % 9) * -0.11}s;--cross-duration:${0.44 + (index % 5) * 0.055}s"
+        ></i>
+      `).join("")}
+    </div>
+  `;
+}
+
+function projectileBurstTemplate(
+  transient,
+  {
+    count = 4,
+    barrage = false,
+  } = {},
+) {
   const fromY =
     transient.actorOrder < 0
       ? 50
@@ -590,23 +661,79 @@ function fxLayerTemplate(transient) {
     transient.targetOrder < 0
       ? 50
       : 20 + transient.targetOrder * 30;
-  const fromX = transient.actorSide === "left" ? 24 : 76;
-  const toX = transient.targetSide === "left" ? 24 : 76;
+  const fromX =
+    transient.actorSide === "left"
+      ? 24
+      : 76;
+  const toX =
+    transient.targetSide === "left"
+      ? 24
+      : 76;
+  return `
+    <div class="battle-bullet-burst ${barrage ? "is-barrage" : ""}">
+      ${Array.from({ length: count }, (_value, index) => {
+        const spread =
+          (index - (count - 1) / 2) *
+          (barrage ? 2.1 : 1.35);
+        return `
+          <i
+            class="battle-projectile ${transient.critical ? "is-critical" : ""}"
+            style="--from-x:${fromX}%;--from-y:${fromY + spread}%;--to-x:${toX}%;--to-y:${toY - spread * .55}%;--bullet-delay:${index * 22}ms;--bullet-scale:${1 - index * .035}"
+          ></i>
+        `;
+      }).join("")}
+      <b class="battle-muzzle battle-muzzle--burst" style="left:${fromX}%;top:${fromY}%"></b>
+      <span class="battle-impact-spark" style="left:${toX}%;top:${toY}%">
+        ${Array.from({ length: 7 }, (_value, index) => `<i style="--spark-index:${index}"></i>`).join("")}
+      </span>
+    </div>
+  `;
+}
+
+function fxLayerTemplate(transient) {
+  if (!transient) {
+    return `<div class="battle-fx-layer" aria-hidden="true"></div>`;
+  }
+  const toY =
+    transient.targetOrder < 0
+      ? 50
+      : 20 + transient.targetOrder * 30;
+  const toX =
+    transient.targetSide === "left"
+      ? 24
+      : 76;
 
   let effect = "";
-  if (transient.effect === "projectile") {
-    effect = `
-      <div
-        class="battle-projectile ${transient.critical ? "is-critical" : ""}"
-        style="--from-x:${fromX}%;--from-y:${fromY}%;--to-x:${toX}%;--to-y:${toY}%"
-      ></div>
-      <div
-        class="battle-muzzle"
-        style="left:${fromX}%;top:${fromY}%"
-      ></div>
-    `;
+  if (transient.effect === "projectile_barrage") {
+    effect = projectileBurstTemplate(
+      transient,
+      {
+        count: Math.max(
+          7,
+          Math.min(
+            12,
+            Number(transient.burstCount ?? 3) * 3,
+          ),
+        ),
+        barrage: true,
+      },
+    );
+  } else if (transient.effect === "projectile") {
+    effect = projectileBurstTemplate(
+      transient,
+      {
+        count:
+          transient.burstCount > 1
+            ? 4
+            : 3,
+      },
+    );
   } else if (transient.effect === "damage") {
     effect = `
+      <div class="battle-hit-flash" style="left:${toX}%;top:${toY}%"></div>
+      <div class="battle-hit-shards" style="left:${toX}%;top:${toY}%">
+        ${Array.from({ length: 9 }, (_value, index) => `<i style="--shard-index:${index}"></i>`).join("")}
+      </div>
       <strong
         class="battle-floating-number battle-floating-number--damage ${transient.critical ? "is-critical" : ""}"
         style="left:${toX}%;top:${toY}%"
@@ -618,6 +745,25 @@ function fxLayerTemplate(transient) {
         class="battle-floating-number battle-floating-number--heal"
         style="left:${toX}%;top:${toY}%"
       >+${formatNumber(transient.healing)}</strong>
+    `;
+  } else if (transient.effect === "post_revive_recovery") {
+    effect = `
+      <div class="battle-recovery-pulse" style="left:${toX}%;top:${toY}%"></div>
+      <div class="battle-recovery-cut">
+        <span>RETURN SKILL 3</span>
+        <strong>${escapeHtml(transient.skillName ?? "復帰リカバリー")}</strong>
+        <small>${escapeHtml(transient.actorName ?? "選手")}がHPを立て直します</small>
+      </div>
+    `;
+  } else if (
+    transient.effect === "combat_strafe" ||
+    transient.effect === "evasive_dodge"
+  ) {
+    effect = `
+      <div class="battle-motion-slash battle-motion-slash--${escapeAttribute(transient.actorSide)}" style="top:${toY}%">
+        <i></i><i></i><i></i>
+      </div>
+      ${transient.effect === "evasive_dodge" ? `<strong class="battle-dodge-label" style="left:${toX}%;top:${toY}%">DODGE!</strong>` : ""}
     `;
   } else if (transient.effect === "skill_cutin") {
     const roleClass =
@@ -660,7 +806,7 @@ function fxLayerTemplate(transient) {
       <div class="battle-decision-cut battle-decision-cut--${escapeAttribute(transient.effect)}">
         <span>${wipe ? "SQUAD WIPE" : "DISENGAGE"}</span>
         <strong>${wipe ? "3 KP CONFIRMED" : "お互い引く判断"}</strong>
-        <small>${wipe ? "最後のダウンまで確キルとして集計" : "全滅には至らず初動を仕切り直します"}</small>
+        <small>${wipe ? "最後のダウンまで確キルとして集計" : "両チーム生存のためROUND生存枠へ保護"}</small>
       </div>
     `;
   } else if (
@@ -674,13 +820,14 @@ function fxLayerTemplate(transient) {
           : "REVIVE";
     const stateCommentary =
       transient.effect === "down"
-        ? `${transient.targetName ?? "選手"}がダウン！まだ確キルではありません！`
+        ? `${transient.targetName ?? "選手"}がダウン！救援か確キルか、一瞬の判断です！`
         : transient.effect === "confirmed_kill"
           ? `${transient.targetName ?? "選手"}を確キル！${transient.actorTeamName ?? "攻撃側"}にKP！`
           : `${transient.targetName ?? "選手"}が戦線復帰！`;
     effect = `
+      <div class="battle-state-shock battle-state-shock--${escapeAttribute(transient.effect)}"></div>
       <div class="battle-state-cut battle-state-cut--${escapeAttribute(transient.effect)}">
-        <img src="icon/mic.png" alt="モブマイク">
+        <img class="battle-state-cut__target" src="${escapeAttribute(transient.targetImage ?? "icon/mic.png")}" alt="">
         <div>
           <strong>${escapeHtml(stateLabel)}</strong>
           <span>${escapeHtml(stateCommentary)}</span>
@@ -692,16 +839,27 @@ function fxLayerTemplate(transient) {
   return `<div class="battle-fx-layer" aria-hidden="true">${effect}</div>`;
 }
 
-function commentaryPanelTemplate(commentary) {
+function commentaryPanelTemplate(
+  commentary,
+  history = [],
+) {
   return `
     <aside class="battle-commentary-panel battle-commentary-panel--live">
       <div class="battle-commentary-panel__speaker">
         <img src="${escapeAttribute(COMMENTATOR.image)}" alt="${escapeAttribute(COMMENTATOR.name)}">
         <span>LIVE</span>
       </div>
-      <div>
+      <div class="battle-commentary-panel__body">
         <strong>${escapeHtml(COMMENTATOR.name)}</strong>
         <p>${escapeHtml(commentary.text)}</p>
+        <div class="battle-commentary-feed">
+          ${history
+            .filter((text) => text !== commentary.text)
+            .slice(-2)
+            .reverse()
+            .map((text) => `<small>${escapeHtml(text)}</small>`)
+            .join("")}
+        </div>
         <i class="battle-commentary-wave" aria-hidden="true">
           <b></b><b></b><b></b><b></b><b></b>
         </i>
@@ -732,11 +890,21 @@ function resultCutTemplate(model) {
 }
 
 export function renderBattleReplayScreen(runtime, model) {
+  const impactClass =
+    model.transient?.effect === "damage"
+      ? "is-impact"
+      : model.transient?.effect === "down"
+        ? "is-down-impact"
+        : model.transient?.effect === "confirmed_kill"
+          ? "is-kill-impact"
+          : "";
   return `
-    <main class="tournament-screen tournament-screen--battle-replay" style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
+    <main class="tournament-screen tournament-screen--battle-replay ${impactClass}" style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
       <img class="tournament-stage-background" src="${escapeAttribute(assetPath(runtime.map.image))}" alt="">
       ${statusHeaderTemplate(runtime, model)}
       <section class="battle-arena">
+        ${ambientCrossfireTemplate(model)}
+        <div class="battle-combat-haze" aria-hidden="true"><i></i><i></i><i></i></div>
         <div class="battle-distance-guide" aria-hidden="true">
           <span>FAR</span><span>MID</span><span>CLOSE</span><span>MID</span><span>FAR</span>
         </div>
@@ -752,7 +920,7 @@ export function renderBattleReplayScreen(runtime, model) {
         ${resultCutTemplate(model)}
       </section>
       <div class="battle-bottom-area">
-        ${commentaryPanelTemplate(model.commentary)}
+        ${commentaryPanelTemplate(model.commentary, model.commentaryHistory)}
         <button
           type="button"
           class="tournament-button tournament-button--ghost battle-skip-button"
@@ -918,6 +1086,10 @@ export function createBattlePlaybackController({
         priority: commentary.commentary.priority,
         eventId: commentary.commentary.eventId,
       };
+      model.commentaryHistory = [
+        ...(model.commentaryHistory ?? []),
+        commentary.commentary.text,
+      ].slice(-5);
     }
     render();
   }
@@ -959,7 +1131,7 @@ export function createBattlePlaybackController({
       ? Math.min(25, eventDelay / safeRate)
       : Math.max(
           6,
-          eventDelay * 0.68 / safeRate +
+          eventDelay * 0.56 / safeRate +
           previousPresentationHold / safeRate,
         );
     const token = generation;

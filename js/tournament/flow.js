@@ -13,14 +13,14 @@ import {
 import {
   TOURNAMENT_PHASES,
   createTournamentRuntimeManager,
-} from "./runtime.js?v=29";
+} from "./runtime.js?v=30";
 import {
   executeCurrentBattleToDraft,
 } from "./battle-core.js";
 import {
   createBattlePlaybackController,
   renderBattleOutcomeScreen,
-} from "./battle-ui.js?v=29";
+} from "./battle-ui.js?v=30";
 import {
   EXPLORATION_PAGES,
   beginExplorationToDraft,
@@ -41,7 +41,7 @@ import {
   useInventoryItemToDraft,
   useMobSlotToDraft,
   useRespawnTurntableToDraft,
-} from "./exploration.js?v=29";
+} from "./exploration.js?v=30";
 import {
   advanceAwardToDraft,
   finalizeCurrentMatchToDraft,
@@ -57,13 +57,13 @@ import {
   renderReturningResultScreen,
   renderTournamentResultScreen,
   writePreparedResultToStorage,
-} from "./results.js?v=29";
+} from "./results.js?v=30";
 
 import {
   applyMatchPlanToDraft,
   circuitSectionLabel,
   isPlayerMatch,
-} from "./circuit.js?v=29";
+} from "./circuit.js?v=30";
 
 import {
   fastForwardMatchToChampionToDraft,
@@ -73,9 +73,9 @@ import {
   getRoundTarget,
   isPlayerActive,
   resolveRoundEncounterToDraft,
-} from "./round.js?v=29";
+} from "./round.js?v=30";
 
-export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-2.6.0";
+export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-2.7.0";
 
 const PHASE_LABELS = Object.freeze({
   IDLE: "待機",
@@ -652,20 +652,23 @@ function battleCountdownTemplate(runtime) {
   const strategy = runtime.strategyRuntime[
     runtime.teamRuntime[runtime.playerTeamId].currentStrategyId
   ];
-  return provisionalPhaseTemplate(runtime, {
-    eyebrow: "BATTLE COUNTDOWN",
-    title: "BATTLE START",
-    description: "",
-    commentary: `${strategy?.name ?? "バランスを大事に"}で戦闘を開始します！`,
-    primaryAction: "battle-countdown-now",
-    primaryLabel: "SKIP COUNTDOWN",
-    content: `
-      ${renderStrategyCutIn(runtime)}
-      <div class="countdown-sequence" aria-label="3 2 1">
-        <strong>3</strong><strong>2</strong><strong>1</strong><span>BATTLE!</span>
+  return `
+    <main class="tournament-screen tournament-screen--countdown-lock" style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
+      <img class="tournament-stage-background" src="${escapeAttribute(assetPath(runtime.map.image))}" alt="">
+      <section class="countdown-lock-stage">
+        ${renderStrategyCutIn(runtime)}
+        <span>COMBAT SEQUENCE LOCKED</span>
+        <h1>BATTLE START</h1>
+        <div class="countdown-sequence" aria-label="3 2 1">
+          <strong>3</strong><strong>2</strong><strong>1</strong><span>BATTLE!</span>
+        </div>
+        <small>カウントダウン中はスキップできません</small>
+      </section>
+      <div class="tournament-bottom-area countdown-lock-commentary">
+        ${commentaryTemplate(`${strategy?.name ?? "バランスを大事に"}で戦闘を開始します！3、2、1！`)}
       </div>
-    `,
-  });
+    </main>
+  `;
 }
 
 function battleOutcomeTemplate(runtime) {
@@ -697,7 +700,15 @@ function roundResultTemplate(runtime) {
           message:
             "敵チームとの戦闘は発生しませんでした。HPとアイテムを温存したまま次のROUNDへ進みます！",
         }
-      : playerRow?.survived
+      : record.playerBattleDraw
+        ? {
+            state: "draw",
+            label: "DRAW / SAFE",
+            title: "お互い引く判断",
+            message:
+              "両チームに生存者が残ったため、DRAWとして双方がROUND生存枠へ進みます。",
+          }
+        : playerRow?.survived
         ? {
             state: "clear",
             label: "ROUND CLEAR",
@@ -728,7 +739,9 @@ function roundResultTemplate(runtime) {
       ? `残り${announcement}チーム！決着が近づいてきました！`
       : record.playerHadNoEncounter
         ? "このROUNDは接敵なし！消耗を抑えて次の局面へ進めます！"
-        : record.playerSurvived
+        : record.playerBattleDraw
+          ? "DRAW！両チームとも全滅を避け、お互い引く判断でROUNDを生存します！"
+          : record.playerSurvived
           ? `ROUND ${runtime.round}を突破！次の生存目標へ進みます！`
           : "プレイヤーチームは脱落しました。大会結果は最後まで進行します。",
     primaryAction: "round-result-next",
@@ -1878,13 +1891,6 @@ export function createTournamentFlowController({
           runtimeManager.checkpoint(
             "strategy_confirmed_battle_countdown",
           );
-          render();
-          return;
-        }
-        if (action === "battle-countdown-now") {
-          runtimeManager.transition("BATTLE", {
-            reason: "strategy_countdown_skipped",
-          });
           render();
           return;
         }

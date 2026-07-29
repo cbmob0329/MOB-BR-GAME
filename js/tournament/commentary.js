@@ -6,7 +6,7 @@
  * replacing confirmed-kill, revive, down, and result commentary.
  */
 
-export const COMMENTARY_VERSION = "mobbr-commentary-1.2.0";
+export const COMMENTARY_VERSION = "mobbr-commentary-1.3.0";
 export const COMMENTATOR = Object.freeze({
   id: "mob-mic",
   name: "モブマイク",
@@ -31,12 +31,15 @@ export const COMMENTARY_PRIORITIES = Object.freeze({
   normalHit: 20,
   miss: 10,
   battleStart: 45,
+  barrage: 48,
+  movement: 32,
+  postReviveRecovery: 94,
 });
 
 export const COMMENTARY_PRESENTATION = Object.freeze({
-  repeatedTextCooldownSeconds: 1.4,
-  defaultSuppressDuration: 0.28,
-  highPrioritySuppressDuration: 0.78,
+  repeatedTextCooldownSeconds: 0.85,
+  defaultSuppressDuration: 0.16,
+  highPrioritySuppressDuration: 0.62,
   resultSuppressDuration: 2,
   largeDamageHpRate: 0.2,
 });
@@ -134,6 +137,23 @@ const TEMPLATES = Object.freeze({
   mutual_disengage: Object.freeze([
     "初動は決着せず！両チームとも消耗を抑えて引く判断です！",
     "全滅には至らず、お互いに仕切り直しを選択しました！",
+  ]),
+  burst_fire: Object.freeze([
+    "{actorName}が{burstCount}連射！弾幕で{targetName}を押さえ込みます！",
+    "銃声が止まりません！{actorName}のバースト射撃です！",
+    "{weaponName}から弾丸が一気に飛び出します！",
+  ]),
+  combat_strafe: Object.freeze([
+    "{actorName}が射線をずらしながら撃ち続けます！",
+    "止まらない！{actorName}がストレイフで角度を変えます！",
+  ]),
+  evasive_dodge: Object.freeze([
+    "{actorName}が紙一重で弾道を外しました！",
+    "高速回避！{actorName}が射線から抜けます！",
+  ]),
+  post_revive_recovery: Object.freeze([
+    "{actorName}が復帰直後にスキル3！HPを立て直します！",
+    "戦線復帰から即リカバリー！{actorName}が戻ってきました！",
   ]),
 
   revive: Object.freeze([
@@ -244,6 +264,7 @@ function eventVariables(event, context) {
       event.sourceName ??
       "スキル",
     damage: event.damage ?? 0,
+    burstCount: event.burstCount ?? 0,
     healing:
       event.totalHealing ??
       event.amount ??
@@ -272,6 +293,30 @@ function commentaryDefinition(event, context) {
         category: "battle_start",
         priority: COMMENTARY_PRIORITIES.battleStart,
         tags: ["battle_start", "featured_match"],
+      };
+    case "burst_fire_start":
+      return {
+        category: "burst_fire",
+        priority: COMMENTARY_PRIORITIES.barrage,
+        tags: ["weapon", "burst", "crossfire"],
+      };
+    case "combat_strafe":
+      return {
+        category: "combat_strafe",
+        priority: COMMENTARY_PRIORITIES.movement,
+        tags: ["movement", "strafe"],
+      };
+    case "evasive_dodge":
+      return {
+        category: "evasive_dodge",
+        priority: COMMENTARY_PRIORITIES.movement,
+        tags: ["movement", "dodge"],
+      };
+    case "post_revive_recovery":
+      return {
+        category: "post_revive_recovery",
+        priority: COMMENTARY_PRIORITIES.postReviveRecovery,
+        tags: ["revive", "skill3", "recovery"],
       };
     case "normal_attack_hit":
       if (event.critical === true) {
