@@ -14,7 +14,7 @@ import {
   createCommentaryDirector,
 } from "./commentary.js";
 
-export const BATTLE_UI_VERSION = "mobbr-battle-ui-2.0.0";
+export const BATTLE_UI_VERSION = "mobbr-battle-ui-2.1.0";
 export const BATTLE_REPLAY_SCHEMA_VERSION =
   "mobbr-battle-replay-1.0.0";
 
@@ -945,9 +945,18 @@ function resultCutTemplate(model) {
 
 export function renderBattleReplayScreen(runtime, model) {
   return `
-    <main class="tournament-screen tournament-screen--battle-replay" style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
+    <main class="tournament-screen tournament-screen--battle-replay ${model.status === "paused" ? "is-tactical-paused" : ""}" style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
       <img class="tournament-stage-background" src="${escapeAttribute(assetPath(runtime.map.image))}" alt="">
       ${statusHeaderTemplate(runtime, model)}
+      <button
+        type="button"
+        class="battle-chill-button"
+        data-action="battle-tactical-pause"
+        aria-label="チルタイム。戦闘を一時停止してアイテムまたは将来のウルトを選択"
+      >
+        <span>CHILL TIME</span>
+        <strong>チルタイム</strong>
+      </button>
       <section class="battle-arena">
         ${ambientCrossfireTemplate(model)}
         <div class="battle-combat-haze" aria-hidden="true"><i></i><i></i><i></i></div>
@@ -1475,6 +1484,34 @@ export function createBattlePlaybackController({
     }, delay);
   }
 
+  function defaultPausePlayerId() {
+    const playerTeam =
+      model.teams[model.playerTeamId];
+    const members =
+      (playerTeam?.members ?? [])
+        .map(
+          (playerId) =>
+            model.participants[playerId],
+        )
+        .filter(Boolean);
+    const usable =
+      members.filter(
+        (participant) =>
+          participant.combatState !== "dead",
+      );
+    const source =
+      usable.length > 0
+        ? usable
+        : members;
+    return source
+      .slice()
+      .sort(
+        (left, right) =>
+          left.hp / Math.max(1, left.maxHp) -
+          right.hp / Math.max(1, right.maxHp),
+      )[0]?.playerId ?? null;
+  }
+
   function handleClick(event) {
     const action =
       event.target
@@ -1485,6 +1522,17 @@ export function createBattlePlaybackController({
       "battle-playback-skip"
     ) {
       skip();
+      return;
+    }
+    if (
+      action ===
+      "battle-tactical-pause"
+    ) {
+      const playerId =
+        defaultPausePlayerId();
+      if (playerId) {
+        requestBattleItem(playerId);
+      }
       return;
     }
     if (

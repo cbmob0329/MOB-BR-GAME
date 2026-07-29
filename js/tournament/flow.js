@@ -13,7 +13,7 @@ import {
 import {
   TOURNAMENT_PHASES,
   createTournamentRuntimeManager,
-} from "./runtime.js?v=32";
+} from "./runtime.js?v=33";
 import {
   executeCurrentBattleToDraft,
 } from "./battle-core.js";
@@ -23,7 +23,7 @@ import {
 import {
   createBattlePlaybackController,
   renderBattleOutcomeScreen,
-} from "./battle-ui.js?v=32";
+} from "./battle-ui.js?v=33";
 import {
   EXPLORATION_PAGES,
   beginExplorationToDraft,
@@ -45,7 +45,7 @@ import {
   useInventoryItemToDraft,
   useMobSlotToDraft,
   useRespawnTurntableToDraft,
-} from "./exploration.js?v=32";
+} from "./exploration.js?v=33";
 import {
   advanceAwardToDraft,
   finalizeCurrentMatchToDraft,
@@ -61,13 +61,13 @@ import {
   renderReturningResultScreen,
   renderTournamentResultScreen,
   writePreparedResultToStorage,
-} from "./results.js?v=32";
+} from "./results.js?v=33";
 
 import {
   applyMatchPlanToDraft,
   circuitSectionLabel,
   isPlayerMatch,
-} from "./circuit.js?v=32";
+} from "./circuit.js?v=33";
 
 import {
   fastForwardMatchToChampionToDraft,
@@ -77,9 +77,9 @@ import {
   getRoundTarget,
   isPlayerActive,
   resolveRoundEncounterToDraft,
-} from "./round.js?v=32";
+} from "./round.js?v=33";
 
-export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-2.9.0";
+export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-3.0.0";
 
 const PHASE_LABELS = Object.freeze({
   IDLE: "待機",
@@ -1113,6 +1113,14 @@ export function createTournamentFlowController({
               <p>${escapeHtml(teamName)}はここで一旦チル！<br>アイテムか、将来のウルトか。落ち着いて判断します！</p>
             </div>
             <p>戦闘時間・弾道・スキルCTは完全に停止しています。</p>
+            <div class="battle-pause-team-strip" aria-label="味方選手状態">
+              ${Object.values(runtimeManager.getSnapshot().memberRuntime)
+                .filter((member) => member.teamId === runtimeManager.getSnapshot().playerTeamId)
+                .map((member) => {
+                  const source = runtimeManager.getSnapshot().entryData.playerTeam.members.find((entry) => entry.playerId === member.playerId);
+                  return `<article class="${member.playerId === playerId ? "is-focus" : ""}" data-state="${escapeAttribute(member.combatState)}"><img src="${escapeAttribute(assetPath(source?.image ?? ""))}" alt=""><span>${escapeHtml(source?.role ?? "")}</span><strong>${escapeHtml(source?.name ?? member.playerId)}</strong><small>HP ${formatNumber(member.hp)} / ${formatNumber(member.maxHp)}</small></article>`;
+                }).join("")}
+            </div>
             <div class="battle-item-modal-target">
               <img src="${escapeAttribute(assetPath(participant.image))}" alt="">
               <div>

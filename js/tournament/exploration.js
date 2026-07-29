@@ -19,10 +19,10 @@ import {
 } from "../../data/strategy-data.js";
 import {
   getPlayableRoundCount,
-} from "./round.js?v=32";
+} from "./round.js?v=33";
 
 export const EXPLORATION_VERSION =
-  "mobbr-tournament-exploration-1.7.0";
+  "mobbr-tournament-exploration-1.8.0";
 
 export const EXPLORATION_PAGES = Object.freeze([
   "SEARCH",
@@ -526,6 +526,25 @@ function createFacilityOutcome(runtime, exploreKey) {
   };
 }
 
+function playerBattleAvailability(draft) {
+  const members =
+    draft.entryData.playerTeam.members.map(
+      (member) =>
+        draft.memberRuntime[member.playerId],
+    );
+  return {
+    alive: members.filter(
+      (member) =>
+        member?.combatState === "alive" &&
+        member.hp > 0,
+    ),
+    dead: members.filter(
+      (member) =>
+        member?.combatState === "dead",
+    ),
+  };
+}
+
 export function beginExplorationToDraft(
   draft,
   {
@@ -580,6 +599,26 @@ export function beginExplorationToDraft(
   draft.facilityRuntime.deterministicOutcomes[key] =
     draft.facilityRuntime.deterministicOutcomes[key] ??
     createFacilityOutcome(draft, key);
+  const availability =
+    playerBattleAvailability(draft);
+  const emergencyRespawnRequired =
+    source === "initial" &&
+    draft.match > 1 &&
+    availability.alive.length === 0 &&
+    availability.dead.length > 0;
+  if (emergencyRespawnRequired) {
+    choices.emergencyRespawnRequired = true;
+    draft.explorationRuntime.deterministicChoices[
+      key
+    ].emergencyRespawnRequired = true;
+    draft.facilityRuntime.deterministicOutcomes[
+      key
+    ].respawnTurntableAppears = true;
+  } else {
+    draft.explorationRuntime.deterministicChoices[
+      key
+    ].emergencyRespawnRequired = false;
+  }
   draft.facilityRuntime.usedByExploreKey[key] =
     draft.facilityRuntime.usedByExploreKey[key] ?? {
       [FACILITY_IDS.respawnTurntable]: false,
@@ -588,7 +627,10 @@ export function beginExplorationToDraft(
 
   draft.explorationRuntime.currentExploreIndex = exploreIndex;
   draft.explorationRuntime.currentExploreKey = key;
-  draft.explorationRuntime.currentPage = "SEARCH";
+  draft.explorationRuntime.currentPage =
+    emergencyRespawnRequired
+      ? "FACILITY"
+      : "SEARCH";
   draft.explorationRuntime.pendingExploreItem = null;
   draft.explorationRuntime.pendingItemUse = null;
   draft.explorationRuntime.currentAreaName = choices.areaName;
@@ -1196,7 +1238,21 @@ export function completeExplorationToDraft(draft) {
   assertRuntimeDraft(draft);
   const key = draft.explorationRuntime.currentExploreKey;
   const choice = currentChoice(draft);
+  if (choice.emergencyRespawnRequired) {
+    const availability =
+      playerBattleAvailability(draft);
+    if (availability.alive.length === 0) {
+      draft.explorationRuntime.currentPage =
+        "FACILITY";
+      throw new RangeError(
+        "RESPAWN TURNTABLEで最低1人を復活させてください。",
+      );
+    }
+    choice.emergencyRespawnRequired = false;
+  }
   if (!choice.searchResolved) {
+    draft.explorationRuntime.currentPage =
+      "SEARCH";
     throw new RangeError("SEARCHで探索地点を1つ選択してください。");
   }
   if (draft.explorationRuntime.pendingExploreItem) {
@@ -1438,6 +1494,7 @@ function searchPageTemplate(runtime, choice) {
 
 function facilityPageTemplate(runtime) {
   const key = runtime.explorationRuntime.currentExploreKey;
+  const choice = runtime.explorationRuntime.deterministicChoices[key];
   const outcome = runtime.facilityRuntime.deterministicOutcomes[key];
   const used = runtime.facilityRuntime.usedByExploreKey[key];
   const deadMembers = sortedPlayerMembers(runtime).filter(
@@ -1446,6 +1503,7 @@ function facilityPageTemplate(runtime) {
   );
   return `
     <section class="exploration-page exploration-page--facility">
+      ${choice?.emergencyRespawnRequired ? `<section class="emergency-respawn-notice"><img src="icon/mic.png" alt=""><div><span>EMERGENCY RESPAWN</span><strong>戦闘可能な選手がいません</strong><p>次のMATCHへ進むため、RESPAWN TURNTABLEで最低1人を復活させてください。</p></div></section>` : ""}
       <div class="facility-grid">
         <article class="${outcome.respawnTurntableAppears ? "" : "is-absent"}">
           <div class="facility-machine facility-machine--turntable">RESPAWN</div>

@@ -11,29 +11,29 @@ import { assetPath } from "../assets.js";
 import {
   getChampionshipPoints,
   getPlacementPoints,
-} from "../../data/game-data.js?v=32";
+} from "../../data/game-data.js?v=33";
 import {
   STRATEGY_RULES,
 } from "../../data/strategy-data.js";
 import {
   FORMAL_CIRCUIT_RULES,
   isCasualTournamentType,
-} from "../../data/circuit-data.js?v=32";
+} from "../../data/circuit-data.js?v=33";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=32";
+} from "./circuit.js?v=33";
 import {
   getPlayableRoundCount,
-} from "./round.js?v=32";
+} from "./round.js?v=33";
 import {
   finalizeTournamentResultData,
   resolvePlacementRewards,
   writeTournamentResultToStorage,
-} from "../main/tournament-bridge.js?v=32";
+} from "../main/tournament-bridge.js?v=33";
 
 export const RESULTS_VERSION =
-  "mobbr-tournament-results-2.3.0";
+  "mobbr-tournament-results-2.4.0";
 
 export const RESULT_RULES = Object.freeze({
   defaultMatchPointThreshold: 50,
@@ -2184,7 +2184,7 @@ export function renderAwardScreen(runtime) {
   const commentIndex = Math.max(0, Math.min(4, runtime.awardRuntime.podiumCommentIndex ?? 4));
   const commentEntry = award.ranking[commentIndex];
   return `
-    <main class="tournament-screen tournament-screen--award">
+    <main class="tournament-screen tournament-screen--award award-stage--${escapeAttribute(stage)} ${isPodium ? "is-final-top5" : "is-individual-award"}">
       <div class="award-confetti" aria-hidden="true"></div>
       <header class="award-header">
         <span>AWARD ${index + 1} / ${awards.length}</span>
