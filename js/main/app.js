@@ -20,7 +20,7 @@ import {
   SaveError,
   SaveNotFoundError,
   createGameStateManager,
-} from "./state.js?v=29";
+} from "./state.js?v=30";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -42,7 +42,7 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=29";
+} from "./team.js?v=30";
 import {
   getSpecialAbility,
 } from "../../data/ability-data.js";
@@ -50,13 +50,13 @@ import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=29";
+} from "./management.js?v=30";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=29";
+} from "./tournament-bridge.js?v=30";
 
-export const APP_VERSION = "mobbr-main-app-1.7.0";
+export const APP_VERSION = "mobbr-main-app-1.8.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -488,6 +488,42 @@ function playerRowTemplate(player) {
   `;
 }
 
+function individualWeaponProfileTemplate(
+  player,
+) {
+  const stats = [
+    ["CLOSE", player.weapon.rangeRanks.close],
+    ["MID", player.weapon.rangeRanks.mid],
+    ["FAR", player.weapon.rangeRanks.far],
+    ["FIRE", player.weapon.fireRateRank],
+    ["RELOAD", player.weapon.reloadRank],
+  ];
+  return `
+    <article class="individual-weapon-profile">
+      <header>
+        <img src="${escapeAttribute(player.weapon.image)}" alt="">
+        <div>
+          <span>${escapeHtml(player.role)} / PERSONAL WEAPON</span>
+          <strong>${escapeHtml(player.weapon.weaponName)}</strong>
+          <small>${escapeHtml(player.name)}専用能力</small>
+        </div>
+      </header>
+      <div class="individual-weapon-profile__stats">
+        ${stats.map(([label, rank]) => `
+          <span><small>${label}</small><strong>${escapeHtml(rank)}</strong></span>
+        `).join("")}
+      </div>
+      <button
+        type="button"
+        data-action="open-player-weapon"
+        data-player-id="${escapeAttribute(player.playerId)}"
+      >
+        この選手の武器を強化
+      </button>
+    </article>
+  `;
+}
+
 function topStatusTemplate(snapshot) {
   return `
     <header class="top-status">
@@ -747,6 +783,18 @@ function teamTemplate(snapshot, currentRoute) {
               <em>TAP</em>
             </button>
           `).join("")}
+        </section>
+
+        <section class="team-personal-weapons">
+          <header>
+            <span>PERSONAL WEAPON STATUS</span>
+            <strong>3人の武器能力は個別管理</strong>
+          </header>
+          <div>
+            ${snapshot.playerTeam.members.map((player) =>
+              individualWeaponProfileTemplate(player)
+            ).join("")}
+          </div>
         </section>
 
         <div class="section-heading">
@@ -2100,6 +2148,13 @@ export function createMainApp({
       render();
       return;
     }
+    if (action === "open-player-weapon") {
+      selectedTeamPlayerId =
+        actionElement.dataset.playerId;
+      developmentMode = "weapon";
+      navigate(ROUTES.ability);
+      return;
+    }
     if (action === "navigate") {
       navigate(actionElement.dataset.route);
       return;
@@ -2161,6 +2216,13 @@ export function createMainApp({
               <span>総合RANK ${escapeHtml(player.characterRank)}</span>
               <strong>${escapeHtml(player.weapon.weaponName)}</strong>
               <small>HP ${formatNumber(player.currentHp)} / ${formatNumber(player.maxHp)}</small>
+            </div>
+            <div class="player-status-modal__weapon-stats">
+              <span>CLOSE <strong>${escapeHtml(player.weapon.rangeRanks.close)}</strong></span>
+              <span>MID <strong>${escapeHtml(player.weapon.rangeRanks.mid)}</strong></span>
+              <span>FAR <strong>${escapeHtml(player.weapon.rangeRanks.far)}</strong></span>
+              <span>FIRE <strong>${escapeHtml(player.weapon.fireRateRank)}</strong></span>
+              <span>RELOAD <strong>${escapeHtml(player.weapon.reloadRank)}</strong></span>
             </div>
             <div class="player-status-modal__stats">
               ${Object.entries(player.stats).map(([statId, value]) => `<div><span>${escapeHtml(labels[statId] ?? statId)}</span><strong>${value}</strong></div>`).join("")}

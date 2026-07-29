@@ -17,7 +17,7 @@ import {
   getPlacementPoints,
   getTournamentEventsForDate,
   isChampionshipYear,
-} from "../../data/game-data.js?v=29";
+} from "../../data/game-data.js?v=30";
 import {
   CASUAL_TOURNAMENT_RULES,
   FORMAL_CIRCUIT_RULES,
@@ -31,7 +31,7 @@ import {
   selectTeamIds,
   sourcePoolForTeamId,
   teamSeed,
-} from "../../data/circuit-data.js?v=29";
+} from "../../data/circuit-data.js?v=30";
 import {
   LOCAL_CPU_TEAMS,
 } from "../../data/cpu-local-data.js";
@@ -43,7 +43,7 @@ import {
 } from "../../data/cpu-world-data.js";
 import {
   BATTLE_CONFIG_VERSION,
-} from "../../data/battle-config.js?v=29";
+} from "../../data/battle-config.js?v=30";
 import {
   CONSUMABLE_ITEMS,
   ITEM_MASTER_VERSION,
@@ -57,7 +57,7 @@ import {
   DuplicateTournamentResultError,
   STORAGE_KEYS,
   calculateChecksum,
-} from "./state.js?v=29";
+} from "./state.js?v=30";
 
 export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-1.7.0";
 export const TOURNAMENT_ENTRY_SCHEMA_VERSION =

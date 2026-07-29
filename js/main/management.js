@@ -10,11 +10,11 @@ import {
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=29";
+} from "../../data/game-data.js?v=30";
 import {
   isCasualTournamentType,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=29";
+} from "../../data/circuit-data.js?v=30";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
@@ -62,13 +62,13 @@ import {
 import {
   advanceWeeksToDraft,
   applyResourceDeltaToDraft,
-} from "./state.js?v=29";
+} from "./state.js?v=30";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=29";
+} from "./tournament-bridge.js?v=30";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-1.3.0";
+  "mobbr-management-feature-1.4.0";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -1786,6 +1786,69 @@ export function renderScoutManagement(snapshot) {
   `;
 }
 
+export function getCardPackCollectionStats(
+  snapshot,
+  packOrId,
+) {
+  const pack =
+    typeof packOrId === "string"
+      ? getCardPack(packOrId)
+      : packOrId;
+  const cards =
+    getCardsForTeamIds(pack.teamIds);
+  const ownedTypes =
+    cards.filter((card) => {
+      const record =
+        snapshot.collections.cards?.[
+          card.collectionId
+        ];
+      return (
+        record === true ||
+        record?.owned === true ||
+        Number(record?.copies ?? 0) > 0
+      );
+    }).length;
+  return {
+    totalTypes: cards.length,
+    ownedTypes,
+    missingTypes:
+      Math.max(0, cards.length - ownedTypes),
+    completionRate:
+      cards.length > 0
+        ? ownedTypes / cards.length
+        : 0,
+  };
+}
+
+function cardPackCollectionStatsTemplate(
+  snapshot,
+  pack,
+) {
+  const stats =
+    getCardPackCollectionStats(
+      snapshot,
+      pack,
+    );
+  return `
+    <section class="card-pack-collection-stats">
+      <div>
+        <span>全収録種類</span>
+        <strong>${formatNumber(stats.totalTypes)}種</strong>
+      </div>
+      <div>
+        <span>所持種類</span>
+        <strong>${formatNumber(stats.ownedTypes)}種</strong>
+      </div>
+      <div class="is-missing">
+        <span>未所持種類</span>
+        <strong>${formatNumber(stats.missingTypes)}種</strong>
+      </div>
+      <i><b style="width:${(stats.completionRate * 100).toFixed(2)}%"></b></i>
+      <small>収録カードのコレクション進行度 ${Math.round(stats.completionRate * 100)}%</small>
+    </section>
+  `;
+}
+
 function packOpenButtons(type, packs, inventory) {
   return packs.map((pack) => {
     const count = inventory[pack.packId] ?? 0;
@@ -1816,7 +1879,7 @@ function selectedPackPanel(snapshot) {
   return `
     <section class="selected-pack-panel">
       <img src="${escapeAttribute(pack.image)}" alt="">
-      <div><span>${type.toUpperCase()} PACK</span><h3>${escapeHtml(pack.name)}</h3><p>所持 ${formatNumber(count)}</p></div>
+      <div><span>${type.toUpperCase()} PACK</span><h3>${escapeHtml(pack.name)}</h3><p>所持 ${formatNumber(count)}</p>${type === "card" ? cardPackCollectionStatsTemplate(snapshot, pack) : ""}</div>
       <div class="selected-pack-panel__actions">
         <button type="button" data-action="open-${type}-pack" data-pack-id="${escapeAttribute(packId)}" data-open-mode="one" ${count >= 1 ? "" : "disabled"}>1つ開封</button>
         <button type="button" data-action="open-${type}-pack" data-pack-id="${escapeAttribute(packId)}" data-open-mode="leave_one" ${count >= 2 ? "" : "disabled"}>1つ残して全て</button>
@@ -2618,7 +2681,7 @@ export function createManagementController({
       const snapshot = stateManager.getSnapshot();
       const quantity = await openQuantityPrompt({
         title: pack.name,
-        body: `<section class="shop-item-detail-modal"><div class="shop-item-detail-modal__image"><img src="${escapeAttribute(pack.image)}" alt=""></div><p>カードパックをまとめて購入できます。</p><div class="cost-tags">${currencyPriceTemplate(pack.price)}</div><strong>所持 ${formatNumber(snapshot.inventory.cardPacks[pack.packId] ?? 0)}</strong></section>`,
+        body: `<section class="shop-item-detail-modal shop-item-detail-modal--card-pack"><div class="shop-item-detail-modal__image"><img src="${escapeAttribute(pack.image)}" alt=""></div><p>カードパックをまとめて購入できます。1パックから${formatNumber(pack.cardsPerPack)}枚獲得します。</p>${cardPackCollectionStatsTemplate(snapshot, pack)}<div class="cost-tags">${currencyPriceTemplate(pack.price)}</div><strong>パック所持 ${formatNumber(snapshot.inventory.cardPacks[pack.packId] ?? 0)}</strong></section>`,
         initialValue: 1,
         minimum: 1,
         maximum: 99,

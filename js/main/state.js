@@ -19,11 +19,11 @@ import {
   getCompanyRankData,
   rankToWeaponValue,
   validateGameDate,
-} from "../../data/game-data.js?v=29";
+} from "../../data/game-data.js?v=30";
 import {
   BATTLE_CONFIG_VERSION,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=29";
+} from "../../data/battle-config.js?v=30";
 import {
   TRAINING_DATA_VERSION,
 } from "../../data/training-data.js";
@@ -46,9 +46,10 @@ import {
   STRATEGY_DATA_VERSION,
   STRATEGY_MASTER_VERSION,
   STRATEGY_RULES,
+  getStrategy,
 } from "../../data/strategy-data.js";
 
-export const SAVE_SCHEMA_VERSION = "mobbr-save-1.6.0";
+export const SAVE_SCHEMA_VERSION = "mobbr-save-1.7.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
 
 export const STORAGE_KEYS = Object.freeze({
@@ -1163,7 +1164,8 @@ export function migrateSaveState(
     rawState.schemaVersion === "mobbr-save-1.2.0" ||
     rawState.schemaVersion === "mobbr-save-1.3.0" ||
     rawState.schemaVersion === "mobbr-save-1.4.0" ||
-    rawState.schemaVersion === "mobbr-save-1.5.0"
+    rawState.schemaVersion === "mobbr-save-1.5.0" ||
+    rawState.schemaVersion === "mobbr-save-1.6.0"
   ) {
     const migrated = migrateUnversionedSave(rawState, timestamp);
     validateSaveState(migrated);
@@ -1682,6 +1684,71 @@ function applyConsumedCarryItems(draft, consumedCarryItems) {
   }
 }
 
+function applyConsumedStrategies(
+  draft,
+  strategyUsage,
+) {
+  if (strategyUsage === undefined) {
+    return [];
+  }
+  if (!Array.isArray(strategyUsage)) {
+    throw new TypeError(
+      "Strategy usage must be an array.",
+    );
+  }
+
+  const applied = [];
+  draft.inventory.strategies ??= {};
+  for (const usage of strategyUsage) {
+    assertPlainObject(
+      usage,
+      "Strategy usage",
+    );
+    const strategyId =
+      assertNonEmptyString(
+        usage.strategyId,
+        "Strategy ID",
+        100,
+      );
+    const uses =
+      assertNonNegativeInteger(
+        usage.uses ?? 0,
+        `Strategy ${strategyId} uses`,
+      );
+    const master =
+      getStrategy(strategyId);
+    if (
+      master.rank === "D" ||
+      usage.unlimited === true ||
+      uses === 0
+    ) {
+      continue;
+    }
+    const before =
+      draft.inventory.strategies[
+        strategyId
+      ] ?? 0;
+    const consumed =
+      Math.min(before, uses);
+    draft.inventory.strategies[
+      strategyId
+    ] = Math.max(
+      0,
+      before - consumed,
+    );
+    applied.push({
+      strategyId,
+      before,
+      consumed,
+      remaining:
+        draft.inventory.strategies[
+          strategyId
+        ],
+    });
+  }
+  return applied;
+}
+
 export function applyTournamentResultToDraft(
   draft,
   result,
@@ -1751,6 +1818,11 @@ export function applyTournamentResultToDraft(
   }
 
   applyConsumedCarryItems(draft, result.consumedCarryItems);
+  const consumedStrategies =
+    applyConsumedStrategies(
+      draft,
+      result.strategyUsage,
+    );
   applyMemberTournamentResults(draft, result.memberResults);
 
   const countsAsCompletedTournament =
@@ -1830,6 +1902,8 @@ export function applyTournamentResultToDraft(
     applied: true,
     historyEntry: deepClone(historyEntry),
     companyExpResult,
+    consumedStrategies:
+      deepClone(consumedStrategies),
     weekAdvance,
   });
 }
