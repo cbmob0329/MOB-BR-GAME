@@ -516,7 +516,7 @@ export const CARD_PACKS = deepFreeze([
     "name": "Vol.1",
     "image": "item/vol1.png",
     "price": {
-      "coin": 5000,
+      "coin": 0,
       "diamond": 10,
       "ruby": 0
     },
@@ -543,7 +543,7 @@ export const CARD_PACKS = deepFreeze([
     "name": "Vol.2",
     "image": "item/vol2.png",
     "price": {
-      "coin": 5000,
+      "coin": 0,
       "diamond": 10,
       "ruby": 0
     },
@@ -571,7 +571,7 @@ export const CARD_PACKS = deepFreeze([
     "name": "Vol.3",
     "image": "item/vol3.png",
     "price": {
-      "coin": 5000,
+      "coin": 0,
       "diamond": 10,
       "ruby": 0
     },
@@ -602,7 +602,7 @@ export const CARD_PACKS = deepFreeze([
     "name": "Vol.4",
     "image": "item/vol4.png",
     "price": {
-      "coin": 5000,
+      "coin": 0,
       "diamond": 10,
       "ruby": 0
     },
@@ -635,7 +635,7 @@ export const CARD_PACKS = deepFreeze([
     "name": "Vol.5",
     "image": "item/vol5.png",
     "price": {
-      "coin": 5000,
+      "coin": 0,
       "diamond": 10,
       "ruby": 0
     },
@@ -665,7 +665,7 @@ export const CARD_PACKS = deepFreeze([
     "name": "Vol.6",
     "image": "item/vol6.png",
     "price": {
-      "coin": 5000,
+      "coin": 0,
       "diamond": 10,
       "ruby": 0
     },
@@ -693,7 +693,7 @@ export const CARD_PACKS = deepFreeze([
     "name": "Vol.7",
     "image": "item/vol7.png",
     "price": {
-      "coin": 5000,
+      "coin": 0,
       "diamond": 10,
       "ruby": 0
     },
@@ -727,7 +727,7 @@ export const CARD_PACKS = deepFreeze([
     "name": "Vol.8",
     "image": "item/vol8.png",
     "price": {
-      "coin": 5000,
+      "coin": 0,
       "diamond": 10,
       "ruby": 0
     },
