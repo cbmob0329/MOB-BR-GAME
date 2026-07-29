@@ -8003,3 +8003,492 @@ img.asset-missing {
 .news-newspaper > article p { font-size: .43rem; }
 .news-newspaper > article ol { display: grid; gap: 3px; max-height: 300px; overflow-y: auto; padding: 0; list-style: none; }
 .news-newspaper > article li { display: grid; grid-template-columns: 30px 1fr; gap: 7px; border-bottom: 1px dotted #9e9476; padding: 3px; font-size: .42rem; }
+
+/* Generation 33: collection, shop, reveal, growth and development polish */
+
+/* Remove the center spine that covered the middle collection slot. */
+.collection-file::before {
+  display: none !important;
+}
+
+.collection-file__page {
+  background:
+    linear-gradient(145deg, #f8f4e8, #ddd5c2) !important;
+}
+
+.collection-file__page::after {
+  position: absolute;
+  z-index: 0;
+  inset: 7px;
+  border: 1px solid rgb(88 64 36 / 14%);
+  border-radius: 5px;
+  content: "";
+  pointer-events: none;
+}
+
+.collection-file__grid,
+.collection-file__page > header {
+  position: relative;
+  z-index: 1;
+}
+
+/* Badge pages use dark typography against their pale file sleeves. */
+.collection-file-badge > strong {
+  color: #172235 !important;
+  text-shadow: 0 1px 0 rgb(255 255 255 / 70%) !important;
+}
+
+.collection-file-badge > small {
+  color: #596477 !important;
+  text-shadow: none !important;
+}
+
+.collection-file-badge__ring {
+  border: 3px solid rgb(56 67 84 / 34%) !important;
+  animation: badge-medal-breathe 1.8s ease-in-out infinite alternate !important;
+}
+
+@keyframes badge-medal-breathe {
+  to {
+    scale: 1.035;
+    opacity: .62;
+    box-shadow: inset 0 0 16px rgb(0 0 0 / 18%);
+  }
+}
+
+/* MOB SHOP storefront: no robot, future MOB PINK staff slot. */
+.mobshop-popup {
+  gap: 8px !important;
+  border: 6px solid #20334c !important;
+  border-radius: 22px 22px 12px 12px !important;
+  padding: 10px !important;
+  background:
+    linear-gradient(180deg, rgb(13 35 58 / 56%), rgb(9 20 35 / 74%)),
+    var(--mobshop-bg) center / cover no-repeat,
+    #1a3c5c !important;
+  box-shadow:
+    0 20px 42px rgb(0 0 0 / 42%),
+    inset 0 0 0 2px rgb(122 220 255 / 24%) !important;
+}
+
+.mobshop-neon-header {
+  border: 3px solid #8be5ff !important;
+  border-radius: 10px 10px 4px 4px !important;
+  background:
+    linear-gradient(180deg, rgb(14 51 78 / 98%), rgb(5 20 35 / 98%)) !important;
+  box-shadow:
+    0 0 18px rgb(84 211 255 / 22%),
+    inset 0 0 16px rgb(71 194 244 / 10%) !important;
+}
+
+.mobshop-counter-light {
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr !important;
+  gap: 3px !important;
+  border-radius: 3px;
+  padding: 3px;
+  background: #17283b;
+}
+
+.mobshop-counter-light i {
+  height: 5px !important;
+  animation: shop-shelf-light 1.3s ease-in-out infinite alternate !important;
+}
+
+.mobshop-counter-light i:nth-child(4),
+.mobshop-counter-light i:nth-child(5) {
+  display: block;
+}
+
+@keyframes shop-shelf-light {
+  to {
+    background: #f4d55f;
+    box-shadow: 0 0 8px rgb(244 213 95 / 40%);
+  }
+}
+
+.mobshop-clerk,
+.mobshop-clerk__head {
+  display: none !important;
+}
+
+.mobshop-staff-counter {
+  position: relative;
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr) 52px;
+  gap: 9px;
+  align-items: center;
+  border: 4px solid #c9995b;
+  border-radius: 12px 12px 5px 5px;
+  padding: 8px;
+  background:
+    linear-gradient(180deg, rgb(255 251 236 / 96%), rgb(226 211 181 / 98%));
+  color: #202c3d;
+  box-shadow:
+    inset 0 -8px 0 #8f5d33,
+    0 8px 18px rgb(0 0 0 / 28%);
+}
+
+.mobshop-staff-placeholder {
+  display: grid;
+  width: 82px;
+  height: 82px;
+  place-items: center;
+  align-content: center;
+  border: 3px solid #e47aae;
+  border-radius: 50% 50% 10px 10px;
+  background:
+    radial-gradient(circle at 50% 30%, #ffd6e9, #d65c9e 72%);
+  color: #fff;
+  text-align: center;
+  box-shadow: inset 0 0 0 3px rgb(255 255 255 / 28%);
+}
+
+.mobshop-staff-placeholder span,
+.mobshop-staff-placeholder small {
+  font-size: .28rem;
+  font-weight: 900;
+}
+
+.mobshop-staff-placeholder strong {
+  font-size: .46rem;
+  line-height: 1;
+}
+
+.mobshop-staff-dialogue {
+  display: grid;
+  gap: 3px;
+  border: 2px solid rgb(41 61 83 / 14%);
+  border-radius: 10px;
+  padding: 8px;
+  background: rgb(255 255 255 / 72%);
+}
+
+.mobshop-staff-dialogue span {
+  color: #cf4f91;
+  font-size: .42rem;
+  font-weight: 1000;
+}
+
+.mobshop-staff-dialogue p {
+  margin: 0;
+  font-size: .55rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.mobshop-basket {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+  height: 46px;
+  align-items: end;
+  border: 3px solid #4c6179;
+  border-top: 0;
+  border-radius: 0 0 8px 8px;
+  padding: 5px;
+  background: #d9e4ef;
+}
+
+.mobshop-basket::before {
+  position: absolute;
+  top: -13px;
+  left: 50%;
+  width: 34px;
+  height: 17px;
+  translate: -50% 0;
+  border: 3px solid #4c6179;
+  border-bottom: 0;
+  border-radius: 18px 18px 0 0;
+  content: "";
+}
+
+.mobshop-basket i {
+  height: 23px;
+  border-radius: 3px;
+  background: repeating-linear-gradient(90deg, #7f98af 0 2px, transparent 2px 5px);
+}
+
+.mobshop-category-grid {
+  padding: 6px;
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, #81562f 0 7px, #322317 7px calc(100% - 7px), #81562f calc(100% - 7px));
+  box-shadow: 0 7px 12px rgb(0 0 0 / 26%);
+}
+
+.mobshop-category-grid button {
+  min-height: 74px !important;
+  border: 3px solid #d5b77b !important;
+  border-radius: 8px !important;
+  background:
+    linear-gradient(180deg, #fffef5, #dce7f1) !important;
+  color: #18263a !important;
+  box-shadow:
+    inset 0 0 0 2px rgb(255 255 255 / 70%),
+    0 4px 8px rgb(0 0 0 / 22%);
+}
+
+.mobshop-category-grid button.is-active {
+  border-color: #f1c84c !important;
+  background:
+    linear-gradient(180deg, #fff8cb, #efd56b) !important;
+  translate: 0 -3px;
+}
+
+.mobshop-content {
+  border: 5px solid #8b6038 !important;
+  border-radius: 9px !important;
+  background:
+    repeating-linear-gradient(0deg, rgb(255 255 255 / 36%) 0 1px, transparent 1px 26px),
+    linear-gradient(180deg, #f7f5eb, #dce4ec) !important;
+  box-shadow:
+    inset 0 0 0 2px #fff,
+    0 8px 15px rgb(0 0 0 / 28%);
+}
+
+.mobshop-welcome-sign {
+  display: grid;
+  width: min(88%, 360px);
+  justify-items: center;
+  gap: 4px;
+  border: 5px double #9b6c35;
+  border-radius: 8px;
+  padding: 20px 12px;
+  background: #fffdf0;
+  color: #25344a;
+  box-shadow: 0 12px 20px rgb(0 0 0 / 20%);
+}
+
+.mobshop-welcome-sign span { color: #d15493; font-size: .48rem; font-weight: 1000; }
+.mobshop-welcome-sign strong { font-size: 1.2rem; letter-spacing: .08em; }
+.mobshop-welcome-sign small { color: #68758a; font-size: .47rem; }
+
+/* Remove eye-straining rotating line effects. Replace them with pulse/glow. */
+.pack-opening-show__burst,
+.weekly-bonus-show__burst,
+.progression-presentation__rays,
+.skin-gacha-cinematic__flare,
+.strategy-meeting-cinematic__flare {
+  border-radius: 50% !important;
+  background:
+    radial-gradient(circle, rgb(255 232 129 / 34%) 0 8%, rgb(94 205 255 / 16%) 25%, transparent 64%) !important;
+  animation: presentation-glow-pulse 1.25s ease-in-out infinite alternate !important;
+  rotate: 0deg !important;
+}
+
+.strategy-meeting-cinematic__rank-ring {
+  animation: none !important;
+  rotate: 0deg !important;
+}
+
+.pack-opening-hero__rings {
+  border: 0 !important;
+  background:
+    radial-gradient(circle, rgb(255 235 144 / 30%), rgb(255 235 144 / 8%) 42%, transparent 68%) !important;
+  box-shadow: none !important;
+  animation: presentation-glow-pulse 1.15s ease-in-out infinite alternate !important;
+}
+
+@keyframes presentation-glow-pulse {
+  from { scale: .88; opacity: .36; filter: brightness(.9); }
+  to { scale: 1.08; opacity: .86; filter: brightness(1.16); }
+}
+
+/* Strong badge pack reveal without rotating lines. */
+.pack-opening-hero--badge {
+  border-color: #c7d5e7 !important;
+  background:
+    linear-gradient(90deg, transparent, rgb(255 255 255 / 11%), transparent),
+    radial-gradient(circle at 20% 50%, rgb(140 217 255 / 22%), transparent 43%),
+    linear-gradient(135deg, #162b43, #090f1b) !important;
+}
+
+.pack-opening-hero--badge > img {
+  border: 8px solid #eef3f8;
+  border-radius: 50%;
+  padding: 6px;
+  background:
+    radial-gradient(circle, #fff 0 52%, #abb8c8 53% 65%, #48596c 66% 71%, #f4f6f8 72%);
+  box-shadow:
+    0 0 0 3px #60738a,
+    0 12px 22px rgb(0 0 0 / 42%);
+  animation: badge-medal-drop 650ms cubic-bezier(.14,.87,.23,1) both !important;
+}
+
+.pack-reveal-card--badge {
+  border: 5px solid #eef3f8 !important;
+  border-radius: 18px !important;
+  background:
+    linear-gradient(180deg, #f8fbff, #d8e1eb) !important;
+  box-shadow:
+    0 8px 18px rgb(0 0 0 / 30%),
+    inset 0 0 0 3px #71849a !important;
+}
+
+.pack-reveal-card--badge .pack-reveal-card__main {
+  width: 84px;
+  height: 84px;
+  border: 5px solid #abb9c8;
+  border-radius: 50%;
+  padding: 5px;
+  background: #fff;
+  animation: badge-medal-drop 580ms calc(var(--reveal-index) * 75ms) cubic-bezier(.14,.87,.23,1) both;
+}
+
+.pack-reveal-card--badge strong {
+  color: #19263a !important;
+  white-space: normal !important;
+  line-height: 1.15;
+}
+
+.pack-reveal-card--badge span {
+  color: #3e658d !important;
+}
+
+@keyframes badge-medal-drop {
+  from { translate: 0 -28px; scale: .62; opacity: 0; }
+  68% { translate: 0 5px; scale: 1.06; opacity: 1; }
+  to { translate: 0 0; scale: 1; opacity: 1; }
+}
+
+/* Skill explanation and exact next-level comparison. */
+.skill-upgrade-card__description {
+  margin: 0;
+  border-left: 4px solid #70d9ff;
+  border-radius: 5px;
+  padding: 7px 8px;
+  background: rgb(77 183 225 / 9%);
+  color: rgb(255 255 255 / 76%);
+  font-size: .48rem;
+  line-height: 1.5;
+}
+
+.skill-upgrade-card__base-effect {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 8px;
+  align-items: center;
+  border-radius: 9px;
+  padding: 7px;
+  background: rgb(255 255 255 / 6%);
+}
+
+.skill-upgrade-card__base-effect span {
+  grid-row: 1 / 3;
+  border-radius: 7px;
+  padding: 5px 7px;
+  background: #2b6685;
+  color: #fff;
+  font-size: .38rem;
+  font-weight: 1000;
+}
+
+.skill-upgrade-card__base-effect strong { font-size: .5rem; }
+.skill-upgrade-card__base-effect small { color: #8ee5ff; font-size: .4rem; }
+
+.skill-upgrade-card__next small {
+  line-height: 1.55 !important;
+}
+
+/* Ability Up now contains four categories. */
+.development-tabs {
+  grid-template-columns: repeat(4, minmax(82px, 1fr)) !important;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+}
+
+.development-tabs button {
+  scroll-snap-align: center;
+}
+
+/* Special abilities: six slightly-wide columns with horizontal scrolling. */
+.special-ability-list--powerpro {
+  display: grid !important;
+  grid-template-columns: repeat(6, 112px) !important;
+  grid-auto-rows: 86px !important;
+  width: max-content;
+  min-width: 100%;
+  max-width: none !important;
+  gap: 7px !important;
+  overflow: visible !important;
+}
+
+.team-feature-live-section[data-live-section="special"] {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: 7px;
+  scroll-snap-type: x proximity;
+}
+
+.special-ability-card--tile {
+  display: grid !important;
+  grid-template-columns: 31px minmax(0, 1fr) !important;
+  grid-template-rows: auto auto 1fr auto !important;
+  width: 112px !important;
+  height: 86px !important;
+  min-height: 0 !important;
+  align-items: center !important;
+  gap: 1px 5px !important;
+  border-radius: 11px !important;
+  padding: 6px !important;
+  text-align: left !important;
+  scroll-snap-align: center;
+}
+
+.special-ability-card--tile .special-ability-orb {
+  grid-column: 1;
+  grid-row: 1 / 5;
+  width: 31px !important;
+  height: 31px !important;
+  font-size: .54rem !important;
+}
+
+.special-ability-card--tile .special-ability-card__id {
+  grid-column: 2;
+  grid-row: 1;
+  font-size: .27rem !important;
+}
+
+.special-ability-card--tile > strong {
+  grid-column: 2;
+  grid-row: 2;
+  font-size: .38rem !important;
+  line-height: 1.1;
+  white-space: normal !important;
+}
+
+.special-ability-card--tile > em {
+  grid-column: 2;
+  grid-row: 3;
+  display: -webkit-box;
+  overflow: hidden;
+  color: rgb(255 255 255 / 67%);
+  font-size: .27rem;
+  font-style: normal;
+  line-height: 1.2;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.special-ability-card--tile > small {
+  grid-column: 2;
+  grid-row: 4;
+  justify-self: start;
+  font-size: .28rem !important;
+}
+
+@media (max-width: 390px) {
+  .mobshop-staff-counter {
+    grid-template-columns: 67px minmax(0, 1fr) 43px;
+  }
+
+  .mobshop-staff-placeholder {
+    width: 67px;
+    height: 72px;
+  }
+
+  .development-tabs {
+    grid-template-columns: repeat(4, 76px) !important;
+  }
+}

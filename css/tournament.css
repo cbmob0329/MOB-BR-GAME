@@ -9646,3 +9646,224 @@ html[data-asset-prefix="../../"] .tournament-loading-overlay {
 }
 .battle-pause-commentary img { width: 55px; height: 55px; object-fit: contain; }
 .battle-pause-commentary p { margin: 0 !important; color: #fff !important; font-size: .46rem !important; line-height: 1.45; }
+
+/* Generation 33: reliable tactical pause and collision-free awards */
+.battle-chill-button {
+  position: fixed;
+  z-index: 128;
+  top: calc(var(--safe-top) + 58px);
+  left: 50%;
+  display: grid;
+  min-width: 116px;
+  min-height: 42px;
+  translate: -50% 0;
+  place-items: center;
+  gap: 0;
+  border: 2px solid rgb(124 229 255 / 74%);
+  border-radius: 999px;
+  padding: 5px 16px;
+  background:
+    linear-gradient(180deg, rgb(34 127 163 / 96%), rgb(5 27 45 / 98%));
+  color: #fff;
+  box-shadow:
+    0 8px 18px rgb(0 0 0 / 38%),
+    0 0 16px rgb(91 214 255 / 23%),
+    inset 0 1px 0 rgb(255 255 255 / 18%);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.battle-chill-button span {
+  color: #91e9ff;
+  font-size: .28rem;
+  font-weight: 1000;
+  letter-spacing: .11em;
+}
+
+.battle-chill-button strong {
+  font-size: .54rem;
+  line-height: 1;
+}
+
+.battle-chill-button:active {
+  translate: -50% 1px;
+  scale: .97;
+  filter: brightness(1.14);
+}
+
+.battle-pause-team-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  margin-block: 8px;
+}
+
+.battle-pause-team-strip article {
+  display: grid;
+  min-width: 0;
+  justify-items: center;
+  gap: 2px;
+  border: 2px solid rgb(255 255 255 / 12%);
+  border-radius: 10px;
+  padding: 5px 3px;
+  background: rgb(255 255 255 / 5%);
+  color: #fff;
+  text-align: center;
+}
+
+.battle-pause-team-strip article.is-focus {
+  border-color: #72ddff;
+  background: rgb(60 180 225 / 15%);
+  box-shadow: 0 0 12px rgb(80 204 255 / 20%);
+}
+
+.battle-pause-team-strip article[data-state="dead"] {
+  filter: grayscale(1);
+  opacity: .58;
+}
+
+.battle-pause-team-strip img {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+.battle-pause-team-strip span {
+  color: #83e4ff;
+  font-size: .31rem;
+  font-weight: 1000;
+}
+
+.battle-pause-team-strip strong,
+.battle-pause-team-strip small {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.battle-pause-team-strip strong { font-size: .39rem; }
+.battle-pause-team-strip small { color: rgb(255 255 255 / 58%); font-size: .29rem; }
+
+.emergency-respawn-notice {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  margin-bottom: 8px;
+  border: 3px solid rgb(255 169 77 / 65%);
+  border-radius: 14px;
+  padding: 9px;
+  background:
+    radial-gradient(circle at 0 0, rgb(255 168 70 / 17%), transparent 46%),
+    rgb(35 18 7 / 94%);
+  color: #fff;
+}
+
+.emergency-respawn-notice img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+
+.emergency-respawn-notice div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.emergency-respawn-notice span {
+  color: #ffbb62;
+  font-size: .38rem;
+  font-weight: 1000;
+  letter-spacing: .1em;
+}
+
+.emergency-respawn-notice strong { font-size: .58rem; }
+.emergency-respawn-notice p { margin: 0; color: rgb(255 255 255 / 69%); font-size: .4rem; line-height: 1.45; }
+
+/* The award header now reserves its own safe area instead of covering content. */
+.tournament-screen--award {
+  overflow-y: auto !important;
+  padding:
+    calc(var(--safe-top) + 104px)
+    max(var(--safe-right), 7px)
+    calc(var(--safe-bottom) + 145px)
+    max(var(--safe-left), 7px);
+}
+
+.tournament-screen--award .award-header {
+  min-height: calc(var(--safe-top) + 82px) !important;
+  padding-top: calc(var(--safe-top) + 7px) !important;
+  background:
+    linear-gradient(180deg, rgb(4 8 16 / 99%) 0 76%, transparent) !important;
+  pointer-events: none;
+}
+
+.tournament-screen--award .award-header h1 {
+  font-size: clamp(1.05rem, 6vw, 1.65rem) !important;
+}
+
+.award-introduction,
+.award-lower-announcement,
+.final-top5-commentary,
+.final-top5-order,
+.award-center-commentary {
+  position: relative !important;
+  inset: auto !important;
+  width: min(100%, 540px) !important;
+  margin: 0 auto 10px !important;
+}
+
+.tournament-screen--award .award-lower-announcement,
+.tournament-screen--award .final-top5-order {
+  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 270px);
+  overflow-y: auto;
+}
+
+.tournament-screen--award .award-podium {
+  position: relative !important;
+  inset: auto !important;
+  width: min(100%, 590px);
+  min-height: 0;
+  margin: 0 auto;
+  align-items: end;
+}
+
+.tournament-screen--award .result-fixed-bottom {
+  z-index: 24;
+}
+
+@media (max-height: 700px) {
+  .battle-chill-button {
+    top: calc(var(--safe-top) + 50px);
+    min-height: 37px;
+  }
+
+  .tournament-screen--award {
+    padding-top: calc(var(--safe-top) + 88px);
+  }
+
+  .tournament-screen--award .award-header {
+    min-height: calc(var(--safe-top) + 70px) !important;
+  }
+}
+
+
+/* Freeze all underlying battle animation while TACTICAL PAUSE is open. */
+.tournament-screen--battle-replay.is-tactical-paused
+  .battle-arena *,
+.tournament-screen--battle-replay.is-tactical-paused
+  .battle-fx-layer *,
+.tournament-screen--battle-replay.is-tactical-paused
+  .battle-persistent-cutin-layer * {
+  animation-play-state: paused !important;
+  transition-duration: 0s !important;
+}
+
+.tournament-screen--battle-replay.is-tactical-paused
+  .battle-chill-button {
+  opacity: .45;
+  pointer-events: none;
+}
