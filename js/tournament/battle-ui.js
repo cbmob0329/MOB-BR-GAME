@@ -14,7 +14,7 @@ import {
   createCommentaryDirector,
 } from "./commentary.js";
 
-export const BATTLE_UI_VERSION = "mobbr-battle-ui-1.9.0";
+export const BATTLE_UI_VERSION = "mobbr-battle-ui-2.0.0";
 export const BATTLE_REPLAY_SCHEMA_VERSION =
   "mobbr-battle-replay-1.0.0";
 
@@ -1306,9 +1306,18 @@ export function createBattlePlaybackController({
     model.commentary = {
       name: COMMENTATOR.name,
       image: COMMENTATOR.image,
-      text:
-        `${result.name}を使用！` +
-        `${result.effectSummary ?? "効果を反映"}！`,
+      text: (() => {
+        const teamName = model.teams[model.playerTeamId]?.teamName ?? "プレイヤーチーム";
+        const variants = [
+          `${teamName}が${result.name}を使用！戦況を変えられるか！？`,
+          `${result.name}を投入！${teamName}、ここから流れを引き寄せたい！`,
+          `${teamName}のバッグ判断！${result.name}で立て直しを狙います！`,
+          `ここで${result.name}！${teamName}が勝負の一手を切りました！`,
+          `${result.name}発動！この判断が終盤へどう響くでしょうか！`,
+          `${teamName}は${result.name}を選択！戦線を維持できるか！`,
+        ];
+        return variants[Math.abs(String(result.name).length + Date.now()) % variants.length];
+      })(),
       priority: 9,
       eventId:
         `battle-item:${Date.now()}`,
@@ -1329,6 +1338,18 @@ export function createBattlePlaybackController({
     ) {
       return;
     }
+    const participant = model.participants[playerId];
+    const teamName = participant
+      ? model.teams[participant.teamId]?.teamName ?? "プレイヤーチーム"
+      : "プレイヤーチーム";
+    model.commentary = {
+      name: COMMENTATOR.name,
+      image: COMMENTATOR.image,
+      text: `${teamName}はここで一旦チル！アイテムか、将来のウルトか。落ち着いて判断します！`,
+      priority: 10,
+      eventId: `battle-pause:${Date.now()}`,
+    };
+    model.commentaryHistory = [...(model.commentaryHistory ?? []), model.commentary.text].slice(-5);
     pause();
     try {
       const result =

@@ -10,10 +10,10 @@ import {
   BATTLE_END_TIE_BREAKERS,
   BATTLE_TIMING,
   STATE_RULES,
-} from "../../data/battle-config.js?v=31";
+} from "../../data/battle-config.js?v=32";
 import {
   calculateChecksum,
-} from "../main/state.js?v=31";
+} from "../main/state.js?v=32";
 import {
   BATTLE_ACTIONS_VERSION,
   appendBattleEvent,
@@ -26,10 +26,10 @@ import {
   prepareParticipantSpecialAfterBattle,
   addOrRefreshEffect,
   updateParticipantTimers,
-} from "./battle-actions.js?v=31";
+} from "./battle-actions.js?v=32";
 
 export const BATTLE_CORE_VERSION =
-  "mobbr-battle-core-1.5.0";
+  "mobbr-battle-core-1.6.0";
 export const BATTLE_STATE_SCHEMA_VERSION =
   "mobbr-battle-state-1.0.0";
 
@@ -883,30 +883,30 @@ export function runBattleToCompletion(
   return deepFreeze(current);
 }
 
-export function prepareBattleForNextRound(
-  battle,
-) {
+export function prepareBattleForNextRound(battle) {
   const next = deepClone(battle);
-  for (const participant of Object.values(
-    next.participants,
-  )) {
-    recoverDownedAfterBattle(participant);
-    const specialRecovery =
-      prepareParticipantSpecialAfterBattle(
-        participant,
+  for (const participant of Object.values(next.participants)) {
+    if (participant.combatState === "dead") {
+      participant.hp = 0;
+    } else if (participant.combatState === "down") {
+      participant.combatState = "alive";
+      participant.downedAt = null;
+      participant.hp = Math.max(1, Math.round(participant.maxHp * 0.3));
+      participant.lifeSerial += 1;
+      participant.lifeId = `${participant.playerId}-life-${participant.lifeSerial}`;
+      participant.damageContributors = {};
+    } else {
+      participant.hp = Math.min(
+        participant.maxHp,
+        participant.hp + Math.round(participant.maxHp * 0.5),
       );
-    if (specialRecovery > 0) {
-      participant.stats.healing +=
-        specialRecovery;
     }
-    participant.weapon.ammo =
-      participant.weapon.ammoMax;
+    participant.weapon.ammo = participant.weapon.ammoMax;
     participant.reloadRemaining = 0;
     participant.attackCooldown = 0;
     participant.effects = [];
   }
-  next.checksum =
-    calculateBattleChecksum(next);
+  next.checksum = calculateBattleChecksum(next);
   return deepFreeze(next);
 }
 

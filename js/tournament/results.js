@@ -11,29 +11,29 @@ import { assetPath } from "../assets.js";
 import {
   getChampionshipPoints,
   getPlacementPoints,
-} from "../../data/game-data.js?v=31";
+} from "../../data/game-data.js?v=32";
 import {
   STRATEGY_RULES,
 } from "../../data/strategy-data.js";
 import {
   FORMAL_CIRCUIT_RULES,
   isCasualTournamentType,
-} from "../../data/circuit-data.js?v=31";
+} from "../../data/circuit-data.js?v=32";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=31";
+} from "./circuit.js?v=32";
 import {
   getPlayableRoundCount,
-} from "./round.js?v=31";
+} from "./round.js?v=32";
 import {
   finalizeTournamentResultData,
   resolvePlacementRewards,
   writeTournamentResultToStorage,
-} from "../main/tournament-bridge.js?v=31";
+} from "../main/tournament-bridge.js?v=32";
 
 export const RESULTS_VERSION =
-  "mobbr-tournament-results-2.2.0";
+  "mobbr-tournament-results-2.3.0";
 
 export const RESULT_RULES = Object.freeze({
   defaultMatchPointThreshold: 50,
@@ -589,21 +589,24 @@ export function finalizeCurrentMatchToDraft(draft) {
 }
 
 function resetMemberForNextMatch(runtimeMember) {
-  runtimeMember.hp = runtimeMember.maxHp;
-  runtimeMember.combatState = "alive";
+  if (runtimeMember.combatState === "dead") {
+    runtimeMember.hp = 0;
+  } else if (runtimeMember.combatState === "down") {
+    runtimeMember.combatState = "alive";
+    runtimeMember.hp = Math.max(1, Math.round(runtimeMember.maxHp * 0.3));
+  } else {
+    runtimeMember.hp = Math.min(
+      runtimeMember.maxHp,
+      runtimeMember.hp + Math.round(runtimeMember.maxHp * 0.5),
+    );
+  }
   runtimeMember.currentAmmo = 12;
   runtimeMember.reloadRemaining = 0;
   runtimeMember.skillCt = Object.fromEntries(
-    Object.keys(runtimeMember.skillCt ?? {}).map(
-      (skillId) => [skillId, 0],
-    ),
+    Object.keys(runtimeMember.skillCt ?? {}).map((skillId) => [skillId, 0]),
   );
   runtimeMember.temporaryEffects = [];
   runtimeMember.nextBattleOpeningEffects = [];
-  runtimeMember.lifeSerial =
-    (runtimeMember.lifeSerial ?? 1) + 1;
-  runtimeMember.lifeId =
-    `${runtimeMember.playerId}-life-${runtimeMember.lifeSerial}`;
 }
 
 export function prepareNextMatchToDraft(draft) {
@@ -639,9 +642,9 @@ export function prepareNextMatchToDraft(draft) {
   for (const team of draft.teams) {
     for (const member of team.members) {
       const runtimeMember = draft.memberRuntime[member.playerId];
-      member.currentHp = runtimeMember.maxHp;
+      member.currentHp = runtimeMember.hp;
       member.maxHp = runtimeMember.maxHp;
-      member.combatState = "alive";
+      member.combatState = runtimeMember.combatState;
     }
   }
   for (const member of draft.entryData.playerTeam.members) {
@@ -658,7 +661,9 @@ export function prepareNextMatchToDraft(draft) {
       (member) => draft.memberRuntime[member.playerId].hp,
     );
     teamRuntime.persistentHp = [...teamRuntime.matchHp];
-    teamRuntime.combatState = team.members.map(() => "alive");
+    teamRuntime.combatState = team.members.map(
+      (member) => draft.memberRuntime[member.playerId].combatState,
+    );
     teamRuntime.skillCt = team.members.map(
       (member) =>
         deepClone(
@@ -975,27 +980,47 @@ function individualRankingComment(
   return `${name}は${value}を記録し、チームの順位獲得へ貢献しました。`;
 }
 
-function totalRankingComment(
-  team,
-  index,
-) {
+function totalRankingComment(team, index) {
   const place = index + 1;
   const pp = team.sumPlacementPoint ?? 0;
   const kp = team.sumKp ?? 0;
   const total = team.sumTotal ?? team.total ?? 0;
-  if (place === 1) {
-    return `${team.teamName}が優勝。順位ポイント${pp}と${kp}KPを両立し、TOTAL ${total}で大会を支配しました。`;
-  }
-  if (place === 2) {
-    return `${team.teamName}は2位。終盤まで優勝争いを続ける安定感があり、取りこぼしの少なさが強みでした。`;
-  }
-  if (place === 3) {
-    return `${team.teamName}は3位。${kp}KPの攻撃性と上位維持を両立し、表彰台へ入りました。`;
-  }
-  if (place === 4) {
-    return `${team.teamName}は4位。大崩れを避けながらTOTAL ${total}を確保した、再現性の高い大会運びでした。`;
-  }
-  return `${team.teamName}は5位。上位集団へ残り続け、次大会でも通用する総合力を示しました。`;
+  const damage = team.sumDamage ?? team.damage ?? 0;
+  const seed = Array.from(String(team.teamId ?? team.teamName)).reduce((sum, char) => sum + char.charCodeAt(0), place);
+  const variants = {
+    1: [
+      `${team.teamName}が優勝！順位ポイント${pp}、${kp}KP、TOTAL ${total}。攻守ともに大会最高の完成度でした！`,
+      `頂点は${team.teamName}！TOTAL ${total}、最後まで主導権を渡さない王者の戦いです！`,
+      `${team.teamName}がチャンピオン！${formatNumber(damage)}ダメージの圧力と安定した順位取りが噛み合いました！`,
+      `優勝は${team.teamName}！勝負どころのKPと崩れない順位力、どちらも見事でした！`,
+    ],
+    2: [
+      `${team.teamName}は2位！優勝まであと一歩、それでもTOTAL ${total}は大会屈指の安定感です！`,
+      `準優勝は${team.teamName}！終盤まで王座を争い続けた高い再現性が光りました！`,
+      `${team.teamName}が2位。${kp}KPの攻撃性と順位ポイント${pp}の堅実さを両立しています！`,
+      `2位${team.teamName}！取りこぼしを抑え、最後の最後まで優勝戦線に残りました！`,
+    ],
+    3: [
+      `${team.teamName}は3位！${kp}KPの攻撃力を武器に、堂々の表彰台です！`,
+      `3位は${team.teamName}！TOTAL ${total}、大会を通して上位を守り抜きました！`,
+      `${team.teamName}が3位。火力と生存判断のバランスが表彰台につながりました！`,
+      `表彰台最後の一枠は${team.teamName}！勝負どころでポイントを積み上げました！`,
+    ],
+    4: [
+      `${team.teamName}は4位！大崩れを避け、TOTAL ${total}を積み上げた完成度の高い大会でした！`,
+      `4位は${team.teamName}！表彰台には届かずとも、上位常連の力を十分に示しました！`,
+      `${team.teamName}が4位。順位ポイント${pp}を軸に、安定した試合運びを見せました！`,
+      `4位${team.teamName}！終盤まで表彰台を狙える位置をキープした好内容です！`,
+    ],
+    5: [
+      `${team.teamName}は5位！上位集団へ残り続け、次大会にもつながる総合力を示しました！`,
+      `TOP5入りは${team.teamName}！TOTAL ${total}、厳しい場面でもポイントを持ち帰りました！`,
+      `${team.teamName}が5位。${kp}KPと粘り強い順位取りで上位フィニッシュです！`,
+      `5位は${team.teamName}！大会の流れに食らいつき、最後までTOP5を守りました！`,
+    ],
+  };
+  const list = variants[place] ?? variants[5];
+  return list[seed % list.length];
 }
 
 function memberPerformanceComment(member) {
@@ -1234,6 +1259,8 @@ export function prepareAwardsToDraft(draft) {
   draft.finalRankings = deepClone(finalRankings);
   draft.awardRuntime.awards = deepClone(awards);
   draft.awardRuntime.currentIndex = 0;
+  draft.awardRuntime.presentationStage = "intro";
+  draft.awardRuntime.podiumCommentIndex = 4;
   draft.awardRuntime.completed = false;
   draft.pendingVisualId = "tournament-awards:0";
   return deepFreeze({
@@ -1247,20 +1274,44 @@ export function advanceAwardToDraft(draft) {
   if (!Array.isArray(awards) || awards.length === 0) {
     throw new RangeError("Tournament awards are not prepared.");
   }
+  const award = awards[draft.awardRuntime.currentIndex];
+  const stage = draft.awardRuntime.presentationStage ?? "intro";
+
+  if (award.category === "FINAL_PODIUM") {
+    if (stage === "intro") {
+      draft.awardRuntime.presentationStage = "podium_comment";
+      draft.awardRuntime.podiumCommentIndex = 4;
+      return deepFreeze({ completed: false, stage: "podium_comment" });
+    }
+    if (stage === "podium_comment" && draft.awardRuntime.podiumCommentIndex > 0) {
+      draft.awardRuntime.podiumCommentIndex -= 1;
+      return deepFreeze({ completed: false, stage: "podium_comment" });
+    }
+    if (stage === "podium_comment") {
+      draft.awardRuntime.presentationStage = "podium";
+      return deepFreeze({ completed: false, stage: "podium" });
+    }
+  } else {
+    if (stage === "intro") {
+      draft.awardRuntime.presentationStage = "lower";
+      return deepFreeze({ completed: false, stage: "lower" });
+    }
+    if (stage === "lower") {
+      draft.awardRuntime.presentationStage = "podium";
+      return deepFreeze({ completed: false, stage: "podium" });
+    }
+  }
+
   const nextIndex = draft.awardRuntime.currentIndex + 1;
   if (nextIndex >= awards.length) {
     draft.awardRuntime.completed = true;
-    return deepFreeze({
-      completed: true,
-      currentIndex: awards.length - 1,
-    });
+    return deepFreeze({ completed: true, currentIndex: awards.length - 1 });
   }
   draft.awardRuntime.currentIndex = nextIndex;
+  draft.awardRuntime.presentationStage = "intro";
+  draft.awardRuntime.podiumCommentIndex = 4;
   draft.pendingVisualId = `tournament-awards:${nextIndex}`;
-  return deepFreeze({
-    completed: false,
-    currentIndex: nextIndex,
-  });
+  return deepFreeze({ completed: false, currentIndex: nextIndex, stage: "intro" });
 }
 
 function rankingIds(rankings, minimumPlace, maximumPlace) {
@@ -2099,14 +2150,39 @@ export function renderNextMatchWaitScreen(runtime) {
   `;
 }
 
+function ordinalLabel(place) {
+  const value = Number(place);
+  if (value === 1) return "1ST";
+  if (value === 2) return "2ND";
+  if (value === 3) return "3RD";
+  return `${value}TH`;
+}
+
+function awardExplanation(award) {
+  const map = {
+    KILL_LEADER: "確キル数を評価するランキングです。最後まで取り切った決定力が問われます。",
+    DAMAGE_LEADER: "大会通算ダメージを評価します。継続して射線を通した火力賞です。",
+    ASSIST_LEADER: "味方の確キルにつながる大きな削りと連携を評価します。",
+    HEALING_LEADER: "回復量と味方の戦線維持への貢献を評価します。",
+    ACCURACY_LEADER: "実際の発射数に対する命中率を評価する精密射撃賞です。",
+    UNDERDOG_HERO: "総合順位が低い企業にも補正を与え、苦しい状況で試合を動かした選手を評価します。",
+    SURVIVAL_SPIRIT: "生存時間、被ダメージ、回復、蘇生を評価する粘り強さの賞です。",
+    MVP: "キル、火力、支援、生存、命中を総合した大会最高選手ランキングです。",
+    FINAL_PODIUM: "大会TOTAL上位5チームを確定順位1位から5位の並びで表示し、5位から順に講評します。",
+  };
+  return map[award.category] ?? "大会成績をもとに選出された個人ランキングです。";
+}
+
 export function renderAwardScreen(runtime) {
   const awards = runtime.awardRuntime.awards;
   const index = runtime.awardRuntime.currentIndex ?? 0;
   const award = awards[index];
-  if (!award) {
-    throw new RangeError("Current award is missing.");
-  }
+  if (!award) throw new RangeError("Current award is missing.");
   const isPodium = award.category === "FINAL_PODIUM";
+  const stage = runtime.awardRuntime.presentationStage ?? "intro";
+  const nextLabel = stage === "intro" ? (isPodium ? "5位から発表" : "4～10位を発表") : stage === "lower" ? "TOP 3を発表" : stage === "podium_comment" ? (runtime.awardRuntime.podiumCommentIndex > 0 ? "NEXT TEAM" : "TOP5一覧") : (index + 1 >= awards.length ? "TOTAL RESULT" : "NEXT AWARD");
+  const commentIndex = Math.max(0, Math.min(4, runtime.awardRuntime.podiumCommentIndex ?? 4));
+  const commentEntry = award.ranking[commentIndex];
   return `
     <main class="tournament-screen tournament-screen--award">
       <div class="award-confetti" aria-hidden="true"></div>
@@ -2114,72 +2190,41 @@ export function renderAwardScreen(runtime) {
         <span>AWARD ${index + 1} / ${awards.length}</span>
         <h1>${escapeHtml(award.label)}</h1>
       </header>
-      <section class="award-podium ${isPodium ? "award-podium--teams" : ""}">
-        ${award.ranking.slice(0, isPodium ? 5 : 3).map((entry) => `
-          <article class="award-place award-place--${entry.place}">
-            <span>${entry.place}</span>
-            <img
-              src="${escapeAttribute(
-                entry.image ?? entry.teamLogo ?? "",
-              )}"
-              alt=""
-            >
-            <strong>${escapeHtml(
-              entry.playerName ?? entry.teamName,
-            )}</strong>
-            <small>
-              ${escapeHtml(
-                entry.role
-                  ? `${entry.role} / ${entry.teamName}`
-                  : entry.teamName,
-              )}
-            </small>
-            <b>${escapeHtml(entry.valueLabel)}</b>
-            ${
-              entry.weaponName
-                ? `<em>${escapeHtml(entry.weaponName)}</em>`
-                : ""
-            }
-            <p class="award-entry-comment">
-              ${escapeHtml(entry.commentary ?? "この大会で高いパフォーマンスを記録しました。")}
-            </p>
-          </article>
-        `).join("")}
-      </section>
-      ${
-        !isPodium &&
-        award.ranking.length > 3
-          ? `
-            <section class="award-compact-ranking">
-              <header>
-                <span>4TH–10TH</span>
-                <strong>RANKING</strong>
-              </header>
-              <div>
-                ${award.ranking.slice(3, 10).map((entry) => `
-                  <article>
-                    <b>${entry.place}</b>
-                    <img src="${escapeAttribute(entry.teamLogo ?? "")}" alt="">
-                    <strong>${escapeHtml(entry.playerName)}</strong>
-                  </article>
-                `).join("")}
-              </div>
-            </section>
-          `
-          : ""
-      }
+      ${stage === "intro" ? `
+        <section class="award-introduction">
+          <img src="icon/mic.png" alt="">
+          <span>ABOUT THIS RANKING</span>
+          <h2>${escapeHtml(award.label)}</h2>
+          <p>${escapeHtml(awardExplanation(award))}</p>
+        </section>
+      ` : ""}
+      ${!isPodium && stage === "lower" ? `
+        <section class="award-lower-announcement">
+          <header><span>4TH–10TH</span><strong>${escapeHtml(award.label)}</strong></header>
+          <div>${award.ranking.slice(3,10).map(entry=>`<article><b>${entry.place}</b><img src="${escapeAttribute(entry.teamLogo ?? "")}" alt=""><strong>${escapeHtml(entry.playerName)}</strong></article>`).join("")}</div>
+        </section>
+        <section class="award-center-commentary">${commentator(`まずは4位から10位！${award.label}で大会を支えた7名です！`)}</section>
+      ` : ""}
+      ${!isPodium && stage === "podium" ? `
+        <section class="award-podium">${award.ranking.slice(0,3).map(entry=>`<article class="award-place award-place--${entry.place}"><span>${entry.place}</span><img src="${escapeAttribute(entry.image ?? entry.teamLogo ?? "")}" alt=""><strong>${escapeHtml(entry.playerName)}</strong><small>${escapeHtml(`${entry.role} / ${entry.teamName}`)}</small><b>${escapeHtml(entry.valueLabel)}</b><p class="award-entry-comment">${escapeHtml(entry.commentary)}</p></article>`).join("")}</section>
+      ` : ""}
+      ${isPodium && stage === "podium_comment" ? `
+        <section class="final-top5-commentary">
+          <span>${ordinalLabel(commentEntry.place)} PLACE</span>
+          <img src="${escapeAttribute(commentEntry.teamLogo ?? "")}" alt="">
+          <h2>${escapeHtml(commentEntry.teamName)}</h2>
+          <strong>${escapeHtml(commentEntry.valueLabel)}</strong>
+          ${commentator(commentEntry.commentary)}
+        </section>
+      ` : ""}
+      ${isPodium && stage === "podium" ? `
+        <section class="final-top5-order">${award.ranking.slice().sort((a,b)=>a.place-b.place).map(entry=>`<article><b>${entry.place}</b><img src="${escapeAttribute(entry.teamLogo ?? "")}" alt=""><strong>${escapeHtml(entry.teamName)}</strong><span>${escapeHtml(entry.valueLabel)}</span></article>`).join("")}</section>
+      ` : ""}
       <div class="tournament-bottom-area result-fixed-bottom">
-        ${commentator(award.commentary)}
-        <button
-          type="button"
-          class="tournament-button tournament-button--primary"
-          data-action="award-next"
-        >
-          ${index + 1 >= awards.length ? "TOTAL RESULT" : "NEXT"}
-        </button>
+        ${stage === "intro" ? commentator(`これから${award.label}を発表します。${awardExplanation(award)}`) : stage === "podium" ? commentator(award.commentary) : ""}
+        <button type="button" class="tournament-button tournament-button--primary" data-action="award-next">${nextLabel}</button>
       </div>
-    </main>
-  `;
+    </main>`;
 }
 
 function rewardRows(rewards) {

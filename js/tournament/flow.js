@@ -13,7 +13,7 @@ import {
 import {
   TOURNAMENT_PHASES,
   createTournamentRuntimeManager,
-} from "./runtime.js?v=31";
+} from "./runtime.js?v=32";
 import {
   executeCurrentBattleToDraft,
 } from "./battle-core.js";
@@ -23,7 +23,7 @@ import {
 import {
   createBattlePlaybackController,
   renderBattleOutcomeScreen,
-} from "./battle-ui.js?v=31";
+} from "./battle-ui.js?v=32";
 import {
   EXPLORATION_PAGES,
   beginExplorationToDraft,
@@ -45,7 +45,7 @@ import {
   useInventoryItemToDraft,
   useMobSlotToDraft,
   useRespawnTurntableToDraft,
-} from "./exploration.js?v=31";
+} from "./exploration.js?v=32";
 import {
   advanceAwardToDraft,
   finalizeCurrentMatchToDraft,
@@ -61,13 +61,13 @@ import {
   renderReturningResultScreen,
   renderTournamentResultScreen,
   writePreparedResultToStorage,
-} from "./results.js?v=31";
+} from "./results.js?v=32";
 
 import {
   applyMatchPlanToDraft,
   circuitSectionLabel,
   isPlayerMatch,
-} from "./circuit.js?v=31";
+} from "./circuit.js?v=32";
 
 import {
   fastForwardMatchToChampionToDraft,
@@ -77,9 +77,9 @@ import {
   getRoundTarget,
   isPlayerActive,
   resolveRoundEncounterToDraft,
-} from "./round.js?v=31";
+} from "./round.js?v=32";
 
-export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-2.8.0";
+export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-2.9.0";
 
 const PHASE_LABELS = Object.freeze({
   IDLE: "待機",
@@ -1084,6 +1084,7 @@ export function createTournamentFlowController({
   function openBattleItemPicker({
     playerId,
     participant,
+    teamName,
     options,
   }) {
     if (modalResolver) {
@@ -1101,12 +1102,17 @@ export function createTournamentFlowController({
             role="dialog"
             aria-modal="true"
           >
-            <span>BATTLE BAG</span>
-            <h2>${escapeHtml(participant.name)}に使用</h2>
-            <p>
-              戦闘を一時停止しています。
-              使用するアイテムを選択してください。
-            </p>
+            <span>TACTICAL PAUSE</span>
+            <h2>${escapeHtml(participant.name)} COMMAND</h2>
+            <nav class="battle-command-tabs">
+              <button type="button" class="is-active">ITEM</button>
+              <button type="button" disabled>ULTIMATE <small>COMING SOON</small></button>
+            </nav>
+            <div class="battle-pause-commentary">
+              <img src="icon/mic.png" alt="">
+              <p>${escapeHtml(teamName)}はここで一旦チル！<br>アイテムか、将来のウルトか。落ち着いて判断します！</p>
+            </div>
+            <p>戦闘時間・弾道・スキルCTは完全に停止しています。</p>
             <div class="battle-item-modal-target">
               <img src="${escapeAttribute(assetPath(participant.image))}" alt="">
               <div>
@@ -1116,7 +1122,7 @@ export function createTournamentFlowController({
               </div>
             </div>
             <div class="battle-item-choice-list">
-              ${options.map(({ slotIndex, slot, item }) => `
+              ${options.length > 0 ? options.map(({ slotIndex, slot, item }) => `
                 <button
                   type="button"
                   data-modal-action="battle-item"
@@ -1130,7 +1136,13 @@ export function createTournamentFlowController({
                     <small>${escapeHtml(getItemEffectSummary(item))}</small>
                   </div>
                 </button>
-              `).join("")}
+              `).join("") : `
+                <section class="battle-item-empty">
+                  <img src="icon/back.png" alt="">
+                  <strong>使用できるアイテムはありません</strong>
+                  <p>戦闘は停止中です。将来ここへULTIMATE選択を追加します。</p>
+                </section>
+              `}
             </div>
             <button
               type="button"
@@ -1307,17 +1319,13 @@ export function createTournamentFlowController({
         })
         .filter(Boolean);
 
-    if (options.length === 0) {
-      showToast(
-        "この選手に使用できるバッグアイテムがありません",
-      );
-      return null;
-    }
-
     const selection =
       await openBattleItemPicker({
         playerId,
         participant,
+        teamName:
+          model.teams[model.playerTeamId]?.teamName ??
+          "プレイヤーチーム",
         options,
       });
     if (
