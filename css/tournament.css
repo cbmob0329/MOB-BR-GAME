@@ -9518,3 +9518,131 @@ html[data-asset-prefix="../../"] .tournament-loading-overlay {
   animation: none !important;
   translate: none !important;
 }
+
+/* Generation 32: staged award announcements and tactical pause */
+.award-introduction,
+.final-top5-commentary,
+.award-center-commentary {
+  display: grid;
+  width: min(92vw, 520px);
+  place-items: center;
+  gap: 7px;
+  margin: 12px auto 155px;
+  border: 3px solid rgb(109 219 255 / 50%);
+  border-radius: 18px;
+  padding: 16px;
+  background:
+    radial-gradient(circle at 50% 0, rgb(70 191 255 / 17%), transparent 48%),
+    rgb(5 15 29 / 96%);
+  color: #fff;
+  text-align: center;
+  box-shadow: 0 17px 36px rgb(0 0 0 / 40%);
+}
+.award-introduction > img,
+.final-top5-commentary > img {
+  width: 92px;
+  height: 92px;
+  object-fit: contain;
+}
+.award-introduction > span,
+.final-top5-commentary > span {
+  color: #80e1ff;
+  font-size: .46rem;
+  font-weight: 1000;
+  letter-spacing: .12em;
+}
+.award-introduction h2,
+.final-top5-commentary h2 { margin: 0; font-size: 1rem; }
+.award-introduction p { margin: 0; color: rgb(255 255 255 / 72%); font-size: .53rem; line-height: 1.55; }
+.award-lower-announcement,
+.final-top5-order {
+  display: grid;
+  width: min(92vw, 540px);
+  gap: 7px;
+  margin: 8px auto 158px;
+  border: 2px solid rgb(255 255 255 / 14%);
+  border-radius: 16px;
+  padding: 10px;
+  background: rgb(5 15 29 / 94%);
+}
+.award-lower-announcement > header {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid rgb(255 255 255 / 11%);
+  padding: 4px;
+  color: #fff;
+}
+.award-lower-announcement > header span { color: #7fe0ff; font-size: .45rem; font-weight: 1000; }
+.award-lower-announcement > header strong { font-size: .45rem; }
+.award-lower-announcement > div,
+.final-top5-order { counter-reset: awardrank; }
+.award-lower-announcement article,
+.final-top5-order article {
+  display: grid;
+  grid-template-columns: 34px 42px minmax(0,1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 47px;
+  border-radius: 9px;
+  padding: 5px 8px;
+  background: rgb(255 255 255 / 6%);
+  color: #fff;
+}
+.award-lower-announcement article + article,
+.final-top5-order article + article { margin-top: 4px; }
+.award-lower-announcement article b,
+.final-top5-order article b { color: #f3d55e; text-align: center; }
+.award-lower-announcement article img,
+.final-top5-order article img { width: 42px; height: 42px; object-fit: contain; }
+.award-lower-announcement article strong,
+.final-top5-order article strong { overflow: hidden; font-size: .5rem; text-overflow: ellipsis; white-space: nowrap; }
+.final-top5-order article span { color: #86e4ff; font-size: .4rem; }
+.final-top5-commentary .commentary-panel { width: 100%; margin-top: 4px; }
+
+.battle-command-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  margin-block: 8px;
+}
+.battle-command-tabs button {
+  min-height: 42px;
+  border: 2px solid rgb(255 255 255 / 13%);
+  border-radius: 10px;
+  background: rgb(255 255 255 / 5%);
+  color: rgb(255 255 255 / 55%);
+  font-size: .48rem;
+  font-weight: 1000;
+}
+.battle-command-tabs button.is-active {
+  border-color: #7ce0ff;
+  background: rgb(63 180 229 / 17%);
+  color: #fff;
+}
+.battle-command-tabs small { display: block; font-size: .25rem; }
+.battle-item-empty {
+  display: grid;
+  place-items: center;
+  gap: 5px;
+  border: 2px dashed rgb(255 255 255 / 16%);
+  border-radius: 12px;
+  padding: 18px 10px;
+  color: #fff;
+  text-align: center;
+}
+.battle-item-empty img { width: 58px; height: 58px; object-fit: contain; opacity: .55; }
+.battle-item-empty strong { font-size: .53rem; }
+.battle-item-empty p { margin: 0; color: rgb(255 255 255 / 55%); font-size: .4rem; }
+.battle-pause-commentary {
+  display: grid;
+  grid-template-columns: 55px minmax(0,1fr);
+  gap: 8px;
+  align-items: center;
+  border: 2px solid rgb(103 218 255 / 35%);
+  border-radius: 12px;
+  padding: 7px;
+  background: rgb(23 91 127 / 16%);
+  text-align: left;
+}
+.battle-pause-commentary img { width: 55px; height: 55px; object-fit: contain; }
+.battle-pause-commentary p { margin: 0 !important; color: #fff !important; font-size: .46rem !important; line-height: 1.45; }
