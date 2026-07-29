@@ -17,7 +17,7 @@ import {
   getPlacementPoints,
   getTournamentEventsForDate,
   isChampionshipYear,
-} from "../../data/game-data.js?v=32";
+} from "../../data/game-data.js?v=33";
 import {
   CASUAL_TOURNAMENT_RULES,
   FORMAL_CIRCUIT_RULES,
@@ -31,7 +31,7 @@ import {
   selectTeamIds,
   sourcePoolForTeamId,
   teamSeed,
-} from "../../data/circuit-data.js?v=32";
+} from "../../data/circuit-data.js?v=33";
 import {
   LOCAL_CPU_TEAMS,
 } from "../../data/cpu-local-data.js";
@@ -43,7 +43,7 @@ import {
 } from "../../data/cpu-world-data.js";
 import {
   BATTLE_CONFIG_VERSION,
-} from "../../data/battle-config.js?v=32";
+} from "../../data/battle-config.js?v=33";
 import {
   CONSUMABLE_ITEMS,
   ITEM_MASTER_VERSION,
@@ -57,9 +57,9 @@ import {
   DuplicateTournamentResultError,
   STORAGE_KEYS,
   calculateChecksum,
-} from "./state.js?v=32";
+} from "./state.js?v=33";
 
-export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-1.8.0";
+export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-1.9.0";
 export const TOURNAMENT_ENTRY_SCHEMA_VERSION =
   "mobbr-tournament-entry-1.0.0";
 export const TOURNAMENT_RESULT_SCHEMA_VERSION =
@@ -583,7 +583,7 @@ export function getTournamentEntryAvailability(snapshot, event) {
   if (type === "local") {
     return {
       eligible: true,
-      reason: "年1回の正式サーキット開幕戦です。",
+      reason: "年1回のMOB BR開幕戦です。",
       status: "scheduled",
     };
   }
@@ -2739,7 +2739,7 @@ function escapeAttribute(value) {
 function tournamentScheduleCategory(event) {
   if (event.choiceGroupId) return "CASUAL CHOICE";
   if (event.tournamentType === "championship") return "CHAMPIONSHIP";
-  return "ANNUAL CIRCUIT";
+  return "MOB BR";
 }
 
 function tournamentRuleSummary(event) {
@@ -2794,6 +2794,18 @@ export function renderTournamentSchedule(snapshot, storage) {
   const currentEvents = getTournamentEventsForDate(snapshot.gameDate);
   const currentIds = new Set(currentEvents.map((event) => event.tournamentId));
   const status = getTournamentBridgeStatus(storage, snapshot);
+
+  const orderedMonths = [
+    ...Array.from(
+      { length: 13 - snapshot.gameDate.month },
+      (_value, index) =>
+        snapshot.gameDate.month + index,
+    ),
+    ...Array.from(
+      { length: snapshot.gameDate.month - 1 },
+      (_value, index) => index + 1,
+    ),
+  ];
 
   let bridgePanel = "";
   if (status.state === "result_pending") {
@@ -2852,12 +2864,12 @@ export function renderTournamentSchedule(snapshot, storage) {
   return `
     ${bridgePanel}
     <section class="annual-circuit-overview">
-      <span>ANNUAL FORMAL CIRCUIT</span>
-      <h2>${snapshot.gameDate.year} 正式大会</h2>
+      <span>MOB BR OFFICIAL SERIES</span>
+      <h2>${snapshot.gameDate.year} MOB BR</h2>
       <div>
         <b>LOCAL</b><i>→</i><b>NATIONAL</b><i>→</i><b>NATIONAL LC</b><i>→</i><b>WORLD予選</b><i>→</i><b>WORLD LC</b><i>→</i><b>WORLD FINAL</b>
       </div>
-      <p>正式サーキットは年1回。毎月のカジュアル週はデンデンカップとモブテツカップから1大会だけ選択できます。</p>
+      <p>MOB BRは年1回。毎月のカジュアル週はデンデンカップとモブテツカップから1大会だけ選択できます。</p>
     </section>
     <section class="tournament-current-week">
       <h2>CURRENT WEEK</h2>
@@ -2916,8 +2928,7 @@ export function renderTournamentSchedule(snapshot, storage) {
       </header>
 
       <div class="tournament-month-grid">
-        ${Array.from({ length: 12 }, (_value, monthIndex) => {
-          const month = monthIndex + 1;
+        ${orderedMonths.map((month) => {
           return `
             <article class="tournament-month-card ${
               snapshot.gameDate.month === month

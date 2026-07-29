@@ -11,11 +11,11 @@ import {
   calculateCharacterOverallRank,
   characterValueToRank,
   weaponValueToRank,
-} from "../../data/game-data.js?v=32";
+} from "../../data/game-data.js?v=33";
 import {
   calculateMaxHp,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=32";
+} from "../../data/battle-config.js?v=33";
 import {
   WEAPON_SKINS,
   getWeaponSkin,
@@ -33,7 +33,7 @@ import {
   getWeaponUpgradeCost,
 } from "../../data/ability-data.js";
 
-export const TEAM_FEATURE_VERSION = "mobbr-team-feature-0.9.0";
+export const TEAM_FEATURE_VERSION = "mobbr-team-feature-1.0.0";
 
 const ROLE_ICONS = Object.freeze({
   IGL: "icon/IGL.png",
@@ -1220,6 +1220,12 @@ export function renderSkillUpgradeSection(
               <img src="icon/sp.png" alt="">
               <div><h3>${escapeHtml(skill.displayName)}</h3><small>DEFAULT ${escapeHtml(skill.name ?? skill.master.name)}</small></div>
             </div>
+            <p class="skill-upgrade-card__description">${escapeHtml(skill.master.description ?? "戦闘中に条件を満たすと自動発動します。")}</p>
+            <div class="skill-upgrade-card__base-effect">
+              <span>${escapeHtml(skill.master.type ?? "SKILL")}</span>
+              <strong>基本CT ${Number(skill.master.baseCt ?? 0).toFixed(1)}秒</strong>
+              <small>現在CT ${(Number(skill.master.baseCt ?? 0) * (1 - skill.profile.cooldownReductionPercent / 100)).toFixed(2)}秒</small>
+            </div>
             <div class="skill-upgrade-card__metrics">
               <span>CT <strong>${skill.profile.cooldownReductionPercent.toFixed(1)}%短縮</strong></span>
               <span>効果 <strong>+${skill.profile.powerIncreasePercent.toFixed(1)}%</strong></span>
@@ -1227,7 +1233,12 @@ export function renderSkillUpgradeSection(
             ${skill.nextCost !== null ? `
               <div class="skill-upgrade-card__next">
                 <span>NEXT LV ${skill.level + 1}</span>
-                <small>CT ${skill.nextProfile.cooldownReductionPercent.toFixed(1)}%短縮 / 効果 +${skill.nextProfile.powerIncreasePercent.toFixed(1)}%</small>
+                <small>
+                  実CT ${(Number(skill.master.baseCt ?? 0) * (1 - skill.profile.cooldownReductionPercent / 100)).toFixed(2)}秒
+                  → ${(Number(skill.master.baseCt ?? 0) * (1 - skill.nextProfile.cooldownReductionPercent / 100)).toFixed(2)}秒<br>
+                  効果 +${skill.profile.powerIncreasePercent.toFixed(1)}%
+                  → +${skill.nextProfile.powerIncreasePercent.toFixed(1)}%
+                </small>
                 <strong>COIN ${formatNumber(skill.nextCost)}</strong>
               </div>
             ` : `<div class="skill-upgrade-card__next is-max"><strong>MAX LEVEL</strong></div>`}
@@ -1246,6 +1257,7 @@ export function renderSpecialAbilitySection(
   snapshot,
   selectedPlayerId,
   color = "blue",
+  { includeSelector = true } = {},
 ) {
   const playerId = getSelectedPlayerId(snapshot, selectedPlayerId);
   const player = getPlayer(snapshot, playerId);
@@ -1259,7 +1271,7 @@ export function renderSpecialAbilitySection(
 
   return `
     <div class="team-feature-live-section" data-live-section="special">
-    ${renderPlayerSelector(snapshot, playerId)}
+    ${includeSelector ? renderPlayerSelector(snapshot, playerId) : ""}
     ${pointPoolTemplate(snapshot, playerId)}
 
     <div class="special-color-tabs" role="tablist">
@@ -1331,6 +1343,7 @@ export function renderSpecialAbilitySection(
               ${ability.color === "blue" ? `-${ability.stage}` : ""}
             </span>
             <strong>${escapeHtml(ability.name)}</strong>
+            <em>${escapeHtml(ability.description)}</em>
             <small><i></i>${escapeHtml(statusText)}</small>
           </button>
         `;

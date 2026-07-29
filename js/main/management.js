@@ -10,11 +10,11 @@ import {
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=32";
+} from "../../data/game-data.js?v=33";
 import {
   isCasualTournamentType,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=32";
+} from "../../data/circuit-data.js?v=33";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
@@ -62,13 +62,13 @@ import {
 import {
   advanceWeeksToDraft,
   applyResourceDeltaToDraft,
-} from "./state.js?v=32";
+} from "./state.js?v=33";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=32";
+} from "./tournament-bridge.js?v=33";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-1.4.0";
+  "mobbr-management-feature-1.5.0";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -1356,7 +1356,7 @@ function packOpeningPresentation(result) {
           : master.image;
       return `
         <article
-          class="pack-reveal-card pack-reveal-card--${escapeAttribute(opened.resultType.toLowerCase())}"
+          class="pack-reveal-card pack-reveal-card--${escapeAttribute(opened.resultType.toLowerCase())} ${master.category === "badge" ? "pack-reveal-card--badge" : "pack-reveal-card--card"}"
           style="--reveal-index:${index}"
         >
           <div
@@ -1373,7 +1373,7 @@ function packOpeningPresentation(result) {
               ? `<img class="pack-reveal-card__logo" src="${escapeAttribute(logo)}" alt="">`
               : ""
           }
-          <strong>${escapeHtml(master.name ?? master.teamName)}</strong>
+          <strong>${escapeHtml(master.category === "badge" ? master.teamName : (master.name ?? master.teamName))}</strong>
           <span>${escapeHtml(opened.resultType)}</span>
         </article>
       `;
@@ -1392,12 +1392,12 @@ function packOpeningPresentation(result) {
       ${
         hero
           ? `
-            <article class="pack-opening-hero">
+            <article class="pack-opening-hero ${hero.master.category === "badge" ? "pack-opening-hero--badge" : "pack-opening-hero--card"}">
               <div class="pack-opening-hero__rings" aria-hidden="true"></div>
               <img src="${escapeAttribute(hero.master.image)}" alt="">
               <div>
                 <span>${escapeHtml(hero.resultType)}</span>
-                <strong>${escapeHtml(hero.master.name ?? hero.master.teamName)}</strong>
+                <strong>${escapeHtml(hero.master.category === "badge" ? hero.master.teamName : (hero.master.name ?? hero.master.teamName))}</strong>
                 <small>OPENING HIGHLIGHT</small>
               </div>
             </article>
@@ -1509,7 +1509,7 @@ export function renderShopManagement(snapshot) {
   );
   let categoryContent = `
     <section class="mobshop-welcome">
-      <p>ロボ店員「いらっしゃいませ。商品カテゴリを選択してください。」</p>
+      <div class="mobshop-welcome-sign"><span>WELCOME TO</span><strong>MOB SHOP</strong><small>商品カテゴリを選択してください</small></div>
     </section>
   `;
 
@@ -1588,10 +1588,18 @@ export function renderShopManagement(snapshot) {
         <em>OPEN</em>
       </header>
       <div class="mobshop-counter-light" aria-hidden="true"><i></i><i></i><i></i></div>
-      <div class="mobshop-clerk" aria-label="ロボ店員">
-        <div class="mobshop-clerk__head"><i></i><i></i><b></b></div>
-        <p>${escapeHtml(categoryDefinition?.dialogue ?? "いらっしゃいませ。4つのカテゴリから選んでください。")}</p>
-      </div>
+      <section class="mobshop-staff-counter" aria-label="MOB SHOP店員">
+        <div class="mobshop-staff-placeholder">
+          <span>STAFF</span>
+          <strong>MOB PINK</strong>
+          <small>IMAGE COMING SOON</small>
+        </div>
+        <div class="mobshop-staff-dialogue">
+          <span>モブピンク</span>
+          <p>${escapeHtml(categoryDefinition?.dialogue ?? "いらっしゃいませ♪ 商品棚をご案内します！")}</p>
+        </div>
+        <div class="mobshop-basket" aria-hidden="true"><i></i><i></i><i></i></div>
+      </section>
       <nav class="mobshop-category-grid" aria-label="ショップカテゴリ">
         ${SHOP_CATEGORY_DEFINITIONS.map((entry) => `
           <button type="button" class="${category === entry.id ? "is-active" : ""}" data-action="select-shop-category" data-shop-category="${escapeAttribute(entry.id)}">
@@ -2128,6 +2136,51 @@ export function renderRecordManagement(snapshot) {
   `;
 }
 
+function japaneseTournamentNewsName(entry) {
+  const type =
+    String(entry.tournamentType ?? "")
+      .toLowerCase();
+  const names = {
+    local: "Local大会",
+    national: "National大会",
+    national_week_1: "National大会 1週目",
+    national_week_2: "National大会 2週目",
+    national_last_chance: "National Last Chance",
+    world_qualifier: "World予選",
+    world_qualifier_week_1: "World予選 1週目",
+    world_qualifier_week_2: "World予選 2週目",
+    world_last_chance: "World Last Chance",
+    world_final: "World Final",
+    championship: "MOB BR Championship",
+    casual_denden: "カジュアル大会 デンデンカップ",
+    casual_mobutetsu: "カジュアル大会 モブテツカップ",
+  };
+  return names[type] ??
+    String(entry.stageName ?? "MOB BR 大会");
+}
+
+function japaneseTournamentNewsSubtitle(entry) {
+  const type =
+    String(entry.tournamentType ?? "")
+      .toLowerCase();
+  if (type.startsWith("casual_")) {
+    return "CASUAL CUP / MOB BR NEWS";
+  }
+  if (type === "championship") {
+    return "MOB BR CHAMPIONSHIP";
+  }
+  if (type.includes("world")) {
+    return "MOB BR WORLD STAGE";
+  }
+  if (type.includes("national")) {
+    return "MOB BR NATIONAL STAGE";
+  }
+  if (type === "local") {
+    return "MOB BR LOCAL STAGE";
+  }
+  return "MOB BR 大会速報";
+}
+
 export function renderNewsManagement(snapshot) {
   const history = [...(snapshot.tournament.history ?? [])].reverse();
   return `
@@ -2141,7 +2194,7 @@ export function renderNewsManagement(snapshot) {
             <summary>
               <div class="news-newspaper__masthead"><span>MOB BR TIMES</span><b>${year}.${month}.W${week}</b></div>
               <img src="icon/news.png" alt="">
-              <div><strong>${escapeHtml(entry.tournamentId ?? entry.tournamentType)}</strong><small>${escapeHtml(entry.tournamentType)}</small></div>
+              <div><strong>${escapeHtml(japaneseTournamentNewsName(entry))}</strong><small>${escapeHtml(japaneseTournamentNewsSubtitle(entry))}</small></div>
               <em>${Number.isInteger(entry.finalPlace) ? `${entry.finalPlace}位` : entry.status === "stage_in_progress" ? "継続中" : entry.status === "cpu_simulated" ? "CPU結果" : "速報"}</em>
             </summary>
             <article>

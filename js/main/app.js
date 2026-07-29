@@ -20,7 +20,7 @@ import {
   SaveError,
   SaveNotFoundError,
   createGameStateManager,
-} from "./state.js?v=32";
+} from "./state.js?v=33";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -42,7 +42,7 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=32";
+} from "./team.js?v=33";
 import {
   getSpecialAbility,
 } from "../../data/ability-data.js";
@@ -53,13 +53,13 @@ import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=32";
+} from "./management.js?v=33";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=32";
+} from "./tournament-bridge.js?v=33";
 
-export const APP_VERSION = "mobbr-main-app-2.0.0";
+export const APP_VERSION = "mobbr-main-app-2.1.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -1023,7 +1023,7 @@ function teamFeatureTemplate(
 
   if (route === ROUTES.ability) {
     const activeDevelopmentMode =
-      ["ability", "weapon", "skill"].includes(developmentMode)
+      ["ability", "weapon", "skill", "special"].includes(developmentMode)
         ? developmentMode
         : "ability";
     content = `
@@ -1060,6 +1060,16 @@ function teamFeatureTemplate(
             <span>SKILL</span>
             <strong>スキル強化</strong>
           </button>
+          <button
+            type="button"
+            class="${activeDevelopmentMode === "special" ? "is-active" : ""}"
+            data-action="select-development-tab"
+            data-development-tab="special"
+          >
+            <img src="icon/sp.png" alt="">
+            <span>SPECIAL</span>
+            <strong>特殊能力</strong>
+          </button>
         </nav>
         <div class="development-body" data-development-body>
           ${
@@ -1077,11 +1087,18 @@ function teamFeatureTemplate(
                     weaponPlan,
                     { includeSelector: false },
                   )
-                : renderSkillUpgradeSection(
-                    snapshot,
-                    playerId,
-                    { includeSelector: false },
-                  )
+                : activeDevelopmentMode === "skill"
+                  ? renderSkillUpgradeSection(
+                      snapshot,
+                      playerId,
+                      { includeSelector: false },
+                    )
+                  : renderSpecialAbilitySection(
+                      snapshot,
+                      playerId,
+                      abilityColor,
+                      { includeSelector: false },
+                    )
           }
         </div>
       </section>
@@ -1468,10 +1485,15 @@ export function createMainApp({
                 { includeSelector: false },
               )
             : renderSpecialAbilitySection(
-              snapshot,
-              playerId,
-              selectedAbilityColor,
-            );
+                snapshot,
+                playerId,
+                selectedAbilityColor,
+                {
+                  includeSelector:
+                    currentRoute !==
+                    ROUTES.ability,
+                },
+              );
     const template = document.createElement("template");
     template.innerHTML = markup.trim();
     const replacement =
@@ -2591,7 +2613,7 @@ export function createMainApp({
     }
     if (action === "select-development-tab") {
       developmentMode =
-        ["ability", "weapon", "skill"].includes(
+        ["ability", "weapon", "skill", "special"].includes(
           actionElement.dataset.developmentTab,
         )
           ? actionElement.dataset.developmentTab
@@ -2602,7 +2624,14 @@ export function createMainApp({
     if (action === "select-ability-color") {
       selectedAbilityColor =
         actionElement.dataset.abilityColor;
-      updateTeamFeatureLiveSection("special");
+      if (
+        currentRoute === ROUTES.ability &&
+        developmentMode === "special"
+      ) {
+        renderPreservingPageScroll();
+      } else {
+        updateTeamFeatureLiveSection("special");
+      }
       return;
     }
     if (action === "ability-plan-plus" || action === "ability-plan-minus") {
