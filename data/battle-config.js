@@ -149,6 +149,7 @@ export const SKILL_MASTER = Object.freeze({
     Object.freeze({
       id: "igl_battle_call",
       name: "熱戦を制するコール",
+      description: "味方全体のエイムとマインドを一定時間強化。攻守のテンポを整えるIGLの全体バフ。",
       type: "BUFF",
       target: "all_alive_allies",
       baseCt: 5,
@@ -158,6 +159,7 @@ export const SKILL_MASTER = Object.freeze({
     Object.freeze({
       id: "igl_precise_strike",
       name: "正確無比の一撃",
+      description: "回避されない強力な単体攻撃。エイムとテクニックが高いほど威力が安定。",
       type: "ATTACK",
       target: "single_enemy",
       baseCt: 8,
@@ -168,6 +170,7 @@ export const SKILL_MASTER = Object.freeze({
     Object.freeze({
       id: "shield_charge",
       name: "シールドチャージ",
+      description: "生存者のうちHP割合が最も低い味方1人を回復。全員85%以上なら発動待機。",
       type: "HEAL",
       target: "lowest_hp_alive_ally",
       baseCt: 7,
@@ -181,6 +184,7 @@ export const SKILL_MASTER = Object.freeze({
     Object.freeze({
       id: "atk_smoke_launcher",
       name: "降り注ぐスモークランチャー",
+      description: "敵全体へダメージを与え、命中率低下も狙う範囲攻撃。",
       type: "AREA_ATTACK",
       target: "all_enemies",
       baseCt: 7,
@@ -190,6 +194,7 @@ export const SKILL_MASTER = Object.freeze({
     Object.freeze({
       id: "atk_ace_mindset",
       name: "エースの心得",
+      description: "敵単体へ高威力の一撃。エイム・テクニック・フィジカルを反映。",
       type: "ATTACK",
       target: "single_enemy",
       baseCt: 5.5,
@@ -199,6 +204,7 @@ export const SKILL_MASTER = Object.freeze({
     Object.freeze({
       id: "shield_charge",
       name: "シールドチャージ",
+      description: "生存者のうちHP割合が最も低い味方1人を回復。全員85%以上なら発動待機。",
       type: "HEAL",
       target: "lowest_hp_alive_ally",
       baseCt: 7.5,
@@ -212,6 +218,7 @@ export const SKILL_MASTER = Object.freeze({
     Object.freeze({
       id: "sup_drone_heal",
       name: "冷静なドローンヒール",
+      description: "HPが減った生存味方全員を回復し、チームの戦線を維持。",
       type: "TEAM_HEAL",
       target: "all_alive_allies",
       baseCt: 6.5,
@@ -222,6 +229,7 @@ export const SKILL_MASTER = Object.freeze({
     Object.freeze({
       id: "sup_respawn_field",
       name: "リスポーンフィールド",
+      description: "ダウン中の味方全員を最大HP30%で復活。確キル状態は対象外。",
       type: "REVIVE",
       target: "all_down_allies",
       baseCt: 7.2,
@@ -233,6 +241,7 @@ export const SKILL_MASTER = Object.freeze({
     Object.freeze({
       id: "shield_charge",
       name: "シールドチャージ",
+      description: "生存者のうちHP割合が最も低い味方1人を回復。全員85%以上なら発動待機。",
       type: "HEAL",
       target: "lowest_hp_alive_ally",
       baseCt: 6.5,
