@@ -7281,3 +7281,469 @@ img.asset-missing {
     height: 70px;
   }
 }
+
+
+/* Generation 31: company rank, universal growth presentation, card frames */
+
+.top-status__company {
+  min-width: 0;
+  align-items: center;
+}
+
+.top-status__company-main {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.top-status__company-main > div:first-child {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.top-status__company-main > div:first-child > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.top-status__company-main > div:first-child > b {
+  flex: none;
+  display: grid;
+  min-width: 31px;
+  height: 24px;
+  place-items: center;
+  border: 2px solid rgb(126 224 255 / 62%);
+  border-radius: 8px;
+  padding-inline: 5px;
+  background:
+    linear-gradient(145deg, rgb(51 139 194 / 48%), rgb(8 25 43 / 96%));
+  color: #a0ebff;
+  font-size: .52rem;
+  font-weight: 1000;
+  box-shadow:
+    0 0 11px rgb(85 206 255 / 22%),
+    inset 0 1px 0 rgb(255 255 255 / 10%);
+}
+
+.company-rank-mini-progress {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.company-rank-mini-progress > i {
+  position: relative;
+  display: block;
+  width: min(190px, 44vw);
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 11%);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 46%);
+}
+
+.company-rank-mini-progress > i > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, #50c6ff, #8ff0d1 68%, #f4dc72);
+  box-shadow: 0 0 8px rgb(92 214 255 / 64%);
+  transition: width 480ms ease;
+}
+
+.company-rank-mini-progress small {
+  overflow: hidden;
+  color: rgb(255 255 255 / 58%);
+  font-size: .32rem;
+  font-style: normal;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progression-presentation {
+  position: fixed;
+  z-index: 14000;
+  inset: 0;
+  display: grid;
+  min-height: 100dvh;
+  place-content: center;
+  justify-items: center;
+  gap: 7px;
+  overflow: hidden;
+  padding:
+    calc(env(safe-area-inset-top) + 18px)
+    18px
+    calc(env(safe-area-inset-bottom) + 18px);
+  background:
+    radial-gradient(circle at center, rgb(71 197 255 / 19%), transparent 44%),
+    rgb(3 12 24 / 97%);
+  color: #fff;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 240ms ease;
+}
+
+.progression-presentation.is-active {
+  opacity: 1;
+}
+
+.progression-presentation.is-exit {
+  opacity: 0;
+}
+
+.progression-presentation > span {
+  position: relative;
+  z-index: 3;
+  color: #83e2ff;
+  font-size: .56rem;
+  font-weight: 1000;
+  letter-spacing: .14em;
+}
+
+.progression-presentation > h2 {
+  position: relative;
+  z-index: 3;
+  margin: 0;
+  font-size: clamp(1.05rem, 7vw, 1.85rem);
+  line-height: 1.1;
+  text-shadow: 0 0 17px rgb(73 194 255 / 45%);
+}
+
+.progression-presentation__subject {
+  position: relative;
+  z-index: 3;
+  color: rgb(255 255 255 / 76%);
+  font-size: .58rem;
+}
+
+.progression-presentation__rays {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: min(135vw, 720px);
+  height: min(135vw, 720px);
+  translate: -50% -50%;
+  border-radius: 50%;
+  background:
+    repeating-conic-gradient(
+      from 0deg,
+      rgb(104 220 255 / 13%) 0 7deg,
+      transparent 8deg 19deg
+    );
+  animation: progression-rays-rotate 5s linear infinite;
+}
+
+.progression-presentation--weapon {
+  background:
+    radial-gradient(circle at center, rgb(255 178 71 / 18%), transparent 44%),
+    rgb(21 13 7 / 97%);
+}
+
+.progression-presentation--skill,
+.progression-presentation--special {
+  background:
+    radial-gradient(circle at center, rgb(180 99 255 / 20%), transparent 45%),
+    rgb(16 8 30 / 97%);
+}
+
+.progression-presentation--company {
+  background:
+    radial-gradient(circle at center, rgb(245 215 94 / 19%), transparent 45%),
+    rgb(20 16 5 / 97%);
+}
+
+.progression-presentation__entries {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  width: min(92vw, 470px);
+  max-height: 48dvh;
+  gap: 6px;
+  overflow-y: auto;
+  padding: 3px;
+}
+
+.progression-presentation__entries article {
+  display: grid;
+  grid-template-columns: 47px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  border: 1px solid rgb(255 255 255 / 15%);
+  border-radius: 12px;
+  padding: 8px;
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 9%), rgb(255 255 255 / 4%));
+  text-align: left;
+  translate: 0 14px;
+  opacity: 0;
+  animation: progression-entry-rise 430ms cubic-bezier(.17,.86,.25,1) forwards;
+}
+
+.progression-presentation__entries article:nth-child(2) { animation-delay: 70ms; }
+.progression-presentation__entries article:nth-child(3) { animation-delay: 140ms; }
+.progression-presentation__entries article:nth-child(4) { animation-delay: 210ms; }
+.progression-presentation__entries article:nth-child(5) { animation-delay: 280ms; }
+.progression-presentation__entries article:nth-child(6) { animation-delay: 350ms; }
+.progression-presentation__entries article:nth-child(7) { animation-delay: 420ms; }
+
+.progression-presentation__entries article > img,
+.progression-presentation__entries article > i {
+  display: grid;
+  width: 47px;
+  height: 47px;
+  place-items: center;
+  border-radius: 11px;
+  object-fit: contain;
+  background: rgb(255 255 255 / 8%);
+  color: #fff;
+  font-size: .8rem;
+  font-style: normal;
+  font-weight: 1000;
+}
+
+.progression-presentation__entries article > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.progression-presentation__entries article span {
+  color: #8ce4ff;
+  font-size: .38rem;
+  font-weight: 1000;
+}
+
+.progression-presentation__entries article strong {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #fff;
+  font-size: .62rem;
+}
+
+.progression-presentation__entries article strong b {
+  color: #f4dc72;
+  font-size: .72rem;
+}
+
+.progression-presentation__entries article small {
+  color: rgb(255 255 255 / 60%);
+  font-size: .4rem;
+  line-height: 1.35;
+}
+
+.company-rank-growth {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  width: min(92vw, 470px);
+  gap: 8px;
+  border: 3px solid rgb(245 215 94 / 62%);
+  border-radius: 18px;
+  padding: 12px;
+  background:
+    radial-gradient(circle at 50% 0, rgb(245 215 94 / 15%), transparent 50%),
+    rgb(21 17 7 / 92%);
+  box-shadow: 0 0 30px rgb(245 215 94 / 18%);
+}
+
+.company-rank-growth__rank {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 3px 8px;
+}
+
+.company-rank-growth__rank small {
+  grid-column: 1 / -1;
+  color: #f4dc72;
+  font-size: .42rem;
+  font-weight: 1000;
+  letter-spacing: .12em;
+}
+
+.company-rank-growth__rank strong {
+  color: #fff;
+  font-size: clamp(1rem, 8vw, 1.65rem);
+}
+
+.company-rank-growth__rank b {
+  color: #f4dc72;
+  font-size: 1.1rem;
+}
+
+.company-rank-growth__gauge {
+  display: grid;
+  gap: 4px;
+}
+
+.company-rank-growth__gauge > span {
+  display: block;
+  height: 16px;
+  overflow: hidden;
+  border: 2px solid rgb(255 255 255 / 18%);
+  border-radius: 999px;
+  background: rgb(0 0 0 / 45%);
+}
+
+.company-rank-growth__gauge i {
+  display: block;
+  width: var(--company-start);
+  height: 100%;
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, #52c9ff, #7ee6c4, #f4dc72);
+  box-shadow: 0 0 13px rgb(102 222 255 / 64%);
+  animation: company-rank-gauge-fill 1s .16s cubic-bezier(.16,.86,.24,1) forwards;
+}
+
+.company-rank-growth__gauge small {
+  color: rgb(255 255 255 / 70%);
+  font-size: .45rem;
+  font-style: normal;
+}
+
+.progression-rank-up-call {
+  position: absolute;
+  z-index: 8;
+  inset: 50% auto auto 50%;
+  display: grid;
+  width: min(85vw, 360px);
+  justify-items: center;
+  translate: -50% -50%;
+  color: #f4dc72;
+  pointer-events: none;
+  opacity: 0;
+  scale: .55;
+  animation: progression-rank-call 650ms .78s cubic-bezier(.15,.91,.22,1) forwards;
+}
+
+.progression-rank-up-call span {
+  font-size: .74rem;
+  font-weight: 1000;
+  letter-spacing: .16em;
+  text-shadow: 0 0 18px rgb(245 215 94 / 65%);
+}
+
+.progression-rank-up-call strong {
+  font-size: clamp(2rem, 18vw, 4.6rem);
+  text-shadow:
+    0 4px 0 #3b2c05,
+    0 0 28px rgb(245 215 94 / 76%);
+}
+
+@keyframes progression-rays-rotate {
+  to { rotate: 360deg; }
+}
+
+@keyframes progression-entry-rise {
+  to {
+    translate: 0 0;
+    opacity: 1;
+  }
+}
+
+@keyframes company-rank-gauge-fill {
+  to { width: var(--company-end); }
+}
+
+@keyframes progression-rank-call {
+  65% {
+    opacity: 1;
+    scale: 1.12;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+/* Make every collection card read as a physical white-framed card. */
+.collection-card:not(.collection-card--badge),
+.pack-reveal-card,
+.collection-detail-card:not(.collection-detail-card--badge) {
+  border: 5px solid #fff !important;
+  background:
+    linear-gradient(180deg, #fff 0 8%, #eef1f6 8% 91%, #fff 91% 100%) !important;
+  color: #182238 !important;
+  box-shadow:
+    0 11px 24px rgb(0 0 0 / 35%),
+    inset 0 0 0 2px rgb(34 51 78 / 12%) !important;
+}
+
+.collection-card:not(.collection-card--badge)::before,
+.pack-reveal-card::before {
+  position: absolute;
+  z-index: 0;
+  inset: 6px;
+  border: 2px solid rgb(35 51 77 / 18%);
+  border-radius: 8px;
+  content: "";
+  pointer-events: none;
+}
+
+.collection-card:not(.collection-card--badge) > *,
+.pack-reveal-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.collection-card:not(.collection-card--badge) strong,
+.pack-reveal-card strong,
+.collection-detail-card:not(.collection-detail-card--badge) h3,
+.collection-detail-card:not(.collection-detail-card--badge) p,
+.collection-detail-card:not(.collection-detail-card--badge) span {
+  color: #182238 !important;
+  text-shadow: none !important;
+}
+
+.collection-card:not(.collection-card--badge) span,
+.collection-card:not(.collection-card--badge) small {
+  color: #657086 !important;
+}
+
+.pack-reveal-card--power_up::after {
+  position: absolute;
+  z-index: 4;
+  top: 8px;
+  left: 50%;
+  translate: -50% 0;
+  border-radius: 999px;
+  padding: 3px 8px;
+  content: "LEVEL UP";
+  background: #f1d35f;
+  color: #1d2940;
+  font-size: .34rem;
+  font-weight: 1000;
+  letter-spacing: .08em;
+  box-shadow: 0 0 12px rgb(241 211 95 / 55%);
+  animation: card-level-up-badge 700ms ease-in-out infinite alternate;
+}
+
+@keyframes card-level-up-badge {
+  to {
+    scale: 1.08;
+    filter: brightness(1.12);
+  }
+}
+
+@media (max-width: 370px) {
+  .top-status__company-main > div:first-child > b {
+    min-width: 27px;
+    height: 21px;
+    font-size: .46rem;
+  }
+
+  .company-rank-mini-progress > i {
+    width: min(158px, 42vw);
+  }
+
+  .company-rank-mini-progress small {
+    font-size: .28rem;
+  }
+}
