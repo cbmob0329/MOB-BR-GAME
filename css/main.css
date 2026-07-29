@@ -7048,3 +7048,236 @@ img.asset-missing {
     justify-self: start;
   }
 }
+
+/* Generation 30: personal weapon profiles and pack ownership visibility */
+.team-personal-weapons {
+  display: grid;
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.team-personal-weapons > header {
+  display: grid;
+  gap: 2px;
+  border-left: 4px solid var(--accent);
+  padding-left: 9px;
+}
+
+.team-personal-weapons > header span {
+  color: var(--accent);
+  font-size: .45rem;
+  font-weight: 1000;
+  letter-spacing: .1em;
+}
+
+.team-personal-weapons > header strong {
+  color: var(--text-main);
+  font-size: .72rem;
+}
+
+.team-personal-weapons > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.individual-weapon-profile {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+  overflow: hidden;
+  border: 2px solid rgb(255 255 255 / 13%);
+  border-radius: 15px;
+  padding: 8px;
+  background:
+    radial-gradient(circle at 5% 0%, rgb(82 199 255 / 16%), transparent 43%),
+    linear-gradient(145deg, rgb(25 43 65 / 97%), rgb(9 19 33 / 98%));
+  box-shadow: 0 10px 22px rgb(0 0 0 / 24%);
+}
+
+.individual-weapon-profile > header {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 7px;
+  align-items: center;
+}
+
+.individual-weapon-profile > header > img {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+  filter: drop-shadow(0 7px 6px rgb(0 0 0 / 30%));
+}
+
+.individual-weapon-profile > header > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.individual-weapon-profile > header span {
+  color: #7ddeff;
+  font-size: .34rem;
+  font-weight: 1000;
+  letter-spacing: .05em;
+}
+
+.individual-weapon-profile > header strong,
+.individual-weapon-profile > header small {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.individual-weapon-profile > header strong {
+  color: #fff;
+  font-size: .53rem;
+}
+
+.individual-weapon-profile > header small {
+  color: rgb(255 255 255 / 56%);
+  font-size: .34rem;
+}
+
+.individual-weapon-profile__stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.individual-weapon-profile__stats > span {
+  display: grid;
+  min-width: 0;
+  justify-items: center;
+  gap: 1px;
+  border-radius: 7px;
+  padding: 4px 2px;
+  background: rgb(255 255 255 / 6%);
+}
+
+.individual-weapon-profile__stats small {
+  color: rgb(255 255 255 / 47%);
+  font-size: .25rem;
+}
+
+.individual-weapon-profile__stats strong {
+  color: #f3d65e;
+  font-size: .43rem;
+}
+
+.individual-weapon-profile > button {
+  min-height: 34px;
+  border: 1px solid rgb(101 214 255 / 38%);
+  border-radius: 9px;
+  background: rgb(65 177 228 / 14%);
+  color: #fff;
+  font-size: .4rem;
+  font-weight: 950;
+}
+
+.individual-weapon-profile > button:active {
+  scale: .97;
+}
+
+.player-status-modal__weapon-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  margin: 7px 0;
+}
+
+.player-status-modal__weapon-stats span {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  border-radius: 8px;
+  padding: 5px 2px;
+  background: rgb(255 255 255 / 7%);
+  color: rgb(255 255 255 / 58%);
+  font-size: .3rem;
+}
+
+.player-status-modal__weapon-stats strong {
+  color: #f3d65e;
+  font-size: .46rem;
+}
+
+.card-pack-collection-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  width: 100%;
+  margin: 8px 0;
+  border-radius: 12px;
+  padding: 8px;
+  background: rgb(7 18 32 / 72%);
+}
+
+.card-pack-collection-stats > div {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  border-radius: 8px;
+  padding: 6px 3px;
+  background: rgb(255 255 255 / 6%);
+}
+
+.card-pack-collection-stats > div.is-missing {
+  background: rgb(244 169 85 / 10%);
+}
+
+.card-pack-collection-stats span {
+  color: rgb(255 255 255 / 55%);
+  font-size: .34rem;
+}
+
+.card-pack-collection-stats strong {
+  color: #fff;
+  font-size: .58rem;
+}
+
+.card-pack-collection-stats .is-missing strong {
+  color: #f3c15e;
+}
+
+.card-pack-collection-stats > i {
+  grid-column: 1 / -1;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 9%);
+}
+
+.card-pack-collection-stats > i > b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #58c9ff, #f2d15a);
+}
+
+.card-pack-collection-stats > small {
+  grid-column: 1 / -1;
+  color: rgb(255 255 255 / 61%);
+  font-size: .36rem;
+  text-align: center;
+}
+
+.selected-pack-panel .card-pack-collection-stats {
+  margin-bottom: 0;
+}
+
+@media (max-width: 620px) {
+  .team-personal-weapons > div {
+    grid-template-columns: 1fr;
+  }
+
+  .individual-weapon-profile > header {
+    grid-template-columns: 70px minmax(0, 1fr);
+  }
+
+  .individual-weapon-profile > header > img {
+    width: 70px;
+    height: 70px;
+  }
+}
