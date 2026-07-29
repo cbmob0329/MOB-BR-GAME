@@ -3,12 +3,12 @@
  *
  * All 50 strategies are carried into tournaments. D strategies are unlimited;
  * C through SS use tournament-local remaining counts based on persistent owned
- * quantities. Persistent inventory is not consumed by tournament use.
+ * quantities. D rank strategies are unlimited. C through SS are consumed from persistent inventory when tournament results are imported.
  */
 
 import { STAT_IDS } from "./game-data.js";
 
-export const STRATEGY_DATA_VERSION = "mobbr-strategy-data-1.0.0";
+export const STRATEGY_DATA_VERSION = "mobbr-strategy-data-1.1.0";
 export const STRATEGY_MASTER_VERSION = "mobbr-strategy-master-1.0.0";
 
 function deepFreeze(value) {
@@ -38,7 +38,7 @@ export const STRATEGY_RULES = deepFreeze({
   carryAllOwnedStrategies: true,
   consumeAt: "battle_start",
   doNotConsumeAtSelection: true,
-  persistentInventoryConsumedByTournament: false,
+  persistentInventoryConsumedByTournament: true,
   fallbackStrategyId: "D-01",
   battleHudPersistentNameVisible: false,
   rankTabs: ["ALL", "D", "C", "B", "A", "S", "SS"],
