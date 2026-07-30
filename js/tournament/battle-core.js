@@ -10,10 +10,10 @@ import {
   BATTLE_END_TIE_BREAKERS,
   BATTLE_TIMING,
   STATE_RULES,
-} from "../../data/battle-config.js?v=34";
+} from "../../data/battle-config.js?v=35";
 import {
   calculateChecksum,
-} from "../main/state.js?v=34";
+} from "../main/state.js?v=35";
 import {
   BATTLE_ACTIONS_VERSION,
   appendBattleEvent,
@@ -26,7 +26,7 @@ import {
   prepareParticipantSpecialAfterBattle,
   addOrRefreshEffect,
   updateParticipantTimers,
-} from "./battle-actions.js?v=34";
+} from "./battle-actions.js?v=35";
 
 export const BATTLE_CORE_VERSION =
   "mobbr-battle-core-1.6.0";

@@ -9,14 +9,14 @@
 import {
   STORAGE_KEYS,
   calculateChecksum,
-} from "../main/state.js?v=34";
+} from "../main/state.js?v=35";
 import {
   TOURNAMENT_BRIDGE_VERSION,
   TOURNAMENT_ENTRY_SCHEMA_VERSION,
   TOURNAMENT_RESUME_SCHEMA_VERSION,
   readTournamentEntryFromStorage,
   validateTournamentEntryData,
-} from "../main/tournament-bridge.js?v=34";
+} from "../main/tournament-bridge.js?v=35";
 import {
   CPU_LOCAL_DATA_VERSION,
   CPU_LOCAL_MASTER_VERSION,
@@ -38,17 +38,21 @@ import {
   getRoleCommonSkills,
   resolveCpuRankFromRange,
   resolveCpuWeaponProfile,
-} from "../../data/battle-config.js?v=34";
+} from "../../data/battle-config.js?v=35";
 import {
   resolveCpuTeamMaster,
-} from "../../data/circuit-data.js?v=34";
+} from "../../data/circuit-data.js?v=35";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=34";
+} from "./circuit.js?v=35";
+import {
+  createCpuFlavorSkills,
+  createCpuFlavorWeaponName,
+} from "../../data/cpu-flavor-data.js?v=35";
 
 export const TOURNAMENT_RUNTIME_VERSION =
-  "mobbr-tournament-runtime-2.1.0";
+  "mobbr-tournament-runtime-2.2.0";
 
 export const TOURNAMENT_PHASES = Object.freeze([
   "IDLE",
@@ -254,7 +258,7 @@ export const OPENING_THEME_ASSETS = Object.freeze({
   }),
   mobutetsu: Object.freeze({
     backgroundImage: "back/tetsu.png",
-    logoImage: "icon/brden.png",
+    logoImage: "icon/brtetsu.png",
   }),
   rockets: Object.freeze({
     backgroundImage: "back/rokets.png",
@@ -748,45 +752,51 @@ function getCpuFormRange(player, form) {
   return player.normalRankRange;
 }
 
-function createCpuSkillSnapshots(player) {
-  const commonSkills = getRoleCommonSkills(player.role);
-  const commonById = new Map(
-    commonSkills.map((skill) => [skill.id, skill]),
-  );
-  const skillIds =
-    player.skillProfile === "unique" &&
-    Array.isArray(player.uniqueSkillIds) &&
-    player.uniqueSkillIds.length === 3
-      ? player.uniqueSkillIds
-      : commonSkills.map((skill) => skill.id);
+function createCpuSkillSnapshots(
+  player,
+  team,
+) {
+  const commonSkills =
+    getRoleCommonSkills(
+      player.role,
+    );
 
-  return skillIds.map((skillId) => {
-    const common = commonById.get(skillId);
-    if (common) {
-      return {
-        skillId: common.id,
-        name: common.name,
-        type: common.type,
-        target: common.target,
-        baseCt: common.baseCt,
-        source:
-          player.skillProfile === "unique"
-            ? "unique_common_override"
-            : "role_common",
-      };
-    }
-    return {
-      skillId,
-      name: skillId,
-      type: "UNRESOLVED_UNIQUE",
-      target: "battle_defined",
-      baseCt: null,
-      source: "unique_skill_pending_battle_master",
-    };
-  });
+  // Existing explicit strong-enemy IDs remain recorded for future ULT/unique
+  // battle masters. Until those effect masters are supplied, the underlying
+  // calculations use the balanced role-common skills with team-specific names.
+  const flavored =
+    createCpuFlavorSkills({
+      teamName:
+        team.name,
+      playerName:
+        player.name,
+      role:
+        player.role,
+      commonSkills,
+    });
+
+  return flavored.map(
+    (skill, index) => ({
+      ...skill,
+      pendingUniqueSkillId:
+        player.skillProfile ===
+          "unique"
+          ? player.uniqueSkillIds?.[
+              index
+            ] ?? null
+          : null,
+    }),
+  );
 }
 
-function createCpuMemberRecord(sourcePlayer, teamId, form, random) {
+function createCpuMemberRecord(
+  sourcePlayer,
+  sourceTeam,
+  form,
+  random,
+) {
+  const teamId =
+    sourceTeam.teamId;
   const rankRange = getCpuFormRange(sourcePlayer, form);
   const characterRank = resolveCpuRankFromRange(
     rankRange,
@@ -815,7 +825,19 @@ function createCpuMemberRecord(sourcePlayer, teamId, form, random) {
     combatState: "alive",
     weapon: {
       weaponId: `cpu-weapon-${sourcePlayer.id}`,
-      weaponName: weaponProfile.weaponName,
+      weaponName:
+        createCpuFlavorWeaponName({
+          playerName:
+            sourcePlayer.name,
+          role:
+            sourcePlayer.role,
+          preferredRange:
+            weaponProfile.preferredRange,
+          explicitWeaponName:
+            weaponProfile.weaponName,
+          weaponSource:
+            sourcePlayer.weaponSource,
+        }),
       image: null,
       ammoMax: 12,
       ammoCurrent: 12,
@@ -823,7 +845,11 @@ function createCpuMemberRecord(sourcePlayer, teamId, form, random) {
       source: weaponProfile.source,
     },
     skillProfile: sourcePlayer.skillProfile,
-    skills: createCpuSkillSnapshots(sourcePlayer),
+    skills:
+      createCpuSkillSnapshots(
+        sourcePlayer,
+        sourceTeam,
+      ),
     specialAbilities: [],
     dataFallbacks:
       sourcePlayer.weaponSource === "role_template_fallback"
@@ -843,7 +869,7 @@ function createCpuTeamRecord(
   const members = sourceTeam.members.map((sourcePlayer) =>
     createCpuMemberRecord(
       sourcePlayer,
-      sourceTeam.teamId,
+      sourceTeam,
       formResult.form,
       random,
     ),

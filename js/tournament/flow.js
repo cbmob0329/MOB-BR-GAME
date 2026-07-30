@@ -13,7 +13,7 @@ import {
 import {
   TOURNAMENT_PHASES,
   createTournamentRuntimeManager,
-} from "./runtime.js?v=34";
+} from "./runtime.js?v=35";
 import {
   executeCurrentBattleToDraft,
 } from "./battle-core.js";
@@ -23,7 +23,7 @@ import {
 import {
   createBattlePlaybackController,
   renderBattleOutcomeScreen,
-} from "./battle-ui.js?v=34";
+} from "./battle-ui.js?v=35";
 import {
   EXPLORATION_PAGES,
   beginExplorationToDraft,
@@ -45,7 +45,7 @@ import {
   useInventoryItemToDraft,
   useMobSlotToDraft,
   useRespawnTurntableToDraft,
-} from "./exploration.js?v=34";
+} from "./exploration.js?v=35";
 import {
   advanceAwardToDraft,
   finalizeCurrentMatchToDraft,
@@ -61,13 +61,13 @@ import {
   renderReturningResultScreen,
   renderTournamentResultScreen,
   writePreparedResultToStorage,
-} from "./results.js?v=34";
+} from "./results.js?v=35";
 
 import {
   applyMatchPlanToDraft,
   circuitSectionLabel,
   isPlayerMatch,
-} from "./circuit.js?v=34";
+} from "./circuit.js?v=35";
 
 import {
   fastForwardMatchToChampionToDraft,
@@ -77,9 +77,9 @@ import {
   getRoundTarget,
   isPlayerActive,
   resolveRoundEncounterToDraft,
-} from "./round.js?v=34";
+} from "./round.js?v=35";
 
-export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-3.1.0";
+export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-3.2.0";
 
 const PHASE_LABELS = Object.freeze({
   IDLE: "待機",
@@ -166,7 +166,7 @@ function tournamentThemeLogo(runtime) {
     world: "icon/world.png",
     championship: "icon/champ.png",
     denden: "icon/brden.png",
-    mobutetsu: "icon/brden.png",
+    mobutetsu: "icon/brtetsu.png",
     rockets: "icon/rokets.png",
     tempest: "icon/tenpest.png",
   };
@@ -1140,7 +1140,20 @@ export function createTournamentFlowController({
                 .filter((member) => member.teamId === runtimeManager.getSnapshot().playerTeamId)
                 .map((member) => {
                   const source = runtimeManager.getSnapshot().entryData.playerTeam.members.find((entry) => entry.playerId === member.playerId);
-                  return `<article class="${member.playerId === playerId ? "is-focus" : ""}" data-state="${escapeAttribute(member.combatState)}"><img src="${escapeAttribute(assetPath(source?.image ?? ""))}" alt=""><span>${escapeHtml(source?.role ?? "")}</span><strong>${escapeHtml(source?.name ?? member.playerId)}</strong><small>HP ${formatNumber(member.hp)} / ${formatNumber(member.maxHp)}</small></article>`;
+                  return `
+                    <button
+                      type="button"
+                      class="${member.playerId === playerId ? "is-focus" : ""}"
+                      data-state="${escapeAttribute(member.combatState)}"
+                      data-modal-action="battle-select-player"
+                      data-player-id="${escapeAttribute(member.playerId)}"
+                    >
+                      <img src="${escapeAttribute(assetPath(source?.image ?? ""))}" alt="">
+                      <span>${escapeHtml(source?.role ?? "")}</span>
+                      <strong>${escapeHtml(source?.name ?? member.playerId)}</strong>
+                      <small>HP ${formatNumber(member.hp)} / ${formatNumber(member.maxHp)}</small>
+                    </button>
+                  `;
                 }).join("")}
             </div>
             <div class="battle-item-modal-target">
@@ -1308,14 +1321,6 @@ export function createTournamentFlowController({
   }) {
     const snapshot =
       runtimeManager.getSnapshot();
-    const participant =
-      model.participants[
-        playerId
-      ];
-    if (!participant) {
-      return null;
-    }
-
     const playerParticipants =
       Object.values(
         model.participants,
@@ -1324,40 +1329,75 @@ export function createTournamentFlowController({
           member.teamId ===
           model.playerTeamId,
       );
-    const options =
-      snapshot.inventory.slots
-        .map((slot, slotIndex) => {
-          if (
-            !slot ||
-            slot.quantity < 1
-          ) {
-            return null;
-          }
-          const item =
-            getItem(slot.itemId);
-          return canUseBattleItemOnParticipant(
-            item,
-            participant,
-            playerParticipants,
-          )
-            ? {
-                slotIndex,
-                slot,
-                item,
-              }
-            : null;
-        })
-        .filter(Boolean);
 
-    const selection =
-      await openBattleItemPicker({
-        playerId,
-        participant,
-        teamName:
-          model.teams[model.playerTeamId]?.teamName ??
-          "プレイヤーチーム",
-        options,
-      });
+    let selectedPlayerId =
+      playerId;
+    let selection = null;
+    let options = [];
+    let participant = null;
+
+    while (true) {
+      participant =
+        model.participants[
+          selectedPlayerId
+        ];
+      if (!participant) {
+        return null;
+      }
+
+      options =
+        snapshot.inventory.slots
+          .map((slot, slotIndex) => {
+            if (
+              !slot ||
+              slot.quantity < 1
+            ) {
+              return null;
+            }
+            const item =
+              getItem(slot.itemId);
+            return canUseBattleItemOnParticipant(
+              item,
+              participant,
+              playerParticipants,
+            )
+              ? {
+                  slotIndex,
+                  slot,
+                  item,
+                }
+              : null;
+          })
+          .filter(Boolean);
+
+      selection =
+        await openBattleItemPicker({
+          playerId:
+            selectedPlayerId,
+          participant,
+          teamName:
+            model.teams[
+              model.playerTeamId
+            ]?.teamName ??
+            "プレイヤーチーム",
+          options,
+        });
+
+      if (
+        selection?.action ===
+          "select-player" &&
+        model.participants[
+          selection.playerId
+        ]?.teamId ===
+          model.playerTeamId
+      ) {
+        selectedPlayerId =
+          selection.playerId;
+        continue;
+      }
+      break;
+    }
+
     if (
       !selection ||
       !Number.isInteger(
@@ -1376,6 +1416,9 @@ export function createTournamentFlowController({
     if (!chosen) {
       return null;
     }
+
+    playerId =
+      selectedPlayerId;
 
     const transaction =
       runtimeManager.update(
@@ -2597,8 +2640,17 @@ export function createTournamentFlowController({
     }
     const action =
       actionElement.dataset.modalAction;
+    if (action === "battle-select-player") {
+      closeModal({
+        action: "select-player",
+        playerId:
+          actionElement.dataset.playerId,
+      });
+      return;
+    }
     if (action === "battle-item") {
       closeModal({
+        action: "use-item",
         slotIndex: Number(
           actionElement.dataset.slotIndex,
         ),
@@ -2699,6 +2751,7 @@ async function bootstrap() {
     assetPath("icon/world.png"),
     assetPath("icon/champ.png"),
     assetPath("icon/brden.png"),
+    assetPath("icon/brtetsu.png"),
     assetPath("icon/rokets.png"),
     assetPath("icon/tenpest.png"),
     assetPath("icon/mic.png"),

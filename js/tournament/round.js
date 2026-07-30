@@ -8,13 +8,13 @@
 
 import {
   clamp,
-} from "../../data/game-data.js?v=34";
+} from "../../data/game-data.js?v=35";
 import {
   getMatchParticipantCount,
-} from "./circuit.js?v=34";
+} from "./circuit.js?v=35";
 
 export const ROUND_INTEGRATION_VERSION =
-  "mobbr-tournament-round-1.7.0";
+  "mobbr-tournament-round-1.8.0";
 
 export const ROUND_INTEGRATION_RULES = Object.freeze({
   encounterRate: 0.75,
@@ -68,8 +68,7 @@ function assertRuntime(draft) {
     );
   }
   draft.roundIntegration ??= {
-    encounterRate:
-      ROUND_INTEGRATION_RULES.encounterRate,
+    encounterRate,
     encounters: {},
     cpuFastHistory: [],
     remainingAnnouncements: [],
@@ -177,6 +176,53 @@ function teamPower(runtime, teamId) {
   );
 }
 
+function encounterRateForRound(
+  runtime,
+) {
+  const rates =
+    runtime.entryData
+      ?.tournament
+      ?.roundEncounterRates;
+  const configured =
+    Array.isArray(rates)
+      ? Number(
+          rates[
+            Math.max(
+              0,
+              runtime.round - 1,
+            )
+          ],
+        )
+      : Number.NaN;
+
+  if (
+    Number.isFinite(
+      configured,
+    )
+  ) {
+    return Math.max(
+      0,
+      Math.min(
+        1,
+        configured,
+      ),
+    );
+  }
+
+  return Math.max(
+    0,
+    Math.min(
+      1,
+      Number(
+        runtime.roundIntegration
+          ?.encounterRate ??
+        ROUND_INTEGRATION_RULES
+          .encounterRate,
+      ),
+    ),
+  );
+}
+
 function recentOpponentIds(runtime) {
   return runtime.battleHistory
     .filter(
@@ -221,7 +267,14 @@ export function resolveRoundEncounterToDraft(
       (member) =>
         member.combatState !== "dead",
     );
-  const roll = stableUnit(`${key}:encounter`);
+  const roll =
+    stableUnit(
+      `${key}:encounter`,
+    );
+  const encounterRate =
+    encounterRateForRound(
+      draft,
+    );
   const encountered =
     playerActive &&
     (
@@ -229,7 +282,7 @@ export function resolveRoundEncounterToDraft(
       (
         force !== false &&
         roll <
-          ROUND_INTEGRATION_RULES.encounterRate
+          encounterRate
       )
     );
 
@@ -271,8 +324,7 @@ export function resolveRoundEncounterToDraft(
     round: draft.round,
     playerActive,
     roll,
-    encounterRate:
-      ROUND_INTEGRATION_RULES.encounterRate,
+    encounterRate,
     encountered:
       encountered &&
       opponentTeamId !== null,
