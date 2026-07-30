@@ -20,7 +20,7 @@ import {
   SaveError,
   SaveNotFoundError,
   createGameStateManager,
-} from "./state.js?v=34";
+} from "./state.js?v=35";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -42,7 +42,7 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=34";
+} from "./team.js?v=35";
 import {
   getSpecialAbility,
 } from "../../data/ability-data.js";
@@ -53,13 +53,13 @@ import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=34";
+} from "./management.js?v=35";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=34";
+} from "./tournament-bridge.js?v=35";
 
-export const APP_VERSION = "mobbr-main-app-2.2.0";
+export const APP_VERSION = "mobbr-main-app-2.3.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -781,7 +781,18 @@ function homeTemplate(snapshot, currentRoute) {
         <div>
           <span>${tournamentWeek.trainingBlocked ? "TOURNAMENT WEEK" : "TOURNAMENT NOTICE"}</span>
           <strong>${escapeHtml(tournamentWeek.details.map((detail) => detail.event.stageName).join(" / "))}</strong>
-          <p>${tournamentWeek.trainingBlocked ? "今週は出場予定大会があります。トレーニングは行えません。" : "今週は大会が開催されますが、出場予定はありません。トレーニング可能です。"}</p>
+          <p>${
+            tournamentWeek.trainingBlocked
+              ? "今週は出場予定大会があります。トレーニングは行えません。"
+              : tournamentWeek.details.some(
+                  (detail) =>
+                    String(
+                      detail.event.tournamentType,
+                    ).startsWith("casual_"),
+                )
+                ? "今週はカジュアルカップが開催されます。参加する大会を自由に選べます。"
+                : "今週は大会が開催されます。詳しい状況はスケジュールをご確認ください。"
+          }</p>
         </div>
         <button type="button" data-action="navigate" data-route="${ROUTES.schedule}">大会予定</button>
       </section>`
@@ -802,7 +813,11 @@ function homeTemplate(snapshot, currentRoute) {
               ${facility.status === "LOCKED" ? "disabled" : ""}
             >
               <img src="${escapeAttribute(facility.homeImage)}" alt="">
-              <span>${escapeHtml(facility.japaneseName)}</span>
+              ${
+                facility.facilityId === "collection"
+                  ? ""
+                  : `<span>${escapeHtml(facility.japaneseName)}</span>`
+              }
               ${facility.status === "LOCKED" ? "<em>LOCKED</em>" : ""}
             </button>
           `).join("")}
@@ -1558,7 +1573,7 @@ export function createMainApp({
                 selectedAbilityColor,
                 {
                   includeSelector:
-                    currentRoute !==
+                    route !==
                     ROUTES.ability,
                 },
               );
@@ -2712,6 +2727,34 @@ export function createMainApp({
             <div class="player-status-modal__points">
               <span>POWER ${formatNumber(pointPool.power)}</span><span>TECH ${formatNumber(pointPool.tech)}</span><span>MENTAL ${formatNumber(pointPool.mental)}</span><span>SHOOT ${formatNumber(pointPool.shoot)}</span>
             </div>
+            <section class="player-status-modal__specials">
+              <header>
+                <span>LEARNED SPECIAL</span>
+                <strong>${(player.specialAbilities ?? []).length}</strong>
+              </header>
+              ${
+                (player.specialAbilities ?? []).length > 0
+                  ? `
+                    <div>
+                      ${(player.specialAbilities ?? []).map((entry) => {
+                        const ability = getSpecialAbility(entry.abilityKey);
+                        return `
+                          <button
+                            type="button"
+                            class="player-special-chip player-special-chip--${escapeAttribute(ability.color)}"
+                            data-action="modal-inspect-special"
+                            data-ability-key="${escapeAttribute(ability.abilityKey)}"
+                          >
+                            <i>${escapeHtml(ability.name.slice(0, 1))}</i>
+                            <span>${escapeHtml(ability.name)}</span>
+                          </button>
+                        `;
+                      }).join("")}
+                    </div>
+                  `
+                  : `<p>習得済みの特殊能力はありません。</p>`
+              }
+            </section>
             <button type="button" class="primary-button player-status-modal__ability" data-action="modal-open-player-ability" data-player-id="${escapeAttribute(player.playerId)}">能力アップ</button>
           </section>
         `,
@@ -3290,8 +3333,8 @@ export function createMainApp({
           );
         await playProgressionPresentation({
           kind: "special",
-          label: "SPECIAL ABILITY",
-          rankUp: true,
+          label: "SPECIAL ABILITY ACQUIRED",
+          rankUp: false,
           title: "特殊能力習得",
           subject:
             player?.name ?? "",
@@ -3349,7 +3392,8 @@ export function createMainApp({
           );
         await playProgressionPresentation({
           kind: "special",
-          label: "SPECIAL ABILITY",
+          label: "SPECIAL ABILITY ACQUIRED",
+          rankUp: false,
           title: "特殊能力習得",
           subject:
             player?.name ?? "",
@@ -3391,7 +3435,28 @@ export function createMainApp({
       return;
     }
 
-    if (actionElement.dataset.action === "modal-open-player-ability") {
+    if (actionElement.dataset.action === "modal-inspect-special") {
+      const ability =
+        getSpecialAbility(
+          actionElement.dataset.abilityKey,
+        );
+      closeModal("special-detail");
+      queueMicrotask(() =>
+        openAlert({
+          title: ability.name,
+          body: `
+            <section class="player-special-detail player-special-detail--${escapeAttribute(ability.color)}">
+              <i>${escapeHtml(ability.name.slice(0, 1))}</i>
+              <span>${escapeHtml(ability.color.toUpperCase())} / ${escapeHtml(ability.abilityId.toUpperCase())}</span>
+              <h3>${escapeHtml(ability.name)}</h3>
+              <p>${escapeHtml(ability.description)}</p>
+              <small>習得済み・大会中は装備不要で常時有効です。</small>
+            </section>
+          `,
+          buttonLabel: "閉じる",
+        }),
+      );
+    } else if (actionElement.dataset.action === "modal-open-player-ability") {
       const playerId = actionElement.dataset.playerId;
       closeModal("ability");
       selectedTeamPlayerId = playerId;
@@ -3621,7 +3686,7 @@ export function createMainApp({
     await preloadImages([
       assetPath("back/Load.png"), assetPath("back/main1.png"), assetPath("back/sub.png"), assetPath("back/coh.png"),
       assetPath("back/homecol.png"), assetPath("back/backcol.png"), assetPath("back/backcoh.png"), assetPath("back/backshop.png"),
-      "icon/pink.png", "icon/rankup.png", "icon/kigyo.png", "icon/weponup.png", "icon/skillup.png",
+      "icon/pink.png", "icon/rankup.png", "icon/kigyo.png", "icon/weponup.png", "icon/skillup.png", "icon/brtetsu.png",
       "menu/home.png", "menu/team.png", "menu/traning.png", "menu/COL.png",
       "icon/coin.png", "icon/daia.png", "icon/rubi.png",
     ]);

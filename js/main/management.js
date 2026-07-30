@@ -10,11 +10,12 @@ import {
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=34";
+} from "../../data/game-data.js?v=35";
 import {
   isCasualTournamentType,
+  resolveCpuTeamMaster,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=34";
+} from "../../data/circuit-data.js?v=35";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
@@ -62,13 +63,13 @@ import {
 import {
   advanceWeeksToDraft,
   applyResourceDeltaToDraft,
-} from "./state.js?v=34";
+} from "./state.js?v=35";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=34";
+} from "./tournament-bridge.js?v=35";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-1.6.0";
+  "mobbr-management-feature-1.7.0";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -755,6 +756,7 @@ export function openCardPacksToDraft(
     type: "card",
     packId,
     packName: pack.name,
+    packImage: pack.image,
     count,
     results,
     summary,
@@ -823,6 +825,7 @@ export function openBadgePacksToDraft(
     type: "badge",
     packId,
     packName: pack.name,
+    packImage: pack.image,
     count,
     results,
     summary,
@@ -1391,8 +1394,22 @@ function packOpeningPresentation(result) {
         class="pack-opening-show__burst"
         aria-hidden="true"
       ></div>
-      <span>PACK OPEN!</span>
-      <h3>${escapeHtml(result.packName)}</h3>
+      <section class="pack-opening-sequence ${result.type === "badge" ? "is-badge" : "is-card"}">
+        <div class="pack-opening-sequence__spotlight" aria-hidden="true"></div>
+        <div class="pack-opening-sequence__shockwave" aria-hidden="true"></div>
+        <div class="pack-opening-sequence__pack">
+          <img src="${escapeAttribute(result.packImage ?? "icon/back.png")}" alt="">
+          <i class="pack-opening-sequence__seal"></i>
+          <i class="pack-opening-sequence__tear pack-opening-sequence__tear--left"></i>
+          <i class="pack-opening-sequence__tear pack-opening-sequence__tear--right"></i>
+        </div>
+        <div class="pack-opening-sequence__particles" aria-hidden="true">
+          ${Array.from({ length: 12 }, (_, index) => `<i style="--particle-index:${index}"></i>`).join("")}
+        </div>
+        <span>PACK OPEN!</span>
+        <h3>${escapeHtml(result.packName)}</h3>
+        <small>${result.count === 1 ? "1 ITEM REVEAL" : `${formatNumber(result.count)} ITEMS REVEAL`}</small>
+      </section>
 
       ${
         hero
@@ -1440,9 +1457,13 @@ export function renderTrainingManagement(snapshot) {
   const notice = tournamentWeek.hasTournament
     ? `<section class="training-tournament-notice ${tournamentWeek.trainingBlocked ? "is-blocked" : "is-observer"}">
         <strong>${tournamentWeek.trainingBlocked ? "TOURNAMENT WEEK" : "TOURNAMENT NOTICE"}</strong>
-        <p>${tournamentWeek.details.map((detail) => detail.participationRequired
-          ? `${detail.event.stageName}へ出場予定です。この週はトレーニングできません。`
-          : `${detail.event.stageName}が開催されます。出場予定はないためトレーニング可能です。`).join(" ")}</p>
+        <p>${tournamentWeek.details.map((detail) =>
+          detail.participationRequired
+            ? `${detail.event.stageName}へ出場予定です。この週はトレーニングできません。`
+            : String(detail.event.tournamentType).startsWith("casual_")
+              ? `${detail.event.stageName}が開催されます。参加は任意です。`
+              : `${detail.event.stageName}が開催されます。`
+        ).join(" ")}</p>
       </section>`
     : "";
 
@@ -2214,6 +2235,8 @@ function japaneseTournamentNewsName(entry) {
     championship: "MOB BR Championship",
     casual_denden: "カジュアル大会 デンデンカップ",
     casual_mobutetsu: "カジュアル大会 モブテツカップ",
+    casual_rockets: "カジュアル大会 ジョーダンロケッツカップ",
+    casual_tempest: "カジュアル大会 ゴールデンテンペストカップ",
   };
   return names[type] ??
     String(entry.stageName ?? "MOB BR 大会");
@@ -2241,6 +2264,264 @@ function japaneseTournamentNewsSubtitle(entry) {
   return "MOB BR 大会速報";
 }
 
+function newsMobPinkComment(
+  entry,
+) {
+  if (
+    entry.status ===
+      "cpu_simulated" ||
+    !Number.isInteger(
+      entry.finalPlace,
+    )
+  ) {
+    const champion =
+      entry.rankings?.[0]
+        ?.teamName ??
+      "優勝チーム";
+    return `今回は観戦結果をまとめました。${champion}が最上位です。CPU順位は通常ランクを中心に、少しだけ当日の調子と運を加えて計算しています。`;
+  }
+  if (entry.finalPlace === 1) {
+    return "優勝おめでとうございます！順位ポイントとKPの両方を積み上げた、とても素晴らしい大会でした。";
+  }
+  if (entry.finalPlace <= 3) {
+    return `表彰台入りおめでとうございます！${entry.finalPlace}位という結果は、次の大会にもつながる大きな成果です。`;
+  }
+  if (entry.finalPlace <= 10) {
+    return `TOP10入りです。良かった個人成績や獲得ポイントを確認して、次の育成へ活かしていきましょう。`;
+  }
+  return "大会お疲れさまでした。個人成績とMATCHごとの結果を見ると、次に伸ばしたい部分が見つけやすいですよ。";
+}
+
+function newsTrainingPoints(
+  rewards,
+) {
+  const points =
+    rewards?.trainingPoints ??
+    {};
+  return `
+    <div class="news-reward-points">
+      <span>POWER <strong>+${formatNumber(points.power ?? 0)}</strong></span>
+      <span>TECH <strong>+${formatNumber(points.tech ?? 0)}</strong></span>
+      <span>MENTAL <strong>+${formatNumber(points.mental ?? 0)}</strong></span>
+      <span>SHOOT <strong>+${formatNumber(points.shoot ?? 0)}</strong></span>
+    </div>
+  `;
+}
+
+function newsBadgePackText(
+  rewards,
+) {
+  const packs =
+    rewards?.badgePacks ??
+    {};
+  const entries =
+    Object.entries(packs)
+      .filter(
+        ([, count]) =>
+          Number(count) > 0,
+      );
+  if (entries.length === 0) {
+    return "BADGE PACK なし";
+  }
+  return entries
+    .map(
+      ([packId, count]) =>
+        `${packId} ×${formatNumber(count)}`,
+    )
+    .join(" / ");
+}
+
+function newsMemberRows(
+  entry,
+) {
+  const members =
+    Array.isArray(
+      entry.memberResults,
+    )
+      ? entry.memberResults
+      : [];
+  if (members.length === 0) {
+    return "";
+  }
+  return `
+    <section class="news-player-performance">
+      <h3>PLAYER PERFORMANCE</h3>
+      <div>
+        ${members.map((member) => {
+          const accuracy =
+            Number(member.shots ?? 0) > 0
+              ? Math.round(
+                  Number(member.hits ?? 0) /
+                  Number(member.shots) *
+                  100,
+                )
+              : 0;
+          return `
+            <article>
+              <span>${escapeHtml(member.role ?? "PLAYER")}</span>
+              <strong>${escapeHtml(member.name ?? member.playerName ?? member.playerId)}</strong>
+              <small>
+                K ${formatNumber(member.kills ?? 0)} /
+                A ${formatNumber(member.assists ?? 0)} /
+                DMG ${formatNumber(member.damage ?? 0)} /
+                HEAL ${formatNumber(member.healing ?? 0)} /
+                ACC ${accuracy}%
+              </small>
+            </article>
+          `;
+        }).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function newsAwardRows(
+  entry,
+) {
+  const awards =
+    Array.isArray(
+      entry.awards,
+    )
+      ? entry.awards.filter(
+          (award) =>
+            award.category !==
+            "FINAL_PODIUM",
+        )
+      : [];
+  if (awards.length === 0) {
+    return "";
+  }
+  return `
+    <section class="news-individual-awards">
+      <h3>INDIVIDUAL RANKINGS</h3>
+      <div>
+        ${awards.map((award) => `
+          <article>
+            <strong>${escapeHtml(award.label ?? award.category)}</strong>
+            <ol>
+              ${(award.ranking ?? []).slice(0, 3).map((row) => `
+                <li>
+                  <b>${row.place}</b>
+                  <span>${escapeHtml(row.playerName ?? row.teamName ?? "-")}</span>
+                  <small>${escapeHtml(row.valueLabel ?? "")}</small>
+                </li>
+              `).join("")}
+            </ol>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function cpuNewsIndividuals(
+  entry,
+) {
+  if (
+    entry.status !==
+      "cpu_simulated" ||
+    !Array.isArray(
+      entry.rankings,
+    )
+  ) {
+    return "";
+  }
+
+  const candidates =
+    entry.rankings
+      .slice(0, 5)
+      .flatMap(
+        (ranking) => {
+          const team =
+            resolveCpuTeamMaster(
+              ranking.teamId,
+              entry.circuitYear ??
+              9999,
+            );
+          return (
+            team?.members ??
+            []
+          ).map(
+            (member) => {
+              const range =
+                member.normalRankRange ??
+                ["F1", "F1"];
+              return {
+                teamPlace:
+                  ranking.place,
+                teamName:
+                  ranking.teamName,
+                playerName:
+                  member.name,
+                role:
+                  member.role,
+                rankLabel:
+                  `${range[0]}～${range[1]}`,
+              };
+            },
+          );
+        },
+      )
+      .sort(
+        (left, right) =>
+          left.teamPlace -
+            right.teamPlace ||
+          left.role.localeCompare(
+            right.role,
+          ),
+      )
+      .slice(0, 10);
+
+  return `
+    <section class="news-individual-awards news-individual-awards--cpu">
+      <h3>CPU注目選手</h3>
+      <p>上位チーム所属選手を、チーム順位と通常ランク帯から掲載しています。</p>
+      <ol>
+        ${candidates.map((row, index) => `
+          <li>
+            <b>${index + 1}</b>
+            <span>${escapeHtml(row.playerName)} / ${escapeHtml(row.role)}</span>
+            <small>${escapeHtml(row.teamName)}・${escapeHtml(row.rankLabel)}</small>
+          </li>
+        `).join("")}
+      </ol>
+    </section>
+  `;
+}
+
+function newsMatchSummary(
+  entry,
+) {
+  const matches =
+    Array.isArray(
+      entry.matchResults,
+    )
+      ? entry.matchResults
+      : [];
+  if (matches.length === 0) {
+    return "";
+  }
+  return `
+    <section class="news-match-digest">
+      <h3>MATCH DIGEST</h3>
+      <div>
+        ${matches.slice(0, 10).map((match, index) => {
+          const champion =
+            match.rankings?.[0] ??
+            match.champion ??
+            null;
+          return `
+            <span>
+              MATCH ${match.match ?? index + 1}
+              <strong>${escapeHtml(champion?.teamName ?? champion?.teamId ?? "RESULT")}</strong>
+            </span>
+          `;
+        }).join("")}
+      </div>
+    </section>
+  `;
+}
+
 export function renderNewsManagement(snapshot) {
   const history = [...(snapshot.tournament.history ?? [])].reverse();
   return `
@@ -2259,8 +2540,72 @@ export function renderNewsManagement(snapshot) {
             </summary>
             <article>
               <h2>${escapeHtml(entry.summary ?? "大会結果速報")}</h2>
-              <p>COIN ${formatNumber(entry.rewards?.coin ?? 0)} / EXP ${formatNumber(entry.rewards?.companyExp ?? 0)}</p>
-              ${Array.isArray(entry.rankings) ? `<ol>${entry.rankings.slice(0,40).map(r=>`<li><b>${r.place}</b><span>${escapeHtml(r.teamName ?? r.teamId)}</span></li>`).join("")}</ol>` : ""}
+
+              <section class="news-mob-pink-comment">
+                <img src="icon/pink.png" alt="モブピンク">
+                <div>
+                  <span>モブピンクの大会メモ</span>
+                  <p>${escapeHtml(newsMobPinkComment(entry))}</p>
+                </div>
+              </section>
+
+              <section class="news-reward-ledger">
+                <h3>獲得報酬・ポイント</h3>
+                <div class="news-currency-ledger">
+                  <span>COIN <strong>+${formatNumber(entry.rewards?.coin ?? 0)}</strong></span>
+                  <span>DIAMOND <strong>+${formatNumber(entry.rewards?.diamond ?? 0)}</strong></span>
+                  <span>RUBY <strong>+${formatNumber(entry.rewards?.ruby ?? 0)}</strong></span>
+                  <span>企業PT <strong>+${formatNumber(entry.rewards?.companyExp ?? 0)}</strong></span>
+                </div>
+                ${newsTrainingPoints(entry.rewards)}
+                <p>${escapeHtml(newsBadgePackText(entry.rewards))}</p>
+                <p>Championship Point +${formatNumber(entry.championshipPointDelta ?? entry.rewards?.championshipPoints ?? 0)}</p>
+              </section>
+
+              ${entry.teamTotals ? `
+                <section class="news-player-team-total">
+                  <h3>PLAYER TEAM TOTAL</h3>
+                  <div>
+                    <span>順位PT <strong>${formatNumber(entry.teamTotals.placementPoints ?? entry.teamTotals.sumPlacementPoint ?? 0)}</strong></span>
+                    <span>KP <strong>${formatNumber(entry.teamTotals.kp ?? entry.teamTotals.sumKp ?? 0)}</strong></span>
+                    <span>TOTAL <strong>${formatNumber(entry.teamTotals.totalPoints ?? entry.teamTotals.sumTotal ?? 0)}</strong></span>
+                    <span>DMG <strong>${formatNumber(entry.teamTotals.damage ?? entry.teamTotals.sumDamage ?? 0)}</strong></span>
+                  </div>
+                </section>
+              ` : ""}
+
+              ${newsMatchSummary(entry)}
+              ${newsMemberRows(entry)}
+              ${newsAwardRows(entry)}
+              ${cpuNewsIndividuals(entry)}
+
+              ${
+                Array.isArray(entry.rankings)
+                  ? `
+                    <section class="news-full-ranking">
+                      <h3>FINAL TEAM RANKING</h3>
+                      ${
+                        entry.status === "cpu_simulated"
+                          ? `<p>通常ランク帯を主軸に、小さな調子・運補正を加えたCPU大会シミュレーションです。</p>`
+                          : ""
+                      }
+                      <ol>
+                        ${entry.rankings.slice(0, 40).map((row) => `
+                          <li class="${row.isPlayer ? "is-player" : ""}">
+                            <b>${row.place}</b>
+                            <span>${escapeHtml(row.teamName ?? row.teamId)}</span>
+                            <small>
+                              TOTAL ${formatNumber(row.sumTotal ?? row.total ?? 0)}
+                              / KP ${formatNumber(row.sumKp ?? row.kp ?? 0)}
+                              / DMG ${formatNumber(row.sumDamage ?? row.damage ?? 0)}
+                            </small>
+                          </li>
+                        `).join("")}
+                      </ol>
+                    </section>
+                  `
+                  : ""
+              }
             </article>
           </details>`;
       }).join("") : `<section class="content-panel placeholder-panel"><img class="placeholder-panel__icon" src="icon/news.png" alt=""><h2>大会新聞はまだありません</h2><p class="placeholder-panel__text">大会結果が年月週付きの新聞として追加されます。</p></section>`}

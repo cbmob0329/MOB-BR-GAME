@@ -12,11 +12,11 @@ import {
   characterValueToRank,
   weaponValueToRank,
   getCompanyRankData,
-} from "../../data/game-data.js?v=34";
+} from "../../data/game-data.js?v=35";
 import {
   calculateMaxHp,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=34";
+} from "../../data/battle-config.js?v=35";
 import {
   WEAPON_SKINS,
   getWeaponSkin,
