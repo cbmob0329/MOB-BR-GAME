@@ -19,11 +19,11 @@ import {
   getCompanyRankData,
   rankToWeaponValue,
   validateGameDate,
-} from "../../data/game-data.js?v=33";
+} from "../../data/game-data.js?v=34";
 import {
   BATTLE_CONFIG_VERSION,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=33";
+} from "../../data/battle-config.js?v=34";
 import {
   TRAINING_DATA_VERSION,
 } from "../../data/training-data.js";
@@ -49,7 +49,7 @@ import {
   getStrategy,
 } from "../../data/strategy-data.js";
 
-export const SAVE_SCHEMA_VERSION = "mobbr-save-1.8.0";
+export const SAVE_SCHEMA_VERSION = "mobbr-save-1.9.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
 
 export const STORAGE_KEYS = Object.freeze({
@@ -643,6 +643,7 @@ export function createNewGameState(
     collections: {
       cards: {},
       badges: {},
+      trophies: [],
       other: {},
       openHistory: [],
       conversionTotals: { coin: 0, diamond: 0, ruby: 0 },
@@ -708,6 +709,7 @@ export function createNewGameState(
     ui: {
       lastScreen: "home",
       lastSubScreen: null,
+      guideFlags: {},
       pendingWeekStart: null,
     },
 
@@ -1101,6 +1103,21 @@ function migrateUnversionedSave(rawState, timestamp) {
       deepClone(migrated.trainingPoints ?? createEmptyTrainingPoints()),
     ]),
   );
+  migrated.collections =
+    migrated.collections ?? {
+      cards: {},
+      badges: {},
+      other: {},
+    };
+  migrated.collections.trophies =
+    Array.isArray(
+      migrated.collections.trophies,
+    )
+      ? migrated.collections.trophies
+      : [];
+  migrated.ui.guideFlags =
+    migrated.ui.guideFlags ?? {};
+
   migrated.saveSlotId =
     migrated.saveSlotId ??
     migrated.slotId ??
@@ -1166,7 +1183,8 @@ export function migrateSaveState(
     rawState.schemaVersion === "mobbr-save-1.4.0" ||
     rawState.schemaVersion === "mobbr-save-1.5.0" ||
     rawState.schemaVersion === "mobbr-save-1.6.0" ||
-    rawState.schemaVersion === "mobbr-save-1.7.0"
+    rawState.schemaVersion === "mobbr-save-1.7.0" ||
+    rawState.schemaVersion === "mobbr-save-1.8.0"
   ) {
     const migrated = migrateUnversionedSave(rawState, timestamp);
     validateSaveState(migrated);
@@ -1800,6 +1818,110 @@ export function applyTournamentResultToDraft(
     );
   }
 
+  draft.collections.trophies =
+    Array.isArray(
+      draft.collections.trophies,
+    )
+      ? draft.collections.trophies
+      : [];
+  const existingTrophyIds =
+    new Set(
+      draft.collections.trophies.map(
+        (trophy) =>
+          trophy.trophyId,
+      ),
+    );
+  const importedTrophies = [];
+  for (
+    const trophy
+    of Array.isArray(
+      result.trophies,
+    )
+      ? result.trophies
+      : []
+  ) {
+    if (
+      !trophy?.trophyId ||
+      existingTrophyIds.has(
+        trophy.trophyId,
+      )
+    ) {
+      continue;
+    }
+    const normalizedTrophy = {
+      trophyId:
+        String(trophy.trophyId),
+      trophyTypeId:
+        String(
+          trophy.trophyTypeId ??
+          "",
+        ),
+      tournamentType:
+        String(
+          trophy.tournamentType ??
+          result.tournamentType,
+        ),
+      tournamentId:
+        String(
+          trophy.tournamentId ??
+          result.tournamentId,
+        ),
+      resultId:
+        String(
+          trophy.resultId ??
+          result.resultId,
+        ),
+      cupId:
+        String(trophy.cupId ?? ""),
+      cupName:
+        String(
+          trophy.cupName ??
+          "カジュアルカップ",
+        ),
+      name:
+        String(
+          trophy.name ??
+          "カジュアルトロフィー",
+        ),
+      place:
+        Math.max(
+          1,
+          Math.min(
+            3,
+            Number(
+              trophy.place ?? 3,
+            ),
+          ),
+        ),
+      image:
+        String(
+          trophy.image ??
+          "prize/01.png",
+        ),
+      acquiredAt:
+        deepClone(
+          trophy.acquiredAt ?? {
+            year:
+              result.circuitYear ??
+              draft.gameDate.year,
+            month:
+              draft.gameDate.month,
+            week:
+              draft.gameDate.week,
+          },
+        ),
+    };
+    draft.collections.trophies.push(
+      normalizedTrophy,
+    );
+    importedTrophies.push(
+      normalizedTrophy,
+    );
+    existingTrophyIds.add(
+      normalizedTrophy.trophyId,
+    );
+  }
+
   draft.tournament.championshipPoints +=
     rewards.championshipPoints;
   if (rewards.championshipPoints > 0) {
@@ -1861,6 +1983,7 @@ export function applyTournamentResultToDraft(
     roundResults: deepClone(result.roundResults ?? []),
     memberResults: deepClone(result.memberResults ?? []),
     awards: deepClone(result.awards ?? []),
+    trophies: deepClone(result.trophies ?? []),
     recordsBroken: deepClone(result.recordsBroken ?? []),
     rewardTableId: result.rewardTableId ?? null,
     rewardTableVersion: result.rewardTableVersion ?? null,
@@ -1904,6 +2027,8 @@ export function applyTournamentResultToDraft(
     applied: true,
     historyEntry: deepClone(historyEntry),
     companyExpResult,
+    importedTrophies:
+      deepClone(importedTrophies),
     consumedStrategies:
       deepClone(consumedStrategies),
     weekAdvance,

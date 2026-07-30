@@ -11,11 +11,12 @@ import {
   calculateCharacterOverallRank,
   characterValueToRank,
   weaponValueToRank,
-} from "../../data/game-data.js?v=33";
+  getCompanyRankData,
+} from "../../data/game-data.js?v=34";
 import {
   calculateMaxHp,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=33";
+} from "../../data/battle-config.js?v=34";
 import {
   WEAPON_SKINS,
   getWeaponSkin,
@@ -33,7 +34,7 @@ import {
   getWeaponUpgradeCost,
 } from "../../data/ability-data.js";
 
-export const TEAM_FEATURE_VERSION = "mobbr-team-feature-1.0.0";
+export const TEAM_FEATURE_VERSION = "mobbr-team-feature-1.1.0";
 
 const ROLE_ICONS = Object.freeze({
   IGL: "icon/IGL.png",
@@ -236,6 +237,22 @@ export function renamePlayerSkillToDraft(draft, playerId, skillId, requestedName
 export function applyTestMaxPlayerBuildToDraft(draft) {
   assertDraft(draft);
   ensurePlayerSkillsToDraft(draft);
+  const maximumCompany =
+    getCompanyRankData(
+      "SS9",
+    );
+  draft.company.rank =
+    maximumCompany.rank;
+  draft.company.rankIndex =
+    maximumCompany.index;
+  draft.company.exp = 0;
+  draft.unlockFlags.coachScout =
+    true;
+  draft.unlockFlags.nationalCardPacks =
+    true;
+  draft.unlockFlags.worldCardPacks =
+    true;
+
   const maximumWeaponValue = 72;
   const maximumWeaponRank = weaponValueToRank(maximumWeaponValue);
   for (const player of draft.playerTeam.members) {
@@ -265,6 +282,8 @@ export function applyTestMaxPlayerBuildToDraft(draft) {
     statValue: 73,
     weaponValue: maximumWeaponValue,
     skillLevel: SKILL_MAX_LEVEL,
+    companyRank:
+      maximumCompany.rank,
   };
 }
 

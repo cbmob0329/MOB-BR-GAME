@@ -10,11 +10,11 @@ import {
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=33";
+} from "../../data/game-data.js?v=34";
 import {
   isCasualTournamentType,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=33";
+} from "../../data/circuit-data.js?v=34";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
@@ -62,13 +62,13 @@ import {
 import {
   advanceWeeksToDraft,
   applyResourceDeltaToDraft,
-} from "./state.js?v=33";
+} from "./state.js?v=34";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=33";
+} from "./tournament-bridge.js?v=34";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-1.5.0";
+  "mobbr-management-feature-1.6.0";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -1363,6 +1363,11 @@ function packOpeningPresentation(result) {
             class="pack-reveal-card__flare"
             aria-hidden="true"
           ></div>
+          ${
+            opened.resultType === "POWER_UP"
+              ? `<img class="pack-reveal-card__rank-up-icon" src="icon/rankup.png" alt="">`
+              : ""
+          }
           <img
             class="pack-reveal-card__main"
             src="${escapeAttribute(master.image)}"
@@ -1394,6 +1399,11 @@ function packOpeningPresentation(result) {
           ? `
             <article class="pack-opening-hero ${hero.master.category === "badge" ? "pack-opening-hero--badge" : "pack-opening-hero--card"}">
               <div class="pack-opening-hero__rings" aria-hidden="true"></div>
+              ${
+                hero.resultType === "POWER_UP"
+                  ? `<img class="pack-opening-hero__rank-up-icon" src="icon/rankup.png" alt="">`
+                  : ""
+              }
               <img src="${escapeAttribute(hero.master.image)}" alt="">
               <div>
                 <span>${escapeHtml(hero.resultType)}</span>
@@ -1581,7 +1591,7 @@ export function renderShopManagement(snapshot) {
   }
 
   return `
-    <section class="mobshop-popup" style="--mobshop-bg:url('back/mobshop.png')">
+    <section class="mobshop-popup" style="--mobshop-bg:url('back/backshop.png')">
       <header class="mobshop-neon-header">
         <span>MOB RETAIL NETWORK</span>
         <strong>MOB SHOP</strong>
@@ -1589,10 +1599,9 @@ export function renderShopManagement(snapshot) {
       </header>
       <div class="mobshop-counter-light" aria-hidden="true"><i></i><i></i><i></i></div>
       <section class="mobshop-staff-counter" aria-label="MOB SHOP店員">
-        <div class="mobshop-staff-placeholder">
-          <span>STAFF</span>
-          <strong>MOB PINK</strong>
-          <small>IMAGE COMING SOON</small>
+        <div class="mobshop-staff-placeholder mobshop-staff-placeholder--pink">
+          <img src="icon/pink.png" alt="モブピンク">
+          <span>MOB PINK</span>
         </div>
         <div class="mobshop-staff-dialogue">
           <span>モブピンク</span>
@@ -1920,6 +1929,13 @@ export function renderCollectionManagement(snapshot) {
     `;
   }
 
+  const trophies =
+    Array.isArray(
+      snapshot.collections.trophies,
+    )
+      ? snapshot.collections.trophies
+      : [];
+
   return `
     <div class="management-live-section" data-live-section="collection">
     <section class="collection-file-launchers">
@@ -1933,6 +1949,50 @@ export function renderCollectionManagement(snapshot) {
     <section class="collection-completion-grid">
       <article><img src="icon/card.png" alt=""><strong>CARD ${cardCompletion.ownedCount} / ${cardCompletion.totalCount}</strong><span>週間COIN +${((snapshot.collectionBonuses.weeklyCoinRate ?? 0) * 100).toFixed(1)}%</span></article>
       <article><img src="icon/bagi.png" alt=""><strong>BADGE ${badgeCompletion.ownedCount} / ${badgeCompletion.totalCount}</strong><span>TRAINING +${((snapshot.collectionBonuses.trainingPointRate ?? 0) * 100).toFixed(1)}%</span></article>
+    </section>
+    <section class="collection-trophy-case">
+      <header>
+        <img src="prize/01.png" alt="">
+        <div>
+          <span>CASUAL CUP COLLECTION</span>
+          <strong>TROPHY CASE</strong>
+          <small>Top 3入賞で獲得した大会トロフィー</small>
+        </div>
+        <b>${trophies.length}</b>
+      </header>
+      ${
+        trophies.length > 0
+          ? `
+            <div class="collection-trophy-strip">
+              ${trophies
+                .slice()
+                .reverse()
+                .map(
+                  (trophy) => `
+                    <article>
+                      <div class="collection-trophy-spotlight" aria-hidden="true"></div>
+                      <img src="${escapeAttribute(trophy.image)}" alt="">
+                      <span>${trophy.place} PLACE</span>
+                      <strong>${escapeHtml(trophy.cupName)}</strong>
+                      <small>
+                        ${trophy.acquiredAt?.year ?? "-"}年
+                        ${trophy.acquiredAt?.month ?? "-"}月
+                        第${trophy.acquiredAt?.week ?? "-"}週
+                      </small>
+                    </article>
+                  `,
+                )
+                .join("")}
+            </div>
+          `
+          : `
+            <div class="collection-trophy-empty">
+              <img src="prize/01.png" alt="">
+              <strong>トロフィーはまだありません</strong>
+              <span>カジュアルカップでTop 3を目指しましょう</span>
+            </div>
+          `
+      }
     </section>
     <section class="management-section"><h2>カードパック</h2><div class="pack-icon-strip">${packOpenButtons("card", CARD_PACKS, snapshot.inventory.cardPacks)}</div></section>
     <section class="management-section"><h2>バッジパック</h2><div class="pack-icon-strip">${packOpenButtons("badge", BADGE_PACKS, snapshot.inventory.badgePacks)}</div></section>
@@ -2500,6 +2560,20 @@ export function createManagementController({
       </section>
 
       <article class="strategy-meeting-cinematic__result">
+        ${
+          result.coachResults.some(
+            (coach) =>
+              coach.success,
+          )
+            ? `
+              <img
+                class="strategy-meeting-cinematic__rank-up-icon"
+                src="icon/rankup.png"
+                alt=""
+              >
+            `
+            : ""
+        }
         <div
           class="strategy-meeting-cinematic__flare"
           aria-hidden="true"
@@ -2522,6 +2596,22 @@ export function createManagementController({
           / ${result.coachResults.length}
         </small>
       </article>
+      ${
+        result.coachResults.some(
+          (coach) =>
+            coach.success,
+        )
+          ? `
+            <button
+              type="button"
+              class="strategy-meeting-cinematic__next"
+              data-coach-rank-next
+            >
+              NEXT
+            </button>
+          `
+          : ""
+      }
     `;
 
     root.append(overlay);
@@ -2534,7 +2624,30 @@ export function createManagementController({
     overlay.classList.add(
       "is-reveal",
     );
-    await wait(1300);
+    if (
+      result.coachResults.some(
+        (coach) =>
+          coach.success,
+      )
+    ) {
+      await new Promise(
+        (resolve) => {
+          overlay
+            .querySelector(
+              "[data-coach-rank-next]",
+            )
+            ?.addEventListener(
+              "click",
+              resolve,
+              {
+                once: true,
+              },
+            );
+        },
+      );
+    } else {
+      await wait(1300);
+    }
     overlay.classList.add(
       "is-exit",
     );

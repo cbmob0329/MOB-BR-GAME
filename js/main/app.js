@@ -20,7 +20,7 @@ import {
   SaveError,
   SaveNotFoundError,
   createGameStateManager,
-} from "./state.js?v=33";
+} from "./state.js?v=34";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -42,7 +42,7 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=33";
+} from "./team.js?v=34";
 import {
   getSpecialAbility,
 } from "../../data/ability-data.js";
@@ -53,13 +53,13 @@ import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=33";
+} from "./management.js?v=34";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=33";
+} from "./tournament-bridge.js?v=34";
 
-export const APP_VERSION = "mobbr-main-app-2.1.0";
+export const APP_VERSION = "mobbr-main-app-2.2.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -150,6 +150,69 @@ const WEEKLY_EMPLOYEE_MESSAGES = Object.freeze([
   '準備完了です。新しい一週間を始めましょう！',
 ]);
 
+const PINK_GUIDES = Object.freeze({
+  home: Object.freeze({
+    title: "MOB BRへようこそ",
+    text:
+      "こちらが企業のHOMEです。育成、ショップ、コレクション、大会予定をここから確認できます。少しずつチームを強くしていきましょう。",
+  }),
+  facility: Object.freeze({
+    title: "施設メニュー",
+    text:
+      "施設ごとに使える機能がまとまっています。迷った時はTEAM LABから選手育成を確認してみてください。",
+  }),
+  team: Object.freeze({
+    title: "チーム管理",
+    text:
+      "IGL・ATK・SUPの3選手を確認できます。選手をタップすると、能力や武器の状態を詳しく見られます。",
+  }),
+  train: Object.freeze({
+    title: "トレーニング",
+    text:
+      "3選手それぞれに練習内容を設定します。大会週は練習できませんので、スケジュールも一緒にご確認ください。",
+  }),
+  ability: Object.freeze({
+    title: "プレイヤー強化",
+    text:
+      "能力・武器・スキル・特殊能力を選手ごとに強化できます。必要ポイントや次の効果も表示されます。",
+  }),
+  collection: Object.freeze({
+    title: "コレクション",
+    text:
+      "カード、バッジ、獲得したトロフィーを確認できます。パックを所持している時は、こちらから開封できます。",
+  }),
+  shop: Object.freeze({
+    title: "MOB SHOP",
+    text:
+      "いらっしゃいませ。アイテム、カードパック、武器スキンをご用意しています。必要なものをゆっくりお選びください。",
+  }),
+  coach: Object.freeze({
+    title: "コーチ",
+    text:
+      "コーチの成長と作戦会議を管理できます。作戦は大会前に増やしておくと選択肢が広がります。",
+  }),
+  scout: Object.freeze({
+    title: "スカウト",
+    text:
+      "こちらではコーチをスカウトできます。企業ランクが上がると、候補や利用できる機能が増えていきます。",
+  }),
+  schedule: Object.freeze({
+    title: "大会スケジュール",
+    text:
+      "MOB BRの正式大会とカジュアルカップを確認できます。カジュアル週は4大会から1つ選択できます。",
+  }),
+  room: Object.freeze({
+    title: "MOB ROOM",
+    text:
+      "集めたカードやバッジを飾れる企業ルームです。企業ランクが上がると新しい部屋も解放できます。",
+  }),
+  news: Object.freeze({
+    title: "NEWS",
+    text:
+      "終了した大会の結果を新聞形式で確認できます。出場できなかった大会の結果もこちらへ掲載されます。",
+  }),
+});
+
 const MANAGEMENT_ROUTES = Object.freeze([
   ROUTES.train,
   ROUTES.collection,
@@ -178,25 +241,25 @@ const ROUTE_META = Object.freeze({
   [ROUTES.team]: {
     title: "TEAM",
     description: "チーム管理ハブ",
-    backgroundClass: "screen--sub",
+    backgroundClass: "screen--team",
     icon: "menu/team.png",
   },
   [ROUTES.train]: {
     title: "TRAINING",
     description: "3選手の1週間トレーニング",
-    backgroundClass: "screen--coh",
+    backgroundClass: "screen--team",
     icon: assetPath("menu/traning.png"),
   },
   [ROUTES.collection]: {
     title: "COLLECTION",
     description: "カード・バッジ・その他コレクション",
-    backgroundClass: "screen--sub",
+    backgroundClass: "screen--collection",
     icon: assetPath("menu/COL.png"),
   },
   [ROUTES.shop]: {
     title: "SHOP",
     description: "アイテム・カードパック・武器スキン",
-    backgroundClass: "screen--sub",
+    backgroundClass: "screen--shop",
     icon: "menu/mobshopt.png",
   },
   [ROUTES.settings]: {
@@ -214,13 +277,13 @@ const ROUTE_META = Object.freeze({
   [ROUTES.coach]: {
     title: "COACH",
     description: "コーチ管理と作戦会議",
-    backgroundClass: "screen--coh",
+    backgroundClass: "screen--team",
     icon: "menu/coach.png",
   },
   [ROUTES.scout]: {
     title: "SCOUT",
     description: "コーチ専用スカウト",
-    backgroundClass: "screen--coh",
+    backgroundClass: "screen--team",
     icon: "menu/scout.png",
   },
   [ROUTES.schedule]: {
@@ -232,7 +295,7 @@ const ROUTE_META = Object.freeze({
   [ROUTES.equipment]: {
     title: "EQUIPMENT",
     description: "武器・スキン・持ち込みバッグ",
-    backgroundClass: "screen--sub",
+    backgroundClass: "screen--team",
     icon: "menu/eq.png",
   },
   [ROUTES.record]: {
@@ -256,13 +319,13 @@ const ROUTE_META = Object.freeze({
   [ROUTES.ability]: {
     title: "PLAYER DEVELOPMENT",
     description: "選手能力と武器をひとつの画面で強化",
-    backgroundClass: "screen--sub",
+    backgroundClass: "screen--team",
     icon: "icon/ab.png",
   },
   [ROUTES.specialAbility]: {
     title: "SPECIAL ABILITY",
     description: "青・金・赤の特殊能力",
-    backgroundClass: "screen--sub",
+    backgroundClass: "screen--team",
     icon: "icon/sp.png",
   },
 });
@@ -272,14 +335,16 @@ const FACILITY_DEFINITIONS = Object.freeze([
   { facilityId: "mob_shop", name: "MOB SHOP", japaneseName: "MOB SHOP", note: "ショップ・パック・商品購入", status: "OPEN", accent: "SHOP", homeImage: "back/homeshop.png" },
   { facilityId: "cooking", name: "COOKING", japaneseName: "料理", note: "食材購入とキッチン機能", status: "LOCKED", accent: "COMING SOON", homeImage: "back/homekit.png" },
   { facilityId: "mob_room", name: "MOB ROOM", japaneseName: "モブルーム", note: "部屋を選択してコレクションを配置", status: "OPEN", accent: "ROOM", homeImage: "back/homeroom.png" },
-  { facilityId: "collection", name: "COLLECTION", japaneseName: "コレクション", note: "カード・バッジ・パックファイル", status: "OPEN", accent: "ARCHIVE", homeImage: "back/sub.png" },
+  { facilityId: "collection", name: "COLLECTION", japaneseName: "コレクション", note: "カード・バッジ・パックファイル", status: "OPEN", accent: "ARCHIVE", homeImage: "back/homecol.png" },
 ]);
 
 const FACILITY_MENUS = Object.freeze({
   team_lab: Object.freeze([
     { route: ROUTES.team, name: "TEAM", note: "選手ステータス", icon: "menu/team.png" },
     { route: ROUTES.train, name: "TRAINING", note: "週間育成", icon: "menu/traning.png" },
-    { route: ROUTES.ability, name: "ABILITY / WEAPON", note: "能力・武器を強化", icon: "icon/ab.png" },
+    { route: ROUTES.ability, name: "ABILITY", note: "選手能力を強化", icon: "icon/ab.png" },
+    { route: ROUTES.equipment, name: "WEAPON", note: "武器能力を強化", icon: "icon/weponup.png" },
+    { route: ROUTES.ability, name: "SKILL", note: "スキルを強化", icon: "icon/skillup.png" },
     { route: ROUTES.specialAbility, name: "SPECIAL", note: "特殊能力", icon: "icon/sp.png" },
     { route: ROUTES.collection, name: "COLLECTION", note: "カード・バッジ", icon: "menu/COL.png" },
     { route: ROUTES.coach, name: "COACH", note: "作戦会議", icon: "menu/coach.png" },
@@ -584,7 +649,10 @@ function topStatusTemplate(snapshot) {
             <div class="top-status__company-main">
               <div>
                 <span>${escapeHtml(snapshot.company.companyName)}</span>
-                <b>${escapeHtml(snapshot.company.rank)}</b>
+                <b>
+                  <img src="icon/kigyo.png" alt="">
+                  ${escapeHtml(snapshot.company.rank)}
+                </b>
               </div>
               <div class="company-rank-mini-progress">
                 <i>
@@ -1788,7 +1856,17 @@ export function createMainApp({
     overlay.className =
       `progression-presentation progression-presentation--${kind} ${rankUp ? "is-rank-up" : ""}`;
     overlay.innerHTML = `
-      <div class="progression-presentation__rays" aria-hidden="true"></div>
+      ${
+        rankUp
+          ? `
+            <img
+              class="progression-presentation__rank-icon"
+              src="icon/rankup.png"
+              alt=""
+            >
+          `
+          : `<div class="progression-presentation__glow" aria-hidden="true"></div>`
+      }
       <span>${escapeHtml(label)}</span>
       <h2>${escapeHtml(title)}</h2>
       ${
@@ -1833,6 +1911,13 @@ export function createMainApp({
               <span>RANK UP!</span>
               <strong>${escapeHtml(company?.afterRank ?? title)}</strong>
             </div>
+            <button
+              type="button"
+              class="progression-presentation__next"
+              data-progression-next
+            >
+              NEXT
+            </button>
           `
           : ""
       }
@@ -1843,9 +1928,26 @@ export function createMainApp({
         "is-active",
       ),
     );
-    await waitForUi(
-      rankUp ? 1750 : 1250,
-    );
+    if (rankUp) {
+      await waitForUi(720);
+      const nextButton =
+        overlay.querySelector(
+          "[data-progression-next]",
+        );
+      await new Promise(
+        (resolve) => {
+          nextButton?.addEventListener(
+            "click",
+            resolve,
+            {
+              once: true,
+            },
+          );
+        },
+      );
+    } else {
+      await waitForUi(1250);
+    }
     overlay.classList.add(
       "is-exit",
     );
@@ -1954,6 +2056,70 @@ export function createMainApp({
     };
   }
 
+  async function showPinkGuide(
+    guideKey,
+    guide,
+  ) {
+    const snapshot =
+      stateManager.getSnapshot();
+    if (
+      !snapshot ||
+      !guide ||
+      modalResolver ||
+      weekStartPresentationOpen ||
+      snapshot.ui?.guideFlags?.[
+        guideKey
+      ] === true
+    ) {
+      return false;
+    }
+
+    stateManager.transact(
+      "mob_pink_guide_viewed",
+      (draft) => {
+        draft.ui.guideFlags =
+          draft.ui.guideFlags ?? {};
+        draft.ui.guideFlags[
+          guideKey
+        ] = true;
+      },
+    );
+
+    await openAlert({
+      title: guide.title,
+      body: `
+        <section class="mob-pink-guide">
+          <div class="mob-pink-guide__character">
+            <img src="icon/pink.png" alt="モブピンク">
+            <span>MOB PINK</span>
+          </div>
+          <div class="mob-pink-guide__speech">
+            <strong>モブピンク</strong>
+            <p>${escapeHtml(guide.text)}</p>
+          </div>
+        </section>
+      `,
+      buttonLabel: "わかりました",
+    });
+    return true;
+  }
+
+  function showPinkGuideForRoute(
+    targetRoute,
+  ) {
+    const guide =
+      PINK_GUIDES[targetRoute];
+    if (!guide) {
+      return Promise.resolve(
+        false,
+      );
+    }
+    return showPinkGuide(
+      `route:${targetRoute}`,
+      guide,
+    );
+  }
+
   async function showPendingWeekStartPresentation() {
     if (
       weekStartPresentationOpen ||
@@ -2004,11 +2170,12 @@ export function createMainApp({
                 : ""
             }
             <div class="employee-week-greeting__staff">
-              <div class="employee-placeholder">
-                <span>STAFF</span>
+              <div class="employee-pink">
+                <img src="icon/pink.png" alt="モブピンク">
+                <span>MOB PINK</span>
               </div>
               <div>
-                <span>COMPANY STAFF</span>
+                <span>モブピンク</span>
                 <h3>${pending.gameDate.year}年 ${pending.gameDate.month}月 第${pending.gameDate.week}週</h3>
                 <p>${escapeHtml(message)}</p>
               </div>
@@ -2270,6 +2437,9 @@ export function createMainApp({
         `,
         buttonLabel: "HOMEへ",
       });
+      await showPinkGuideForRoute(
+        ROUTES.home,
+      );
     } catch (error) {
       hideLoading();
       await openAlert({
@@ -2335,6 +2505,11 @@ export function createMainApp({
     }
     route = normalized;
     render();
+    queueMicrotask(() =>
+      showPinkGuideForRoute(
+        normalized,
+      ),
+    );
   }
 
   async function saveSettings(form) {
@@ -2678,6 +2853,7 @@ export function createMainApp({
         await playProgressionPresentation({
           kind: "ability",
           label: "ABILITY UP",
+          rankUp: true,
           title: "選手能力アップ",
           subject: player?.name ?? "",
           entries:
@@ -2778,6 +2954,7 @@ export function createMainApp({
         await playProgressionPresentation({
           kind: "weapon",
           label: "WEAPON UP",
+          rankUp: true,
           title: "武器能力アップ",
           subject:
             `${player?.name ?? ""} / ${player?.weapon.weaponName ?? ""}`,
@@ -2844,6 +3021,7 @@ export function createMainApp({
         await playProgressionPresentation({
           kind: "weapon",
           label: "WEAPON UP",
+          rankUp: true,
           title: "武器能力アップ",
           subject:
             `${player?.name ?? ""} / ${player?.weapon.weaponName ?? ""}`,
@@ -2956,6 +3134,7 @@ export function createMainApp({
         await playProgressionPresentation({
           kind: "skill",
           label: "SKILL LEVEL UP",
+          rankUp: true,
           title:
             transaction.result.name,
           subject:
@@ -3112,6 +3291,7 @@ export function createMainApp({
         await playProgressionPresentation({
           kind: "special",
           label: "SPECIAL ABILITY",
+          rankUp: true,
           title: "特殊能力習得",
           subject:
             player?.name ?? "",
@@ -3440,6 +3620,8 @@ export function createMainApp({
     installAssetFallbacks(document);
     await preloadImages([
       assetPath("back/Load.png"), assetPath("back/main1.png"), assetPath("back/sub.png"), assetPath("back/coh.png"),
+      assetPath("back/homecol.png"), assetPath("back/backcol.png"), assetPath("back/backcoh.png"), assetPath("back/backshop.png"),
+      "icon/pink.png", "icon/rankup.png", "icon/kigyo.png", "icon/weponup.png", "icon/skillup.png",
       "menu/home.png", "menu/team.png", "menu/traning.png", "menu/COL.png",
       "icon/coin.png", "icon/daia.png", "icon/rubi.png",
     ]);

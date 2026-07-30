@@ -17,7 +17,7 @@ import {
   getPlacementPoints,
   getTournamentEventsForDate,
   isChampionshipYear,
-} from "../../data/game-data.js?v=33";
+} from "../../data/game-data.js?v=34";
 import {
   CASUAL_TOURNAMENT_RULES,
   FORMAL_CIRCUIT_RULES,
@@ -31,7 +31,7 @@ import {
   selectTeamIds,
   sourcePoolForTeamId,
   teamSeed,
-} from "../../data/circuit-data.js?v=33";
+} from "../../data/circuit-data.js?v=34";
 import {
   LOCAL_CPU_TEAMS,
 } from "../../data/cpu-local-data.js";
@@ -43,12 +43,15 @@ import {
 } from "../../data/cpu-world-data.js";
 import {
   BATTLE_CONFIG_VERSION,
-} from "../../data/battle-config.js?v=33";
+} from "../../data/battle-config.js?v=34";
 import {
   CONSUMABLE_ITEMS,
   ITEM_MASTER_VERSION,
   getItem,
 } from "../../data/shop-data.js";
+import {
+  getCasualCup,
+} from "../../data/casual-data.js?v=34";
 import {
   STRATEGIES,
   STRATEGY_MASTER_VERSION,
@@ -57,9 +60,9 @@ import {
   DuplicateTournamentResultError,
   STORAGE_KEYS,
   calculateChecksum,
-} from "./state.js?v=33";
+} from "./state.js?v=34";
 
-export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-1.9.0";
+export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-2.0.0";
 export const TOURNAMENT_ENTRY_SCHEMA_VERSION =
   "mobbr-tournament-entry-1.0.0";
 export const TOURNAMENT_RESULT_SCHEMA_VERSION =
@@ -402,6 +405,22 @@ export const REWARD_TABLES = deepFreeze({
       rewardBand(11, 20, { coin: 30_000, diamond: 1, ruby: 0, companyExp: 1, pointEach: 3 }),
     ],
   },
+  casual_rockets: {
+    rewardTableId: "reward-casual-rockets-placeholder-v1",
+    tableVersion: REWARD_TABLE_VERSION,
+    maximumPlace: 20,
+    bands: [
+      rewardBand(1, 20, { coin: 0, diamond: 0, ruby: 0, companyExp: 0, pointEach: 0 }),
+    ],
+  },
+  casual_tempest: {
+    rewardTableId: "reward-casual-tempest-placeholder-v1",
+    tableVersion: REWARD_TABLE_VERSION,
+    maximumPlace: 20,
+    bands: [
+      rewardBand(1, 20, { coin: 0, diamond: 0, ruby: 0, companyExp: 0, pointEach: 0 }),
+    ],
+  },
   championship: {
     rewardTableId: "reward-championship-v1",
     tableVersion: REWARD_TABLE_VERSION,
@@ -431,7 +450,17 @@ export const REWARD_TABLES = deepFreeze({
 });
 
 export function getTournamentIcon(tournamentType) {
-  const tier = normalizeCircuitTier(tournamentType);
+  const casual =
+    getCasualCup(
+      tournamentType,
+    );
+  if (casual) {
+    return casual.logoImage;
+  }
+  const tier =
+    normalizeCircuitTier(
+      tournamentType,
+    );
   if (tier === "national") return "icon/national.png";
   if (tier === "world") return "icon/world.png";
   if (tier === "championship") return "icon/champ.png";
@@ -564,7 +593,7 @@ export function getTournamentEntryAvailability(snapshot, event) {
   if (type === "casual_denden") {
     return {
       eligible: true,
-      reason: "企業ランク制限なし。今月は2大会から1つだけ選べます。",
+      reason: "企業ランク制限なし。今月は4大会から1つだけ選べます。",
       status: "optional",
     };
   }
@@ -578,6 +607,22 @@ export function getTournamentEntryAvailability(snapshot, event) {
         ? "企業ランクC1以上。Worldゲスト1チームが参戦します。"
         : "企業ランクC1で解放されます。",
       status: eligible ? "optional" : "locked",
+    };
+  }
+  if (type === "casual_rockets") {
+    return {
+      eligible: true,
+      reason:
+        "参加条件なし。ジョーダンロケッツ確定、National・Local上位・Worldゲストで20チームです。",
+      status: "optional",
+    };
+  }
+  if (type === "casual_tempest") {
+    return {
+      eligible: true,
+      reason:
+        "参加条件なし。ゴールデンテンペスト確定、World中心の20チームです。",
+      status: "optional",
     };
   }
   if (type === "local") {
@@ -856,7 +901,7 @@ export const TOURNAMENT_TYPE_PRESETS = deepFreeze({
     totalTeams: 20,
     matches: CASUAL_TOURNAMENT_RULES.casual_denden.matches,
     cpuPoolId: "casual-denden",
-    openingThemeId: "local",
+    openingThemeId: "denden",
     qualificationRule: { ruleId: "casual-final", type: "final" },
     matchPointRule: { enabled: false },
     rewardTableKey: "casual_denden",
@@ -866,10 +911,30 @@ export const TOURNAMENT_TYPE_PRESETS = deepFreeze({
     totalTeams: 20,
     matches: CASUAL_TOURNAMENT_RULES.casual_mobutetsu.matches,
     cpuPoolId: "casual-mobutetsu",
-    openingThemeId: "national",
+    openingThemeId: "mobutetsu",
     qualificationRule: { ruleId: "casual-final", type: "final" },
     matchPointRule: { enabled: false },
     rewardTableKey: "casual_mobutetsu",
+  },
+  casual_rockets: {
+    tournamentName: "ジョーダンロケッツカップ",
+    totalTeams: 20,
+    matches: CASUAL_TOURNAMENT_RULES.casual_rockets.matches,
+    cpuPoolId: "casual-rockets",
+    openingThemeId: "rockets",
+    qualificationRule: { ruleId: "casual-final", type: "final" },
+    matchPointRule: { enabled: false },
+    rewardTableKey: "casual_rockets",
+  },
+  casual_tempest: {
+    tournamentName: "ゴールデンテンペストカップ",
+    totalTeams: 20,
+    matches: CASUAL_TOURNAMENT_RULES.casual_tempest.matches,
+    cpuPoolId: "casual-tempest",
+    openingThemeId: "tempest",
+    qualificationRule: { ruleId: "casual-final", type: "final" },
+    matchPointRule: { enabled: false },
+    rewardTableKey: "casual_tempest",
   },
   championship: {
     tournamentName: "MOB BR CHAMPIONSHIP",
@@ -1286,6 +1351,125 @@ export function createTournamentCircuitContext(snapshot, event) {
     };
   }
 
+  if (type === "casual_rockets") {
+    const fixedNationalId =
+      CASUAL_TOURNAMENT_RULES
+        .casual_rockets
+        .fixedNationalTeamId;
+    const additionalNational =
+      selectTeamIds(
+        NATIONAL_CPU_TEAMS.filter(
+          (team) =>
+            team.teamId !==
+            fixedNationalId,
+        ),
+        CASUAL_TOURNAMENT_RULES
+          .casual_rockets
+          .additionalNationalSlots,
+        `${seed}:rockets-national`,
+      );
+    const localTopIds =
+      selectTeamIds(
+        LOCAL_CPU_TEAMS.slice(
+          0,
+          12,
+        ),
+        CASUAL_TOURNAMENT_RULES
+          .casual_rockets
+          .localTopSlots,
+        `${seed}:rockets-local-top`,
+      );
+    const worldGuestIds =
+      selectTeamIds(
+        getWorldCpuTeamsForYear(
+          year,
+        ),
+        CASUAL_TOURNAMENT_RULES
+          .casual_rockets
+          .worldGuestSlots,
+        `${seed}:rockets-world`,
+      );
+    const teamIds = [
+      playerTeamId,
+      fixedNationalId,
+      ...additionalNational,
+      ...localTopIds,
+      ...worldGuestIds,
+    ];
+    return {
+      ...base,
+      fixedTeamIds: [
+        fixedNationalId,
+      ],
+      guestTeamIds:
+        worldGuestIds,
+      participantSeeds:
+        participantSeedsFromIds(
+          teamIds,
+          {
+            playerTeamId,
+            guestTeamIds:
+              worldGuestIds,
+          },
+        ),
+      matchPlan:
+        createSimpleMatchPlan(
+          teamIds,
+          CASUAL_TOURNAMENT_RULES
+            .casual_rockets
+            .matches,
+        ),
+    };
+  }
+
+  if (type === "casual_tempest") {
+    const fixedWorldId =
+      CASUAL_TOURNAMENT_RULES
+        .casual_tempest
+        .fixedWorldTeamId;
+    const worldPool =
+      getWorldCpuTeamsForYear(
+        year,
+      );
+    const additionalWorld =
+      selectTeamIds(
+        worldPool.filter(
+          (team) =>
+            team.teamId !==
+            fixedWorldId,
+        ),
+        CASUAL_TOURNAMENT_RULES
+          .casual_tempest
+          .additionalWorldSlots,
+        `${seed}:tempest-world`,
+      );
+    const teamIds = [
+      playerTeamId,
+      fixedWorldId,
+      ...additionalWorld,
+    ];
+    return {
+      ...base,
+      fixedTeamIds: [
+        fixedWorldId,
+      ],
+      participantSeeds:
+        participantSeedsFromIds(
+          teamIds,
+          {
+            playerTeamId,
+          },
+        ),
+      matchPlan:
+        createSimpleMatchPlan(
+          teamIds,
+          CASUAL_TOURNAMENT_RULES
+            .casual_tempest
+            .matches,
+        ),
+    };
+  }
+
   if (type === "national_week_1") {
     const local = requireHistory(snapshot, "local", year, "LOCAL");
     const localQualifierIds = uniqueTeamIds(
@@ -1658,6 +1842,14 @@ export function createTournamentEntryData(
       badgeImage: snapshot.company.badgeImage,
       roomId: snapshot.company.activeRoomId,
     },
+    guide: {
+      showPinkTournamentIntro:
+        snapshot.ui?.guideFlags?.[
+          `tournament:${tournamentType}`
+        ] !== true,
+      pinkImage:
+        "icon/pink.png",
+    },
     playerTeam: {
       teamId: snapshot.playerTeam.teamId,
       teamName: snapshot.playerTeam.teamName,
@@ -1996,6 +2188,11 @@ export function prepareTournamentEntry({
   try {
     stateManager.transact("tournament_entry_prepared", (draft) => {
       draft.tournament.activeEntryId = entry.entryId;
+      draft.ui.guideFlags =
+        draft.ui.guideFlags ?? {};
+      draft.ui.guideFlags[
+        `tournament:${entry.tournament.tournamentType}`
+      ] = true;
       draft.tournament.resumeData = {
         schemaVersion: TOURNAMENT_RESUME_SCHEMA_VERSION,
         state: "prepared",
@@ -2754,6 +2951,8 @@ function tournamentRuleSummary(event) {
   if (type === "world_final") return "20チーム / 50POINT MATCH POINT / 世界王者決定";
   if (type === "casual_denden") return "20チーム / 3MATCH / Local14＋National下位5";
   if (type === "casual_mobutetsu") return "企業C1以上 / 5MATCH / Worldゲスト1チーム";
+  if (type === "casual_rockets") return "20チーム / 3MATCH / ジョーダンロケッツ＋National・Local上位＋World3";
+  if (type === "casual_tempest") return "20チーム / 3MATCH / ゴールデンテンペスト＋World中心";
   if (type === "championship") return "3年に1回 / Championship Point上位20";
   return "大会ルールを確認してください";
 }
@@ -2869,7 +3068,7 @@ export function renderTournamentSchedule(snapshot, storage) {
       <div>
         <b>LOCAL</b><i>→</i><b>NATIONAL</b><i>→</i><b>NATIONAL LC</b><i>→</i><b>WORLD予選</b><i>→</i><b>WORLD LC</b><i>→</i><b>WORLD FINAL</b>
       </div>
-      <p>MOB BRは年1回。毎月のカジュアル週はデンデンカップとモブテツカップから1大会だけ選択できます。</p>
+      <p>MOB BRは年1回。毎月のカジュアル週は4つのカップから1大会だけ選択できます。</p>
     </section>
     <section class="tournament-current-week">
       <h2>CURRENT WEEK</h2>
