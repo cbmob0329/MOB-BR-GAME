@@ -9867,3 +9867,81 @@ html[data-asset-prefix="../../"] .tournament-loading-overlay {
   opacity: .45;
   pointer-events: none;
 }
+
+
+/* Generation 34: persistent CHILL TIME portal and CPU portrait balance */
+.battle-chill-button--portal {
+  position: fixed !important;
+  z-index: 2147483000 !important;
+  top:
+    calc(
+      env(safe-area-inset-top) +
+      54px
+    ) !important;
+  left: 50% !important;
+  right: auto !important;
+  min-width: 132px;
+  min-height: 48px;
+  translate: -50% 0 !important;
+  pointer-events: auto !important;
+  touch-action: none !important;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  isolation: isolate;
+}
+
+.battle-chill-button--portal::after {
+  position: absolute;
+  z-index: -1;
+  inset: -10px -14px;
+  border-radius: 18px;
+  content: "";
+  pointer-events: auto;
+}
+
+.battle-chill-button--portal:disabled {
+  opacity: .72;
+}
+
+.battle-chill-button--portal.is-paused {
+  border-color: rgb(112 238 194 / 72%);
+  background:
+    linear-gradient(
+      145deg,
+      rgb(24 103 77 / 98%),
+      rgb(5 31 25 / 98%)
+    );
+}
+
+.battle-fighter__portrait > img {
+  scale:
+    var(
+      --portrait-balance-scale,
+      1
+    );
+  transform-origin: center bottom;
+  transition:
+    scale 180ms ease,
+    filter 130ms ease;
+}
+
+
+/* Generation 34: MOB Pink tournament guide */
+.opening-stage--mob_pink_guide
+  .opening-stage__foreground {
+  align-items: end;
+}
+
+.opening-stage--mob_pink_guide
+  .opening-stage__foreground
+  img {
+  width: min(57vw, 250px);
+  height: min(47dvh, 360px);
+  object-fit: contain;
+  object-position: center bottom;
+  filter:
+    drop-shadow(
+      0 16px 12px
+      rgb(0 0 0 / 48%)
+    );
+}

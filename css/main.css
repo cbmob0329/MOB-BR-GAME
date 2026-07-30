@@ -8492,3 +8492,633 @@ img.asset-missing {
     grid-template-columns: repeat(4, 76px) !important;
   }
 }
+
+
+/* Generation 34: casual trophy case */
+.collection-trophy-case {
+  display: grid;
+  width: min(100%, 760px);
+  gap: 10px;
+  margin-inline: auto;
+  border: 2px solid rgb(226 195 105 / 44%);
+  border-radius: 18px;
+  padding: 12px;
+  background:
+    radial-gradient(circle at 50% 0, rgb(255 224 126 / 17%), transparent 42%),
+    linear-gradient(160deg, rgb(35 24 13 / 96%), rgb(10 13 20 / 97%));
+  box-shadow:
+    0 17px 30px rgb(0 0 0 / 34%),
+    inset 0 1px 0 rgb(255 255 255 / 8%);
+}
+
+.collection-trophy-case > header {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+}
+
+.collection-trophy-case > header > img {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  filter: drop-shadow(0 7px 6px rgb(0 0 0 / 38%));
+}
+
+.collection-trophy-case > header > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.collection-trophy-case > header span {
+  color: #f1ce69;
+  font-size: .38rem;
+  font-weight: 1000;
+  letter-spacing: .09em;
+}
+
+.collection-trophy-case > header strong {
+  color: #fff;
+  font-size: .78rem;
+}
+
+.collection-trophy-case > header small {
+  color: rgb(255 255 255 / 58%);
+  font-size: .4rem;
+}
+
+.collection-trophy-case > header > b {
+  display: grid;
+  min-width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 2px solid rgb(241 206 105 / 53%);
+  border-radius: 50%;
+  color: #f1ce69;
+}
+
+.collection-trophy-strip {
+  display: grid;
+  grid-auto-columns: minmax(142px, 42%);
+  grid-auto-flow: column;
+  gap: 9px;
+  overflow-x: auto;
+  padding: 5px 2px 9px;
+  scroll-snap-type: x mandatory;
+}
+
+.collection-trophy-strip article {
+  position: relative;
+  display: grid;
+  min-height: 210px;
+  scroll-snap-align: center;
+  justify-items: center;
+  align-content: end;
+  gap: 3px;
+  overflow: hidden;
+  border: 3px solid rgb(238 211 126 / 47%);
+  border-radius: 15px;
+  padding: 10px 8px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 8%), rgb(0 0 0 / 31%)),
+    rgb(24 20 15 / 95%);
+}
+
+.collection-trophy-strip article > img {
+  position: relative;
+  z-index: 2;
+  width: 112px;
+  height: 128px;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 8px rgb(0 0 0 / 48%));
+}
+
+.collection-trophy-strip article > span {
+  position: relative;
+  z-index: 2;
+  color: #f1ce69;
+  font-size: .36rem;
+  font-weight: 1000;
+}
+
+.collection-trophy-strip article > strong {
+  position: relative;
+  z-index: 2;
+  color: #fff;
+  font-size: .48rem;
+  text-align: center;
+}
+
+.collection-trophy-strip article > small {
+  position: relative;
+  z-index: 2;
+  color: rgb(255 255 255 / 57%);
+  font-size: .34rem;
+}
+
+.collection-trophy-spotlight {
+  position: absolute;
+  inset: -15% 8% 30%;
+  background:
+    conic-gradient(
+      from 220deg,
+      transparent,
+      rgb(255 224 128 / 17%),
+      transparent 34%
+    );
+  filter: blur(5px);
+  animation: trophy-light-breathe 2.2s ease-in-out infinite alternate;
+}
+
+.collection-trophy-empty {
+  display: grid;
+  min-height: 150px;
+  place-content: center;
+  justify-items: center;
+  gap: 4px;
+  border: 1px dashed rgb(255 255 255 / 18%);
+  border-radius: 13px;
+  color: rgb(255 255 255 / 63%);
+}
+
+.collection-trophy-empty img {
+  width: 68px;
+  height: 68px;
+  object-fit: contain;
+  opacity: .55;
+}
+
+@keyframes trophy-light-breathe {
+  to {
+    opacity: .55;
+    scale: 1.07;
+  }
+}
+
+
+/* Generation 34: supplied backgrounds, MOB Pink, rank-up and exact centering */
+
+.screen--team {
+  background-image:
+    linear-gradient(180deg, rgb(0 0 0 / 13%), rgb(0 0 0 / 46%)),
+    url("../back/backcoh.png"),
+    radial-gradient(circle at 50% 15%, #3d4358, #090b11 70%);
+}
+
+.screen--collection {
+  background-image:
+    linear-gradient(180deg, rgb(0 0 0 / 10%), rgb(0 0 0 / 40%)),
+    url("../back/backcol.png"),
+    radial-gradient(circle at 50% 15%, #594936, #090b11 70%);
+}
+
+.screen--shop {
+  background-image:
+    linear-gradient(180deg, rgb(0 0 0 / 9%), rgb(0 0 0 / 38%)),
+    url("../back/backshop.png"),
+    radial-gradient(circle at 50% 15%, #49324f, #090b11 70%);
+}
+
+.screen--team,
+.screen--collection,
+.screen--shop {
+  background-color: #080a0f;
+}
+
+.top-status__company-main
+  > div:first-child
+  > b {
+  grid-template-columns: 14px auto;
+  gap: 3px;
+}
+
+.top-status__company-main
+  > div:first-child
+  > b
+  > img {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  filter:
+    drop-shadow(
+      0 0 5px
+      rgb(112 221 255 / 42%)
+    );
+}
+
+.employee-pink {
+  position: relative;
+  display: grid;
+  width: 78px;
+  height: 82px;
+  place-items: end center;
+  overflow: hidden;
+  border: 3px solid rgb(238 139 190 / 62%);
+  border-radius: 50% 50% 14px 14px;
+  background:
+    radial-gradient(circle at 50% 25%, #ffe1ef, #b83f82 78%);
+  box-shadow:
+    0 0 0 4px rgb(255 255 255 / 8%),
+    0 9px 19px rgb(0 0 0 / 28%);
+}
+
+.employee-pink img {
+  position: absolute;
+  inset: 3px 3px 14px;
+  width: calc(100% - 6px);
+  height: calc(100% - 17px);
+  object-fit: contain;
+  object-position: center bottom;
+  filter:
+    drop-shadow(
+      0 6px 5px
+      rgb(0 0 0 / 32%)
+    );
+}
+
+.employee-pink span {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  padding: 2px 3px;
+  background: rgb(32 8 24 / 82%);
+  color: #fff !important;
+  font-size: .27rem !important;
+  text-align: center;
+}
+
+.mob-pink-guide {
+  display: grid;
+  grid-template-columns: 108px minmax(0, 1fr);
+  gap: 10px;
+  align-items: end;
+  padding: 4px;
+}
+
+.mob-pink-guide__character {
+  position: relative;
+  display: grid;
+  min-height: 150px;
+  align-items: end;
+  overflow: hidden;
+  border: 3px solid rgb(232 115 177 / 54%);
+  border-radius: 58px 58px 14px 14px;
+  background:
+    radial-gradient(circle at 50% 22%, #ffe3f1, #b73d82 78%);
+  box-shadow:
+    inset 0 0 0 3px rgb(255 255 255 / 18%),
+    0 12px 20px rgb(0 0 0 / 27%);
+}
+
+.mob-pink-guide__character img {
+  width: 100%;
+  height: 134px;
+  object-fit: contain;
+  object-position: center bottom;
+  filter:
+    drop-shadow(
+      0 8px 7px
+      rgb(0 0 0 / 34%)
+    );
+}
+
+.mob-pink-guide__character span {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 4px;
+  background: rgb(37 8 27 / 84%);
+  color: #fff;
+  font-size: .32rem;
+  font-weight: 1000;
+  text-align: center;
+}
+
+.mob-pink-guide__speech {
+  position: relative;
+  display: grid;
+  gap: 5px;
+  border: 3px solid rgb(238 162 201 / 42%);
+  border-radius: 16px;
+  padding: 12px;
+  background:
+    linear-gradient(145deg, #fff9fc, #f5dce9);
+  color: #2d2430;
+  box-shadow:
+    0 11px 20px rgb(0 0 0 / 20%);
+}
+
+.mob-pink-guide__speech::before {
+  position: absolute;
+  top: 48%;
+  left: -12px;
+  width: 21px;
+  height: 21px;
+  rotate: 45deg;
+  border-bottom: 3px solid rgb(238 162 201 / 42%);
+  border-left: 3px solid rgb(238 162 201 / 42%);
+  content: "";
+  background: #fae8f1;
+}
+
+.mob-pink-guide__speech strong {
+  color: #c74387;
+  font-size: .58rem;
+}
+
+.mob-pink-guide__speech p {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  color: #403442;
+  font-size: .52rem;
+  line-height: 1.65;
+}
+
+.mobshop-staff-placeholder--pink {
+  position: relative;
+  overflow: hidden;
+  padding: 0 !important;
+  background:
+    radial-gradient(circle at 50% 25%, #ffe1ef, #d65c9e 72%) !important;
+}
+
+.mobshop-staff-placeholder--pink img {
+  position: absolute;
+  inset: 2px 2px 14px;
+  width: calc(100% - 4px);
+  height: calc(100% - 16px);
+  object-fit: contain;
+  object-position: center bottom;
+  filter:
+    drop-shadow(
+      0 6px 5px
+      rgb(0 0 0 / 32%)
+    );
+}
+
+.mobshop-staff-placeholder--pink span {
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 2px;
+  background: rgb(48 10 34 / 80%);
+  color: #fff;
+  font-size: .27rem;
+  font-weight: 1000;
+  text-align: center;
+}
+
+.progression-presentation__rank-icon {
+  position: relative;
+  z-index: 3;
+  width: min(39vw, 168px);
+  height: min(39vw, 168px);
+  object-fit: contain;
+  filter:
+    drop-shadow(
+      0 0 24px
+      rgb(244 214 99 / 52%)
+    )
+    drop-shadow(
+      0 15px 10px
+      rgb(0 0 0 / 39%)
+    );
+  animation:
+    rank-icon-arrive
+    620ms
+    cubic-bezier(.15,.89,.21,1)
+    both,
+    rank-icon-breathe
+    1.2s
+    650ms
+    ease-in-out
+    infinite
+    alternate;
+}
+
+.progression-presentation__glow {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: min(92vw, 520px);
+  height: min(92vw, 520px);
+  translate: -50% -50%;
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle,
+      rgb(91 211 255 / 23%),
+      transparent 67%
+    );
+  animation:
+    presentation-glow-pulse
+    1.3s
+    ease-in-out
+    infinite
+    alternate;
+}
+
+.progression-presentation__next,
+.strategy-meeting-cinematic__next {
+  position: relative;
+  z-index: 20;
+  min-width: min(78vw, 330px);
+  min-height: 54px;
+  border: 3px solid rgb(255 226 124 / 68%);
+  border-radius: 14px;
+  padding: 10px 24px;
+  background:
+    linear-gradient(145deg, #f3d863, #9b6f18);
+  color: #211702;
+  font-size: .72rem;
+  font-weight: 1000;
+  letter-spacing: .12em;
+  box-shadow:
+    0 12px 24px rgb(0 0 0 / 34%),
+    0 0 20px rgb(244 215 99 / 25%),
+    inset 0 2px 0 rgb(255 255 255 / 44%);
+  touch-action: manipulation;
+}
+
+.progression-presentation__next:active,
+.strategy-meeting-cinematic__next:active {
+  scale: .97;
+}
+
+.strategy-meeting-cinematic__rank-up-icon {
+  position: absolute !important;
+  z-index: 9 !important;
+  top: -62px;
+  left: 50%;
+  width: 90px !important;
+  height: 90px !important;
+  translate: -50% 0;
+  object-fit: contain;
+  filter:
+    drop-shadow(
+      0 0 17px
+      rgb(244 215 99 / 52%)
+    );
+  animation:
+    rank-icon-arrive
+    600ms
+    cubic-bezier(.15,.89,.21,1)
+    both !important;
+}
+
+.strategy-meeting-cinematic__next {
+  position: fixed;
+  right: max(18px, env(safe-area-inset-right));
+  bottom:
+    calc(
+      env(safe-area-inset-bottom) +
+      18px
+    );
+  left: max(18px, env(safe-area-inset-left));
+  width: auto;
+}
+
+@keyframes rank-icon-arrive {
+  from {
+    translate: 0 -22px;
+    scale: .48;
+    opacity: 0;
+    filter:
+      brightness(2)
+      blur(6px);
+  }
+  72% {
+    scale: 1.12;
+    opacity: 1;
+  }
+  to {
+    translate: 0 0;
+    scale: 1;
+    opacity: 1;
+  }
+}
+
+@keyframes rank-icon-breathe {
+  to {
+    scale: 1.04;
+    filter:
+      drop-shadow(
+        0 0 31px
+        rgb(244 214 99 / 68%)
+      )
+      drop-shadow(
+        0 15px 10px
+        rgb(0 0 0 / 39%)
+      );
+  }
+}
+
+/* True center alignment independent of the page scrollbar width. */
+.collection-file-view,
+.collection-file-launchers,
+.collection-trophy-case {
+  position: relative;
+  right: auto !important;
+  left: 50% !important;
+  width:
+    min(
+      calc(
+        100vw -
+        var(--safe-left) -
+        var(--safe-right) -
+        20px
+      ),
+      620px
+    ) !important;
+  margin-right: 0 !important;
+  margin-left: 0 !important;
+  translate: -50% 0 !important;
+  box-sizing: border-box;
+}
+
+.collection-file {
+  position: relative;
+  right: auto !important;
+  left: 50% !important;
+  width:
+    min(
+      calc(
+        100vw -
+        var(--safe-left) -
+        var(--safe-right) -
+        28px
+      ),
+      560px
+    ) !important;
+  margin-right: 0 !important;
+  margin-left: 0 !important;
+  translate: -50% 0 !important;
+  box-sizing: border-box;
+}
+
+.collection-file__page {
+  box-sizing: border-box;
+}
+
+/* Tournament first-visit MOB Pink scene. */
+.opening-stage--mob_pink_guide
+  .opening-stage__foreground {
+  align-items: end;
+}
+
+.opening-stage--mob_pink_guide
+  .opening-stage__foreground
+  img {
+  width: min(57vw, 250px);
+  height: min(47dvh, 360px);
+  object-fit: contain;
+  object-position: center bottom;
+  filter:
+    drop-shadow(
+      0 16px 12px
+      rgb(0 0 0 / 48%)
+    );
+}
+
+@media (max-width: 390px) {
+  .mob-pink-guide {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
+
+  .mob-pink-guide__character {
+    min-height: 132px;
+  }
+
+  .mob-pink-guide__character img {
+    height: 118px;
+  }
+
+  .mob-pink-guide__speech {
+    padding: 10px;
+  }
+}
+
+/* Generation 34: collection POWER UP rank icon */
+.pack-reveal-card__rank-up-icon,
+.pack-opening-hero__rank-up-icon {
+  position: absolute !important;
+  z-index: 12 !important;
+  top: 5px;
+  right: 5px;
+  width: 42px !important;
+  height: 42px !important;
+  object-fit: contain;
+  filter: drop-shadow(0 0 10px rgb(244 215 99 / 62%));
+  animation: rank-icon-arrive 520ms cubic-bezier(.15,.89,.21,1) both !important;
+}
+
+.pack-opening-hero__rank-up-icon {
+  top: 9px;
+  right: 10px;
+  width: 64px !important;
+  height: 64px !important;
+}
