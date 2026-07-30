@@ -5,7 +5,7 @@
  * UI state, save data, and tournament runtime state must not be stored here.
  */
 
-export const GAME_DATA_VERSION = "mobbr-game-data-1.4.0";
+export const GAME_DATA_VERSION = "mobbr-game-data-1.5.0";
 
 export const GAME_META = Object.freeze({
   id: "mob-br",
@@ -594,7 +594,7 @@ export const TOURNAMENT_SESSION_RULES = Object.freeze({
   simulationRoundTargets: Object.freeze([20, 15, 10, 6, 4, 2, 1]),
   displayRoundLimit: 5,
   mergeFinalDuelIntoFinale: true,
-  roundEncounterRates: Object.freeze([1, 0.7, 0.75, 1, 1, 1]),
+  roundEncounterRates: Object.freeze([1, 0.75, 1, 0.75, 1, 1]),
   resultLayers: Object.freeze(["ROUND", "MATCH", "TOURNAMENT_TOTAL"]),
 });
 

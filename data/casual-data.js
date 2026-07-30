@@ -34,7 +34,7 @@ export const CASUAL_CUP_MASTER =
         backgroundImage:
           "back/tetsu.png",
         logoImage:
-          "icon/brden.png",
+          "icon/brtetsu.png",
         trophyImages:
           Object.freeze({
             1: "prize/05.png",

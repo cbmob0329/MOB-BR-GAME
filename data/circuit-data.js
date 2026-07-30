@@ -7,6 +7,7 @@
 
 import {
   getChampionshipPoints,
+  rankToCharacterValue,
 } from "./game-data.js";
 import {
   LOCAL_CPU_TEAMS,
@@ -18,7 +19,7 @@ import {
   getWorldCpuTeamsForYear,
 } from "./cpu-world-data.js";
 
-export const CIRCUIT_DATA_VERSION = "mobbr-circuit-data-1.2.0";
+export const CIRCUIT_DATA_VERSION = "mobbr-circuit-data-1.3.0";
 
 export const FORMAL_STAGE_TYPES = Object.freeze([
   "local",
@@ -371,26 +372,209 @@ export function selectTeamIds(pool, count, seed, exclusions = []) {
   return deterministicShuffle(candidates, seed).slice(0, count);
 }
 
+function averageRankRangeValue(
+  rankRange,
+) {
+  if (
+    !Array.isArray(rankRange) ||
+    rankRange.length < 2
+  ) {
+    return 1;
+  }
+  const left =
+    rankToCharacterValue(
+      rankRange[0],
+    );
+  const right =
+    rankToCharacterValue(
+      rankRange[1],
+    );
+  return (
+    left +
+    right
+  ) / 2;
+}
+
+function observerTeamStrength(
+  teamId,
+  seed,
+) {
+  const team =
+    resolveCpuTeamMaster(
+      teamId,
+      9999,
+    );
+  if (!team) {
+    return {
+      teamId,
+      team: null,
+      baseStrength: 1,
+      formModifier: 0,
+      luckModifier: 0,
+      simulatedStrength: 1,
+    };
+  }
+
+  const baseStrength =
+    team.members.reduce(
+      (sum, member) =>
+        sum +
+        averageRankRangeValue(
+          member.normalRankRange,
+        ),
+      0,
+    ) /
+    Math.max(
+      1,
+      team.members.length,
+    );
+
+  const random =
+    createSeededRandom(
+      `${seed}:${teamId}:observer-form`,
+    );
+  // Form and match variance can move a team, but cannot erase rank value.
+  const formModifier =
+    (random() - 0.5) *
+    8;
+  const luckModifier =
+    (random() - 0.5) *
+    5;
+  const simulatedStrength =
+    baseStrength * 10 +
+    formModifier +
+    luckModifier;
+
+  return {
+    teamId,
+    team,
+    baseStrength,
+    formModifier,
+    luckModifier,
+    simulatedStrength,
+  };
+}
+
 export function createObserverRankings(teamIds, seed) {
+  const ranked =
+    teamIds
+      .map(
+        (teamId) =>
+          observerTeamStrength(
+            teamId,
+            seed,
+          ),
+      )
+      .sort(
+        (left, right) =>
+          right.simulatedStrength -
+            left.simulatedStrength ||
+          right.baseStrength -
+            left.baseStrength ||
+          left.teamId.localeCompare(
+            right.teamId,
+          ),
+      );
+
   return Object.freeze(
-    deterministicShuffle(teamIds, `${seed}:observer-rankings`)
-      .map((teamId, index) => Object.freeze({
-        place: index + 1,
-        teamId,
-        teamName: resolveCpuTeamMaster(teamId, 9999)?.name ?? teamId,
-        teamLogo: resolveCpuTeamMaster(teamId, 9999)?.logo ?? null,
-        isPlayer: false,
-        sumPlacementPoint: Math.max(0, 15 - Math.floor(index / 2)),
-        sumKp: Math.max(0, 12 - Math.floor(index / 3)),
-        sumTotal:
-          Math.max(0, 15 - Math.floor(index / 2)) +
-          Math.max(0, 12 - Math.floor(index / 3)),
-        sumAp: Math.max(0, 8 - Math.floor(index / 4)),
-        sumDamage: Math.max(0, 25000 - index * 430),
-        wins: index < 5 ? 1 : 0,
-        bestPlace: Math.min(20, index + 1),
-        matchesPlayed: 3,
-      })),
+    ranked.map(
+      (entry, index) => {
+        const place =
+          index + 1;
+        const placement =
+          Math.max(
+            0,
+            15 -
+            Math.floor(
+              index / 2,
+            ),
+          );
+        const powerKp =
+          Math.max(
+            0,
+            Math.round(
+              entry.baseStrength /
+              5,
+            ) -
+            Math.floor(
+              index / 4,
+            ),
+          );
+        const sumKp =
+          Math.min(
+            18,
+            powerKp,
+          );
+        const damage =
+          Math.max(
+            0,
+            Math.round(
+              11000 +
+              entry.baseStrength *
+                260 -
+              index * 210,
+            ),
+          );
+        return Object.freeze({
+          place,
+          teamId:
+            entry.teamId,
+          teamName:
+            entry.team?.name ??
+            entry.teamId,
+          teamLogo:
+            entry.team?.logo ??
+            null,
+          isPlayer:
+            false,
+          sumPlacementPoint:
+            placement,
+          sumKp,
+          sumTotal:
+            placement +
+            sumKp,
+          sumAp:
+            Math.max(
+              0,
+              Math.round(
+                sumKp * 0.65,
+              ),
+            ),
+          sumDamage:
+            damage,
+          wins:
+            place <= 4
+              ? 1
+              : 0,
+          bestPlace:
+            Math.min(
+              20,
+              place,
+            ),
+          matchesPlayed:
+            3,
+          simulation: {
+            method:
+              "rank_strength_with_deterministic_form",
+            baseStrength:
+              Math.round(
+                entry.baseStrength *
+                100,
+              ) / 100,
+            formModifier:
+              Math.round(
+                entry.formModifier *
+                100,
+              ) / 100,
+            luckModifier:
+              Math.round(
+                entry.luckModifier *
+                100,
+              ) / 100,
+          },
+        });
+      },
+    ),
   );
 }
 
