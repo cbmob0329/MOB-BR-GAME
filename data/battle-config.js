@@ -15,8 +15,8 @@ import {
   rankToWeaponValue,
 } from "./game-data.js";
 
-export const BATTLE_CONFIG_VERSION = "mobbr-battle-config-1.5.0";
-export const BATTLE_BALANCE_VERSION = "mobbr-battle-balance-0.2.0";
+export const BATTLE_CONFIG_VERSION = "mobbr-battle-config-1.6.0";
+export const BATTLE_BALANCE_VERSION = "mobbr-battle-balance-0.3.0";
 
 export const COMBAT_STATES = Object.freeze(["alive", "down", "dead"]);
 export const DISTANCE_IDS = Object.freeze(["close", "mid", "far"]);
@@ -44,7 +44,7 @@ export const BATTLE_LIMITS = Object.freeze({
   minimumReloadSeconds: 0.65,
   maximumReloadSeconds: 1.45,
   maximumSkillCtReduction: 0.15,
-  maximumShieldSupportBonus: 0.1,
+  maximumShieldSupportBonus: 0.06,
 });
 
 export const WEAPON_BATTLE_RULES = Object.freeze({
@@ -592,7 +592,7 @@ export function calculateSkillCt(baseCt, agility, extraReductionRate = 0) {
 export function calculateShieldHealRate(support) {
   const validSupport = normalizePlayerStat(support, "support");
   return (
-    0.2 +
+    0.14 +
     normalizedPlayerStat(validSupport) *
       BATTLE_LIMITS.maximumShieldSupportBonus
   );

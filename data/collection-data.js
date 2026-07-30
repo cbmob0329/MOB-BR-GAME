@@ -7,7 +7,7 @@
 
 export const COLLECTION_DATA_VERSION = "mobbr-collection-data-1.0.0";
 export const COLLECTION_MASTER_VERSION = "mobbr-collection-master-1.0.0";
-export const ROOM_MASTER_VERSION = "mobbr-room-master-1.0.0";
+export const ROOM_MASTER_VERSION = "mobbr-room-master-1.1.0";
 
 function deepFreeze(value) {
   if (value && typeof value === "object" && !Object.isFrozen(value)) {
@@ -5363,96 +5363,112 @@ export const ROOM_MASTER = deepFreeze(
   [
   {
     "roomId": "room01",
+    "image": "home/01.png",
     "unlockRankIndex": 1,
     "name": "MOB BR",
     "priceCoin": 0
   },
   {
     "roomId": "room02",
+    "image": "home/02.png",
     "unlockRankIndex": 2,
     "name": "MOB BR ピンクカラーモデル",
     "priceCoin": 100000
   },
   {
     "roomId": "room03",
+    "image": "home/03.png",
     "unlockRankIndex": 3,
     "name": "MOB BR ブルーカラーモデル",
     "priceCoin": 100000
   },
   {
     "roomId": "room04",
+    "image": "home/04.png",
     "unlockRankIndex": 5,
     "name": "モブイルカエルモデル",
     "priceCoin": 500000
   },
   {
     "roomId": "room05",
+    "image": "home/05.png",
     "unlockRankIndex": 10,
     "name": "モブメイルモデル",
     "priceCoin": 500000
   },
   {
     "roomId": "room06",
+    "image": "home/06.png",
     "unlockRankIndex": 15,
     "name": "モブデンデンモデル",
     "priceCoin": 1000000
   },
   {
     "roomId": "room07",
+    "image": "home/07.png",
     "unlockRankIndex": 15,
     "name": "モブマニーモデル",
     "priceCoin": 1000000
   },
   {
     "roomId": "room08",
+    "image": "home/08.png",
     "unlockRankIndex": 15,
     "name": "モブドラゴンモデル",
     "priceCoin": 1000000
   },
   {
     "roomId": "room09",
+    "image": "home/09.png",
     "unlockRankIndex": 15,
     "name": "ミラモブモデル",
     "priceCoin": 1000000
   },
   {
     "roomId": "room10",
+    "image": "home/10.png",
     "unlockRankIndex": 20,
     "name": "モブテツモデル",
     "priceCoin": 1000000
   },
   {
     "roomId": "room11",
+    "image": "home/11.png",
     "unlockRankIndex": 20,
     "name": "モブリリスモデル",
     "priceCoin": 3000000
   },
   {
     "roomId": "room12",
+    "image": "home/12.png",
     "unlockRankIndex": 20,
     "name": "あのヒーローモデル",
     "priceCoin": 5000000
   },
   {
     "roomId": "room13",
+    "image": "home/13.png",
     "unlockRankIndex": 30,
     "name": "アサモブモデル",
     "priceCoin": 10000000
   },
   {
     "roomId": "room14",
+    "image": "home/14.png",
     "unlockRankIndex": 30,
     "name": "ネコクーモデル",
     "priceCoin": 10000000
   },
   {
     "roomId": "room15",
+    "image": "home/15.png",
     "unlockRankIndex": 30,
     "name": "PB2 Vol.62 モデル",
     "priceCoin": 10000000
   },
   {
     "roomId": "room16",
+    "image": "home/16.png",
     "unlockRankIndex": 30,
     "name": "MOB PARTY モデル",
     "priceCoin": 10000000
