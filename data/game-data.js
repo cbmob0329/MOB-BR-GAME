@@ -5,7 +5,7 @@
  * UI state, save data, and tournament runtime state must not be stored here.
  */
 
-export const GAME_DATA_VERSION = "mobbr-game-data-1.3.0";
+export const GAME_DATA_VERSION = "mobbr-game-data-1.4.0";
 
 export const GAME_META = Object.freeze({
   id: "mob-br",
@@ -518,6 +518,34 @@ function createCasualEvents(year, month, week) {
       stageName: "モブテツカップ",
       seasonId: `${year}-annual-circuit`,
       tournamentId: `${choiceGroupId}-mobutetsu`,
+      choiceGroupId,
+      optional: true,
+      recordOnlyWhenEntered: true,
+    }),
+    Object.freeze({
+      year,
+      month,
+      week,
+      split: null,
+      tournamentType: "casual_rockets",
+      stageId: `casual_rockets_${String(month).padStart(2, "0")}`,
+      stageName: "ジョーダンロケッツカップ",
+      seasonId: `${year}-annual-circuit`,
+      tournamentId: `${choiceGroupId}-rockets`,
+      choiceGroupId,
+      optional: true,
+      recordOnlyWhenEntered: true,
+    }),
+    Object.freeze({
+      year,
+      month,
+      week,
+      split: null,
+      tournamentType: "casual_tempest",
+      stageId: `casual_tempest_${String(month).padStart(2, "0")}`,
+      stageName: "ゴールデンテンペストカップ",
+      seasonId: `${year}-annual-circuit`,
+      tournamentId: `${choiceGroupId}-tempest`,
       choiceGroupId,
       optional: true,
       recordOnlyWhenEntered: true,

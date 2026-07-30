@@ -18,7 +18,7 @@ import {
   getWorldCpuTeamsForYear,
 } from "./cpu-world-data.js";
 
-export const CIRCUIT_DATA_VERSION = "mobbr-circuit-data-1.1.0";
+export const CIRCUIT_DATA_VERSION = "mobbr-circuit-data-1.2.0";
 
 export const FORMAL_STAGE_TYPES = Object.freeze([
   "local",
@@ -35,6 +35,8 @@ export const FORMAL_STAGE_TYPES = Object.freeze([
 export const CASUAL_STAGE_TYPES = Object.freeze([
   "casual_denden",
   "casual_mobutetsu",
+  "casual_rockets",
+  "casual_tempest",
 ]);
 
 export const FORMAL_CIRCUIT_RULES = Object.freeze({
@@ -132,6 +134,30 @@ export const CASUAL_TOURNAMENT_RULES = Object.freeze({
     worldGuestSlots: 1,
     recordOnlyWhenEntered: true,
   }),
+  casual_rockets: Object.freeze({
+    cupId: "rockets",
+    tournamentName: "ジョーダンロケッツカップ",
+    teams: 20,
+    matches: 3,
+    companyRankMinimum: "F1",
+    playerSlots: 1,
+    fixedNationalTeamId: "N1",
+    additionalNationalSlots: 9,
+    localTopSlots: 6,
+    worldGuestSlots: 3,
+    recordOnlyWhenEntered: true,
+  }),
+  casual_tempest: Object.freeze({
+    cupId: "tempest",
+    tournamentName: "ゴールデンテンペストカップ",
+    teams: 20,
+    matches: 3,
+    companyRankMinimum: "F1",
+    playerSlots: 1,
+    fixedWorldTeamId: "W1",
+    additionalWorldSlots: 18,
+    recordOnlyWhenEntered: true,
+  }),
 });
 
 const GROUP_SECTION_NAMES = Object.freeze({
@@ -185,10 +211,17 @@ export function isFormalTournamentType(tournamentType) {
 export function normalizeCircuitTier(tournamentType) {
   const value = String(tournamentType ?? "").toLowerCase();
   if (value === "local" || value === "casual_denden") return "local";
-  if (value.startsWith("national") || value === "casual_mobutetsu") {
+  if (
+    value.startsWith("national") ||
+    value === "casual_mobutetsu" ||
+    value === "casual_rockets"
+  ) {
     return "national";
   }
-  if (value.startsWith("world")) return "world";
+  if (
+    value.startsWith("world") ||
+    value === "casual_tempest"
+  ) return "world";
   if (value === "championship") return "championship";
   return value;
 }
