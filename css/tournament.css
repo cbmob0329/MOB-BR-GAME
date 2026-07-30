@@ -9945,3 +9945,53 @@ html[data-asset-prefix="../../"] .tournament-loading-overlay {
       rgb(0 0 0 / 48%)
     );
 }
+
+
+/* Generation 35: tactical pause member selection */
+.battle-pause-team-strip > button {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  border: 2px solid rgb(255 255 255 / 13%);
+  border-radius: 10px;
+  padding: 5px 3px;
+  background: rgb(255 255 255 / 5%);
+  color: #fff;
+  text-align: center;
+  touch-action: manipulation;
+}
+
+.battle-pause-team-strip > button.is-focus {
+  border-color: #7ce0ff;
+  background: linear-gradient(180deg, rgb(73 182 230 / 25%), rgb(14 43 67 / 46%));
+  box-shadow: 0 0 0 3px rgb(124 224 255 / 10%);
+}
+
+.battle-pause-team-strip > button:active {
+  scale: .97;
+}
+
+.battle-pause-team-strip > button img {
+  width: 100%;
+  height: 52px;
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+.battle-pause-team-strip > button span {
+  color: #7ce0ff;
+  font-size: .28rem;
+  font-weight: 1000;
+}
+
+.battle-pause-team-strip > button strong {
+  overflow: hidden;
+  font-size: .36rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.battle-pause-team-strip > button small {
+  color: rgb(255 255 255 / 61%);
+  font-size: .25rem;
+}
