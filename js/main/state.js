@@ -19,11 +19,11 @@ import {
   getCompanyRankData,
   rankToWeaponValue,
   validateGameDate,
-} from "../../data/game-data.js?v=35";
+} from "../../data/game-data.js?v=36";
 import {
   BATTLE_CONFIG_VERSION,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=35";
+} from "../../data/battle-config.js?v=36";
 import {
   TRAINING_DATA_VERSION,
 } from "../../data/training-data.js";
@@ -49,7 +49,7 @@ import {
   getStrategy,
 } from "../../data/strategy-data.js";
 
-export const SAVE_SCHEMA_VERSION = "mobbr-save-1.9.0";
+export const SAVE_SCHEMA_VERSION = "mobbr-save-2.0.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
 
 export const STORAGE_KEYS = Object.freeze({
@@ -584,6 +584,7 @@ export function createNewGameState(
       badgeId: INITIAL_GAME_DATA.company.badgeId,
       badgeImage: INITIAL_GAME_DATA.company.badgeImage,
       activeRoomId: INITIAL_GAME_DATA.company.roomId,
+      homeRoomId: INITIAL_GAME_DATA.company.roomId,
       unlockedRoomIds: [INITIAL_GAME_DATA.company.roomId],
     },
 
@@ -1097,6 +1098,10 @@ function migrateUnversionedSave(rawState, timestamp) {
   migrated.ui.lastSubScreen = null;
   migrated.ui.pendingWeekStart =
     migrated.ui.pendingWeekStart ?? null;
+  migrated.company.homeRoomId =
+    migrated.company.homeRoomId ??
+    migrated.company.activeRoomId ??
+    INITIAL_GAME_DATA.company.roomId;
   migrated.playerTrainingPoints = migrated.playerTrainingPoints ?? Object.fromEntries(
     (migrated.playerTeam?.members ?? []).map((player) => [
       player.playerId,
@@ -1184,7 +1189,8 @@ export function migrateSaveState(
     rawState.schemaVersion === "mobbr-save-1.5.0" ||
     rawState.schemaVersion === "mobbr-save-1.6.0" ||
     rawState.schemaVersion === "mobbr-save-1.7.0" ||
-    rawState.schemaVersion === "mobbr-save-1.8.0"
+    rawState.schemaVersion === "mobbr-save-1.8.0" ||
+    rawState.schemaVersion === "mobbr-save-1.9.0"
   ) {
     const migrated = migrateUnversionedSave(rawState, timestamp);
     validateSaveState(migrated);

@@ -20,7 +20,7 @@ import {
   SaveError,
   SaveNotFoundError,
   createGameStateManager,
-} from "./state.js?v=35";
+} from "./state.js?v=36";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -42,7 +42,7 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=35";
+} from "./team.js?v=36";
 import {
   getSpecialAbility,
 } from "../../data/ability-data.js";
@@ -50,16 +50,19 @@ import {
   getCompanyRankData,
 } from "../../data/game-data.js";
 import {
+  getRoomMaster,
+} from "../../data/collection-data.js?v=36";
+import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=35";
+} from "./management.js?v=36";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=35";
+} from "./tournament-bridge.js?v=36";
 
-export const APP_VERSION = "mobbr-main-app-2.3.0";
+export const APP_VERSION = "mobbr-main-app-2.4.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -798,8 +801,54 @@ function homeTemplate(snapshot, currentRoute) {
       </section>`
     : "";
 
+  const homeRoomId =
+    snapshot.company.homeRoomId ??
+    snapshot.company.activeRoomId;
+  const homeRoom =
+    getRoomMaster(homeRoomId);
+  const homeLayout =
+    snapshot.collections.roomLayouts?.[
+      homeRoomId
+    ] ?? [];
+
   return `
-    <main class="screen screen--home app-layout">
+    <main
+      class="screen screen--home app-layout has-home-room"
+      style="--selected-home-room:url('${escapeAttribute(homeRoom.image)}')"
+    >
+      <div class="home-room-stage" aria-hidden="true">
+        <img
+          class="home-room-stage__background"
+          src="${escapeAttribute(homeRoom.image)}"
+          alt=""
+        >
+        <div class="home-room-stage__placements">
+          ${homeLayout
+            .slice()
+            .sort(
+              (left, right) =>
+                (left.z ?? 0) -
+                (right.z ?? 0),
+            )
+            .map(
+              (placement) => `
+                <img
+                  src="${escapeAttribute(placement.image)}"
+                  alt=""
+                  style="
+                    left:${placement.x}%;
+                    top:${placement.y}%;
+                    z-index:${placement.z};
+                    --home-placement-scale:${placement.scale};
+                    --home-placement-flip:${placement.flipped ? -1 : 1};
+                  "
+                >
+              `,
+            )
+            .join("")}
+        </div>
+        <div class="home-room-stage__shade"></div>
+      </div>
       ${topStatusTemplate(snapshot)}
       <div class="page-content home-facility-only">
         ${tournamentNotice}
@@ -813,11 +862,7 @@ function homeTemplate(snapshot, currentRoute) {
               ${facility.status === "LOCKED" ? "disabled" : ""}
             >
               <img src="${escapeAttribute(facility.homeImage)}" alt="">
-              ${
-                facility.facilityId === "collection"
-                  ? ""
-                  : `<span>${escapeHtml(facility.japaneseName)}</span>`
-              }
+              <span>${escapeHtml(facility.japaneseName)}</span>
               ${facility.status === "LOCKED" ? "<em>LOCKED</em>" : ""}
             </button>
           `).join("")}
@@ -915,6 +960,29 @@ function teamTemplate(snapshot, currentRoute) {
           <small>選手をタップすると詳細を表示します</small>
         </section>
 
+        <section class="team-menu-deck" aria-label="TEAM MENU">
+          <header>
+            <span>TEAM MENU</span>
+            <small>左右へスワイプ</small>
+          </header>
+          <nav class="team-menu-deck__track">
+            ${TEAM_MENU.map((item, index) => `
+              <button
+                type="button"
+                class="team-menu-deck__item"
+                style="--team-menu-index:${index}"
+                data-action="navigate"
+                data-route="${escapeAttribute(item.route)}"
+                aria-label="${escapeAttribute(item.name)}"
+                title="${escapeAttribute(item.name)}"
+              >
+                <i aria-hidden="true"></i>
+                <img src="${escapeAttribute(item.icon)}" alt="">
+              </button>
+            `).join("")}
+          </nav>
+        </section>
+
         <section class="team-portrait-grid">
           ${snapshot.playerTeam.members.map((player) => `
             <button
@@ -923,7 +991,11 @@ function teamTemplate(snapshot, currentRoute) {
               data-action="inspect-team-player"
               data-player-id="${escapeAttribute(player.playerId)}"
             >
-              <img src="${escapeAttribute(player.image)}" alt="">
+              <img
+                src="${escapeAttribute(player.image)}"
+                data-role="${escapeAttribute(player.role)}"
+                alt=""
+              >
               <span>${escapeHtml(player.role)}</span>
               <strong>${escapeHtml(player.name)}</strong>
               <em>TAP</em>
@@ -941,14 +1013,6 @@ function teamTemplate(snapshot, currentRoute) {
               individualWeaponProfileTemplate(player)
             ).join("")}
           </div>
-        </section>
-
-        <div class="section-heading">
-          <h2>TEAM MENU</h2>
-          <p>管理項目</p>
-        </div>
-        <section class="menu-grid">
-          ${TEAM_MENU.map((item) => menuCardTemplate(item)).join("")}
         </section>
       </div>
       ${bottomNavTemplate(currentRoute)}
@@ -2114,7 +2178,7 @@ export function createMainApp({
           </div>
         </section>
       `,
-      buttonLabel: "わかりました",
+      buttonLabel: "OK",
     });
     return true;
   }
@@ -2189,7 +2253,7 @@ export function createMainApp({
                 <img src="icon/pink.png" alt="モブピンク">
                 <span>MOB PINK</span>
               </div>
-              <div>
+              <div class="employee-week-greeting__speech">
                 <span>モブピンク</span>
                 <h3>${pending.gameDate.year}年 ${pending.gameDate.month}月 第${pending.gameDate.week}週</h3>
                 <p>${escapeHtml(message)}</p>
@@ -2245,6 +2309,97 @@ export function createMainApp({
         error,
       };
     }
+  }
+
+  function initializeTeamMenuDeck() {
+    const track =
+      root.querySelector(
+        ".team-menu-deck__track",
+      );
+    if (!track) {
+      return;
+    }
+
+    const items = [
+      ...track.querySelectorAll(
+        ".team-menu-deck__item",
+      ),
+    ];
+    let frameId = null;
+
+    const update = () => {
+      frameId = null;
+      const trackRect =
+        track.getBoundingClientRect();
+      const center =
+        trackRect.left +
+        trackRect.width / 2;
+      const influence =
+        Math.max(
+          90,
+          trackRect.width * 0.42,
+        );
+
+      for (const item of items) {
+        const rect =
+          item.getBoundingClientRect();
+        const itemCenter =
+          rect.left +
+          rect.width / 2;
+        const distance =
+          Math.max(
+            -1,
+            Math.min(
+              1,
+              (
+                itemCenter -
+                center
+              ) /
+              influence,
+            ),
+          );
+        const focus =
+          1 -
+          Math.abs(distance);
+        item.style.transform =
+          `rotateY(${(-distance * 34).toFixed(2)}deg) translateZ(${(focus * 34).toFixed(2)}px) scale(${(0.82 + focus * 0.18).toFixed(3)})`;
+        item.style.opacity =
+          String(
+            0.58 +
+            focus *
+            0.42,
+          );
+        item.style.filter =
+          `brightness(${(0.76 + focus * 0.3).toFixed(3)})`;
+      }
+    };
+
+    const scheduleUpdate = () => {
+      if (frameId !== null) {
+        return;
+      }
+      frameId =
+        requestAnimationFrame(
+          update,
+        );
+    };
+
+    track.addEventListener(
+      "scroll",
+      scheduleUpdate,
+      {
+        passive: true,
+      },
+    );
+    globalThis.addEventListener?.(
+      "resize",
+      scheduleUpdate,
+      {
+        passive: true,
+        once: true,
+      },
+    );
+    scheduleUpdate();
   }
 
   function render() {
@@ -2314,7 +2469,14 @@ export function createMainApp({
       return;
     }
     if (route === ROUTES.team) {
-      root.innerHTML = teamTemplate(snapshot, route);
+      root.innerHTML =
+        teamTemplate(
+          snapshot,
+          route,
+        );
+      queueMicrotask(
+        initializeTeamMenuDeck,
+      );
       return;
     }
     if (route === ROUTES.settings) {
@@ -3686,6 +3848,9 @@ export function createMainApp({
     await preloadImages([
       assetPath("back/Load.png"), assetPath("back/main1.png"), assetPath("back/sub.png"), assetPath("back/coh.png"),
       assetPath("back/homecol.png"), assetPath("back/backcol.png"), assetPath("back/backcoh.png"), assetPath("back/backshop.png"),
+      ...Array.from({ length: 16 }, (_, index) =>
+        assetPath(`home/${String(index + 1).padStart(2, "0")}.png`)
+      ),
       "icon/pink.png", "icon/rankup.png", "icon/kigyo.png", "icon/weponup.png", "icon/skillup.png", "icon/brtetsu.png",
       "menu/home.png", "menu/team.png", "menu/traning.png", "menu/COL.png",
       "icon/coin.png", "icon/daia.png", "icon/rubi.png",

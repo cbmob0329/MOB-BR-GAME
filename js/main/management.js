@@ -10,12 +10,12 @@ import {
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=35";
+} from "../../data/game-data.js?v=36";
 import {
   isCasualTournamentType,
   resolveCpuTeamMaster,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=35";
+} from "../../data/circuit-data.js?v=36";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
@@ -63,13 +63,13 @@ import {
 import {
   advanceWeeksToDraft,
   applyResourceDeltaToDraft,
-} from "./state.js?v=35";
+} from "./state.js?v=36";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=35";
+} from "./tournament-bridge.js?v=36";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-1.7.0";
+  "mobbr-management-feature-1.8.0";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -82,7 +82,38 @@ const MANAGEMENT_VIEW_STATE = {
   selectedPackId: null,
   trainingSelections: {},
   strategyRank: null,
+  roomCategory: null,
+  roomSelectedItem: null,
+  roomSelectedPlacementId: null,
 };
+
+const ROOM_CATEGORY_DEFINITIONS = Object.freeze([
+  Object.freeze({
+    id: "Card",
+    label: "CARD",
+    icon: "icon/card.png",
+  }),
+  Object.freeze({
+    id: "Badge",
+    label: "BADGE",
+    icon: "icon/bagi.png",
+  }),
+  Object.freeze({
+    id: "Card Pack",
+    label: "CARD PACK",
+    icon: "icon/back.png",
+  }),
+  Object.freeze({
+    id: "Badge Pack",
+    label: "BADGE PACK",
+    icon: "item/bagilocal.png",
+  }),
+  Object.freeze({
+    id: "Trophy",
+    label: "TROPHY",
+    icon: "prize/01.png",
+  }),
+]);
 
 const SHOP_CATEGORY_DEFINITIONS = Object.freeze([
   { id: "item", label: "アイテム", icon: "icon/item.png", dialogue: "大会用アイテムです。必要な数をまとめて購入できます。" },
@@ -1023,6 +1054,24 @@ function getRoomDisplayItem(snapshot, itemRef) {
     };
   }
 
+  if (itemRef.kind === "trophy") {
+    const trophy =
+      (snapshot.collections.trophies ?? [])
+        .find(
+          (entry) =>
+            entry.trophyId === itemRef.id,
+        );
+    if (!trophy) {
+      return null;
+    }
+    return {
+      itemRef,
+      name: trophy.name,
+      image: trophy.image,
+      roomType: "Trophy",
+    };
+  }
+
   return null;
 }
 
@@ -1065,6 +1114,17 @@ export function getRoomAvailableItems(snapshot) {
       });
     }
   }
+  for (const trophy of snapshot.collections.trophies ?? []) {
+    entries.push({
+      itemRef: {
+        kind: "trophy",
+        id: trophy.trophyId,
+      },
+      name: trophy.name,
+      image: trophy.image,
+      roomType: "Trophy",
+    });
+  }
   return entries;
 }
 
@@ -1100,6 +1160,57 @@ export function activateRoomToDraft(draft, roomId) {
   draft.company.activeRoomId = roomId;
   draft.collections.roomLayouts[roomId] ??= [];
   return { roomId };
+}
+
+export function setHomeRoomToDraft(
+  draft,
+  roomId,
+) {
+  assertDraft(draft);
+  ensureManagementStateToDraft(draft);
+  getRoomMaster(roomId);
+  if (
+    !draft.company.unlockedRoomIds
+      .includes(roomId)
+  ) {
+    throw new RangeError(
+      "未購入の部屋はHOMEに設定できません。",
+    );
+  }
+  draft.company.homeRoomId =
+    roomId;
+  return {
+    roomId,
+  };
+}
+
+export function sendRoomPlacementToBackToDraft(
+  draft,
+  roomId,
+  placementId,
+) {
+  const {
+    layout,
+    placement,
+  } = getRoomPlacement(
+    draft,
+    roomId,
+    placementId,
+  );
+  for (const entry of layout) {
+    if (
+      entry.placementId !==
+      placementId
+    ) {
+      entry.z =
+        Math.max(
+          2,
+          Number(entry.z ?? 1) + 1,
+        );
+    }
+  }
+  placement.z = 1;
+  return deepClone(placement);
 }
 
 export function addRoomPlacementToDraft(
@@ -1614,22 +1725,20 @@ export function renderShopManagement(snapshot) {
   return `
     <section class="mobshop-popup" style="--mobshop-bg:url('back/backshop.png')">
       <header class="mobshop-neon-header">
-        <span>MOB RETAIL NETWORK</span>
-        <strong>MOB SHOP</strong>
-        <em>OPEN</em>
+        <div class="mobshop-neon-header__title">
+          <span>MOB RETAIL NETWORK</span>
+          <strong>MOB SHOP</strong>
+          <em>OPEN</em>
+        </div>
+        <section class="mobshop-header-clerk" aria-label="MOB SHOP店員">
+          <img src="icon/pink.png" alt="モブピンク">
+          <div>
+            <span>モブピンク</span>
+            <p>${escapeHtml(categoryDefinition?.dialogue ?? "いらっしゃいませ。商品棚をご案内します。")}</p>
+          </div>
+        </section>
       </header>
       <div class="mobshop-counter-light" aria-hidden="true"><i></i><i></i><i></i></div>
-      <section class="mobshop-staff-counter" aria-label="MOB SHOP店員">
-        <div class="mobshop-staff-placeholder mobshop-staff-placeholder--pink">
-          <img src="icon/pink.png" alt="モブピンク">
-          <span>MOB PINK</span>
-        </div>
-        <div class="mobshop-staff-dialogue">
-          <span>モブピンク</span>
-          <p>${escapeHtml(categoryDefinition?.dialogue ?? "いらっしゃいませ♪ 商品棚をご案内します！")}</p>
-        </div>
-        <div class="mobshop-basket" aria-hidden="true"><i></i><i></i><i></i></div>
-      </section>
       <nav class="mobshop-category-grid" aria-label="ショップカテゴリ">
         ${SHOP_CATEGORY_DEFINITIONS.map((entry) => `
           <button type="button" class="${category === entry.id ? "is-active" : ""}" data-action="select-shop-category" data-shop-category="${escapeAttribute(entry.id)}">
@@ -2023,31 +2132,92 @@ export function renderCollectionManagement(snapshot) {
 }
 
 export function renderRoomManagement(snapshot) {
-  const activeRoom = getRoomMaster(snapshot.company.activeRoomId);
+  const activeRoom =
+    getRoomMaster(
+      snapshot.company.activeRoomId,
+    );
   const layout =
-    snapshot.collections.roomLayouts?.[activeRoom.roomId] ?? [];
-  const availableItems = getRoomAvailableItems(snapshot);
+    snapshot.collections.roomLayouts?.[
+      activeRoom.roomId
+    ] ?? [];
+  const availableItems =
+    getRoomAvailableItems(snapshot);
+  const availableCategories =
+    ROOM_CATEGORY_DEFINITIONS.filter(
+      (category) =>
+        availableItems.some(
+          (item) =>
+            item.roomType ===
+            category.id,
+        ),
+    );
+  const activeCategory =
+    availableCategories.some(
+      (category) =>
+        category.id ===
+        MANAGEMENT_VIEW_STATE.roomCategory,
+    )
+      ? MANAGEMENT_VIEW_STATE.roomCategory
+      : availableCategories[0]?.id ??
+        "Card";
+  MANAGEMENT_VIEW_STATE.roomCategory =
+    activeCategory;
+
+  const categoryItems =
+    availableItems.filter(
+      (item) =>
+        item.roomType ===
+        activeCategory,
+    );
+  const selectedItemJson =
+    MANAGEMENT_VIEW_STATE.roomSelectedItem;
+  const selectedItem =
+    categoryItems.find(
+      (item) =>
+        JSON.stringify(
+          item.itemRef,
+        ) ===
+        selectedItemJson,
+    ) ??
+    categoryItems[0] ??
+    null;
+  MANAGEMENT_VIEW_STATE.roomSelectedItem =
+    selectedItem
+      ? JSON.stringify(
+          selectedItem.itemRef,
+        )
+      : null;
+
+  const homeRoomId =
+    snapshot.company.homeRoomId ??
+    snapshot.company.activeRoomId;
 
   return `
-    <section class="room-studio-header">
-      <span>MOB ROOM STUDIO</span>
-      <h2>${escapeHtml(activeRoom.name)}</h2>
-      <p>部屋を選び、獲得したコレクションを自由に配置できます。</p>
-      <div><i></i><i></i><i></i><b>EDIT MODE</b></div>
-    </section>
-    <section class="room-list">
+    <section class="room-list room-list--compact">
       ${ROOM_MASTER.map((room) => {
-        const owned = snapshot.company.unlockedRoomIds.includes(room.roomId);
+        const owned =
+          snapshot.company.unlockedRoomIds
+            .includes(room.roomId);
         const unlocked =
-          snapshot.company.rankIndex >= room.unlockRankIndex;
+          snapshot.company.rankIndex >=
+          room.unlockRankIndex;
         const active =
-          snapshot.company.activeRoomId === room.roomId;
+          snapshot.company.activeRoomId ===
+          room.roomId;
+        const isHome =
+          homeRoomId ===
+          room.roomId;
         return `
-          <article class="room-list-card ${active ? "is-active" : ""} ${owned ? "is-owned" : "is-locked"}">
+          <article
+            class="room-list-card ${active ? "is-active" : ""} ${owned ? "is-owned" : "is-locked"} ${isHome ? "is-home" : ""}"
+          >
+            <img
+              src="${escapeAttribute(room.image)}"
+              alt=""
+            >
             <div>
-              <span>${escapeHtml(room.roomId)}</span>
+              <span>${isHome ? "HOME" : escapeHtml(room.roomId.toUpperCase())}</span>
               <h3>${escapeHtml(room.name)}</h3>
-              <p>解放RANK INDEX ${room.unlockRankIndex}</p>
             </div>
             ${
               owned
@@ -2059,7 +2229,7 @@ export function renderRoomManagement(snapshot) {
                     data-room-id="${escapeAttribute(room.roomId)}"
                     ${active ? "disabled" : ""}
                   >
-                    ${active ? "使用中" : "入室"}
+                    ${active ? "EDITING" : "入室"}
                   </button>
                 `
                 : `
@@ -2070,7 +2240,7 @@ export function renderRoomManagement(snapshot) {
                     data-room-id="${escapeAttribute(room.roomId)}"
                     ${unlocked ? "" : "disabled"}
                   >
-                    ${formatNumber(room.priceCoin)} COIN
+                    ${unlocked ? `${formatNumber(room.priceCoin)} C` : "LOCK"}
                   </button>
                 `
             }
@@ -2079,100 +2249,167 @@ export function renderRoomManagement(snapshot) {
       }).join("")}
     </section>
 
-    <section class="content-panel room-editor-controls">
-      <h2>${escapeHtml(activeRoom.name)}</h2>
-      <select id="roomItemSelect">
-        <option value="">配置する所持品を選択</option>
-        ${availableItems.map((item) => `
-          <option
-            value="${escapeAttribute(JSON.stringify(item.itemRef))}"
-          >
-            [${escapeHtml(item.roomType)}] ${escapeHtml(item.name)}
-          </option>
-        `).join("")}
-      </select>
-      <button
-        type="button"
-        class="primary-button"
-        data-action="add-room-item"
-        data-room-id="${escapeAttribute(activeRoom.roomId)}"
-        ${availableItems.length ? "" : "disabled"}
-      >
-        ROOMへ配置
-      </button>
+    <section class="room-inventory-console">
+      <header>
+        <div>
+          <span>DISPLAY INVENTORY</span>
+          <strong>配置する所持品</strong>
+        </div>
+        <small>${availableItems.length} ITEMS</small>
+      </header>
+
+      ${
+        availableCategories.length > 0
+          ? `
+            <nav
+              class="room-category-strip"
+              aria-label="配置カテゴリ"
+            >
+              ${availableCategories.map((category) => `
+                <button
+                  type="button"
+                  class="${activeCategory === category.id ? "is-active" : ""}"
+                  data-action="select-room-category"
+                  data-room-category="${escapeAttribute(category.id)}"
+                  aria-label="${escapeAttribute(category.label)}"
+                >
+                  <img src="${escapeAttribute(category.icon)}" alt="">
+                  <span>${escapeHtml(category.label)}</span>
+                </button>
+              `).join("")}
+            </nav>
+
+            <div class="room-item-strip">
+              ${categoryItems.map((item) => {
+                const itemJson =
+                  JSON.stringify(
+                    item.itemRef,
+                  );
+                const selected =
+                  selectedItemJson ===
+                    itemJson ||
+                  (
+                    !selectedItemJson &&
+                    selectedItem ===
+                      item
+                  );
+                return `
+                  <button
+                    type="button"
+                    class="${selected ? "is-selected" : ""}"
+                    data-action="select-room-item"
+                    data-room-item="${escapeAttribute(itemJson)}"
+                  >
+                    <img src="${escapeAttribute(item.image)}" alt="">
+                    <strong>${escapeHtml(item.name)}</strong>
+                  </button>
+                `;
+              }).join("")}
+            </div>
+          `
+          : `
+            <div class="room-inventory-empty">
+              <strong>配置できる所持品がありません</strong>
+              <span>カード、バッジ、パック、トロフィーを集めましょう。</span>
+            </div>
+          `
+      }
+
+      <div class="room-inventory-actions">
+        <button
+          type="button"
+          class="primary-button"
+          data-action="add-room-item"
+          data-room-id="${escapeAttribute(activeRoom.roomId)}"
+          ${selectedItem ? "" : "disabled"}
+        >
+          ROOMへ配置
+        </button>
+        <button
+          type="button"
+          class="secondary-button ${homeRoomId === activeRoom.roomId ? "is-active" : ""}"
+          data-action="set-home-room"
+          data-room-id="${escapeAttribute(activeRoom.roomId)}"
+          ${homeRoomId === activeRoom.roomId ? "disabled" : ""}
+        >
+          ${
+            homeRoomId ===
+            activeRoom.roomId
+              ? "HOME背景に設定中"
+              : "この部屋をHOME画面に設定"
+          }
+        </button>
+      </div>
     </section>
 
     <section
       class="room-canvas"
+      style="--room-background:url('${escapeAttribute(activeRoom.image)}')"
       data-room-canvas
       data-room-id="${escapeAttribute(activeRoom.roomId)}"
       aria-label="${escapeAttribute(activeRoom.name)}の配置画面"
     >
       ${layout
         .slice()
-        .sort((left, right) => (left.z ?? 0) - (right.z ?? 0))
-        .map((placement) => `
-          <article
-            class="room-placement"
-            data-room-placement
-            data-placement-id="${escapeAttribute(placement.placementId)}"
-            style="
-              left:${placement.x}%;
-              top:${placement.y}%;
-              z-index:${placement.z};
-              --placement-scale:${placement.scale};
-              --placement-flip:${placement.flipped ? -1 : 1};
-            "
-          >
-            <img
-              src="${escapeAttribute(placement.image)}"
-              alt="${escapeAttribute(placement.name)}"
-              draggable="false"
+        .sort(
+          (left, right) =>
+            (left.z ?? 0) -
+            (right.z ?? 0),
+        )
+        .map((placement) => {
+          const selected =
+            MANAGEMENT_VIEW_STATE
+              .roomSelectedPlacementId ===
+            placement.placementId;
+          return `
+            <article
+              class="room-placement ${selected ? "is-selected" : ""}"
+              data-room-placement
+              data-placement-id="${escapeAttribute(placement.placementId)}"
+              style="
+                left:${placement.x}%;
+                top:${placement.y}%;
+                z-index:${placement.z};
+                --placement-scale:${placement.scale};
+                --placement-flip:${placement.flipped ? -1 : 1};
+              "
             >
-            <div class="room-placement__controls">
-              <button
-                type="button"
-                data-repeat-action
-                data-action="room-scale-down"
-                data-room-id="${escapeAttribute(activeRoom.roomId)}"
-                data-placement-id="${escapeAttribute(placement.placementId)}"
-              >－</button>
-              <button
-                type="button"
-                data-repeat-action
-                data-action="room-scale-up"
-                data-room-id="${escapeAttribute(activeRoom.roomId)}"
-                data-placement-id="${escapeAttribute(placement.placementId)}"
-              >＋</button>
-              <button
-                type="button"
-                data-action="room-flip"
-                data-room-id="${escapeAttribute(activeRoom.roomId)}"
-                data-placement-id="${escapeAttribute(placement.placementId)}"
-              >反転</button>
-              <button
-                type="button"
-                data-action="room-front"
-                data-room-id="${escapeAttribute(activeRoom.roomId)}"
-                data-placement-id="${escapeAttribute(placement.placementId)}"
-              >前へ</button>
-              <button
-                type="button"
-                data-action="room-remove"
-                data-room-id="${escapeAttribute(activeRoom.roomId)}"
-                data-placement-id="${escapeAttribute(placement.placementId)}"
-              >収納</button>
-            </div>
-          </article>
-        `).join("")}
+              <img
+                src="${escapeAttribute(placement.image)}"
+                alt="${escapeAttribute(placement.name)}"
+                draggable="false"
+              >
+              ${
+                selected
+                  ? `
+                    <div class="room-placement__controls">
+                      <button type="button" data-repeat-action data-action="room-scale-down" data-room-id="${escapeAttribute(activeRoom.roomId)}" data-placement-id="${escapeAttribute(placement.placementId)}">－</button>
+                      <button type="button" data-repeat-action data-action="room-scale-up" data-room-id="${escapeAttribute(activeRoom.roomId)}" data-placement-id="${escapeAttribute(placement.placementId)}">＋</button>
+                      <button type="button" data-action="room-flip" data-room-id="${escapeAttribute(activeRoom.roomId)}" data-placement-id="${escapeAttribute(placement.placementId)}">反転</button>
+                      <button type="button" data-action="room-front" data-room-id="${escapeAttribute(activeRoom.roomId)}" data-placement-id="${escapeAttribute(placement.placementId)}">前へ</button>
+                      <button type="button" data-action="room-back" data-room-id="${escapeAttribute(activeRoom.roomId)}" data-placement-id="${escapeAttribute(placement.placementId)}">後ろへ</button>
+                      <button type="button" data-action="room-center" data-room-id="${escapeAttribute(activeRoom.roomId)}" data-placement-id="${escapeAttribute(placement.placementId)}">中央</button>
+                      <button type="button" class="is-danger" data-action="room-remove" data-room-id="${escapeAttribute(activeRoom.roomId)}" data-placement-id="${escapeAttribute(placement.placementId)}">収納</button>
+                    </div>
+                  `
+                  : ""
+              }
+            </article>
+          `;
+        })
+        .join("")}
       ${
         layout.length === 0
-          ? `<p class="room-canvas__empty">コレクションを配置してください。</p>`
+          ? `
+            <p class="room-canvas__empty">
+              所持品を選び「ROOMへ配置」を押してください。
+            </p>
+          `
           : ""
       }
     </section>
     <p class="room-drag-note">
-      配置物をドラッグして移動できます。サイズ変更・反転・前後関係も保存されます。
+      配置物はドラッグで移動、タップで編集メニューを表示します。
     </p>
   `;
 }
@@ -3024,6 +3261,20 @@ export function createManagementController({
       renderPreservingScroll();
       return true;
     }
+    if (action === "select-room-category") {
+      MANAGEMENT_VIEW_STATE.roomCategory =
+        actionElement.dataset.roomCategory;
+      MANAGEMENT_VIEW_STATE.roomSelectedItem =
+        null;
+      renderPreservingScroll();
+      return true;
+    }
+    if (action === "select-room-item") {
+      MANAGEMENT_VIEW_STATE.roomSelectedItem =
+        actionElement.dataset.roomItem;
+      renderPreservingScroll();
+      return true;
+    }
     if (action === "open-collection-file") {
       MANAGEMENT_VIEW_STATE.collectionFile =
         actionElement.dataset.fileType;
@@ -3376,28 +3627,56 @@ export function createManagementController({
         stateManager.transact("room_activated", (draft) =>
           activateRoomToDraft(draft, actionElement.dataset.roomId),
         );
+        MANAGEMENT_VIEW_STATE.roomSelectedPlacementId = null;
+        MANAGEMENT_VIEW_STATE.roomSelectedItem = null;
         renderPreservingScroll();
       } catch (error) { await showError("ROOMへ入室できません", error); }
       return true;
     }
 
     if (action === "add-room-item") {
-      const value = root.querySelector("#roomItemSelect")?.value;
-      if (!value) return true;
+      const value =
+        MANAGEMENT_VIEW_STATE.roomSelectedItem;
+      if (!value) {
+        return true;
+      }
       try {
-        stateManager.transact("room_item_added", (draft) =>
-          addRoomPlacementToDraft(
-            draft,
-            actionElement.dataset.roomId,
-            JSON.parse(value),
-          ),
-        );
+        const tx =
+          stateManager.transact(
+            "room_item_added",
+            (draft) =>
+              addRoomPlacementToDraft(
+                draft,
+                actionElement.dataset.roomId,
+                JSON.parse(value),
+              ),
+          );
+        MANAGEMENT_VIEW_STATE.roomSelectedPlacementId =
+          tx.result.placementId;
         renderPreservingScroll();
       } catch (error) { await showError("ROOMへ配置できません", error); }
       return true;
     }
 
-    if (["room-scale-down", "room-scale-up", "room-flip", "room-front", "room-remove"].includes(action)) {
+    if (action === "set-home-room") {
+      try {
+        stateManager.transact(
+          "home_room_selected",
+          (draft) =>
+            setHomeRoomToDraft(
+              draft,
+              actionElement.dataset.roomId,
+            ),
+        );
+        showToast("HOME背景へ設定しました");
+        renderPreservingScroll();
+      } catch (error) {
+        await showError("HOME背景を変更できません", error);
+      }
+      return true;
+    }
+
+    if (["room-scale-down", "room-scale-up", "room-flip", "room-front", "room-back", "room-center", "room-remove"].includes(action)) {
       const roomId = actionElement.dataset.roomId;
       const placementId = actionElement.dataset.placementId;
       try {
@@ -3418,8 +3697,25 @@ export function createManagementController({
           if (action === "room-front") {
             return bringRoomPlacementToFrontToDraft(draft, roomId, placementId);
           }
+          if (action === "room-back") {
+            return sendRoomPlacementToBackToDraft(draft, roomId, placementId);
+          }
+          if (action === "room-center") {
+            return updateRoomPlacementToDraft(
+              draft,
+              roomId,
+              placementId,
+              {
+                x: 50,
+                y: 50,
+              },
+            );
+          }
           return removeRoomPlacementToDraft(draft, roomId, placementId);
         });
+        if (action === "room-remove") {
+          MANAGEMENT_VIEW_STATE.roomSelectedPlacementId = null;
+        }
         renderPreservingScroll();
       } catch (error) { await showError("ROOM配置を変更できません", error); }
       return true;
@@ -3430,45 +3726,178 @@ export function createManagementController({
 
   function afterRender(route) {
     if (route !== "room") return;
-    const canvas = root.querySelector("[data-room-canvas]");
+    const canvas =
+      root.querySelector(
+        "[data-room-canvas]",
+      );
     if (!canvas) return;
-    const roomId = canvas.dataset.roomId;
-    for (const placement of canvas.querySelectorAll("[data-room-placement]")) {
-      placement.addEventListener("pointerdown", (event) => {
-        if (event.target.closest("button")) return;
-        event.preventDefault();
-        const rect = canvas.getBoundingClientRect();
-        const placementId = placement.dataset.placementId;
-        placement.setPointerCapture?.(event.pointerId);
-        const move = (moveEvent) => {
-          const x = Math.min(100, Math.max(0, ((moveEvent.clientX - rect.left) / rect.width) * 100));
-          const y = Math.min(100, Math.max(0, ((moveEvent.clientY - rect.top) / rect.height) * 100));
-          placement.style.left = `${x}%`;
-          placement.style.top = `${y}%`;
-          placement.dataset.pendingX = String(x);
-          placement.dataset.pendingY = String(y);
-        };
-        const finish = () => {
-          placement.removeEventListener("pointermove", move);
-          placement.removeEventListener("pointerup", finish);
-          placement.removeEventListener("pointercancel", finish);
-          const x = Number(placement.dataset.pendingX);
-          const y = Number(placement.dataset.pendingY);
-          delete placement.dataset.pendingX;
-          delete placement.dataset.pendingY;
-          if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-          try {
-            stateManager.transact("room_placement_moved", (draft) =>
-              updateRoomPlacementToDraft(draft, roomId, placementId, { x, y }),
-            );
-          } catch (_error) {
-            showToast("ROOM配置を保存できませんでした");
+    const roomId =
+      canvas.dataset.roomId;
+
+    for (
+      const placement
+      of canvas.querySelectorAll(
+        "[data-room-placement]",
+      )
+    ) {
+      placement.addEventListener(
+        "pointerdown",
+        (event) => {
+          if (
+            event.target.closest(
+              "button",
+            )
+          ) {
+            return;
           }
-        };
-        placement.addEventListener("pointermove", move);
-        placement.addEventListener("pointerup", finish);
-        placement.addEventListener("pointercancel", finish);
-      });
+          event.preventDefault();
+
+          const rect =
+            canvas.getBoundingClientRect();
+          const placementId =
+            placement.dataset.placementId;
+          const startX =
+            event.clientX;
+          const startY =
+            event.clientY;
+          let dragged = false;
+
+          placement.setPointerCapture?.(
+            event.pointerId,
+          );
+
+          const move = (
+            moveEvent,
+          ) => {
+            if (
+              Math.hypot(
+                moveEvent.clientX -
+                  startX,
+                moveEvent.clientY -
+                  startY,
+              ) > 5
+            ) {
+              dragged = true;
+            }
+            if (!dragged) {
+              return;
+            }
+            const x =
+              Math.min(
+                100,
+                Math.max(
+                  0,
+                  (
+                    (
+                      moveEvent.clientX -
+                      rect.left
+                    ) /
+                    rect.width
+                  ) *
+                  100,
+                ),
+              );
+            const y =
+              Math.min(
+                100,
+                Math.max(
+                  0,
+                  (
+                    (
+                      moveEvent.clientY -
+                      rect.top
+                    ) /
+                    rect.height
+                  ) *
+                  100,
+                ),
+              );
+            placement.style.left =
+              `${x}%`;
+            placement.style.top =
+              `${y}%`;
+            placement.dataset.pendingX =
+              String(x);
+            placement.dataset.pendingY =
+              String(y);
+          };
+
+          const finish = () => {
+            placement.removeEventListener(
+              "pointermove",
+              move,
+            );
+            placement.removeEventListener(
+              "pointerup",
+              finish,
+            );
+            placement.removeEventListener(
+              "pointercancel",
+              finish,
+            );
+
+            if (!dragged) {
+              MANAGEMENT_VIEW_STATE.roomSelectedPlacementId =
+                MANAGEMENT_VIEW_STATE.roomSelectedPlacementId ===
+                placementId
+                  ? null
+                  : placementId;
+              renderPreservingScroll();
+              return;
+            }
+
+            const x =
+              Number(
+                placement.dataset.pendingX,
+              );
+            const y =
+              Number(
+                placement.dataset.pendingY,
+              );
+            delete placement.dataset.pendingX;
+            delete placement.dataset.pendingY;
+
+            if (
+              !Number.isFinite(x) ||
+              !Number.isFinite(y)
+            ) {
+              return;
+            }
+            try {
+              stateManager.transact(
+                "room_placement_moved",
+                (draft) =>
+                  updateRoomPlacementToDraft(
+                    draft,
+                    roomId,
+                    placementId,
+                    {
+                      x,
+                      y,
+                    },
+                  ),
+              );
+            } catch (_error) {
+              showToast(
+                "ROOM配置を保存できませんでした",
+              );
+            }
+          };
+
+          placement.addEventListener(
+            "pointermove",
+            move,
+          );
+          placement.addEventListener(
+            "pointerup",
+            finish,
+          );
+          placement.addEventListener(
+            "pointercancel",
+            finish,
+          );
+        },
+      );
     }
   }
 
