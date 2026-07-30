@@ -25,12 +25,12 @@ import {
   calculateSkillCt,
   isAssistEligible,
   resolveWeaponBattleValue,
-} from "../../data/battle-config.js?v=35";
+} from "../../data/battle-config.js?v=36";
 import {
   STAT_IDS,
   clamp,
   rankToCharacterValue,
-} from "../../data/game-data.js?v=35";
+} from "../../data/game-data.js?v=36";
 import {
   adjustDebuffForSpecialAbility,
   applyNextBattleSpecialEffects,
@@ -52,7 +52,7 @@ import {
 } from "./special-abilities.js";
 
 export const BATTLE_ACTIONS_VERSION =
-  "mobbr-battle-actions-1.7.0";
+  "mobbr-battle-actions-1.8.0";
 
 export const BATTLE_ACTION_BALANCE = Object.freeze({
   criticalDamageMultiplier: 1.5,
@@ -74,8 +74,8 @@ export const BATTLE_ACTION_BALANCE = Object.freeze({
   preciseStrikeDamageMultiplier: 1.7,
   aceMindsetDamageMultiplier: 1.55,
   droneHeal: Object.freeze({
-    minimumHpRate: 0.08,
-    maximumHpRate: 0.16,
+    minimumHpRate: 0.055,
+    maximumHpRate: 0.11,
   }),
   distanceRangeModifier: Object.freeze({
     preferred: 0.04,
@@ -1719,8 +1719,8 @@ function executePostReviveRecovery(
       Math.round(
         actor.maxHp *
         Math.min(
-          0.34,
-          0.28 * (skill.powerMultiplier ?? 1),
+          0.23,
+          0.19 * (skill.powerMultiplier ?? 1),
         ),
       ),
     );

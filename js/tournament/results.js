@@ -11,32 +11,32 @@ import { assetPath } from "../assets.js";
 import {
   getChampionshipPoints,
   getPlacementPoints,
-} from "../../data/game-data.js?v=35";
+} from "../../data/game-data.js?v=36";
 import {
   STRATEGY_RULES,
 } from "../../data/strategy-data.js";
 import {
   FORMAL_CIRCUIT_RULES,
   isCasualTournamentType,
-} from "../../data/circuit-data.js?v=35";
+} from "../../data/circuit-data.js?v=36";
 import {
   createCasualTrophy,
-} from "../../data/casual-data.js?v=35";
+} from "../../data/casual-data.js?v=36";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=35";
+} from "./circuit.js?v=36";
 import {
   getPlayableRoundCount,
-} from "./round.js?v=35";
+} from "./round.js?v=36";
 import {
   finalizeTournamentResultData,
   resolvePlacementRewards,
   writeTournamentResultToStorage,
-} from "../main/tournament-bridge.js?v=35";
+} from "../main/tournament-bridge.js?v=36";
 
 export const RESULTS_VERSION =
-  "mobbr-tournament-results-2.5.0";
+  "mobbr-tournament-results-2.6.0";
 
 export const RESULT_RULES = Object.freeze({
   defaultMatchPointThreshold: 50,
@@ -2326,7 +2326,23 @@ export function renderAwardScreen(runtime) {
   const commentEntry = award.ranking[commentIndex];
   return `
     <main class="tournament-screen tournament-screen--award award-stage--${escapeAttribute(stage)} ${isPodium ? "is-final-top5" : "is-individual-award"}">
-      <div class="award-confetti" aria-hidden="true"></div>
+      <div class="award-confetti" aria-hidden="true">
+        ${Array.from({ length: 30 }, (_, confettiIndex) => `
+          <i
+            style="
+              --confetti-index:${confettiIndex};
+              --confetti-x:${(confettiIndex * 37) % 100};
+              --confetti-width:${5 + (confettiIndex % 3) * 2}px;
+              --confetti-height:${10 + (confettiIndex % 4) * 2}px;
+              --confetti-duration:${(2.8 + (confettiIndex % 7) * 0.18).toFixed(2)}s;
+              --confetti-delay:${(-1 * (confettiIndex % 10) * 0.31).toFixed(2)}s;
+              --confetti-hue:${(confettiIndex * 47) % 360};
+              --confetti-drift-mid:${((confettiIndex % 5) - 2) * 8}px;
+              --confetti-drift-end:${((confettiIndex % 7) - 3) * 11}px;
+            "
+          ></i>
+        `).join("")}
+      </div>
       <header class="award-header">
         <span>AWARD ${index + 1} / ${awards.length}</span>
         <h1>${escapeHtml(award.label)}</h1>
@@ -2363,7 +2379,13 @@ export function renderAwardScreen(runtime) {
       ` : ""}
       <div class="tournament-bottom-area result-fixed-bottom">
         ${stage === "intro" ? commentator(`これから${award.label}を発表します。${awardExplanation(award)}`) : stage === "podium" ? commentator(award.commentary) : ""}
-        <button type="button" class="tournament-button tournament-button--primary" data-action="award-next">${nextLabel}</button>
+        <button
+          type="button"
+          class="tournament-button tournament-button--primary award-next-button"
+          data-action="award-next"
+        >
+          ${nextLabel}
+        </button>
       </div>
     </main>`;
 }

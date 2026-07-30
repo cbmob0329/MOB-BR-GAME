@@ -14,7 +14,7 @@ import {
   createCommentaryDirector,
 } from "./commentary.js";
 
-export const BATTLE_UI_VERSION = "mobbr-battle-ui-2.2.0";
+export const BATTLE_UI_VERSION = "mobbr-battle-ui-2.3.0";
 export const BATTLE_REPLAY_SCHEMA_VERSION =
   "mobbr-battle-replay-1.0.0";
 
@@ -168,20 +168,31 @@ function calculateVisiblePortraitScale(
     const visibleHeight =
       (maxY - minY + 1) /
       height;
-    const occupancy =
+
+    // Balance by both height and width. This prevents wide characters from
+    // becoming oversized while still enlarging artwork with large transparent
+    // margins.
+    const heightScale =
+      0.82 /
       Math.max(
-        visibleWidth,
+        0.42,
         visibleHeight,
       );
+    const widthScale =
+      0.76 /
+      Math.max(
+        0.34,
+        visibleWidth,
+      );
+
     return Math.max(
-      0.84,
+      0.72,
       Math.min(
-        1.38,
-        0.86 /
-          Math.max(
-            0.45,
-            occupancy,
-          ),
+        1.26,
+        Math.min(
+          heightScale,
+          widthScale,
+        ),
       ),
     );
   } catch (_error) {
@@ -225,9 +236,37 @@ function balanceBattlePortraits(
           scale,
         );
       }
+      const fighter =
+        image.closest(
+          ".battle-fighter",
+        );
+      const playerTeam =
+        image.closest(
+          ".battle-team-column",
+        )?.classList.contains(
+          "is-player",
+        ) === true;
+      const roleCorrection =
+        playerTeam &&
+        image.dataset.role === "SUP"
+          ? 0.88
+          : 1;
+      const finalScale =
+        Math.max(
+          0.68,
+          Math.min(
+            1.26,
+            scale *
+              roleCorrection,
+          ),
+        );
       image.style.setProperty(
         "--portrait-balance-scale",
-        scale.toFixed(3),
+        finalScale.toFixed(3),
+      );
+      fighter?.style.setProperty(
+        "--portrait-visible-scale",
+        finalScale.toFixed(3),
       );
     };
 

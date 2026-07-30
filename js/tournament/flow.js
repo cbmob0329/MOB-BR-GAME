@@ -13,7 +13,7 @@ import {
 import {
   TOURNAMENT_PHASES,
   createTournamentRuntimeManager,
-} from "./runtime.js?v=35";
+} from "./runtime.js?v=36";
 import {
   executeCurrentBattleToDraft,
 } from "./battle-core.js";
@@ -23,7 +23,7 @@ import {
 import {
   createBattlePlaybackController,
   renderBattleOutcomeScreen,
-} from "./battle-ui.js?v=35";
+} from "./battle-ui.js?v=36";
 import {
   EXPLORATION_PAGES,
   beginExplorationToDraft,
@@ -45,7 +45,7 @@ import {
   useInventoryItemToDraft,
   useMobSlotToDraft,
   useRespawnTurntableToDraft,
-} from "./exploration.js?v=35";
+} from "./exploration.js?v=36";
 import {
   advanceAwardToDraft,
   finalizeCurrentMatchToDraft,
@@ -61,13 +61,13 @@ import {
   renderReturningResultScreen,
   renderTournamentResultScreen,
   writePreparedResultToStorage,
-} from "./results.js?v=35";
+} from "./results.js?v=36";
 
 import {
   applyMatchPlanToDraft,
   circuitSectionLabel,
   isPlayerMatch,
-} from "./circuit.js?v=35";
+} from "./circuit.js?v=36";
 
 import {
   fastForwardMatchToChampionToDraft,
@@ -77,9 +77,9 @@ import {
   getRoundTarget,
   isPlayerActive,
   resolveRoundEncounterToDraft,
-} from "./round.js?v=35";
+} from "./round.js?v=36";
 
-export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-3.2.0";
+export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-3.3.0";
 
 const PHASE_LABELS = Object.freeze({
   IDLE: "待機",
@@ -942,6 +942,7 @@ export function createTournamentFlowController({
   let explorationSwipeCleanup = null;
   let toastTimer = null;
   let modalResolver = null;
+  let dynamicImagePreloadKey = null;
 
   function cancelScheduledAction() {
     timerEpoch += 1;
@@ -1959,12 +1960,82 @@ export function createTournamentFlowController({
     }
   }
 
-  function boot({ preferResume = true } = {}) {
-    showLoading("大会参加データを確認しています");
+  function runtimeImagePaths(
+    runtime,
+  ) {
+    if (!runtime) {
+      return [];
+    }
+    return [
+      runtime.entryData
+        ?.playerTeam
+        ?.teamLogo,
+      runtime.entryData
+        ?.company
+        ?.badgeImage,
+      ...runtime.teams.flatMap(
+        (team) => [
+          team.teamLogo,
+          ...team.members.map(
+            (member) =>
+              member.image,
+          ),
+        ],
+      ),
+      ...(
+        runtime.opening?.scenes ??
+        []
+      ).flatMap(
+        (scene) => [
+          scene.backgroundImage,
+          ...(
+            scene.foregroundImages ??
+            []
+          ),
+        ],
+      ),
+    ]
+      .filter(Boolean)
+      .map(
+        (path) =>
+          assetPath(path),
+      );
+  }
+
+  async function boot({
+    preferResume = true,
+  } = {}) {
+    showLoading(
+      "大会参加データを確認しています",
+    );
     cancelScheduledAction();
     bootError = null;
     try {
-      runtimeManager.boot({ preferResume });
+      runtimeManager.boot({
+        preferResume,
+      });
+      const runtime =
+        runtimeManager.getSnapshot();
+      const preloadKey =
+        [
+          runtime?.entryId,
+          runtime?.tournamentId,
+          runtime?.teams?.length,
+        ].join(":");
+      if (
+        dynamicImagePreloadKey !==
+        preloadKey
+      ) {
+        showLoading(
+          "企業ロゴと選手画像を事前読込しています",
+        );
+        await preloadTournamentImages(
+          runtimeImagePaths(runtime),
+          6500,
+        );
+        dynamicImagePreloadKey =
+          preloadKey;
+      }
       hideLoading();
       render();
     } catch (error) {
@@ -2617,7 +2688,9 @@ export function createTournamentFlowController({
           return;
         }
         if (action === "retry-boot") {
-          boot({ preferResume: true });
+          void boot({
+            preferResume: true,
+          });
           return;
         }
         if (action === "return-main") {
@@ -2767,7 +2840,9 @@ async function bootstrap() {
     loadingMessage,
     storage: window.localStorage,
   });
-  controller.boot({ preferResume: true });
+  await controller.boot({
+    preferResume: true,
+  });
   globalThis.mobBrTournament = controller;
 }
 
