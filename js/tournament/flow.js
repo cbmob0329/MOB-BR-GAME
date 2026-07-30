@@ -13,7 +13,7 @@ import {
 import {
   TOURNAMENT_PHASES,
   createTournamentRuntimeManager,
-} from "./runtime.js?v=33";
+} from "./runtime.js?v=34";
 import {
   executeCurrentBattleToDraft,
 } from "./battle-core.js";
@@ -23,7 +23,7 @@ import {
 import {
   createBattlePlaybackController,
   renderBattleOutcomeScreen,
-} from "./battle-ui.js?v=33";
+} from "./battle-ui.js?v=34";
 import {
   EXPLORATION_PAGES,
   beginExplorationToDraft,
@@ -45,7 +45,7 @@ import {
   useInventoryItemToDraft,
   useMobSlotToDraft,
   useRespawnTurntableToDraft,
-} from "./exploration.js?v=33";
+} from "./exploration.js?v=34";
 import {
   advanceAwardToDraft,
   finalizeCurrentMatchToDraft,
@@ -61,13 +61,13 @@ import {
   renderReturningResultScreen,
   renderTournamentResultScreen,
   writePreparedResultToStorage,
-} from "./results.js?v=33";
+} from "./results.js?v=34";
 
 import {
   applyMatchPlanToDraft,
   circuitSectionLabel,
   isPlayerMatch,
-} from "./circuit.js?v=33";
+} from "./circuit.js?v=34";
 
 import {
   fastForwardMatchToChampionToDraft,
@@ -77,9 +77,9 @@ import {
   getRoundTarget,
   isPlayerActive,
   resolveRoundEncounterToDraft,
-} from "./round.js?v=33";
+} from "./round.js?v=34";
 
-export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-3.0.0";
+export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-3.1.0";
 
 const PHASE_LABELS = Object.freeze({
   IDLE: "待機",
@@ -158,19 +158,41 @@ function playerMembers(runtime) {
 }
 
 function tournamentThemeLogo(runtime) {
-  const theme = runtime.entryData.tournament.openingThemeId;
-  if (theme === "national") return assetPath("icon/national.png");
-  if (theme === "world") return assetPath("icon/world.png");
-  if (theme === "championship") return assetPath("icon/champ.png");
-  return assetPath("icon/local.png");
+  const theme =
+    runtime.entryData.tournament
+      .openingThemeId;
+  const logos = {
+    national: "icon/national.png",
+    world: "icon/world.png",
+    championship: "icon/champ.png",
+    denden: "icon/brden.png",
+    mobutetsu: "icon/brden.png",
+    rockets: "icon/rokets.png",
+    tempest: "icon/tenpest.png",
+  };
+  return assetPath(
+    logos[theme] ??
+      "icon/local.png",
+  );
 }
 
 function tournamentThemeBackground(runtime) {
-  const theme = runtime.entryData.tournament.openingThemeId;
-  if (theme === "national") return assetPath("back/national.png");
-  if (theme === "world") return assetPath("back/world.png");
-  if (theme === "championship") return assetPath("back/champ.png");
-  return assetPath("back/local.png");
+  const theme =
+    runtime.entryData.tournament
+      .openingThemeId;
+  const backgrounds = {
+    national: "back/national.png",
+    world: "back/world.png",
+    championship: "back/champ.png",
+    denden: "back/denden.png",
+    mobutetsu: "back/tetsu.png",
+    rockets: "back/rokets.png",
+    tempest: "back/tenpest.png",
+  };
+  return assetPath(
+    backgrounds[theme] ??
+      "back/local.png",
+  );
 }
 
 function topStatusTemplate(runtime) {
@@ -2664,6 +2686,10 @@ async function bootstrap() {
     assetPath("back/national.png"),
     assetPath("back/world.png"),
     assetPath("back/champ.png"),
+    assetPath("back/denden.png"),
+    assetPath("back/tetsu.png"),
+    assetPath("back/rokets.png"),
+    assetPath("back/tenpest.png"),
     assetPath("back/neon.png"),
     assetPath("back/sabak.png"),
     assetPath("back/magma.png"),
@@ -2672,6 +2698,9 @@ async function bootstrap() {
     assetPath("icon/national.png"),
     assetPath("icon/world.png"),
     assetPath("icon/champ.png"),
+    assetPath("icon/brden.png"),
+    assetPath("icon/rokets.png"),
+    assetPath("icon/tenpest.png"),
     assetPath("icon/mic.png"),
     assetPath("icon/battle.png"),
     assetPath("icon/round.png"),

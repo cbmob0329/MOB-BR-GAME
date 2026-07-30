@@ -11,29 +11,32 @@ import { assetPath } from "../assets.js";
 import {
   getChampionshipPoints,
   getPlacementPoints,
-} from "../../data/game-data.js?v=33";
+} from "../../data/game-data.js?v=34";
 import {
   STRATEGY_RULES,
 } from "../../data/strategy-data.js";
 import {
   FORMAL_CIRCUIT_RULES,
   isCasualTournamentType,
-} from "../../data/circuit-data.js?v=33";
+} from "../../data/circuit-data.js?v=34";
+import {
+  createCasualTrophy,
+} from "../../data/casual-data.js?v=34";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=33";
+} from "./circuit.js?v=34";
 import {
   getPlayableRoundCount,
-} from "./round.js?v=33";
+} from "./round.js?v=34";
 import {
   finalizeTournamentResultData,
   resolvePlacementRewards,
   writeTournamentResultToStorage,
-} from "../main/tournament-bridge.js?v=33";
+} from "../main/tournament-bridge.js?v=34";
 
 export const RESULTS_VERSION =
-  "mobbr-tournament-results-2.4.0";
+  "mobbr-tournament-results-2.5.0";
 
 export const RESULT_RULES = Object.freeze({
   defaultMatchPointThreshold: 50,
@@ -106,11 +109,41 @@ function formatNumber(value) {
 }
 
 function tournamentThemeBackground(runtime) {
-  const theme = runtime.entryData.tournament.openingThemeId;
-  if (theme === "national") return "back/national.png";
-  if (theme === "world") return "back/world.png";
-  if (theme === "championship") return "back/champ.png";
-  return "back/local.png";
+  const theme =
+    runtime.entryData.tournament
+      .openingThemeId;
+  const backgrounds = {
+    national: "back/national.png",
+    world: "back/world.png",
+    championship: "back/champ.png",
+    denden: "back/denden.png",
+    mobutetsu: "back/tetsu.png",
+    rockets: "back/rokets.png",
+    tempest: "back/tenpest.png",
+  };
+  return (
+    backgrounds[theme] ??
+    "back/local.png"
+  );
+}
+
+function tournamentThemeLogoPath(runtime) {
+  const theme =
+    runtime.entryData.tournament
+      .openingThemeId;
+  const logos = {
+    national: "icon/national.png",
+    world: "icon/world.png",
+    championship: "icon/champ.png",
+    denden: "icon/brden.png",
+    mobutetsu: "icon/brden.png",
+    rockets: "icon/rokets.png",
+    tempest: "icon/tenpest.png",
+  };
+  return (
+    logos[theme] ??
+    "icon/local.png"
+  );
 }
 
 function assertRuntime(draft) {
@@ -588,25 +621,108 @@ export function finalizeCurrentMatchToDraft(draft) {
   return deepFreeze(deepClone(record));
 }
 
-function resetMemberForNextMatch(runtimeMember) {
-  if (runtimeMember.combatState === "dead") {
+function resetMemberForNextMatch(
+  runtimeMember,
+  {
+    preserveDeaths = false,
+  } = {},
+) {
+  const wasDead =
+    runtimeMember.combatState === "dead";
+
+  if (
+    preserveDeaths &&
+    wasDead
+  ) {
     runtimeMember.hp = 0;
-  } else if (runtimeMember.combatState === "down") {
-    runtimeMember.combatState = "alive";
-    runtimeMember.hp = Math.max(1, Math.round(runtimeMember.maxHp * 0.3));
+    runtimeMember.combatState =
+      "dead";
   } else {
-    runtimeMember.hp = Math.min(
-      runtimeMember.maxHp,
-      runtimeMember.hp + Math.round(runtimeMember.maxHp * 0.5),
-    );
+    runtimeMember.hp =
+      runtimeMember.maxHp;
+    runtimeMember.combatState =
+      "alive";
   }
+
   runtimeMember.currentAmmo = 12;
   runtimeMember.reloadRemaining = 0;
   runtimeMember.skillCt = Object.fromEntries(
-    Object.keys(runtimeMember.skillCt ?? {}).map((skillId) => [skillId, 0]),
+    Object.keys(
+      runtimeMember.skillCt ?? {},
+    ).map(
+      (skillId) => [
+        skillId,
+        0,
+      ],
+    ),
   );
   runtimeMember.temporaryEffects = [];
   runtimeMember.nextBattleOpeningEffects = [];
+  runtimeMember.postReviveRecoveryPending =
+    false;
+  runtimeMember.postReviveDamageReductionUntil =
+    0;
+}
+
+function synchronizeNextMatchMemberState(
+  draft,
+) {
+  for (const team of draft.teams) {
+    for (const member of team.members) {
+      const runtimeMember =
+        draft.memberRuntime[
+          member.playerId
+        ];
+      if (!runtimeMember) {
+        continue;
+      }
+      member.currentHp =
+        runtimeMember.hp;
+      member.maxHp =
+        runtimeMember.maxHp;
+      member.combatState =
+        runtimeMember.combatState;
+    }
+  }
+
+  const playerTeam =
+    draft.teams.find(
+      (team) =>
+        team.teamId ===
+        draft.playerTeamId,
+    );
+  for (
+    const entryMember
+    of draft.entryData.playerTeam.members
+  ) {
+    const runtimeMember =
+      draft.memberRuntime[
+        entryMember.playerId
+      ];
+    const teamMember =
+      playerTeam?.members.find(
+        (member) =>
+          member.playerId ===
+          entryMember.playerId,
+      );
+    if (!runtimeMember) {
+      continue;
+    }
+    entryMember.currentHp =
+      runtimeMember.hp;
+    entryMember.maxHp =
+      runtimeMember.maxHp;
+    entryMember.combatState =
+      runtimeMember.combatState;
+    if (teamMember) {
+      teamMember.currentHp =
+        runtimeMember.hp;
+      teamMember.maxHp =
+        runtimeMember.maxHp;
+      teamMember.combatState =
+        runtimeMember.combatState;
+    }
+  }
 }
 
 export function prepareNextMatchToDraft(draft) {
@@ -636,23 +752,28 @@ export function prepareNextMatchToDraft(draft) {
   draft.roundIntegration.playerEliminatedAt = null;
   draft.roundIntegration.matchPlacements[draft.match] = {};
 
-  for (const member of Object.values(draft.memberRuntime)) {
-    resetMemberForNextMatch(member);
+  const preserveDeaths =
+    draft.entryData.tournament
+      .persistDeathsBetweenMatches ===
+    true;
+
+  for (
+    const member
+    of Object.values(
+      draft.memberRuntime,
+    )
+  ) {
+    resetMemberForNextMatch(
+      member,
+      {
+        preserveDeaths,
+      },
+    );
   }
-  for (const team of draft.teams) {
-    for (const member of team.members) {
-      const runtimeMember = draft.memberRuntime[member.playerId];
-      member.currentHp = runtimeMember.hp;
-      member.maxHp = runtimeMember.maxHp;
-      member.combatState = runtimeMember.combatState;
-    }
-  }
-  for (const member of draft.entryData.playerTeam.members) {
-    const runtimeMember = draft.memberRuntime[member.playerId];
-    member.currentHp = runtimeMember.maxHp;
-    member.maxHp = runtimeMember.maxHp;
-    member.combatState = "alive";
-  }
+
+  synchronizeNextMatchMemberState(
+    draft,
+  );
   for (const [teamId, teamRuntime] of Object.entries(
     draft.teamRuntime,
   )) {
@@ -1666,6 +1787,28 @@ export function createTournamentResultData(
     runtime,
     memberResults,
   );
+  const casualTrophy =
+    createCasualTrophy({
+      tournamentType:
+        runtime.entryData.tournament
+          .tournamentType,
+      finalPlace:
+        playerFinal.place,
+      tournamentId:
+        runtime.tournamentId,
+      resultId,
+      year:
+        runtime.entryData.gameDate.year,
+      month:
+        runtime.entryData.gameDate.month,
+      week:
+        runtime.entryData.gameDate.week,
+    });
+  const trophies =
+    casualTrophy
+      ? [casualTrophy]
+      : [];
+
   const status =
     qualification.stageInProgress
       ? "stage_in_progress"
@@ -1759,6 +1902,8 @@ export function createTournamentResultData(
       "world_final"
         ? getChampionshipPoints(playerFinal.place)
         : 0,
+    trophies:
+      deepClone(trophies),
     championshipPointProjectedTotal:
       (runtime.entryData.recordSnapshot
         .championshipPoints ?? 0) +
@@ -2126,13 +2271,9 @@ export function renderNextMatchWaitScreen(runtime) {
       >
       <section class="next-match-stage">
         <img class="next-match-stage__tournament-logo" src="${escapeAttribute(
-          runtime.entryData.tournament.openingThemeId === "national"
-            ? "icon/national.png"
-            : runtime.entryData.tournament.openingThemeId === "world"
-              ? "icon/world.png"
-              : runtime.entryData.tournament.openingThemeId === "championship"
-                ? "icon/champ.png"
-                : "icon/local.png"
+          tournamentThemeLogoPath(
+            runtime,
+          )
         )}" alt="">
         <span>SESSION CONTINUES</span>
         <h1>MATCH ${nextPlan?.circuitMatch ?? nextMatch}</h1>

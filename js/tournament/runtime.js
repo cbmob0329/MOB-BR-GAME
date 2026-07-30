@@ -9,14 +9,14 @@
 import {
   STORAGE_KEYS,
   calculateChecksum,
-} from "../main/state.js?v=33";
+} from "../main/state.js?v=34";
 import {
   TOURNAMENT_BRIDGE_VERSION,
   TOURNAMENT_ENTRY_SCHEMA_VERSION,
   TOURNAMENT_RESUME_SCHEMA_VERSION,
   readTournamentEntryFromStorage,
   validateTournamentEntryData,
-} from "../main/tournament-bridge.js?v=33";
+} from "../main/tournament-bridge.js?v=34";
 import {
   CPU_LOCAL_DATA_VERSION,
   CPU_LOCAL_MASTER_VERSION,
@@ -38,14 +38,14 @@ import {
   getRoleCommonSkills,
   resolveCpuRankFromRange,
   resolveCpuWeaponProfile,
-} from "../../data/battle-config.js?v=33";
+} from "../../data/battle-config.js?v=34";
 import {
   resolveCpuTeamMaster,
-} from "../../data/circuit-data.js?v=33";
+} from "../../data/circuit-data.js?v=34";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=33";
+} from "./circuit.js?v=34";
 
 export const TOURNAMENT_RUNTIME_VERSION =
   "mobbr-tournament-runtime-2.1.0";
@@ -248,6 +248,22 @@ export const OPENING_THEME_ASSETS = Object.freeze({
     backgroundImage: "back/champ.png",
     logoImage: "icon/champ.png",
   }),
+  denden: Object.freeze({
+    backgroundImage: "back/denden.png",
+    logoImage: "icon/brden.png",
+  }),
+  mobutetsu: Object.freeze({
+    backgroundImage: "back/tetsu.png",
+    logoImage: "icon/brden.png",
+  }),
+  rockets: Object.freeze({
+    backgroundImage: "back/rokets.png",
+    logoImage: "icon/rokets.png",
+  }),
+  tempest: Object.freeze({
+    backgroundImage: "back/tenpest.png",
+    logoImage: "icon/tenpest.png",
+  }),
 });
 
 export const TOURNAMENT_MAP_ASSETS = Object.freeze([
@@ -416,6 +432,36 @@ export function createOpeningScenes(entry, teams = null) {
       : null;
 
   const scenes = [
+    ...(
+      entry.guide
+        ?.showPinkTournamentIntro ===
+      true
+        ? [{
+            sceneId:
+              "opening-mob-pink-guide",
+            type:
+              "MOB_PINK_GUIDE",
+            duration: 0,
+            backgroundImage:
+              theme.backgroundImage,
+            foregroundImages: [
+              entry.guide.pinkImage ??
+              "icon/pink.png",
+            ],
+            text:
+              `${entry.tournament.tournamentName}へようこそ`,
+            subtext:
+              "モブピンクから大会のご案内",
+            commentary:
+              `${entry.tournament.tournamentName}では、探索で準備を整え、接敵前に作戦を選びます。MATCHごとの結果とTOTAL順位を確認しながら、最後まで一緒に頑張りましょう。`,
+            soundId:
+              "mob_pink_guide",
+            animationId:
+              "pink_greeting",
+            canSkip: false,
+          }]
+        : []
+    ),
     {
       sceneId: "opening-title",
       type: "TOURNAMENT_TITLE",
@@ -1596,12 +1642,21 @@ export function validateTournamentRuntime(runtime, entry = null) {
       "INVALID_LAST_BATTLE_RESULT",
     );
   }
+  const expectedOpeningSceneCount =
+    runtime.entryData?.guide
+      ?.showPinkTournamentIntro ===
+    true
+      ? 11
+      : 10;
   if (
-    !Array.isArray(runtime.opening?.scenes) ||
-    runtime.opening.scenes.length !== 10
+    !Array.isArray(
+      runtime.opening?.scenes,
+    ) ||
+    runtime.opening.scenes.length !==
+      expectedOpeningSceneCount
   ) {
     throw new TournamentRuntimeValidationError(
-      "Opening runtime must contain 10 independent scenes.",
+      `Opening runtime must contain ${expectedOpeningSceneCount} independent scenes.`,
       "INVALID_OPENING_SCENES",
     );
   }

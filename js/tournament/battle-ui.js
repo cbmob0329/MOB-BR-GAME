@@ -14,7 +14,7 @@ import {
   createCommentaryDirector,
 } from "./commentary.js";
 
-export const BATTLE_UI_VERSION = "mobbr-battle-ui-2.1.0";
+export const BATTLE_UI_VERSION = "mobbr-battle-ui-2.2.0";
 export const BATTLE_REPLAY_SCHEMA_VERSION =
   "mobbr-battle-replay-1.0.0";
 
@@ -57,6 +57,195 @@ function escapeAttribute(value) {
 
 function formatNumber(value) {
   return new Intl.NumberFormat("ja-JP").format(value);
+}
+
+const PORTRAIT_BALANCE_CACHE =
+  new Map();
+
+function calculateVisiblePortraitScale(
+  image,
+) {
+  if (
+    !image?.naturalWidth ||
+    !image?.naturalHeight ||
+    typeof document === "undefined"
+  ) {
+    return 1;
+  }
+
+  try {
+    const maximumSide = 192;
+    const ratio =
+      Math.min(
+        1,
+        maximumSide /
+          Math.max(
+            image.naturalWidth,
+            image.naturalHeight,
+          ),
+      );
+    const width =
+      Math.max(
+        1,
+        Math.round(
+          image.naturalWidth * ratio,
+        ),
+      );
+    const height =
+      Math.max(
+        1,
+        Math.round(
+          image.naturalHeight * ratio,
+        ),
+      );
+    const canvas =
+      document.createElement(
+        "canvas",
+      );
+    canvas.width = width;
+    canvas.height = height;
+    const context =
+      canvas.getContext(
+        "2d",
+        {
+          willReadFrequently: true,
+        },
+      );
+    if (!context) {
+      return 1;
+    }
+    context.drawImage(
+      image,
+      0,
+      0,
+      width,
+      height,
+    );
+    const pixels =
+      context.getImageData(
+        0,
+        0,
+        width,
+        height,
+      ).data;
+    let minX = width;
+    let maxX = -1;
+    let minY = height;
+    let maxY = -1;
+    for (
+      let y = 0;
+      y < height;
+      y += 1
+    ) {
+      for (
+        let x = 0;
+        x < width;
+        x += 1
+      ) {
+        const alpha =
+          pixels[
+            (y * width + x) * 4 + 3
+          ];
+        if (alpha < 18) {
+          continue;
+        }
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+      }
+    }
+    if (
+      maxX < minX ||
+      maxY < minY
+    ) {
+      return 1;
+    }
+
+    const visibleWidth =
+      (maxX - minX + 1) /
+      width;
+    const visibleHeight =
+      (maxY - minY + 1) /
+      height;
+    const occupancy =
+      Math.max(
+        visibleWidth,
+        visibleHeight,
+      );
+    return Math.max(
+      0.84,
+      Math.min(
+        1.38,
+        0.86 /
+          Math.max(
+            0.45,
+            occupancy,
+          ),
+      ),
+    );
+  } catch (_error) {
+    return 1;
+  }
+}
+
+function balanceBattlePortraits(
+  root,
+) {
+  const images =
+    root.querySelectorAll?.(
+      ".battle-fighter__portrait > img",
+    ) ?? [];
+  for (const image of images) {
+    const source =
+      image.currentSrc ||
+      image.src ||
+      "";
+    if (
+      !source ||
+      source.includes(
+        "/icon/deth.png",
+      )
+    ) {
+      continue;
+    }
+
+    const applyScale = () => {
+      let scale =
+        PORTRAIT_BALANCE_CACHE.get(
+          source,
+        );
+      if (!Number.isFinite(scale)) {
+        scale =
+          calculateVisiblePortraitScale(
+            image,
+          );
+        PORTRAIT_BALANCE_CACHE.set(
+          source,
+          scale,
+        );
+      }
+      image.style.setProperty(
+        "--portrait-balance-scale",
+        scale.toFixed(3),
+      );
+    };
+
+    if (
+      image.complete &&
+      image.naturalWidth > 0
+    ) {
+      applyScale();
+    } else {
+      image.addEventListener(
+        "load",
+        applyScale,
+        {
+          once: true,
+        },
+      );
+    }
+  }
 }
 
 function getTeam(runtime, teamId) {
@@ -948,15 +1137,6 @@ export function renderBattleReplayScreen(runtime, model) {
     <main class="tournament-screen tournament-screen--battle-replay ${model.status === "paused" ? "is-tactical-paused" : ""}" style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
       <img class="tournament-stage-background" src="${escapeAttribute(assetPath(runtime.map.image))}" alt="">
       ${statusHeaderTemplate(runtime, model)}
-      <button
-        type="button"
-        class="battle-chill-button"
-        data-action="battle-tactical-pause"
-        aria-label="チルタイム。戦闘を一時停止してアイテムまたは将来のウルトを選択"
-      >
-        <span>CHILL TIME</span>
-        <strong>チルタイム</strong>
-      </button>
       <section class="battle-arena">
         ${ambientCrossfireTemplate(model)}
         <div class="battle-combat-haze" aria-hidden="true"><i></i><i></i><i></i></div>
@@ -1096,6 +1276,26 @@ export function createBattlePlaybackController({
       "battle-persistent-cutin-layer";
   }
 
+  const chillPortalButton =
+    globalThis.document?.createElement?.(
+      "button",
+    ) ?? null;
+  if (chillPortalButton) {
+    chillPortalButton.type =
+      "button";
+    chillPortalButton.className =
+      "battle-chill-button battle-chill-button--portal";
+    chillPortalButton.dataset.action =
+      "battle-tactical-pause";
+    chillPortalButton.setAttribute(
+      "aria-label",
+      "チルタイム。戦闘を一時停止します",
+    );
+    chillPortalButton.innerHTML =
+      "<span>CHILL TIME</span><strong>チルタイム</strong>";
+  }
+  let pauseRequestPending = false;
+
   const safeRate =
     Number.isFinite(playbackRate) && playbackRate > 0
       ? playbackRate
@@ -1141,6 +1341,19 @@ export function createBattlePlaybackController({
     if (persistentCutinLayer) {
       root.append(
         persistentCutinLayer,
+      );
+    }
+    balanceBattlePortraits(
+      root,
+    );
+    if (chillPortalButton) {
+      chillPortalButton.disabled =
+        paused ||
+        pauseRequestPending ||
+        completed;
+      chillPortalButton.classList.toggle(
+        "is-paused",
+        paused,
       );
     }
   }
@@ -1343,10 +1556,14 @@ export function createBattlePlaybackController({
   ) {
     if (
       typeof onRequestItemUse !==
-      "function"
+        "function" ||
+      pauseRequestPending ||
+      destroyed ||
+      completed
     ) {
       return;
     }
+    pauseRequestPending = true;
     const participant = model.participants[playerId];
     const teamName = participant
       ? model.teams[participant.teamId]?.teamName ?? "プレイヤーチーム"
@@ -1375,7 +1592,12 @@ export function createBattlePlaybackController({
     } catch (error) {
       onError(error);
     } finally {
+      pauseRequestPending = false;
       resume();
+      if (chillPortalButton) {
+        chillPortalButton.disabled =
+          false;
+      }
     }
   }
 
@@ -1512,6 +1734,31 @@ export function createBattlePlaybackController({
       )[0]?.playerId ?? null;
   }
 
+  function handlePersistentChillPointerDown(
+    event,
+  ) {
+    const button =
+      event.target?.closest?.(
+        ".battle-chill-button--portal",
+      );
+    if (
+      !button ||
+      button.disabled
+    ) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation?.();
+    const playerId =
+      defaultPausePlayerId();
+    if (playerId) {
+      requestBattleItem(
+        playerId,
+      );
+    }
+  }
+
   function handleClick(event) {
     const action =
       event.target
@@ -1625,6 +1872,19 @@ export function createBattlePlaybackController({
       throw new Error("Destroyed battle playback cannot start.");
     }
     root.addEventListener?.("click", handleClick);
+    if (
+      chillPortalButton &&
+      globalThis.document?.body
+    ) {
+      globalThis.document.body.append(
+        chillPortalButton,
+      );
+      globalThis.document.addEventListener(
+        "pointerdown",
+        handlePersistentChillPointerDown,
+        true,
+      );
+    }
     root.addEventListener?.(
       "pointerdown",
       handlePointerDown,
@@ -1664,6 +1924,12 @@ export function createBattlePlaybackController({
     generation += 1;
     clearTimer();
     root.removeEventListener?.("click", handleClick);
+    globalThis.document?.removeEventListener?.(
+      "pointerdown",
+      handlePersistentChillPointerDown,
+      true,
+    );
+    chillPortalButton?.remove();
     root.removeEventListener?.(
       "pointerdown",
       handlePointerDown,
