@@ -10076,3 +10076,826 @@ img.asset-missing {
       );
   }
 }
+
+
+/* ==========================================================
+   Generation 36: TEAM deck, HOME ROOM, MOB Pink and ROOM studio
+   ========================================================== */
+
+/* Stable company-rank geometry during route replacement. */
+.top-status__company-main > div:first-child > b {
+  width: 58px !important;
+  min-width: 58px !important;
+  max-width: 58px !important;
+  grid-template-columns: 15px minmax(0, 1fr) !important;
+  padding-inline: 5px !important;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  contain: layout paint;
+  animation: none !important;
+  transition: none !important;
+}
+
+.top-status__company-main > div:first-child > b > img {
+  width: 15px !important;
+  min-width: 15px;
+  height: 15px !important;
+}
+
+.company-rank-mini-progress small,
+.resource-chip__value {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* TEAM MENU sits above the player portraits as an icon-only depth carousel. */
+.team-menu-deck {
+  position: relative;
+  display: grid;
+  gap: 5px;
+  overflow: hidden;
+  border: 2px solid rgb(124 218 255 / 20%);
+  border-radius: 18px;
+  padding: 8px 0 10px;
+  background:
+    radial-gradient(circle at 50% 125%, rgb(89 196 255 / 19%), transparent 45%),
+    linear-gradient(160deg, rgb(13 29 48 / 96%), rgb(5 12 24 / 98%));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 9%),
+    0 12px 24px rgb(0 0 0 / 28%);
+}
+
+.team-menu-deck > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: 12px;
+}
+
+.team-menu-deck > header span {
+  color: #8ce6ff;
+  font-size: .42rem;
+  font-weight: 1000;
+  letter-spacing: .12em;
+}
+
+.team-menu-deck > header small {
+  color: rgb(255 255 255 / 47%);
+  font-size: .31rem;
+}
+
+.team-menu-deck__track {
+  display: flex;
+  gap: 9px;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding:
+    12px
+    max(
+      18px,
+      calc((100vw - 78px) / 2)
+    )
+    15px;
+  perspective: 760px;
+  scroll-padding-inline: calc((100vw - 78px) / 2);
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.team-menu-deck__track::-webkit-scrollbar {
+  display: none;
+}
+
+.team-menu-deck__item {
+  position: relative;
+  flex: 0 0 72px;
+  display: grid;
+  width: 72px;
+  height: 72px;
+  scroll-snap-align: center;
+  place-items: center;
+  overflow: visible;
+  border: 3px solid rgb(137 223 255 / 35%);
+  border-radius: 50%;
+  padding: 10px;
+  background:
+    radial-gradient(circle at 35% 25%, rgb(255 255 255 / 22%), transparent 28%),
+    linear-gradient(145deg, rgb(46 100 139 / 96%), rgb(7 22 39 / 99%));
+  box-shadow:
+    0 13px 18px rgb(0 0 0 / 36%),
+    inset 0 1px 0 rgb(255 255 255 / 23%),
+    inset 0 -9px 15px rgb(0 0 0 / 24%);
+  transform:
+    rotateY(-5deg)
+    translateZ(0);
+  transition:
+    transform 190ms ease,
+    border-color 190ms ease,
+    filter 190ms ease;
+  touch-action: manipulation;
+}
+
+.team-menu-deck__item::before {
+  position: absolute;
+  inset: -7px;
+  border: 1px solid rgb(132 226 255 / 16%);
+  border-radius: 50%;
+  content: "";
+}
+
+.team-menu-deck__item > i {
+  position: absolute;
+  right: 9px;
+  bottom: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #83edbd;
+  box-shadow: 0 0 8px #83edbd;
+}
+
+.team-menu-deck__item img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  filter:
+    drop-shadow(
+      0 7px 5px
+      rgb(0 0 0 / 38%)
+    );
+}
+
+.team-menu-deck__item:active {
+  transform:
+    rotateY(0)
+    translateZ(35px)
+    scale(.94);
+  border-color: #f2da6b;
+  filter: brightness(1.12);
+}
+
+/* HOME can display a selected ROOM and its placements. */
+.screen--home.has-home-room {
+  position: relative;
+  isolation: isolate;
+  background: #070b12 !important;
+}
+
+.home-room-stage {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.home-room-stage__background {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.home-room-stage__placements {
+  position: absolute;
+  inset: 0;
+}
+
+.home-room-stage__placements > img {
+  position: absolute;
+  width: min(23vw, 120px);
+  height: min(23vw, 120px);
+  translate: -50% -50%;
+  scale:
+    calc(
+      var(--home-placement-scale) *
+      var(--home-placement-flip)
+    )
+    var(--home-placement-scale);
+  object-fit: contain;
+  filter:
+    drop-shadow(
+      0 10px 8px
+      rgb(0 0 0 / 44%)
+    );
+}
+
+.home-room-stage__shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      180deg,
+      rgb(1 5 11 / 27%),
+      rgb(1 5 11 / 12%) 44%,
+      rgb(1 5 11 / 56%)
+    );
+}
+
+.screen--home.has-home-room .top-status,
+.screen--home.has-home-room .page-content,
+.screen--home.has-home-room .bottom-nav {
+  position: relative;
+  z-index: 2;
+}
+
+.home-facility-only {
+  align-content: start !important;
+  min-height:
+    calc(
+      100dvh -
+      var(--safe-top) -
+      var(--safe-bottom) -
+      162px
+    );
+  padding-bottom: 4px !important;
+}
+
+.home-facility-grid {
+  align-items: center;
+  gap: 17px !important;
+  padding:
+    7px
+    max(
+      18px,
+      calc((100vw - min(84vw, 330px)) / 2)
+    )
+    8px !important;
+}
+
+.home-facility-image {
+  flex:
+    0 0
+    min(
+      84vw,
+      330px
+    ) !important;
+  min-width:
+    min(
+      84vw,
+      330px
+    ) !important;
+  border-radius: 27px !important;
+}
+
+.home-facility-image span {
+  right: 9px !important;
+  bottom: 9px !important;
+  left: 9px !important;
+  padding: 8px 6px !important;
+  font-size: .69rem !important;
+}
+
+/* Remove the old artificial center COLLECTION banner.
+   A soft cover hides text baked into earlier artwork, then the common
+   bottom label is used like every other facility. */
+.home-facility-image[data-facility-id="collection"]::after {
+  display: none !important;
+  content: none !important;
+}
+
+.home-facility-image[data-facility-id="collection"]::before {
+  z-index: 2 !important;
+  inset: 42% 7% 24% !important;
+  border: 0 !important;
+  border-radius: 14px !important;
+  content: "" !important;
+  background:
+    linear-gradient(
+      145deg,
+      rgb(29 21 61 / 91%),
+      rgb(59 42 106 / 88%)
+    ) !important;
+  box-shadow:
+    inset 0 1px 0
+    rgb(255 255 255 / 9%) !important;
+}
+
+.home-facility-image[data-facility-id="collection"] span {
+  z-index: 5 !important;
+}
+
+/* Weekly MOB Pink now speaks from a real bubble. */
+.employee-week-greeting__staff {
+  align-items: end !important;
+  border: 0 !important;
+  padding: 3px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.employee-week-greeting__speech {
+  position: relative;
+  display: grid;
+  gap: 3px;
+  border: 3px solid rgb(222 112 169 / 45%);
+  border-radius: 18px 18px 18px 5px;
+  padding: 11px 12px;
+  background:
+    linear-gradient(
+      145deg,
+      #fffafd,
+      #f4dfe9
+    );
+  color: #332b35;
+  box-shadow:
+    0 11px 20px
+    rgb(0 0 0 / 20%);
+}
+
+.employee-week-greeting__speech::before {
+  position: absolute;
+  bottom: 18px;
+  left: -12px;
+  width: 20px;
+  height: 20px;
+  rotate: 45deg;
+  border-bottom: 3px solid rgb(222 112 169 / 45%);
+  border-left: 3px solid rgb(222 112 169 / 45%);
+  content: "";
+  background: #f8eaf1;
+}
+
+.employee-week-greeting__speech span {
+  position: relative;
+  z-index: 1;
+  color: #ce4b8c !important;
+}
+
+.employee-week-greeting__speech h3 {
+  position: relative;
+  z-index: 1;
+  color: #382e39 !important;
+}
+
+.employee-week-greeting__speech p {
+  position: relative;
+  z-index: 1;
+  color: #4a3d4c !important;
+}
+
+/* MOB Pink is contained inside the shop header and never consumes a row. */
+.mobshop-neon-header {
+  display: grid !important;
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(128px, 42%) !important;
+  gap: 7px;
+  align-items: center;
+  padding: 6px 7px !important;
+}
+
+.mobshop-neon-header__title {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.mobshop-neon-header__title > span,
+.mobshop-neon-header__title > strong,
+.mobshop-neon-header__title > em {
+  position: static !important;
+  width: auto !important;
+}
+
+.mobshop-header-clerk {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid rgb(255 255 255 / 15%);
+  border-radius: 9px;
+  padding: 3px 5px;
+  background:
+    linear-gradient(
+      145deg,
+      rgb(255 244 250 / 94%),
+      rgb(234 205 221 / 94%)
+    );
+}
+
+.mobshop-header-clerk > img {
+  width: 38px;
+  height: 42px;
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+.mobshop-header-clerk > div {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.mobshop-header-clerk span {
+  color: #ca4286;
+  font-size: .28rem;
+  font-weight: 1000;
+}
+
+.mobshop-header-clerk p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  color: #3a303b;
+  font-size: .3rem;
+  line-height: 1.25;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.mobshop-staff-counter {
+  display: none !important;
+}
+
+/* ROOM selector: compact square thumbnails. */
+.room-list--compact {
+  display: flex !important;
+  gap: 8px !important;
+  overflow-x: auto;
+  padding: 5px max(12px, calc((100vw - 112px) / 2)) 10px;
+  scroll-padding-inline: calc((100vw - 112px) / 2);
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.room-list--compact::-webkit-scrollbar {
+  display: none;
+}
+
+.room-list--compact .room-list-card {
+  position: relative;
+  flex: 0 0 104px;
+  display: grid;
+  width: 104px;
+  min-height: 150px;
+  grid-template-columns: 1fr !important;
+  grid-template-rows: 90px auto 30px;
+  scroll-snap-align: center;
+  gap: 4px !important;
+  overflow: hidden;
+  border-radius: 13px !important;
+  padding: 5px !important;
+  text-align: center;
+}
+
+.room-list-card > img {
+  width: 100%;
+  height: 90px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.room-list-card > div {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.room-list-card > div span {
+  color: #86e2ff;
+  font-size: .25rem;
+  font-weight: 1000;
+}
+
+.room-list-card > div h3 {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  font-size: .33rem;
+  line-height: 1.15;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.room-list-card > button {
+  min-height: 28px !important;
+  padding: 3px !important;
+  font-size: .28rem !important;
+}
+
+.room-list-card.is-home::after {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border-radius: 999px;
+  padding: 2px 5px;
+  content: "HOME";
+  background: #f1d666;
+  color: #211803;
+  font-size: .22rem;
+  font-weight: 1000;
+}
+
+/* Category and item shelves. */
+.room-inventory-console {
+  display: grid;
+  gap: 8px;
+  border: 3px solid rgb(255 255 255 / 15%);
+  border-radius: 17px;
+  padding: 10px;
+  background:
+    linear-gradient(
+      155deg,
+      rgb(16 34 55 / 96%),
+      rgb(6 14 27 / 98%)
+    );
+}
+
+.room-inventory-console > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.room-inventory-console > header div {
+  display: grid;
+  gap: 1px;
+}
+
+.room-inventory-console > header span {
+  color: #81e2ff;
+  font-size: .34rem;
+  font-weight: 1000;
+  letter-spacing: .09em;
+}
+
+.room-inventory-console > header strong {
+  color: #fff;
+  font-size: .66rem;
+}
+
+.room-inventory-console > header small {
+  color: rgb(255 255 255 / 52%);
+  font-size: .31rem;
+}
+
+.room-category-strip {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 3px 1px 7px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.room-category-strip::-webkit-scrollbar,
+.room-item-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.room-category-strip button {
+  flex: 0 0 58px;
+  display: grid;
+  width: 58px;
+  aspect-ratio: 1;
+  scroll-snap-align: center;
+  place-content: center;
+  justify-items: center;
+  gap: 2px;
+  border: 2px solid rgb(255 255 255 / 14%);
+  border-radius: 50%;
+  padding: 6px;
+  background:
+    radial-gradient(circle at 35% 25%, rgb(255 255 255 / 18%), transparent 28%),
+    rgb(28 49 71 / 95%);
+  color: #fff;
+}
+
+.room-category-strip button.is-active {
+  border-color: #f1d767;
+  translate: 0 -3px;
+  box-shadow: 0 8px 14px rgb(0 0 0 / 31%);
+}
+
+.room-category-strip img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+.room-category-strip span {
+  font-size: .19rem;
+  font-weight: 1000;
+}
+
+.room-item-strip {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 4px 1px 8px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.room-item-strip button {
+  flex: 0 0 82px;
+  display: grid;
+  width: 82px;
+  min-height: 104px;
+  scroll-snap-align: center;
+  justify-items: center;
+  align-content: end;
+  gap: 3px;
+  border: 2px solid rgb(255 255 255 / 13%);
+  border-radius: 11px;
+  padding: 5px;
+  background: rgb(255 255 255 / 6%);
+  color: #fff;
+}
+
+.room-item-strip button.is-selected {
+  border-color: #7ce1ff;
+  background:
+    linear-gradient(
+      160deg,
+      rgb(63 154 199 / 28%),
+      rgb(12 40 61 / 72%)
+    );
+  box-shadow:
+    0 0 0 3px
+    rgb(124 225 255 / 9%);
+}
+
+.room-item-strip img {
+  width: 68px;
+  height: 68px;
+  object-fit: contain;
+}
+
+.room-item-strip strong {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: .28rem;
+  line-height: 1.15;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.room-inventory-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.room-inventory-empty {
+  display: grid;
+  min-height: 95px;
+  place-content: center;
+  justify-items: center;
+  gap: 3px;
+  border: 1px dashed rgb(255 255 255 / 18%);
+  border-radius: 11px;
+  color: rgb(255 255 255 / 58%);
+}
+
+.room-canvas {
+  min-height: 470px !important;
+  background:
+    linear-gradient(
+      180deg,
+      rgb(255 255 255 / 3%),
+      rgb(0 0 0 / 16%)
+    ),
+    var(--room-background)
+    center / cover
+    no-repeat,
+    #121925 !important;
+}
+
+.room-placement {
+  width: 92px;
+  scale: 1 !important;
+  overflow: visible;
+}
+
+.room-placement > img {
+  width: 92px;
+  height: 92px;
+  scale:
+    calc(
+      var(--placement-scale) *
+      var(--placement-flip)
+    )
+    var(--placement-scale);
+  object-fit: contain;
+  transform-origin: center;
+  filter:
+    drop-shadow(
+      0 8px 8px
+      rgb(0 0 0 / 45%)
+    );
+}
+
+.room-placement.is-selected > img {
+  filter:
+    drop-shadow(
+      0 0 7px
+      #79e1ff
+    )
+    drop-shadow(
+      0 8px 8px
+      rgb(0 0 0 / 45%)
+    );
+}
+
+.room-placement__controls {
+  position: absolute;
+  z-index: 500;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  display: grid !important;
+  width: 206px;
+  grid-template-columns:
+    repeat(
+      4,
+      minmax(0, 1fr)
+    ) !important;
+  gap: 3px !important;
+  translate: -50% 0;
+  scale: 1 !important;
+  transform: none !important;
+  transform-origin: center bottom;
+  border: 2px solid rgb(121 224 255 / 37%);
+  border-radius: 10px;
+  padding: 5px;
+  background: rgb(4 13 25 / 96%);
+  box-shadow: 0 11px 21px rgb(0 0 0 / 38%);
+}
+
+.room-placement__controls button {
+  min-height: 30px !important;
+  border: 1px solid rgb(255 255 255 / 13%) !important;
+  border-radius: 6px !important;
+  padding: 3px 2px !important;
+  background: rgb(255 255 255 / 7%) !important;
+  font-size: .28rem !important;
+}
+
+.room-placement__controls button.is-danger {
+  color: #ff9da6 !important;
+}
+
+.room-drag-note {
+  margin: 0;
+}
+
+@media (min-width: 560px) {
+  .room-inventory-actions {
+    grid-template-columns:
+      minmax(0, 1fr)
+      minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 380px) {
+  .team-menu-deck__item {
+    flex-basis: 66px;
+    width: 66px;
+    height: 66px;
+  }
+
+  .team-menu-deck__item img {
+    width: 43px;
+    height: 43px;
+  }
+
+  .mobshop-neon-header {
+    grid-template-columns:
+      minmax(0, 1fr)
+      minmax(112px, 45%) !important;
+  }
+
+  .mobshop-header-clerk > img {
+    width: 32px;
+    height: 37px;
+  }
+
+  .home-facility-image {
+    flex-basis: min(86vw, 318px) !important;
+    min-width: min(86vw, 318px) !important;
+  }
+}
+
+
+.team-menu-deck__item:nth-child(even) {
+  transform:
+    rotateY(5deg)
+    translateZ(0);
+}
+
+.team-menu-deck__item:nth-child(3n) {
+  transform:
+    rotateY(0)
+    translateZ(8px);
+}
+
+/* The selected HOME room layer must sit above the screen base color. */
+.home-room-stage {
+  z-index: 0 !important;
+}
