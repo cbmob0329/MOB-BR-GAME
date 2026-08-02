@@ -10899,3 +10899,97 @@ img.asset-missing {
 .home-room-stage {
   z-index: 0 !important;
 }
+
+/* ==========================================================
+   Generation 37: clean COLLECTION tile and single-line growth copy
+   ========================================================== */
+
+/* Remove the temporary transparent cover/frame from COLLECTION. */
+.home-facility-image[data-facility-id="collection"]::before,
+.home-facility-image[data-facility-id="collection"]::after {
+  display: none !important;
+  inset: auto !important;
+  border: 0 !important;
+  content: none !important;
+  background: none !important;
+  box-shadow: none !important;
+  opacity: 0 !important;
+}
+
+/* Growth/acquisition titles stay on one visual line and shrink responsively. */
+.progression-presentation > span,
+.progression-presentation > h2,
+.progression-presentation__subject,
+.progression-rank-up-call > span,
+.progression-rank-up-call > strong {
+  max-width: 96vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+}
+
+.progression-presentation > span {
+  font-size:
+    clamp(
+      .34rem,
+      2.75vw,
+      .56rem
+    ) !important;
+  letter-spacing: .08em !important;
+}
+
+.progression-presentation > h2,
+.progression-presentation--special > h2 {
+  width: min(96vw, 650px);
+  font-size:
+    clamp(
+      .78rem,
+      5.7vw,
+      1.72rem
+    ) !important;
+  line-height: 1.08 !important;
+}
+
+.progression-presentation__subject {
+  font-size:
+    clamp(
+      .39rem,
+      3vw,
+      .58rem
+    ) !important;
+}
+
+.progression-presentation__entries article > div {
+  overflow: hidden;
+}
+
+.progression-presentation__entries article span,
+.progression-presentation__entries article strong,
+.progression-presentation__entries article small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+}
+
+.progression-presentation__entries article strong {
+  flex-wrap: nowrap !important;
+  font-size:
+    clamp(
+      .42rem,
+      3.8vw,
+      .62rem
+    ) !important;
+}
+
+.progression-presentation__entries article small {
+  font-size:
+    clamp(
+      .3rem,
+      2.55vw,
+      .4rem
+    ) !important;
+}

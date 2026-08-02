@@ -10224,3 +10224,316 @@ html[data-asset-prefix="../../"] .tournament-loading-overlay {
     height: min(17dvh, 112px) !important;
   }
 }
+
+/* ==========================================================
+   Generation 37: centered countdown, normalized portraits,
+   opponent carry wear and tactical item confirmation effects
+   ========================================================== */
+
+/* Lock the countdown block to the true viewport center. */
+.tournament-screen--countdown-lock
+  .countdown-lock-stage {
+  position: absolute !important;
+  top: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: 50% !important;
+  margin: 0 !important;
+  translate: -50% -50% !important;
+}
+
+.tournament-screen--countdown-lock
+  .countdown-lock-commentary {
+  translate: 0 0 !important;
+}
+
+/* Use the same visible-alpha normalization on replay, outcome and previews. */
+.battle-fighter__portrait > img,
+.battle-survivor-grid img[data-character-portrait],
+.encounter-compact-team img[data-character-portrait],
+.match-champion-members img[data-character-portrait],
+.award-place img[data-character-portrait] {
+  transform: none !important;
+  scale:
+    var(
+      --portrait-balance-scale,
+      1
+    ) !important;
+  transform-origin: center bottom !important;
+}
+
+.battle-survivor-grid img[data-role="SUP"] {
+  transform: none !important;
+}
+
+.encounter-opponent-wear {
+  position: relative;
+  z-index: 4;
+  display: grid;
+  width: min(92vw, 520px);
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px 9px;
+  align-items: center;
+  margin: 7px auto 2px;
+  border: 2px solid rgb(255 179 90 / 44%);
+  border-radius: 12px;
+  padding: 7px 10px;
+  background:
+    linear-gradient(
+      145deg,
+      rgb(76 37 15 / 94%),
+      rgb(20 18 25 / 97%)
+    );
+  color: #fff;
+  box-shadow:
+    0 9px 17px rgb(0 0 0 / 28%);
+}
+
+.encounter-opponent-wear > span {
+  grid-column: 1 / -1;
+  color: #ffbc72;
+  font-size: .34rem;
+  font-weight: 1000;
+  letter-spacing: .08em;
+}
+
+.encounter-opponent-wear > strong {
+  color: #fff;
+  font-size: .55rem;
+  white-space: nowrap;
+}
+
+.encounter-opponent-wear > small {
+  color: rgb(255 255 255 / 64%);
+  font-size: .34rem;
+  line-height: 1.35;
+}
+
+.battle-item-confirmation {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  border: 2px solid rgb(104 218 255 / 24%);
+  border-radius: 13px;
+  padding: 9px;
+  background: rgb(255 255 255 / 5%);
+  text-align: left;
+}
+
+.battle-item-confirmation > img {
+  width: 76px;
+  height: 76px;
+  object-fit: contain;
+  filter:
+    drop-shadow(
+      0 8px 6px
+      rgb(0 0 0 / 36%)
+    );
+}
+
+.battle-item-confirmation > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.battle-item-confirmation span {
+  color: #7fe2ff;
+  font-size: .34rem;
+  font-weight: 1000;
+}
+
+.battle-item-confirmation strong {
+  color: #fff;
+  font-size: .62rem;
+}
+
+.battle-item-confirmation p {
+  margin: 0;
+  color: rgb(255 255 255 / 70%);
+  font-size: .4rem;
+  line-height: 1.45;
+}
+
+.battle-item-confirmation small {
+  color: #f2d86c;
+  font-size: .32rem;
+}
+
+.battle-item-activation-cut {
+  position: absolute;
+  z-index: 46;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  width: min(88vw, 430px);
+  min-height: 112px;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 11px;
+  align-items: center;
+  overflow: hidden;
+  translate: -50% -50%;
+  border: 3px solid rgb(110 226 255 / 57%);
+  border-radius: 18px;
+  padding: 12px 14px;
+  background:
+    radial-gradient(
+      circle at 17% 50%,
+      rgb(92 226 255 / 27%),
+      transparent 34%
+    ),
+    linear-gradient(
+      145deg,
+      rgb(5 28 49 / 98%),
+      rgb(3 11 22 / 99%)
+    );
+  color: #fff;
+  box-shadow:
+    0 18px 34px rgb(0 0 0 / 43%),
+    0 0 29px rgb(83 217 255 / 20%);
+  animation:
+    battle-item-cut-enter
+    260ms
+    cubic-bezier(.16,.86,.24,1)
+    both;
+}
+
+.battle-item-activation-cut > img {
+  position: relative;
+  z-index: 2;
+  width: 84px;
+  height: 84px;
+  object-fit: contain;
+  filter:
+    drop-shadow(
+      0 9px 7px
+      rgb(0 0 0 / 42%)
+    );
+  animation:
+    battle-item-image-pop
+    520ms
+    ease-out
+    both;
+}
+
+.battle-item-activation-cut > div:not(.battle-item-activation-cut__burst) {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.battle-item-activation-cut span {
+  color: #7ce6ff;
+  font-size: .38rem;
+  font-weight: 1000;
+  letter-spacing: .1em;
+}
+
+.battle-item-activation-cut strong {
+  overflow: hidden;
+  color: #fff;
+  font-size: .77rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.battle-item-activation-cut small {
+  color: rgb(255 255 255 / 67%);
+  font-size: .39rem;
+  line-height: 1.45;
+}
+
+.battle-item-activation-cut__burst {
+  position: absolute;
+  inset: 50% auto auto 17%;
+  width: 54px;
+  height: 54px;
+  translate: -50% -50%;
+  border: 4px solid rgb(128 233 255 / 62%);
+  border-radius: 50%;
+  animation:
+    battle-item-cut-burst
+    850ms
+    ease-out
+    both;
+}
+
+@keyframes battle-item-cut-enter {
+  from {
+    translate: -50% calc(-50% + 18px);
+    scale: .78;
+    opacity: 0;
+  }
+  to {
+    translate: -50% -50%;
+    scale: 1;
+    opacity: 1;
+  }
+}
+
+@keyframes battle-item-image-pop {
+  from {
+    scale: .48;
+    opacity: 0;
+    filter: brightness(2) blur(4px);
+  }
+  70% {
+    scale: 1.12;
+    opacity: 1;
+  }
+  to {
+    scale: 1;
+    opacity: 1;
+  }
+}
+
+@keyframes battle-item-cut-burst {
+  from {
+    scale: .3;
+    opacity: .8;
+  }
+  to {
+    scale: 5.6;
+    opacity: 0;
+  }
+}
+
+/* The animated 3-2-1 itself, not the full strategy card, is centered. */
+.tournament-screen--countdown-lock
+  .countdown-lock-stage {
+  min-height:
+    min(
+      72dvh,
+      590px
+    );
+  align-content: start;
+}
+
+.tournament-screen--countdown-lock
+  .countdown-sequence {
+  position: absolute !important;
+  z-index: 8;
+  top: 50% !important;
+  left: 50% !important;
+  width: 100%;
+  translate: -50% -50% !important;
+  pointer-events: none;
+}
+
+.tournament-screen--countdown-lock
+  .countdown-lock-stage > small {
+  position: absolute;
+  right: 0;
+  bottom: 13px;
+  left: 0;
+}
+
+.tournament-screen--countdown-lock
+  .strategy-start-cutin {
+  width: 100%;
+  max-height: 118px;
+  margin: 0 0 5px;
+}
