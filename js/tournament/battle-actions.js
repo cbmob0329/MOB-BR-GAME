@@ -25,12 +25,12 @@ import {
   calculateSkillCt,
   isAssistEligible,
   resolveWeaponBattleValue,
-} from "../../data/battle-config.js?v=36";
+} from "../../data/battle-config.js?v=37";
 import {
   STAT_IDS,
   clamp,
   rankToCharacterValue,
-} from "../../data/game-data.js?v=36";
+} from "../../data/game-data.js?v=37";
 import {
   adjustDebuffForSpecialAbility,
   applyNextBattleSpecialEffects,

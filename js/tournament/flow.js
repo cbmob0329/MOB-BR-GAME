@@ -13,7 +13,7 @@ import {
 import {
   TOURNAMENT_PHASES,
   createTournamentRuntimeManager,
-} from "./runtime.js?v=36";
+} from "./runtime.js?v=37";
 import {
   executeCurrentBattleToDraft,
 } from "./battle-core.js";
@@ -21,9 +21,10 @@ import {
   getItem,
 } from "../../data/shop-data.js";
 import {
+  balanceTournamentPortraits,
   createBattlePlaybackController,
   renderBattleOutcomeScreen,
-} from "./battle-ui.js?v=36";
+} from "./battle-ui.js?v=37";
 import {
   EXPLORATION_PAGES,
   beginExplorationToDraft,
@@ -45,7 +46,7 @@ import {
   useInventoryItemToDraft,
   useMobSlotToDraft,
   useRespawnTurntableToDraft,
-} from "./exploration.js?v=36";
+} from "./exploration.js?v=37";
 import {
   advanceAwardToDraft,
   finalizeCurrentMatchToDraft,
@@ -61,13 +62,13 @@ import {
   renderReturningResultScreen,
   renderTournamentResultScreen,
   writePreparedResultToStorage,
-} from "./results.js?v=36";
+} from "./results.js?v=37";
 
 import {
   applyMatchPlanToDraft,
   circuitSectionLabel,
   isPlayerMatch,
-} from "./circuit.js?v=36";
+} from "./circuit.js?v=37";
 
 import {
   fastForwardMatchToChampionToDraft,
@@ -77,9 +78,9 @@ import {
   getRoundTarget,
   isPlayerActive,
   resolveRoundEncounterToDraft,
-} from "./round.js?v=36";
+} from "./round.js?v=37";
 
-export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-3.3.0";
+export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-3.4.0";
 
 const PHASE_LABELS = Object.freeze({
   IDLE: "待機",
@@ -635,6 +636,13 @@ function encounterPreviewTemplate(runtime) {
   const members = playerMembers(runtime);
   const opponent = getCurrentCpuOpponent(runtime);
   const enemyMembers = opponent?.members ?? [];
+  const encounterKey =
+    `${runtime.entryId}:${runtime.match}:${runtime.round}`;
+  const opponentWear =
+    runtime.roundIntegration
+      ?.encounters?.[encounterKey]
+      ?.opponentWear ??
+    null;
   return `
     <main class="tournament-screen tournament-screen--encounter" style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
       <img class="tournament-stage-background" src="${escapeAttribute(assetPath(runtime.map.image))}" alt="">
@@ -642,12 +650,35 @@ function encounterPreviewTemplate(runtime) {
         <span>ENCOUNTER</span>
         <h1>${escapeHtml(runtime.entryData.playerTeam.teamName)} <b>VS</b> ${escapeHtml(opponent?.teamName ?? "CPU TEAM")}</h1>
       </header>
+      ${
+        opponentWear
+          ? `
+            <aside class="encounter-opponent-wear">
+              <span>PREVIOUS BATTLE DAMAGE</span>
+              <strong>
+                ${
+                  opponentWear.deathBoxCount > 0
+                    ? `DEATH BOX ${opponentWear.deathBoxCount}`
+                    : `DAMAGE ${opponentWear.damagedCount}`
+                }
+              </strong>
+              <small>探索なしの連戦で、相手にも前戦の消耗が残っています。</small>
+            </aside>
+          `
+          : ""
+      }
       <section class="encounter-compact-stage">
         <div class="encounter-compact-team encounter-compact-team--player">
           <strong>${escapeHtml(runtime.entryData.playerTeam.teamName)}</strong>
           ${members.map((member) => `
             <article>
-              <img src="${escapeAttribute(member.image)}" alt="">
+              <img
+                src="${escapeAttribute(member.image)}"
+                data-character-portrait
+                data-player-team="true"
+                data-role="${escapeAttribute(member.role)}"
+                alt=""
+              >
               <div><span>${escapeHtml(member.role)}</span><b>${escapeHtml(member.name)}</b><small>HP ${member.currentHp}/${member.maxHp}</small></div>
             </article>
           `).join("")}
@@ -657,8 +688,24 @@ function encounterPreviewTemplate(runtime) {
           <strong>${escapeHtml(opponent?.teamName ?? "CPU TEAM")}</strong>
           ${enemyMembers.map((member) => `
             <article>
-              <img src="${escapeAttribute(member.image)}" alt="">
-              <div><span>${escapeHtml(member.role)}</span><b>${escapeHtml(member.name)}</b><small>RANK ${escapeHtml(member.characterRank)}</small></div>
+              <img
+                src="${escapeAttribute(member.image)}"
+                data-character-portrait
+                data-player-team="false"
+                data-role="${escapeAttribute(member.role)}"
+                alt=""
+              >
+              <div>
+                <span>${escapeHtml(member.role)}</span>
+                <b>${escapeHtml(member.name)}</b>
+                <small>
+                  ${
+                    runtime.memberRuntime[member.playerId]?.combatState === "dead"
+                      ? "DEATH BOX"
+                      : `HP ${formatNumber(runtime.memberRuntime[member.playerId]?.hp ?? member.currentHp ?? member.maxHp)} / ${formatNumber(runtime.memberRuntime[member.playerId]?.maxHp ?? member.maxHp)}`
+                  }
+                </small>
+              </div>
             </article>
           `).join("")}
         </div>
@@ -1421,6 +1468,28 @@ export function createTournamentFlowController({
     playerId =
       selectedPlayerId;
 
+    const confirmed =
+      await openConfirm({
+        title:
+          "アイテムを使用しますか？",
+        body: `
+          <section class="battle-item-confirmation">
+            <img src="${escapeAttribute(assetPath(chosen.item.image))}" alt="">
+            <div>
+              <span>${escapeHtml(participant.name)}に使用</span>
+              <strong>${escapeHtml(chosen.item.name)}</strong>
+              <p>${escapeHtml(getItemEffectSummary(chosen.item))}</p>
+              <small>使用後はバッグから1個消費します。</small>
+            </div>
+          </section>
+        `,
+        confirmLabel: "はい",
+        cancelLabel: "いいえ",
+      });
+    if (!confirmed) {
+      return null;
+    }
+
     const transaction =
       runtimeManager.update(
         "battle_inventory_item_used",
@@ -1893,6 +1962,12 @@ export function createTournamentFlowController({
         root.innerHTML = genericFuturePhaseTemplate(runtime);
         break;
     }
+
+    queueMicrotask(() =>
+      balanceTournamentPortraits(
+        root,
+      ),
+    );
   }
 
   function handleRuntimeError(error) {

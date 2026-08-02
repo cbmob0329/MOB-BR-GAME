@@ -9,14 +9,14 @@
 import {
   STORAGE_KEYS,
   calculateChecksum,
-} from "../main/state.js?v=36";
+} from "../main/state.js?v=37";
 import {
   TOURNAMENT_BRIDGE_VERSION,
   TOURNAMENT_ENTRY_SCHEMA_VERSION,
   TOURNAMENT_RESUME_SCHEMA_VERSION,
   readTournamentEntryFromStorage,
   validateTournamentEntryData,
-} from "../main/tournament-bridge.js?v=36";
+} from "../main/tournament-bridge.js?v=37";
 import {
   CPU_LOCAL_DATA_VERSION,
   CPU_LOCAL_MASTER_VERSION,
@@ -38,18 +38,18 @@ import {
   getRoleCommonSkills,
   resolveCpuRankFromRange,
   resolveCpuWeaponProfile,
-} from "../../data/battle-config.js?v=36";
+} from "../../data/battle-config.js?v=37";
 import {
   resolveCpuTeamMaster,
-} from "../../data/circuit-data.js?v=36";
+} from "../../data/circuit-data.js?v=37";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=36";
+} from "./circuit.js?v=37";
 import {
   createCpuFlavorSkills,
   createCpuFlavorWeaponName,
-} from "../../data/cpu-flavor-data.js?v=36";
+} from "../../data/cpu-flavor-data.js?v=37";
 
 export const TOURNAMENT_RUNTIME_VERSION =
   "mobbr-tournament-runtime-2.2.0";
@@ -87,6 +87,50 @@ export const TOURNAMENT_PHASES = Object.freeze([
 ]);
 
 const PHASE_SET = new Set(TOURNAMENT_PHASES);
+
+const VOLATILE_RESUME_CACHE =
+  new Map();
+
+function isStorageQuotaError(error) {
+  const name =
+    String(error?.name ?? "");
+  const message =
+    String(error?.message ?? "");
+  const code =
+    Number(error?.code ?? -1);
+  return (
+    name === "QuotaExceededError" ||
+    name === "NS_ERROR_DOM_QUOTA_REACHED" ||
+    code === 22 ||
+    code === 1014 ||
+    /quota|exceeded/i.test(message)
+  );
+}
+
+function fallbackResumeStorage(
+  primaryStorage,
+) {
+  try {
+    const candidate =
+      globalThis.sessionStorage;
+    if (
+      candidate &&
+      candidate !== primaryStorage &&
+      typeof candidate.getItem === "function" &&
+      typeof candidate.setItem === "function" &&
+      typeof candidate.removeItem === "function"
+    ) {
+      return candidate;
+    }
+  } catch (_error) {
+    // Safari may deny sessionStorage access in restricted contexts.
+  }
+  return null;
+}
+
+function resumeCacheKey(entryId) {
+  return String(entryId ?? "active");
+}
 
 export const SAFE_RESUME_PHASES = Object.freeze([
   "LOADING",
@@ -1795,6 +1839,16 @@ export function resolveSafeResumePhase(phase, previousPhase = null) {
     return previousPhase;
   }
   if (phase === "ERROR") {
+    if (
+      SAFE_RESUME_SET.has(
+        previousPhase,
+      )
+    ) {
+      return previousPhase;
+    }
+    if (previousPhase === "BATTLE") {
+      return "BATTLE_COUNTDOWN";
+    }
     return "LOADING";
   }
   if (phase === "COMPLETE") {
@@ -1878,17 +1932,9 @@ export function createTournamentResumeData(
     previousPhase: runtime.previousPhase,
     match: runtime.match,
     round: runtime.round,
-    activeTeamIds: deepClone(runtime.activeTeamIds),
-    teamRuntime: deepClone(runtime.teamRuntime),
-    memberRuntime: deepClone(runtime.memberRuntime),
-    totals: deepClone(runtime.totals),
-    inventory: deepClone(runtime.inventory),
-    strategyRuntime: deepClone(runtime.strategyRuntime),
-    explorationRuntime: deepClone(runtime.explorationRuntime),
-    facilityRuntime: deepClone(runtime.facilityRuntime),
-    randomState: deepClone(runtime.randomState),
-    pendingVisualId: runtime.pendingVisualId,
-    resultSignature: runtime.resultSignature,
+    // The runtime below is the source of truth. Generation 36 duplicated
+    // member/team/inventory maps at the top level, increasing the checkpoint
+    // by roughly 20% and contributing to Safari quota failures.
     reason,
     savedAt: nowIso(clock),
     runtime: resumeRuntime,
@@ -1952,33 +1998,131 @@ export function saveTournamentResumeData(
   runtime,
   options = {},
 ) {
-  const validStorage = normalizeStorage(storage);
-  const resume = createTournamentResumeData(runtime, options);
-  validStorage.setItem(
-    STORAGE_KEYS.tournamentResume,
-    serializeTransferPayload(resume),
+  const validStorage =
+    normalizeStorage(storage);
+  const resume =
+    createTournamentResumeData(
+      runtime,
+      options,
+    );
+  const serialized =
+    serializeTransferPayload(
+      resume,
+    );
+  const key =
+    STORAGE_KEYS.tournamentResume;
+  const cacheKey =
+    resumeCacheKey(
+      resume.entryId,
+    );
+  const fallback =
+    fallbackResumeStorage(
+      validStorage,
+    );
+
+  // sessionStorage is isolated from the main-save localStorage quota and
+  // survives normal reloads in the same tab. Keep it as the first safety copy.
+  if (fallback) {
+    try {
+      fallback.setItem(
+        key,
+        serialized,
+      );
+    } catch (_error) {
+      // Continue to local/volatile storage.
+    }
+  }
+
+  try {
+    validStorage.setItem(
+      key,
+      serialized,
+    );
+  } catch (error) {
+    if (!isStorageQuotaError(error)) {
+      throw error;
+    }
+
+    // Safari can require the old value to be removed before a replacement is
+    // accepted. The current checkpoint is already safe in session/volatile
+    // memory before this retry.
+    VOLATILE_RESUME_CACHE.set(
+      cacheKey,
+      serialized,
+    );
+    try {
+      validStorage.removeItem(key);
+      validStorage.setItem(
+        key,
+        serialized,
+      );
+    } catch (retryError) {
+      if (!isStorageQuotaError(retryError)) {
+        throw retryError;
+      }
+      // Do not stop the tournament merely because persistent storage is full.
+      // The in-tab volatile copy and session copy remain available.
+    }
+  }
+
+  VOLATILE_RESUME_CACHE.set(
+    cacheKey,
+    serialized,
   );
   return resume;
 }
 
-export function readTournamentResumeDataForEntry(storage, entry) {
-  const validStorage = normalizeStorage(storage);
-  const serialized = validStorage.getItem(STORAGE_KEYS.tournamentResume);
+export function readTournamentResumeDataForEntry(
+  storage,
+  entry,
+) {
+  const validStorage =
+    normalizeStorage(storage);
+  const key =
+    STORAGE_KEYS.tournamentResume;
+  const fallback =
+    fallbackResumeStorage(
+      validStorage,
+    );
+  const serialized =
+    fallback?.getItem(key) ??
+    validStorage.getItem(key) ??
+    VOLATILE_RESUME_CACHE.get(
+      resumeCacheKey(entry?.entryId),
+    ) ??
+    null;
   if (serialized === null) {
     return null;
   }
-  const resume = deserializeTransferPayload(
-    serialized,
-    TOURNAMENT_RESUME_SCHEMA_VERSION,
-    "Tournament resume data",
+  const resume =
+    deserializeTransferPayload(
+      serialized,
+      TOURNAMENT_RESUME_SCHEMA_VERSION,
+      "Tournament resume data",
+    );
+  validateTournamentResumeDataForEntry(
+    resume,
+    entry,
   );
-  validateTournamentResumeDataForEntry(resume, entry);
   return deepFreeze(resume);
 }
 
-export function clearTournamentResumeData(storage) {
-  const validStorage = normalizeStorage(storage);
-  validStorage.removeItem(STORAGE_KEYS.tournamentResume);
+export function clearTournamentResumeData(
+  storage,
+) {
+  const validStorage =
+    normalizeStorage(storage);
+  const key =
+    STORAGE_KEYS.tournamentResume;
+  validStorage.removeItem(key);
+  try {
+    fallbackResumeStorage(
+      validStorage,
+    )?.removeItem(key);
+  } catch (_error) {
+    // Ignore restricted sessionStorage cleanup.
+  }
+  VOLATILE_RESUME_CACHE.clear();
   return true;
 }
 

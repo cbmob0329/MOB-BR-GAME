@@ -8,13 +8,13 @@
 
 import {
   clamp,
-} from "../../data/game-data.js?v=36";
+} from "../../data/game-data.js?v=37";
 import {
   getMatchParticipantCount,
-} from "./circuit.js?v=36";
+} from "./circuit.js?v=37";
 
 export const ROUND_INTEGRATION_VERSION =
-  "mobbr-tournament-round-1.8.0";
+  "mobbr-tournament-round-1.9.0";
 
 export const ROUND_INTEGRATION_RULES = Object.freeze({
   encounterRate: 0.75,
@@ -23,6 +23,8 @@ export const ROUND_INTEGRATION_RULES = Object.freeze({
   maximumCpuKpPerRound: 3,
   playerBattleWinBonus: 520,
   playerBattleLossPenalty: 420,
+  consecutiveOpponentWearChance: 0.42,
+  consecutiveOpponentDeathBoxChance: 0.065,
 });
 
 function deepClone(value) {
@@ -223,6 +225,267 @@ function encounterRateForRound(
   );
 }
 
+function explorationAfterRounds(
+  totalRounds,
+) {
+  if (
+    totalRounds === 5 ||
+    totalRounds === 6
+  ) {
+    return [2, 4];
+  }
+  const maximumAfterRound =
+    Math.max(
+      1,
+      totalRounds - 1,
+    );
+  const middle =
+    Math.min(
+      maximumAfterRound,
+      Math.max(
+        1,
+        Math.round(
+          totalRounds * 0.4,
+        ),
+      ),
+    );
+  const late =
+    Math.min(
+      maximumAfterRound,
+      Math.max(
+        middle + 1,
+        Math.round(
+          totalRounds * 0.8,
+        ),
+      ),
+    );
+  return [
+    ...new Set([
+      middle,
+      late,
+    ]),
+  ];
+}
+
+function isConsecutiveCombatRound(
+  runtime,
+) {
+  if (runtime.round <= 1) {
+    return false;
+  }
+  const previousRound =
+    runtime.round - 1;
+  return !explorationAfterRounds(
+    getPlayableRoundCount(runtime),
+  ).includes(previousRound);
+}
+
+function syncTeamMemberState(
+  runtime,
+  teamId,
+) {
+  const team =
+    teamRecord(
+      runtime,
+      teamId,
+    );
+  const members =
+    teamMembers(
+      runtime,
+      teamId,
+    );
+  for (
+    let index = 0;
+    index < members.length;
+    index += 1
+  ) {
+    const runtimeMember =
+      members[index];
+    const sourceMember =
+      team.members[index];
+    sourceMember.currentHp =
+      runtimeMember.hp;
+    sourceMember.combatState =
+      runtimeMember.combatState;
+  }
+  const teamState =
+    runtime.teamRuntime[teamId];
+  if (teamState) {
+    teamState.matchHp =
+      members.map(
+        (member) =>
+          member.hp,
+      );
+    teamState.persistentHp =
+      [...teamState.matchHp];
+    teamState.combatState =
+      members.map(
+        (member) =>
+          member.combatState,
+      );
+  }
+}
+
+function applyConsecutiveOpponentWear(
+  runtime,
+  opponentTeamId,
+) {
+  if (
+    !opponentTeamId ||
+    !isConsecutiveCombatRound(
+      runtime,
+    )
+  ) {
+    return null;
+  }
+
+  const members =
+    teamMembers(
+      runtime,
+      opponentTeamId,
+    );
+  const existing =
+    members.filter(
+      (member) =>
+        member.combatState ===
+          "dead" ||
+        member.hp <
+          member.maxHp * 0.96,
+    );
+  if (existing.length > 0) {
+    return {
+      source:
+        "carried_cpu_battle_damage",
+      applied:
+        false,
+      damagedCount:
+        existing.filter(
+          (member) =>
+            member.combatState !==
+            "dead",
+        ).length,
+      deathBoxCount:
+        existing.filter(
+          (member) =>
+            member.combatState ===
+            "dead",
+        ).length,
+    };
+  }
+
+  const seed =
+    `${runtime.entryId}:${runtime.match}:${runtime.round}:${opponentTeamId}:consecutive-wear`;
+  if (
+    stableUnit(
+      `${seed}:trigger`,
+    ) >=
+    ROUND_INTEGRATION_RULES
+      .consecutiveOpponentWearChance
+  ) {
+    return null;
+  }
+
+  const deathBoxIndex =
+    runtime.round >= 3 &&
+    stableUnit(
+      `${seed}:death-box`,
+    ) <
+      ROUND_INTEGRATION_RULES
+        .consecutiveOpponentDeathBoxChance
+      ? Math.floor(
+          stableUnit(
+            `${seed}:death-index`,
+          ) *
+          members.length,
+        )
+      : -1;
+  let damagedCount = 0;
+  let deathBoxCount = 0;
+
+  for (
+    let index = 0;
+    index < members.length;
+    index += 1
+  ) {
+    const member =
+      members[index];
+    if (
+      index === deathBoxIndex &&
+      members.length - deathBoxCount > 1
+    ) {
+      member.hp = 0;
+      member.combatState =
+        "dead";
+      deathBoxCount += 1;
+      continue;
+    }
+
+    const hitRoll =
+      stableUnit(
+        `${seed}:${member.playerId}:hit`,
+      );
+    if (hitRoll < 0.24) {
+      continue;
+    }
+    const lossRate =
+      0.07 +
+      stableUnit(
+        `${seed}:${member.playerId}:loss`,
+      ) *
+      0.19;
+    member.hp =
+      Math.max(
+        12,
+        Math.round(
+          member.maxHp *
+          (1 - lossRate),
+        ),
+      );
+    member.combatState =
+      "alive";
+    damagedCount += 1;
+  }
+
+  if (
+    damagedCount === 0 &&
+    deathBoxCount === 0
+  ) {
+    const member =
+      members[
+        Math.floor(
+          stableUnit(
+            `${seed}:fallback`,
+          ) *
+          members.length,
+        )
+      ];
+    member.hp =
+      Math.max(
+        12,
+        Math.round(
+          member.maxHp *
+          0.86,
+        ),
+      );
+    member.combatState =
+      "alive";
+    damagedCount = 1;
+  }
+
+  syncTeamMemberState(
+    runtime,
+    opponentTeamId,
+  );
+  return {
+    source:
+      "simulated_previous_cpu_battle",
+    applied:
+      true,
+    damagedCount,
+    deathBoxCount,
+  };
+}
+
 function recentOpponentIds(runtime) {
   return runtime.battleHistory
     .filter(
@@ -318,6 +581,15 @@ export function resolveRoundEncounterToDraft(
     }
   }
 
+  const opponentWear =
+    encountered &&
+    opponentTeamId !== null
+      ? applyConsecutiveOpponentWear(
+          draft,
+          opponentTeamId,
+        )
+      : null;
+
   const result = {
     encounterKey: key,
     match: draft.match,
@@ -329,6 +601,8 @@ export function resolveRoundEncounterToDraft(
       encountered &&
       opponentTeamId !== null,
     opponentTeamId,
+    opponentWear:
+      deepClone(opponentWear),
     reason:
       !playerActive
         ? "player_eliminated_spectator"

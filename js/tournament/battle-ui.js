@@ -14,7 +14,7 @@ import {
   createCommentaryDirector,
 } from "./commentary.js";
 
-export const BATTLE_UI_VERSION = "mobbr-battle-ui-2.3.0";
+export const BATTLE_UI_VERSION = "mobbr-battle-ui-2.4.0";
 export const BATTLE_REPLAY_SCHEMA_VERSION =
   "mobbr-battle-replay-1.0.0";
 
@@ -200,12 +200,18 @@ function calculateVisiblePortraitScale(
   }
 }
 
-function balanceBattlePortraits(
+export function balanceTournamentPortraits(
   root,
 ) {
   const images =
     root.querySelectorAll?.(
-      ".battle-fighter__portrait > img",
+      [
+        ".battle-fighter__portrait > img",
+        ".battle-survivor-grid img[data-character-portrait]",
+        ".encounter-compact-team img[data-character-portrait]",
+        ".match-champion-members img[data-character-portrait]",
+        ".award-place img[data-character-portrait]",
+      ].join(","),
     ) ?? [];
   for (const image of images) {
     const source =
@@ -241,15 +247,20 @@ function balanceBattlePortraits(
           ".battle-fighter",
         );
       const playerTeam =
+        image.dataset.playerTeam ===
+          "true" ||
         image.closest(
           ".battle-team-column",
         )?.classList.contains(
           "is-player",
-        ) === true;
+        ) === true ||
+        image.closest(
+          ".battle-survivor-grid",
+        ) !== null;
       const roleCorrection =
         playerTeam &&
         image.dataset.role === "SUP"
-          ? 0.88
+          ? 0.78
           : 1;
       const finalScale =
         Math.max(
@@ -1005,6 +1016,15 @@ function fxLayerTemplate(transient) {
     `;
   } else if (transient.effect === "battle_item_use") {
     effect = `
+      <section class="battle-item-activation-cut">
+        <div class="battle-item-activation-cut__burst" aria-hidden="true"></div>
+        <img src="${escapeAttribute(assetPath(transient.itemImage ?? "icon/back.png"))}" alt="">
+        <div>
+          <span>ITEM ACTIVATED</span>
+          <strong>${escapeHtml(transient.itemName ?? "ITEM")}</strong>
+          <small>${escapeHtml(transient.effectSummary ?? transient.valueLabel ?? "")}</small>
+        </div>
+      </section>
       <div class="battle-item-pulse" style="left:${toX}%;top:${toY}%"></div>
       <strong
         class="battle-floating-number battle-floating-number--heal"
@@ -1239,11 +1259,17 @@ export function renderBattleOutcomeScreen(runtime) {
       <section class="battle-survivor-grid">
         ${members.map((member) => `
           <article data-state="${escapeAttribute(member.combatState)}">
-            <img src="${escapeAttribute(
-              runtime.teams
-                .flatMap((team) => team.members)
-                .find((source) => source.playerId === member.playerId)?.image ?? ""
-            )}" alt="">
+            <img
+              src="${escapeAttribute(
+                runtime.teams
+                  .flatMap((team) => team.members)
+                  .find((source) => source.playerId === member.playerId)?.image ?? ""
+              )}"
+              data-character-portrait
+              data-player-team="true"
+              data-role="${escapeAttribute(member.role)}"
+              alt=""
+            >
             <strong>${escapeHtml(member.role)} ${escapeHtml(member.name)}</strong>
             <span>${escapeHtml(member.combatState.toUpperCase())}</span>
             <small>
@@ -1382,7 +1408,7 @@ export function createBattlePlaybackController({
         persistentCutinLayer,
       );
     }
-    balanceBattlePortraits(
+    balanceTournamentPortraits(
       root,
     );
     if (chillPortalButton) {
@@ -1563,6 +1589,12 @@ export function createBattlePlaybackController({
       valueLabel:
         result.effectSummary ??
         result.name,
+      itemName:
+        result.name,
+      itemImage:
+        result.image,
+      effectSummary:
+        result.effectSummary,
     };
     model.commentary = {
       name: COMMENTATOR.name,
@@ -1627,6 +1659,15 @@ export function createBattlePlaybackController({
         });
       if (result) {
         applyBattleItemResult(result);
+        await new Promise(
+          (resolve) =>
+            timer.setTimeout(
+              resolve,
+              reducedMotion
+                ? 180
+                : 980,
+            ),
+        );
       }
     } catch (error) {
       onError(error);

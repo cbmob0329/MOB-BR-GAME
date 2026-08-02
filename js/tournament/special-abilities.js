@@ -10,7 +10,7 @@
 import {
   STAT_IDS,
   clamp,
-} from "../../data/game-data.js?v=36";
+} from "../../data/game-data.js?v=37";
 
 export const SPECIAL_ABILITY_RUNTIME_VERSION =
   "mobbr-special-ability-runtime-1.2.0";
