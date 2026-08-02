@@ -17,7 +17,7 @@ import {
   getPlacementPoints,
   getTournamentEventsForDate,
   isChampionshipYear,
-} from "../../data/game-data.js?v=36";
+} from "../../data/game-data.js?v=37";
 import {
   CASUAL_TOURNAMENT_RULES,
   FORMAL_CIRCUIT_RULES,
@@ -31,7 +31,7 @@ import {
   selectTeamIds,
   sourcePoolForTeamId,
   teamSeed,
-} from "../../data/circuit-data.js?v=36";
+} from "../../data/circuit-data.js?v=37";
 import {
   LOCAL_CPU_TEAMS,
 } from "../../data/cpu-local-data.js";
@@ -43,7 +43,7 @@ import {
 } from "../../data/cpu-world-data.js";
 import {
   BATTLE_CONFIG_VERSION,
-} from "../../data/battle-config.js?v=36";
+} from "../../data/battle-config.js?v=37";
 import {
   CONSUMABLE_ITEMS,
   ITEM_MASTER_VERSION,
@@ -51,7 +51,7 @@ import {
 } from "../../data/shop-data.js";
 import {
   getCasualCup,
-} from "../../data/casual-data.js?v=36";
+} from "../../data/casual-data.js?v=37";
 import {
   STRATEGIES,
   STRATEGY_MASTER_VERSION,
@@ -60,9 +60,9 @@ import {
   DuplicateTournamentResultError,
   STORAGE_KEYS,
   calculateChecksum,
-} from "./state.js?v=36";
+} from "./state.js?v=37";
 
-export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-2.2.0";
+export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-2.3.0";
 export const TOURNAMENT_ENTRY_SCHEMA_VERSION =
   "mobbr-tournament-entry-1.0.0";
 export const TOURNAMENT_RESULT_SCHEMA_VERSION =
@@ -208,6 +208,60 @@ function normalizeStorage(storage) {
     );
   }
   return storage;
+}
+
+function isStorageQuotaError(error) {
+  const name =
+    String(error?.name ?? "");
+  const message =
+    String(error?.message ?? "");
+  const code =
+    Number(error?.code ?? -1);
+  return (
+    name === "QuotaExceededError" ||
+    name === "NS_ERROR_DOM_QUOTA_REACHED" ||
+    code === 22 ||
+    code === 1014 ||
+    /quota|exceeded/i.test(message)
+  );
+}
+
+function fallbackTournamentStorage(
+  primaryStorage,
+) {
+  try {
+    const candidate =
+      globalThis.sessionStorage;
+    if (
+      candidate &&
+      candidate !== primaryStorage &&
+      typeof candidate.getItem === "function" &&
+      typeof candidate.setItem === "function" &&
+      typeof candidate.removeItem === "function"
+    ) {
+      return candidate;
+    }
+  } catch (_error) {
+    // Restricted Safari contexts may deny sessionStorage access.
+  }
+  return null;
+}
+
+function removeTournamentResumeEverywhere(
+  primaryStorage,
+) {
+  primaryStorage.removeItem(
+    STORAGE_KEYS.tournamentResume,
+  );
+  try {
+    fallbackTournamentStorage(
+      primaryStorage,
+    )?.removeItem(
+      STORAGE_KEYS.tournamentResume,
+    );
+  } catch (_error) {
+    // Ignore fallback cleanup failures.
+  }
 }
 
 function nowIso(clock) {
@@ -2224,7 +2278,9 @@ export function cancelPreparedTournament({ stateManager, storage }) {
     });
   }
   validStorage.removeItem(STORAGE_KEYS.tournamentInput);
-  validStorage.removeItem(STORAGE_KEYS.tournamentResume);
+  removeTournamentResumeEverywhere(
+    validStorage,
+  );
   validStorage.removeItem(STORAGE_KEYS.tournamentOutput);
   return true;
 }
@@ -2749,17 +2805,39 @@ export function readTournamentResultFromStorage(storage, entry) {
 }
 
 export function writeTournamentResultToStorage(storage, result) {
-  const validStorage = normalizeStorage(storage);
+  const validStorage =
+    normalizeStorage(storage);
   if (result.schemaVersion !== TOURNAMENT_RESULT_SCHEMA_VERSION) {
     throw new TournamentResultValidationError(
       "Only the current result schema can be written.",
       "UNSUPPORTED_RESULT_SCHEMA",
     );
   }
-  validStorage.setItem(
-    STORAGE_KEYS.tournamentOutput,
-    serializeTransferPayload(result),
+  const serialized =
+    serializeTransferPayload(result);
+
+  // The session copy keeps resume safety while the bulky local resume is
+  // removed to reserve space for the final result payload.
+  validStorage.removeItem(
+    STORAGE_KEYS.tournamentResume,
   );
+  try {
+    validStorage.setItem(
+      STORAGE_KEYS.tournamentOutput,
+      serialized,
+    );
+  } catch (error) {
+    if (!isStorageQuotaError(error)) {
+      throw error;
+    }
+    validStorage.removeItem(
+      STORAGE_KEYS.tournamentAck,
+    );
+    validStorage.setItem(
+      STORAGE_KEYS.tournamentOutput,
+      serialized,
+    );
+  }
   return result;
 }
 
@@ -2828,7 +2906,9 @@ export function importPendingTournamentResult({
     serializeTransferPayload(ack),
   );
   validStorage.removeItem(STORAGE_KEYS.tournamentOutput);
-  validStorage.removeItem(STORAGE_KEYS.tournamentResume);
+  removeTournamentResumeEverywhere(
+    validStorage,
+  );
   validStorage.removeItem(STORAGE_KEYS.tournamentInput);
 
   return deepFreeze({
@@ -2841,14 +2921,28 @@ export function importPendingTournamentResult({
 }
 
 export function readTournamentResumeData(storage) {
-  const validStorage = normalizeStorage(storage);
-  const serialized = validStorage.getItem(STORAGE_KEYS.tournamentResume);
-  if (serialized === null) return null;
-  const resume = deserializeTransferPayload(
-    serialized,
-    TOURNAMENT_RESUME_SCHEMA_VERSION,
-    "Tournament resume data",
-  );
+  const validStorage =
+    normalizeStorage(storage);
+  const fallback =
+    fallbackTournamentStorage(
+      validStorage,
+    );
+  const serialized =
+    fallback?.getItem(
+      STORAGE_KEYS.tournamentResume,
+    ) ??
+    validStorage.getItem(
+      STORAGE_KEYS.tournamentResume,
+    );
+  if (serialized === null) {
+    return null;
+  }
+  const resume =
+    deserializeTransferPayload(
+      serialized,
+      TOURNAMENT_RESUME_SCHEMA_VERSION,
+      "Tournament resume data",
+    );
   return deepFreeze(resume);
 }
 
@@ -2885,7 +2979,15 @@ export function getTournamentBridgeStatus(storage, snapshot) {
   const validStorage = normalizeStorage(storage);
   const hasInput = validStorage.getItem(STORAGE_KEYS.tournamentInput) !== null;
   const hasOutput = validStorage.getItem(STORAGE_KEYS.tournamentOutput) !== null;
-  const hasResume = validStorage.getItem(STORAGE_KEYS.tournamentResume) !== null;
+  const hasResume =
+    validStorage.getItem(
+      STORAGE_KEYS.tournamentResume,
+    ) !== null ||
+    fallbackTournamentStorage(
+      validStorage,
+    )?.getItem(
+      STORAGE_KEYS.tournamentResume,
+    ) !== null;
   let entry = null;
   let resume = null;
   let error = null;

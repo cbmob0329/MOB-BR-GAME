@@ -20,7 +20,7 @@ import {
   SaveError,
   SaveNotFoundError,
   createGameStateManager,
-} from "./state.js?v=36";
+} from "./state.js?v=37";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -42,7 +42,7 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=36";
+} from "./team.js?v=37";
 import {
   getSpecialAbility,
 } from "../../data/ability-data.js";
@@ -51,16 +51,16 @@ import {
 } from "../../data/game-data.js";
 import {
   getRoomMaster,
-} from "../../data/collection-data.js?v=36";
+} from "../../data/collection-data.js?v=37";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=36";
+} from "./management.js?v=37";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=36";
+} from "./tournament-bridge.js?v=37";
 
 export const APP_VERSION = "mobbr-main-app-2.4.0";
 
