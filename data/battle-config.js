@@ -15,8 +15,8 @@ import {
   rankToWeaponValue,
 } from "./game-data.js";
 
-export const BATTLE_CONFIG_VERSION = "mobbr-battle-config-1.6.0";
-export const BATTLE_BALANCE_VERSION = "mobbr-battle-balance-0.3.0";
+export const BATTLE_CONFIG_VERSION = "mobbr-battle-config-1.7.0";
+export const BATTLE_BALANCE_VERSION = "mobbr-battle-balance-0.4.0";
 
 export const COMBAT_STATES = Object.freeze(["alive", "down", "dead"]);
 export const DISTANCE_IDS = Object.freeze(["close", "mid", "far"]);
@@ -530,7 +530,7 @@ export function calculateBaseDamage({
     1,
     Math.round(
       rawDamage *
-        0.84 *
+        0.90 *
         distanceMultiplier *
         strategyMultiplier *
         temporaryMultiplier *
