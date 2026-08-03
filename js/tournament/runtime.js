@@ -9,14 +9,14 @@
 import {
   STORAGE_KEYS,
   calculateChecksum,
-} from "../main/state.js?v=37";
+} from "../main/state.js?v=39";
 import {
   TOURNAMENT_BRIDGE_VERSION,
   TOURNAMENT_ENTRY_SCHEMA_VERSION,
   TOURNAMENT_RESUME_SCHEMA_VERSION,
   readTournamentEntryFromStorage,
   validateTournamentEntryData,
-} from "../main/tournament-bridge.js?v=37";
+} from "../main/tournament-bridge.js?v=39";
 import {
   CPU_LOCAL_DATA_VERSION,
   CPU_LOCAL_MASTER_VERSION,
@@ -33,26 +33,33 @@ import {
   getWorldCpuTeamsForYear,
 } from "../../data/cpu-world-data.js";
 import {
+  rankToCharacterValue,
+} from "../../data/game-data.js?v=39";
+import {
+  effectiveCharacterRank,
+  selectCpuMotivation,
+} from "../../data/motivation-data.js?v=39";
+import {
   buildCpuBattleStats,
   calculateMaxHp,
   getRoleCommonSkills,
   resolveCpuRankFromRange,
   resolveCpuWeaponProfile,
-} from "../../data/battle-config.js?v=37";
+} from "../../data/battle-config.js?v=39";
 import {
   resolveCpuTeamMaster,
-} from "../../data/circuit-data.js?v=37";
+} from "../../data/circuit-data.js?v=39";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=37";
+} from "./circuit.js?v=39";
 import {
   createCpuFlavorSkills,
   createCpuFlavorWeaponName,
-} from "../../data/cpu-flavor-data.js?v=37";
+} from "../../data/cpu-flavor-data.js?v=39";
 
 export const TOURNAMENT_RUNTIME_VERSION =
-  "mobbr-tournament-runtime-2.2.0";
+  "mobbr-tournament-runtime-2.3.0";
 
 export const TOURNAMENT_PHASES = Object.freeze([
   "IDLE",
@@ -573,6 +580,8 @@ export function createOpeningScenes(entry, teams = null) {
         role: member.role,
         name: member.name,
         rank: member.characterRank,
+        baseRank: member.baseCharacterRank ?? member.characterRank,
+        motivation: deepClone(member.motivation ?? { level: "normal", modifier: 0 }),
         weaponName: member.weapon.weaponName,
       })),
       text: entry.playerTeam.teamName,
@@ -833,18 +842,51 @@ function createCpuSkillSnapshots(
   );
 }
 
+function cpuRankRangeMidpoint(range) {
+  if (!Array.isArray(range) || range.length < 2) {
+    return 37;
+  }
+  try {
+    return (
+      rankToCharacterValue(range[0]) +
+      rankToCharacterValue(range[1])
+    ) / 2;
+  } catch (_error) {
+    return 37;
+  }
+}
+
+function cpuTeamStrengthValue(sourceTeam) {
+  const values = sourceTeam.members.map((member) =>
+    cpuRankRangeMidpoint(
+      member.normalRankRange ??
+      member.hotRankRange ??
+      member.slumpRankRange,
+    ),
+  );
+  return values.reduce((sum, value) => sum + value, 0) /
+    Math.max(1, values.length);
+}
+
 function createCpuMemberRecord(
   sourcePlayer,
   sourceTeam,
-  form,
+  motivation,
   random,
 ) {
   const teamId =
     sourceTeam.teamId;
-  const rankRange = getCpuFormRange(sourcePlayer, form);
-  const characterRank = resolveCpuRankFromRange(
+  const rankRange =
+    sourcePlayer.normalRankRange ??
+    sourcePlayer.hotRankRange ??
+    sourcePlayer.slumpRankRange;
+  const baseCharacterRank = resolveCpuRankFromRange(
     rankRange,
     random(),
+  );
+  const characterRank = effectiveCharacterRank(
+    baseCharacterRank,
+    motivation,
   );
   const battleStats = buildCpuBattleStats(
     characterRank,
@@ -860,9 +902,11 @@ function createCpuMemberRecord(
     name: sourcePlayer.name,
     role: sourcePlayer.role,
     image: sourcePlayer.image,
+    baseCharacterRank,
     characterRank,
     sourceRankRange: deepClone(rankRange),
-    sourceForm: form,
+    sourceForm: "motivation",
+    motivation: deepClone(motivation),
     battleStats: deepClone(battleStats),
     maxHp,
     currentHp: maxHp,
@@ -909,14 +953,25 @@ function createCpuTeamRecord(
   selectionMeta,
   random,
 ) {
-  const formResult = resolveCpuTeamForm(entry, random);
-  const members = sourceTeam.members.map((sourcePlayer) =>
-    createCpuMemberRecord(
+  const strengthValue = cpuTeamStrengthValue(sourceTeam);
+  const members = sourceTeam.members.map((sourcePlayer) => {
+    const motivation = selectCpuMotivation({
+      unit: random(),
+      modifierUnit: random(),
+      strengthValue,
+    });
+    return createCpuMemberRecord(
       sourcePlayer,
       sourceTeam,
-      formResult.form,
+      motivation,
       random,
-    ),
+    );
+  });
+  const motivationSummary = Object.fromEntries(
+    members.map((member) => [
+      member.playerId,
+      deepClone(member.motivation),
+    ]),
   );
 
   return {
@@ -931,9 +986,11 @@ function createCpuTeamRecord(
     source: selectionMeta.source,
     selectionMode: selectionMeta.selectionMode,
     selectionIndex,
-    form: formResult.form,
-    formSource: formResult.source,
+    form: "motivation",
+    formSource: "cpu_motivation_weighted_draw",
     formLocked: true,
+    motivationStrengthValue: strengthValue,
+    motivationSummary,
     unlockGameYear: sourceTeam.unlockGameYear,
     unlockCalendarYear: sourceTeam.unlockCalendarYear,
     isExpansionTeam: sourceTeam.isExpansionTeam,

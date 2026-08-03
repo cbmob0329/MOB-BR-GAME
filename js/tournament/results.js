@@ -11,32 +11,32 @@ import { assetPath } from "../assets.js";
 import {
   getChampionshipPoints,
   getPlacementPoints,
-} from "../../data/game-data.js?v=37";
+} from "../../data/game-data.js?v=39";
 import {
   STRATEGY_RULES,
 } from "../../data/strategy-data.js";
 import {
   FORMAL_CIRCUIT_RULES,
   isCasualTournamentType,
-} from "../../data/circuit-data.js?v=37";
+} from "../../data/circuit-data.js?v=39";
 import {
   createCasualTrophy,
-} from "../../data/casual-data.js?v=37";
+} from "../../data/casual-data.js?v=39";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=37";
+} from "./circuit.js?v=39";
 import {
   getPlayableRoundCount,
-} from "./round.js?v=37";
+} from "./round.js?v=39";
 import {
   finalizeTournamentResultData,
   resolvePlacementRewards,
   writeTournamentResultToStorage,
-} from "../main/tournament-bridge.js?v=37";
+} from "../main/tournament-bridge.js?v=39";
 
 export const RESULTS_VERSION =
-  "mobbr-tournament-results-2.6.0";
+  "mobbr-tournament-results-2.7.0";
 
 export const RESULT_RULES = Object.freeze({
   defaultMatchPointThreshold: 50,
@@ -2021,7 +2021,13 @@ export function renderMatchChampionScreen(runtime) {
         <div class="match-champion-members">
           ${champion.members.map((member) => `
             <article>
-              <img src="${escapeAttribute(member.image)}" alt="">
+              <img
+                src="${escapeAttribute(member.image)}"
+                data-character-portrait
+                data-player-team="${champion.teamId === runtime.playerTeamId}"
+                data-role="${escapeAttribute(member.role)}"
+                alt=""
+              >
               <strong>${escapeHtml(member.name)}</strong>
               <span>${escapeHtml(member.role)}</span>
             </article>
@@ -2363,7 +2369,7 @@ export function renderAwardScreen(runtime) {
         <section class="award-center-commentary">${commentator(`まずは4位から10位！${award.label}で大会を支えた7名です！`)}</section>
       ` : ""}
       ${!isPodium && stage === "podium" ? `
-        <section class="award-podium">${award.ranking.slice(0,3).map(entry=>`<article class="award-place award-place--${entry.place}"><span>${entry.place}</span><img src="${escapeAttribute(entry.image ?? entry.teamLogo ?? "")}" alt=""><strong>${escapeHtml(entry.playerName)}</strong><small>${escapeHtml(`${entry.role} / ${entry.teamName}`)}</small><b>${escapeHtml(entry.valueLabel)}</b><p class="award-entry-comment">${escapeHtml(entry.commentary)}</p></article>`).join("")}</section>
+        <section class="award-podium">${award.ranking.slice(0,3).map(entry=>`<article class="award-place award-place--${entry.place}"><span>${entry.place}</span><img src="${escapeAttribute(entry.image ?? entry.teamLogo ?? "")}" data-character-portrait data-player-team="${entry.teamId === runtime.playerTeamId}" data-role="${escapeAttribute(entry.role ?? "")}" alt=""><strong>${escapeHtml(entry.playerName)}</strong><small>${escapeHtml(`${entry.role} / ${entry.teamName}`)}</small><b>${escapeHtml(entry.valueLabel)}</b><p class="award-entry-comment">${escapeHtml(entry.commentary)}</p></article>`).join("")}</section>
       ` : ""}
       ${isPodium && stage === "podium_comment" ? `
         <section class="final-top5-commentary">
@@ -2635,7 +2641,7 @@ export function renderTournamentResultScreen(runtime) {
           <div class="member-total-list">
             ${result.memberResults.map((member) => `
               <div>
-                <img src="${escapeAttribute(member.image)}" alt="">
+                <img src="${escapeAttribute(member.image)}" data-character-portrait data-player-team="true" data-role="${escapeAttribute(member.role)}" alt="">
                 <strong>${escapeHtml(member.role)} ${escapeHtml(member.name)}</strong>
                 <small>
                   K ${member.kills} / A ${member.assists} /

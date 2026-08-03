@@ -8,13 +8,13 @@
 
 import {
   clamp,
-} from "../../data/game-data.js?v=37";
+} from "../../data/game-data.js?v=39";
 import {
   getMatchParticipantCount,
-} from "./circuit.js?v=37";
+} from "./circuit.js?v=39";
 
 export const ROUND_INTEGRATION_VERSION =
-  "mobbr-tournament-round-1.9.0";
+  "mobbr-tournament-round-2.0.0";
 
 export const ROUND_INTEGRATION_RULES = Object.freeze({
   encounterRate: 0.75,
@@ -1096,6 +1096,31 @@ export function finalizeRoundFieldToDraft(
     );
   }
 
+  const visibleBattleWinnerId =
+    draft.lastBattleResult?.draw === false &&
+    activeBefore.includes(
+      draft.lastBattleResult?.winnerTeamId,
+    )
+      ? draft.lastBattleResult.winnerTeamId
+      : null;
+
+  // A team that won the visible 3v3 battle must remain in the field. Before
+  // this guard, the independent field score could place the winner below the
+  // survival line and applyCpuRoundState would then convert all three members
+  // to dead, producing "VICTORY" followed by an all-eliminated state.
+  if (visibleBattleWinnerId !== null && targetCount > 0) {
+    const winnerIndex = teamResults.findIndex(
+      (row) => row.teamId === visibleBattleWinnerId,
+    );
+    if (winnerIndex >= targetCount) {
+      const [winnerRow] = teamResults.splice(winnerIndex, 1);
+      winnerRow.visibleBattleWinProtection = true;
+      teamResults.splice(targetCount - 1, 0, winnerRow);
+    } else if (winnerIndex >= 0) {
+      teamResults[winnerIndex].visibleBattleWinProtection = true;
+    }
+  }
+
   if (playerHadNoEncounter) {
     const playerIndex =
       teamResults.findIndex(
@@ -1125,7 +1150,9 @@ export function finalizeRoundFieldToDraft(
       .slice(0, targetCount)
       .map((row) => row.teamId);
   const eliminatedRows =
-    teamResults.slice(targetCount);
+    teamResults.slice(targetCount).filter(
+      (row) => row.teamId !== visibleBattleWinnerId,
+    );
   const eliminatedIds =
     eliminatedRows.map((row) => row.teamId);
 

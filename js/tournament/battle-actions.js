@@ -25,12 +25,12 @@ import {
   calculateSkillCt,
   isAssistEligible,
   resolveWeaponBattleValue,
-} from "../../data/battle-config.js?v=37";
+} from "../../data/battle-config.js?v=39";
 import {
   STAT_IDS,
   clamp,
   rankToCharacterValue,
-} from "../../data/game-data.js?v=37";
+} from "../../data/game-data.js?v=39";
 import {
   adjustDebuffForSpecialAbility,
   applyNextBattleSpecialEffects,
@@ -52,7 +52,7 @@ import {
 } from "./special-abilities.js";
 
 export const BATTLE_ACTIONS_VERSION =
-  "mobbr-battle-actions-1.8.0";
+  "mobbr-battle-actions-1.9.0";
 
 export const BATTLE_ACTION_BALANCE = Object.freeze({
   criticalDamageMultiplier: 1.5,
@@ -561,7 +561,17 @@ export function createBattleParticipant({
     name: member.name,
     role: member.role,
     image: member.image,
+    baseCharacterRank:
+      member.baseCharacterRank ??
+      member.characterRank,
     characterRank: member.characterRank,
+    motivation:
+      deepClone(
+        member.motivation ?? {
+          level: "normal",
+          modifier: 0,
+        },
+      ),
     isPlayerTeam: team.isPlayer === true,
     playerDevelopmentMastery,
     playerMasteryDamageMultiplier:

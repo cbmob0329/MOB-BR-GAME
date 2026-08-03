@@ -11,12 +11,15 @@ import {
   installAssetFallbacks,
 } from "../assets.js";
 import {
+  motivationDisplay,
+} from "../../data/motivation-data.js?v=39";
+import {
   TOURNAMENT_PHASES,
   createTournamentRuntimeManager,
-} from "./runtime.js?v=37";
+} from "./runtime.js?v=39";
 import {
   executeCurrentBattleToDraft,
-} from "./battle-core.js";
+} from "./battle-core.js?v=39";
 import {
   getItem,
 } from "../../data/shop-data.js";
@@ -24,7 +27,7 @@ import {
   balanceTournamentPortraits,
   createBattlePlaybackController,
   renderBattleOutcomeScreen,
-} from "./battle-ui.js?v=37";
+} from "./battle-ui.js?v=39";
 import {
   EXPLORATION_PAGES,
   beginExplorationToDraft,
@@ -46,7 +49,7 @@ import {
   useInventoryItemToDraft,
   useMobSlotToDraft,
   useRespawnTurntableToDraft,
-} from "./exploration.js?v=37";
+} from "./exploration.js?v=39";
 import {
   advanceAwardToDraft,
   finalizeCurrentMatchToDraft,
@@ -62,13 +65,13 @@ import {
   renderReturningResultScreen,
   renderTournamentResultScreen,
   writePreparedResultToStorage,
-} from "./results.js?v=37";
+} from "./results.js?v=39";
 
 import {
   applyMatchPlanToDraft,
   circuitSectionLabel,
   isPlayerMatch,
-} from "./circuit.js?v=37";
+} from "./circuit.js?v=39";
 
 import {
   fastForwardMatchToChampionToDraft,
@@ -78,9 +81,9 @@ import {
   getRoundTarget,
   isPlayerActive,
   resolveRoundEncounterToDraft,
-} from "./round.js?v=37";
+} from "./round.js?v=39";
 
-export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-3.4.0";
+export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-3.5.0";
 
 const PHASE_LABELS = Object.freeze({
   IDLE: "待機",
@@ -128,6 +131,17 @@ function escapeHtml(value) {
 
 function escapeAttribute(value) {
   return escapeHtml(value).replaceAll("`", "&#096;");
+}
+
+function motivationBadgeTemplate(record, className = "") {
+  const display = motivationDisplay(record);
+  return `
+    <span class="motivation-badge motivation-badge--${escapeAttribute(display.id)} ${escapeAttribute(className)}">
+      <b>${escapeHtml(display.mark)}</b>
+      <em>${escapeHtml(display.name)}</em>
+      <small>${escapeHtml(display.modifierLabel)}</small>
+    </span>
+  `;
 }
 
 function formatNumber(value) {
@@ -291,11 +305,15 @@ function sceneForegroundTemplate(scene) {
           <article class="opening-lineup__member">
             <img
               src="${escapeAttribute(scene.foregroundImages[index] ?? "")}" 
+              data-character-portrait
+              data-player-team="true"
+              data-role="${escapeAttribute(binding.role ?? "")}" 
               alt="${escapeAttribute(binding.name ?? binding.weaponName ?? "")}" 
             >
             ${binding.role ? `<span>${escapeHtml(binding.role)}</span>` : ""}
             <strong>${escapeHtml(binding.name ?? binding.weaponName ?? "")}</strong>
             ${binding.rank ? `<small>RANK ${escapeHtml(binding.rank)}</small>` : ""}
+            ${binding.motivation ? motivationBadgeTemplate(binding.motivation, "motivation-badge--opening") : ""}
           </article>
         `).join("")}
       </div>
@@ -380,11 +398,18 @@ function teamRosterRow(team, index, playerTeamId) {
 function playerIntroTemplate(runtime) {
   return playerMembers(runtime).map((member) => `
     <article class="player-intro-card">
-      <img src="${escapeAttribute(member.image)}" alt="${escapeAttribute(member.name)}">
+      <img
+        src="${escapeAttribute(member.image)}"
+        data-character-portrait
+        data-player-team="true"
+        data-role="${escapeAttribute(member.role)}"
+        alt="${escapeAttribute(member.name)}"
+      >
       <div>
         <span>${escapeHtml(member.role)}</span>
         <h3>${escapeHtml(member.name)}</h3>
         <p>RANK ${escapeHtml(member.characterRank)}</p>
+        ${motivationBadgeTemplate(member.motivation, "motivation-badge--intro")}
         <strong>${escapeHtml(member.weapon.weaponName)}</strong>
       </div>
     </article>
@@ -470,9 +495,16 @@ function deploymentTemplate(runtime) {
         <div class="deployment-team">
           ${members.map((member) => `
             <article>
-              <img src="${escapeAttribute(member.image)}" alt="${escapeAttribute(member.name)}">
+              <img
+                src="${escapeAttribute(member.image)}"
+                data-character-portrait
+                data-player-team="true"
+                data-role="${escapeAttribute(member.role)}"
+                alt="${escapeAttribute(member.name)}"
+              >
               <span>${escapeHtml(member.role)}</span>
               <strong>${escapeHtml(member.name)}</strong>
+              ${motivationBadgeTemplate(member.motivation, "motivation-badge--deployment")}
             </article>
           `).join("")}
         </div>
@@ -679,7 +711,12 @@ function encounterPreviewTemplate(runtime) {
                 data-role="${escapeAttribute(member.role)}"
                 alt=""
               >
-              <div><span>${escapeHtml(member.role)}</span><b>${escapeHtml(member.name)}</b><small>HP ${member.currentHp}/${member.maxHp}</small></div>
+              <div>
+                <span>${escapeHtml(member.role)}</span>
+                <b>${escapeHtml(member.name)}</b>
+                ${motivationBadgeTemplate(member.motivation, "motivation-badge--encounter")}
+                <small>HP ${member.currentHp}/${member.maxHp}</small>
+              </div>
             </article>
           `).join("")}
         </div>
@@ -698,6 +735,7 @@ function encounterPreviewTemplate(runtime) {
               <div>
                 <span>${escapeHtml(member.role)}</span>
                 <b>${escapeHtml(member.name)}</b>
+                ${motivationBadgeTemplate(member.motivation, "motivation-badge--encounter")}
                 <small>
                   ${
                     runtime.memberRuntime[member.playerId]?.combatState === "dead"
@@ -859,9 +897,16 @@ function roundResultTemplate(runtime) {
           const state = runtime.memberRuntime[source.playerId];
           return `
             <article data-combat-state="${escapeAttribute(state.combatState)}">
-              <img src="${escapeAttribute(source.image)}" alt="">
+              <img
+                src="${escapeAttribute(source.image)}"
+                data-character-portrait
+                data-player-team="true"
+                data-role="${escapeAttribute(source.role)}"
+                alt=""
+              >
               <div>
                 <strong>${escapeHtml(source.role)} ${escapeHtml(source.name)}</strong>
+                ${motivationBadgeTemplate(source.motivation, "motivation-badge--result")}
                 <small>${battle ? "VISIBLE BATTLE" : "FIELD / SPECTATOR"} / HP ${state.hp} / ${state.maxHp}</small>
               </div>
               <span>

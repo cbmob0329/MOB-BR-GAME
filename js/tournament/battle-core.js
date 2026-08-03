@@ -10,10 +10,10 @@ import {
   BATTLE_END_TIE_BREAKERS,
   BATTLE_TIMING,
   STATE_RULES,
-} from "../../data/battle-config.js?v=37";
+} from "../../data/battle-config.js?v=39";
 import {
   calculateChecksum,
-} from "../main/state.js?v=37";
+} from "../main/state.js?v=39";
 import {
   BATTLE_ACTIONS_VERSION,
   appendBattleEvent,
@@ -26,10 +26,10 @@ import {
   prepareParticipantSpecialAfterBattle,
   addOrRefreshEffect,
   updateParticipantTimers,
-} from "./battle-actions.js?v=37";
+} from "./battle-actions.js?v=39";
 
 export const BATTLE_CORE_VERSION =
-  "mobbr-battle-core-1.6.0";
+  "mobbr-battle-core-1.7.0";
 export const BATTLE_STATE_SCHEMA_VERSION =
   "mobbr-battle-state-1.0.0";
 
@@ -214,6 +214,9 @@ function createInitialParticipantStates(participants) {
         name: participant.name,
         role: participant.role,
         image: participant.image,
+        baseCharacterRank: participant.baseCharacterRank,
+        characterRank: participant.characterRank,
+        motivation: deepClone(participant.motivation),
         weaponName: participant.weapon.weaponName,
         maxHp: participant.maxHp,
         hp: participant.hp,
@@ -569,6 +572,9 @@ function finishBattle(
     teamId: participant.teamId,
     name: participant.name,
     role: participant.role,
+    baseCharacterRank: participant.baseCharacterRank,
+    characterRank: participant.characterRank,
+    motivation: deepClone(participant.motivation),
     hp: participant.hp,
     maxHp: participant.maxHp,
     combatState: participant.combatState,

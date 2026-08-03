@@ -7,6 +7,9 @@
 
 import { assetPath } from "../assets.js";
 import {
+  motivationDisplay,
+} from "../../data/motivation-data.js?v=39";
+import {
   COMMENTATOR,
   COMMENTARY_VERSION,
   createBattleOutcomeCommentary,
@@ -14,7 +17,7 @@ import {
   createCommentaryDirector,
 } from "./commentary.js";
 
-export const BATTLE_UI_VERSION = "mobbr-battle-ui-2.4.0";
+export const BATTLE_UI_VERSION = "mobbr-battle-ui-2.5.0";
 export const BATTLE_REPLAY_SCHEMA_VERSION =
   "mobbr-battle-replay-1.0.0";
 
@@ -206,11 +209,16 @@ export function balanceTournamentPortraits(
   const images =
     root.querySelectorAll?.(
       [
+        "img[data-character-portrait]",
         ".battle-fighter__portrait > img",
         ".battle-survivor-grid img[data-character-portrait]",
         ".encounter-compact-team img[data-character-portrait]",
-        ".match-champion-members img[data-character-portrait]",
-        ".award-place img[data-character-portrait]",
+        ".match-champion-members img",
+        ".award-place img",
+        ".opening-lineup__member > img",
+        ".player-intro-card > img",
+        ".deployment-team img",
+        ".actual-round-result-list img",
       ].join(","),
     ) ?? [];
   for (const image of images) {
@@ -227,10 +235,15 @@ export function balanceTournamentPortraits(
       continue;
     }
 
+    image.dataset.portraitBalanced = "pending";
     const applyScale = () => {
+      const loadedSource =
+        image.currentSrc ||
+        image.src ||
+        source;
       let scale =
         PORTRAIT_BALANCE_CACHE.get(
-          source,
+          loadedSource,
         );
       if (!Number.isFinite(scale)) {
         scale =
@@ -238,7 +251,7 @@ export function balanceTournamentPortraits(
             image,
           );
         PORTRAIT_BALANCE_CACHE.set(
-          source,
+          loadedSource,
           scale,
         );
       }
@@ -257,20 +270,36 @@ export function balanceTournamentPortraits(
         image.closest(
           ".battle-survivor-grid",
         ) !== null;
-      const roleCorrection =
+      const normalizedSource =
+        loadedSource.toLowerCase();
+      const isPlayerSupAsset =
+        normalizedSource.includes(
+          "/play/p1sup.png",
+        ) ||
+        normalizedSource.endsWith(
+          "play/p1sup.png",
+        );
+      const isPlayerSup =
         playerTeam &&
-        image.dataset.role === "SUP"
-          ? 0.78
-          : 1;
-      const finalScale =
+        image.dataset.role === "SUP";
+      let finalScale =
         Math.max(
           0.68,
           Math.min(
             1.26,
-            scale *
-              roleCorrection,
+            scale,
           ),
         );
+
+      // P1sup has a visibly larger painted area than the IGL/ATK assets.
+      // Multiplying by the measured scale can cancel the correction when the
+      // transparent-margin analyser returns its upper bound, so cap it.
+      if (isPlayerSupAsset || isPlayerSup) {
+        finalScale = Math.min(
+          0.76,
+          finalScale * 0.78,
+        );
+      }
       image.style.setProperty(
         "--portrait-balance-scale",
         finalScale.toFixed(3),
@@ -279,6 +308,7 @@ export function balanceTournamentPortraits(
         "--portrait-visible-scale",
         finalScale.toFixed(3),
       );
+      image.dataset.portraitBalanced = "true";
     };
 
     if (
@@ -330,6 +360,9 @@ function initialStatesFromRuntime(runtime) {
         name: state.name,
         role: state.role,
         image: state.image,
+        baseCharacterRank: state.baseCharacterRank ?? state.characterRank,
+        characterRank: state.characterRank,
+        motivation: deepClone(state.motivation ?? { level: "normal", modifier: 0 }),
         weaponName: state.weaponName,
         maxHp: state.maxHp,
         hp: state.hp,
@@ -800,6 +833,10 @@ function participantTemplate(
   participant,
   side,
 ) {
+  const motivation =
+    motivationDisplay(
+      participant.motivation,
+    );
   const hpRate =
     participant.maxHp <= 0
       ? 0
@@ -817,10 +854,14 @@ function participantTemplate(
       data-player-id="${escapeAttribute(participant.playerId)}"
       data-state="${escapeAttribute(participant.combatState)}"
       data-distance="${escapeAttribute(participant.distance)}"
+      data-motivation="${escapeAttribute(motivation.id)}"
     >
       <div class="battle-fighter__label">
         <span>${escapeHtml(participant.role)}</span>
         <strong>${escapeHtml(participant.name)}</strong>
+        <em class="motivation-badge motivation-badge--${escapeAttribute(motivation.id)}">
+          ${escapeHtml(motivation.mark)} ${escapeHtml(motivation.name)} ${escapeHtml(motivation.modifierLabel)}
+        </em>
         <small>
           ${escapeHtml(DISTANCE_LABELS[participant.distance] ?? participant.distance)}
           / AMMO ${participant.ammo}
@@ -831,6 +872,8 @@ function participantTemplate(
           src="${escapeAttribute(participant.combatState === "dead" ? "icon/deth.png" : participant.image)}"
           alt=""
           data-role="${escapeAttribute(participant.role)}"
+          data-character-portrait
+          data-player-team="${participant.isPlayerTeam === true}"
         >
         ${
           participant.combatState === "dead"
