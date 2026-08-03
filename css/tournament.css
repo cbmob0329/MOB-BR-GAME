@@ -4205,12 +4205,6 @@ img {
   object-position: center bottom;
 }
 
-.battle-fighter__portrait img[src*="sup" i],
-.battle-survivor-grid img[src*="sup" i],
-.match-champion-members img[src*="sup" i],
-.award-place img[src*="sup" i] {
-  transform: scale(0.86);
-}
 
 .tournament-screen::before {
   opacity: 0.5;
@@ -4394,8 +4388,6 @@ body {
   object-fit: contain !important;
   object-position: center bottom;
 }
-.opening-lineup__member img[data-role="SUP"],
-.player-intro-card img[data-role="SUP"] { scale: .88; }
 
 .team-roster-row--cpu small {
   color: #4c5c72;
@@ -5294,15 +5286,6 @@ body {
   height: min(21vh, 135px) !important;
 }
 
-/* Use supplied portrait sizes consistently; no SUP-only scaling. */
-.opening-lineup__member img[data-role="SUP"],
-.player-intro-card img[data-role="SUP"],
-.deployment-team img[data-role="SUP"],
-.encounter-compact-team img[data-role="SUP"],
-.battle-fighter__portrait img[data-role="SUP"] {
-  scale: 1 !important;
-  transform: none !important;
-}
 
 /* CSS-drawn dropship: visible, readable, and non-rotating. */
 .deployment-stage__ship {
@@ -5530,13 +5513,6 @@ body {
 .battle-state-cut--down { border-color: #ffcf57 !important; }
 .battle-state-cut--confirmed_kill { border-color: #ff6373 !important; }
 .battle-state-cut--revive { border-color: #6fe4a4 !important; }
-.battle-fighter__portrait img[src*="sup" i],
-.battle-survivor-grid img[src*="sup" i],
-.match-champion-members img[src*="sup" i],
-.award-place img[src*="sup" i] {
-  transform: none !important;
-  scale: 1 !important;
-}
 
 
 /* Generation 20: GitHub asset path fallback and exploration safety */
@@ -9998,8 +9974,7 @@ html[data-asset-prefix="../../"] .tournament-loading-overlay {
 
 
 /* Generation 36: visible-bounds portrait normalization */
-.battle-fighter__portrait > img,
-.battle-fighter__portrait > img[src*="sup" i] {
+.battle-fighter__portrait > img {
   transform: none !important;
   scale:
     var(
@@ -10009,10 +9984,6 @@ html[data-asset-prefix="../../"] .tournament-loading-overlay {
   transform-origin: center bottom !important;
 }
 
-.team-portrait-button img[data-role="SUP"] {
-  scale: .9;
-  transform-origin: center bottom;
-}
 
 
 /* ==========================================================
@@ -10262,9 +10233,6 @@ html[data-asset-prefix="../../"] .tournament-loading-overlay {
   transform-origin: center bottom !important;
 }
 
-.battle-survivor-grid img[data-role="SUP"] {
-  transform: none !important;
-}
 
 .encounter-opponent-wear {
   position: relative;
@@ -10667,4 +10635,59 @@ img[data-character-portrait],
   transform-origin:
     center
     bottom !important;
+}
+
+/* ==========================================================
+   Generation 43: one portrait rule for player/CPU and every
+   tournament scene. No SUP-specific scale is used.
+   ========================================================== */
+img[data-character-portrait],
+.opening-lineup__member > img,
+.player-intro-card > img,
+.deployment-team img,
+.encounter-compact-team img,
+.battle-fighter__portrait > img,
+.actual-round-result-list img,
+.battle-survivor-grid img,
+.match-champion-members img,
+.award-place img {
+  width: 100% !important;
+  max-width: 100% !important;
+  transform: none !important;
+  translate:
+    0
+    var(
+      --portrait-balance-y,
+      0px
+    ) !important;
+  scale:
+    var(
+      --portrait-balance-scale,
+      1
+    ) !important;
+  transform-origin:
+    center
+    bottom !important;
+  object-fit: contain !important;
+  object-position:
+    center
+    bottom !important;
+}
+
+/* Equal layout boxes make alpha fitting comparable across roles and sides. */
+.battle-fighter__portrait > img {
+  height: 100% !important;
+}
+
+.deployment-team img {
+  height: 190px !important;
+}
+
+.opening-lineup__member > img,
+.player-intro-card > img {
+  height: 180px !important;
+}
+
+.encounter-compact-team img {
+  height: 105px !important;
 }

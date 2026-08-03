@@ -1927,11 +1927,6 @@ body {
   padding: 4px;
 }
 
-.player-portrait[data-role="SUP"],
-.team-detail-card__portrait[data-role="SUP"],
-.team-player-tab img[data-role="SUP"] {
-  transform: scale(0.86);
-}
 
 /* Icon-first, three-column item shop. */
 .management-section__heading {
@@ -3882,12 +3877,6 @@ body {
 .week-start-screen p { margin: 0; color: var(--text-muted); font-size: .64rem; line-height: 1.55; }
 
 /* All player portraits now use the supplied source dimensions uniformly. */
-.player-portrait[data-role="SUP"],
-.team-detail-card__portrait[data-role="SUP"],
-.team-player-tab img[data-role="SUP"] {
-  transform: none !important;
-  scale: 1 !important;
-}
 
 /* MOB ROOM uses a square swipe selector; locked rooms remain silhouettes. */
 .room-list {
@@ -11159,18 +11148,6 @@ img.asset-missing {
   line-height: 1.4;
 }
 
-/* The source art for P1sup has a larger painted silhouette. Use the same
-   fixed cap throughout the main application instead of stacking transforms. */
-.player-portrait[data-role="SUP"],
-.team-detail-card__portrait[data-role="SUP"],
-.team-portrait-button img[data-role="SUP"],
-.player-status-modal__portrait[data-role="SUP"],
-.team-player-tab img[data-role="SUP"],
-.player-row__image[data-role="SUP"] {
-  transform: none !important;
-  scale: .76 !important;
-  transform-origin: center bottom !important;
-}
 
 
 /* ==========================================================
@@ -13873,5 +13850,954 @@ img.player-portrait[data-portrait-balanced="true"] {
   .collection-food-file__header > .back-button {
     grid-column: 1 / -1;
     width: fit-content;
+  }
+}
+
+/* ==========================================================
+   Generation 43: unified portrait fit, compact HOME/SHOP,
+   comfortable kitchen workflow and complete dining room
+   ========================================================== */
+
+/* Every main-screen portrait uses the same visible-bounds variables.
+   No SUP/player-specific fixed scale remains in the final cascade. */
+img[data-character-portrait],
+img.player-portrait,
+.team-portrait-button img[data-role],
+.training-cinematic__portrait img,
+.training-result-member__player,
+.player-row__image,
+.dining-seat__character > img,
+.dining-selection-panel img[data-character-portrait] {
+  transform: none !important;
+  translate:
+    0
+    var(
+      --main-portrait-y,
+      0px
+    ) !important;
+  scale:
+    var(
+      --main-portrait-scale,
+      1
+    ) !important;
+  transform-origin:
+    center
+    bottom !important;
+  object-fit: contain !important;
+  object-position:
+    center
+    bottom !important;
+}
+
+/* Stable boxes are required for context-aware alpha fitting. */
+.team-portrait-button img[data-role] {
+  width: 100% !important;
+  height: 210px !important;
+  max-height: 30vh;
+}
+
+.training-player-station > header > img.player-portrait {
+  width: 78px !important;
+  height: 94px !important;
+}
+
+.training-cinematic__portrait img,
+.training-result-member__player {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* HOME cards remain accessible even with a tournament notice. */
+.home-tournament-notice {
+  position: relative !important;
+  z-index: 3;
+  display: grid !important;
+  grid-template-columns:
+    44px
+    minmax(0, 1fr)
+    minmax(84px, auto) !important;
+  gap: 7px !important;
+  align-items: center;
+  min-height: 0 !important;
+  max-height: 112px;
+  margin-block: 4px !important;
+  border-width: 2px !important;
+  border-radius: 14px !important;
+  padding: 7px 8px !important;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+.home-tournament-notice > img {
+  width: 44px !important;
+  height: 44px !important;
+}
+
+.home-tournament-notice span {
+  font-size: .34rem !important;
+}
+
+.home-tournament-notice strong {
+  font-size: .53rem !important;
+}
+
+.home-tournament-notice p {
+  display: -webkit-box !important;
+  overflow: hidden;
+  margin: 1px 0 0 !important;
+  font-size: .38rem !important;
+  line-height: 1.35 !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.home-tournament-notice button {
+  width: 100% !important;
+  min-height: 36px !important;
+  border-radius: 8px !important;
+  padding: 5px 7px !important;
+  font-size: .39rem !important;
+}
+
+.home-facility-grid {
+  gap: 10px !important;
+  padding:
+    5px
+    max(
+      16px,
+      calc((100vw - min(58vw, 220px)) / 2)
+    )
+    5px !important;
+}
+
+.home-facility-image {
+  flex:
+    0 0
+    min(
+      58vw,
+      220px
+    ) !important;
+  min-width:
+    min(
+      58vw,
+      220px
+    ) !important;
+  border-radius: 18px !important;
+}
+
+.home-facility-image span {
+  right: 6px !important;
+  bottom: 6px !important;
+  left: 6px !important;
+  padding: 5px 4px !important;
+  font-size: .46rem !important;
+}
+
+.home-facility-only {
+  min-height: 0 !important;
+  align-content: start !important;
+  padding-bottom: 2px !important;
+}
+
+/* SHOP categories never disappear below ingredient content. */
+.mobshop-popup {
+  display: grid !important;
+  grid-template-rows:
+    auto
+    auto
+    auto
+    minmax(0, 1fr);
+  min-height: 0;
+  overflow: visible !important;
+}
+
+.mobshop-category-grid {
+  position: sticky !important;
+  z-index: 30 !important;
+  top: 0;
+  display: flex !important;
+  grid-template-columns: none !important;
+  flex-wrap: nowrap !important;
+  gap: 6px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  margin: 0 7px !important;
+  padding: 7px 5px 9px !important;
+  border-radius: 12px;
+  background:
+    linear-gradient(
+      180deg,
+      rgb(25 47 65 / 99%),
+      rgb(12 27 41 / 99%)
+    );
+  box-shadow:
+    0 8px 13px
+    rgb(0 0 0 / 26%);
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.mobshop-category-grid::-webkit-scrollbar {
+  display: none;
+}
+
+.mobshop-category-grid button {
+  flex: 0 0 82px !important;
+  width: 82px !important;
+  min-width: 82px !important;
+  min-height: 82px !important;
+  scroll-snap-align: start;
+  border-radius: 11px !important;
+  padding: 5px !important;
+}
+
+.mobshop-category-grid img {
+  width: 43px !important;
+  height: 43px !important;
+}
+
+.mobshop-category-grid span {
+  font-size: .36rem !important;
+}
+
+.mobshop-content {
+  position: relative !important;
+  z-index: 2 !important;
+  min-height: 340px;
+  margin-top: 7px !important;
+  padding-top: 0 !important;
+  overflow: visible !important;
+}
+
+.cooking-shop-section {
+  position: relative;
+  z-index: 1;
+  margin-top: 0 !important;
+}
+
+.cooking-shop-grid {
+  display: grid !important;
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    ) !important;
+  gap: 7px !important;
+  padding: 7px !important;
+}
+
+.cooking-shop-product {
+  min-width: 0 !important;
+  min-height: 126px !important;
+  border-radius: 10px !important;
+  padding: 5px 3px !important;
+  color: #1d2532 !important;
+}
+
+.cooking-shop-product img {
+  width: 70px !important;
+  height: 70px !important;
+}
+
+.cooking-shop-product strong,
+.cooking-shop-product small,
+.cooking-shop-product em {
+  opacity: 1 !important;
+  color: #253041 !important;
+  text-shadow: none !important;
+}
+
+.cooking-shop-product small {
+  color: #9d7410 !important;
+}
+
+/* Compact, anchored kitchen workflow. */
+.cooking-workbench {
+  scroll-margin-top: 12px;
+  gap: 8px !important;
+}
+
+.cooking-utensil-grid {
+  grid-template-columns:
+    repeat(
+      5,
+      minmax(0, 1fr)
+    ) !important;
+  gap: 4px !important;
+}
+
+.cooking-utensil-slot {
+  min-height: 72px !important;
+  border-radius: 9px !important;
+  padding: 4px 2px !important;
+}
+
+.cooking-utensil-slot i {
+  font-size: .75rem !important;
+}
+
+.cooking-utensil-slot strong,
+.cooking-utensil-slot small {
+  font-size: .23rem !important;
+}
+
+.cooking-ingredient-builder {
+  display: grid;
+  gap: 7px !important;
+  border-radius: 15px !important;
+  padding: 8px !important;
+  scroll-margin-top: 10px;
+}
+
+.cooking-ingredient-builder > header {
+  position: sticky;
+  z-index: 7;
+  top: 0;
+  min-height: 44px;
+  border-radius: 10px;
+  padding: 5px 7px !important;
+  background: rgb(7 20 34 / 96%);
+}
+
+.cooking-ingredient-builder > header h2 {
+  margin: 0;
+  font-size: .55rem !important;
+}
+
+.cooking-ingredient-builder > header button {
+  min-height: 32px !important;
+  padding: 4px 7px !important;
+  font-size: .31rem !important;
+}
+
+.cooking-ingredient-slots {
+  display: flex !important;
+  grid-template-columns: none !important;
+  gap: 5px !important;
+  overflow-x: auto;
+  padding: 3px 1px 6px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.cooking-ingredient-slots::-webkit-scrollbar,
+.cooking-ingredient-picker > div::-webkit-scrollbar,
+.cooking-recipe-candidates > div::-webkit-scrollbar {
+  display: none;
+}
+
+.cooking-ingredient-slots > button {
+  flex: 0 0 72px;
+  width: 72px !important;
+  min-width: 72px !important;
+  min-height: 88px !important;
+  scroll-snap-align: center;
+  grid-template-rows: 17px 42px auto !important;
+  border-radius: 9px !important;
+  padding: 3px !important;
+}
+
+.cooking-ingredient-slots > button > img {
+  width: 42px !important;
+  height: 42px !important;
+}
+
+.cooking-ingredient-slots > button > strong {
+  font-size: .27rem !important;
+}
+
+.cooking-ingredient-slots > button > small {
+  display: none !important;
+}
+
+.cooking-ingredient-picker {
+  position: relative;
+  z-index: 4;
+  display: grid;
+  gap: 5px !important;
+  border-radius: 11px !important;
+  padding: 6px !important;
+  background: rgb(8 19 31 / 97%) !important;
+}
+
+.cooking-ingredient-picker > header {
+  min-height: 35px;
+}
+
+.cooking-ingredient-picker > div {
+  display: flex !important;
+  grid-template-columns: none !important;
+  gap: 5px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  padding: 2px 1px 6px !important;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.cooking-ingredient-picker > div > button {
+  flex: 0 0 72px;
+  width: 72px !important;
+  min-width: 72px !important;
+  min-height: 84px !important;
+  scroll-snap-align: start;
+  border-radius: 9px !important;
+  padding: 4px 2px !important;
+}
+
+.cooking-ingredient-picker img {
+  width: 48px !important;
+  height: 48px !important;
+}
+
+.cooking-ingredient-picker strong {
+  overflow: hidden;
+  font-size: .27rem !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cooking-recipe-candidates {
+  display: grid;
+  gap: 5px !important;
+  min-height: 0 !important;
+  border-radius: 11px;
+  padding: 6px !important;
+}
+
+.cooking-recipe-candidates > header {
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto !important;
+  min-height: 38px;
+}
+
+.cooking-recipe-candidates > header > small {
+  display: none !important;
+}
+
+.cooking-recipe-candidates > div {
+  display: flex !important;
+  grid-template-columns: none !important;
+  gap: 6px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  padding: 2px 1px 6px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+.cooking-recipe-card {
+  flex: 0 0 106px;
+  width: 106px !important;
+  min-width: 106px !important;
+  min-height: 130px !important;
+  scroll-snap-align: start;
+  border-radius: 10px !important;
+  padding: 5px !important;
+}
+
+.cooking-recipe-card img {
+  width: 66px !important;
+  height: 66px !important;
+}
+
+.cooking-utensil-compatibility-note {
+  margin: 0 !important;
+  font-size: .28rem !important;
+}
+
+/* Dining tables keep characters behind the surface and dishes in front. */
+.dining-room-stage {
+  display: grid;
+  gap: 16px !important;
+  overflow: visible !important;
+  padding: 10px 7px 16px !important;
+}
+
+.dining-table-row--top,
+.dining-table-row--bottom {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 18px !important;
+}
+
+.dining-long-table {
+  position: relative;
+  display: grid !important;
+  min-height: 245px !important;
+  grid-template-rows:
+    24px
+    minmax(0, 1fr);
+  overflow: visible !important;
+  border-radius: 15px;
+  padding: 4px 8px 12px !important;
+}
+
+.dining-long-table > span {
+  position: relative !important;
+  z-index: 8;
+  inset: auto !important;
+  align-self: start;
+  justify-self: center;
+}
+
+.dining-table-seats {
+  position: relative !important;
+  z-index: 3;
+  display: grid !important;
+  min-height: 205px;
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    ) !important;
+  align-items: end !important;
+  gap: 4px !important;
+}
+
+.dining-table-surface {
+  position: absolute !important;
+  z-index: 5 !important;
+  right: 7% !important;
+  bottom: 28px !important;
+  left: 7% !important;
+  height: 68px !important;
+  border-radius: 999px !important;
+  pointer-events: none;
+}
+
+.dining-seat {
+  position: relative !important;
+  z-index: 4;
+  display: grid !important;
+  min-width: 0;
+  min-height: 200px !important;
+  grid-template-rows: 1fr 34px;
+  align-items: end !important;
+  overflow: visible !important;
+  border: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  color: #fff;
+}
+
+.dining-seat__character {
+  position: relative;
+  z-index: 4;
+  display: grid;
+  min-width: 0;
+  height: 170px;
+  justify-items: center;
+  align-items: end;
+  pointer-events: none;
+}
+
+.dining-seat__character > img {
+  position: absolute;
+  z-index: 2;
+  bottom: 16px;
+  left: 50%;
+  width: 100% !important;
+  height: 138px !important;
+  max-width: 150px;
+  translate:
+    -50%
+    var(--main-portrait-y, 0px) !important;
+}
+
+.dining-seat__character > strong,
+.dining-seat__character > small {
+  position: relative;
+  z-index: 7;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dining-seat__character > strong {
+  align-self: end;
+  font-size: .31rem !important;
+}
+
+.dining-seat__character > small {
+  font-size: .22rem !important;
+}
+
+.dining-hungry-bubble {
+  position: absolute !important;
+  z-index: 12 !important;
+  top: 1px !important;
+  left: 50% !important;
+  width: max-content;
+  max-width: 126px;
+  translate: -50% 0 !important;
+  border: 2px solid rgb(213 105 164 / 48%) !important;
+  border-radius: 12px 12px 12px 4px !important;
+  padding: 5px 7px !important;
+  background: #fff7fb !important;
+  color: #433646 !important;
+  font-size: .28rem !important;
+  line-height: 1.25;
+  box-shadow: 0 7px 12px rgb(0 0 0 / 24%);
+  animation: dining-hungry-speech 4s linear infinite !important;
+}
+
+.dining-hungry-bubble::after {
+  position: absolute;
+  bottom: -7px;
+  left: 16px;
+  width: 13px;
+  height: 13px;
+  rotate: 45deg;
+  border-right: 2px solid rgb(213 105 164 / 48%);
+  border-bottom: 2px solid rgb(213 105 164 / 48%);
+  content: "";
+  background: #fff7fb;
+}
+
+.dining-round-chair {
+  position: relative !important;
+  z-index: 1 !important;
+  bottom: auto !important;
+  width: 72% !important;
+  height: 34px !important;
+  margin-inline: auto;
+}
+
+.dining-seat__meal {
+  position: absolute;
+  z-index: 9;
+  right: 2%;
+  bottom: 38px;
+  left: 2%;
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.dining-seat__meal img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 4px rgb(0 0 0 / 36%));
+}
+
+.dining-seat__meal b {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  translate: -50% 0;
+  border-radius: 999px;
+  padding: 2px 6px;
+  background: rgb(5 15 27 / 91%);
+  color: #7ee8ff;
+  font-size: .25rem;
+}
+
+.dining-seat.is-eating .dining-seat__character > img {
+  animation: dining-character-eat 520ms ease-in-out infinite alternate;
+}
+
+@keyframes dining-character-eat {
+  from {
+    margin-bottom: 0;
+  }
+  to {
+    margin-bottom: 6px;
+  }
+}
+
+.dining-seat.is-empty,
+.dining-seat.is-finished {
+  min-height: 200px !important;
+  opacity: .24;
+}
+
+.dining-selection-panel {
+  position: relative;
+  z-index: 20;
+  display: grid;
+  gap: 8px;
+  margin: 4px 7px 12px;
+  border: 3px solid rgb(121 224 255 / 31%);
+  border-radius: 15px;
+  padding: 9px;
+  background: rgb(5 15 28 / 96%);
+  box-shadow: 0 14px 24px rgb(0 0 0 / 35%);
+  scroll-margin-top: 10px;
+}
+
+.dining-selection-panel > header {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) auto;
+  gap: 7px;
+  align-items: center;
+}
+
+.dining-selection-panel > header > img {
+  width: 54px !important;
+  height: 62px !important;
+}
+
+.dining-selection-panel > header > div {
+  display: grid;
+  min-width: 0;
+}
+
+.dining-selection-panel > header span {
+  color: #7ee6ff;
+  font-size: .28rem;
+  font-weight: 1000;
+}
+
+.dining-selection-panel > header strong {
+  overflow: hidden;
+  color: #fff;
+  font-size: .52rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dining-selection-panel > header button {
+  min-height: 32px;
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+
+.dining-selected-dishes {
+  display: grid;
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    );
+  gap: 6px;
+}
+
+.dining-selected-dishes > button,
+.dining-selected-dishes > div {
+  display: grid;
+  min-width: 0;
+  min-height: 92px;
+  place-content: center;
+  justify-items: center;
+  gap: 2px;
+  border: 2px solid rgb(255 255 255 / 13%);
+  border-radius: 10px;
+  padding: 4px;
+  background: rgb(255 255 255 / 6%);
+  color: #fff;
+}
+
+.dining-selected-dishes img {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+}
+
+.dining-selected-dishes strong {
+  overflow: hidden;
+  max-width: 100%;
+  font-size: .28rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dining-selected-dishes .is-empty {
+  border-style: dashed;
+  color: rgb(255 255 255 / 38%);
+}
+
+.dining-food-shelf {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 3px 1px 7px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.dining-food-shelf::-webkit-scrollbar {
+  display: none;
+}
+
+.dining-food-shelf > button {
+  flex: 0 0 88px;
+  display: grid;
+  width: 88px;
+  min-height: 112px;
+  scroll-snap-align: start;
+  justify-items: center;
+  align-content: end;
+  gap: 2px;
+  border: 2px solid rgb(255 255 255 / 12%);
+  border-radius: 10px;
+  padding: 5px 3px;
+  background: rgb(255 255 255 / 5%);
+  color: #fff;
+}
+
+.dining-food-shelf > button.is-selected {
+  border-color: #f2d666;
+  background: rgb(96 75 18 / 47%);
+  translate: 0 -3px;
+}
+
+.dining-food-shelf img {
+  width: 66px;
+  height: 66px;
+  object-fit: contain;
+}
+
+.dining-food-shelf strong {
+  overflow: hidden;
+  max-width: 100%;
+  font-size: .28rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dining-food-shelf span,
+.dining-food-shelf small {
+  font-size: .23rem;
+}
+
+.dining-selection-panel__effect {
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: rgb(126 228 255 / 8%);
+  color: rgb(255 255 255 / 70%);
+  font-size: .34rem;
+  line-height: 1.45;
+}
+
+.dining-serve-button {
+  min-height: 42px !important;
+}
+
+.dining-serve-confirm {
+  display: grid;
+  gap: 8px;
+}
+
+.dining-serve-confirm > header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dining-serve-confirm > header img {
+  width: 60px;
+  height: 70px;
+  object-fit: contain;
+}
+
+.dining-serve-confirm > div {
+  display: grid;
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    );
+  gap: 5px;
+}
+
+.dining-serve-confirm article {
+  display: grid;
+  min-width: 0;
+  justify-items: center;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 8px;
+  padding: 4px;
+}
+
+.dining-serve-confirm article img {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+}
+
+.dining-serve-confirm article strong {
+  overflow: hidden;
+  max-width: 100%;
+  font-size: .3rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.training-bonus-ledger {
+  display: grid;
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    );
+  gap: 5px;
+}
+
+.training-bonus-ledger > span {
+  display: grid;
+  gap: 2px;
+  border: 1px solid rgb(255 255 255 / 11%);
+  border-radius: 8px;
+  padding: 5px;
+  background: rgb(255 255 255 / 5%);
+  font-size: .3rem;
+}
+
+.training-bonus-ledger > span.is-total {
+  border-color: rgb(242 213 101 / 43%);
+  color: #f2d565;
+}
+
+@media (max-width: 390px) {
+  .home-tournament-notice {
+    grid-template-columns: 38px minmax(0, 1fr) 80px !important;
+  }
+
+  .home-tournament-notice > img {
+    width: 38px !important;
+    height: 38px !important;
+  }
+
+  .home-facility-image {
+    flex-basis: min(55vw, 205px) !important;
+    min-width: min(55vw, 205px) !important;
+  }
+
+  .cooking-shop-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      ) !important;
+  }
+
+  .dining-seat__character > img {
+    height: 126px !important;
+  }
+}
+
+@media (min-width: 720px) {
+  .dining-table-row--top {
+    grid-template-columns:
+      repeat(
+        3,
+        minmax(0, 1fr)
+      ) !important;
+  }
+
+  .dining-table-row--bottom {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      ) !important;
   }
 }
