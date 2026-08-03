@@ -5,7 +5,7 @@
  * UI state, save data, and tournament runtime state must not be stored here.
  */
 
-export const GAME_DATA_VERSION = "mobbr-game-data-1.5.0";
+export const GAME_DATA_VERSION = "mobbr-game-data-1.5.1";
 
 export const GAME_META = Object.freeze({
   id: "mob-br",
