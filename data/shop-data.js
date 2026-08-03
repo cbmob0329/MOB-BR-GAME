@@ -6,7 +6,7 @@
  * snapshot instead of duplicating these definitions.
  */
 
-export const SHOP_DATA_VERSION = "mobbr-shop-data-1.0.0";
+export const SHOP_DATA_VERSION = "mobbr-shop-data-1.1.0";
 export const ITEM_MASTER_VERSION = "mobbr-item-master-1.0.0";
 export const PACK_MASTER_VERSION = "mobbr-pack-master-1.0.0";
 export const WEAPON_SKIN_MASTER_VERSION = "mobbr-weapon-skin-master-1.0.0";
@@ -24,6 +24,18 @@ function deepFreeze(value) {
 export const SHOP_CATEGORIES = deepFreeze({
   item: { id: "item", name: "ITEM", icon: "icon/item.png" },
   card: { id: "card", name: "CARD", icon: "icon/car.png" },
+  cookingIngredient: {
+    id: "cooking_ingredient",
+    name: "食材",
+    icon: "icon/kitbox.png",
+    status: "data_ready_ui_pending",
+  },
+  cookingUtensil: {
+    id: "cooking_utensil",
+    name: "調理器具",
+    icon: "icon/kitbox.png",
+    status: "data_ready_ui_pending",
+  },
 });
 
 export const SHOP_MASTER_NOTES = deepFreeze({
