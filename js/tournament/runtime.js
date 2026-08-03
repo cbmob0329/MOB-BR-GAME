@@ -9,14 +9,14 @@
 import {
   STORAGE_KEYS,
   calculateChecksum,
-} from "../main/state.js?v=39";
+} from "../main/state.js?v=42";
 import {
   TOURNAMENT_BRIDGE_VERSION,
   TOURNAMENT_ENTRY_SCHEMA_VERSION,
   TOURNAMENT_RESUME_SCHEMA_VERSION,
   readTournamentEntryFromStorage,
   validateTournamentEntryData,
-} from "../main/tournament-bridge.js?v=39";
+} from "../main/tournament-bridge.js?v=42";
 import {
   CPU_LOCAL_DATA_VERSION,
   CPU_LOCAL_MASTER_VERSION,
@@ -34,29 +34,29 @@ import {
 } from "../../data/cpu-world-data.js";
 import {
   rankToCharacterValue,
-} from "../../data/game-data.js?v=39";
+} from "../../data/game-data.js?v=42";
 import {
   effectiveCharacterRank,
   selectCpuMotivation,
-} from "../../data/motivation-data.js?v=39";
+} from "../../data/motivation-data.js?v=42";
 import {
   buildCpuBattleStats,
   calculateMaxHp,
   getRoleCommonSkills,
   resolveCpuRankFromRange,
   resolveCpuWeaponProfile,
-} from "../../data/battle-config.js?v=39";
+} from "../../data/battle-config.js?v=42";
 import {
   resolveCpuTeamMaster,
-} from "../../data/circuit-data.js?v=39";
+} from "../../data/circuit-data.js?v=42";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=39";
+} from "./circuit.js?v=42";
 import {
   createCpuFlavorSkills,
   createCpuFlavorWeaponName,
-} from "../../data/cpu-flavor-data.js?v=39";
+} from "../../data/cpu-flavor-data.js?v=42";
 
 export const TOURNAMENT_RUNTIME_VERSION =
   "mobbr-tournament-runtime-2.3.0";
@@ -1137,8 +1137,8 @@ function createPlayerMemberRuntime(member) {
       : 1;
   const scaledMaxHp =
     Math.max(
-      650,
-      Math.round(sourceMaxHp * 1.3),
+      1,
+      Math.round(sourceMaxHp),
     );
   return {
     playerId: member.playerId,
@@ -1186,10 +1186,10 @@ function createPlayerTeamRuntime(entry) {
         ? Math.max(0, Math.min(sourceMaxHp, member.currentHp))
         : sourceMaxHp;
     const scaledMaxHp =
-      Math.max(
-        650,
-        Math.round(sourceMaxHp * 1.3),
-      );
+    Math.max(
+      1,
+      Math.round(sourceMaxHp),
+    );
     const currentHp =
       Math.max(
         sourceHp > 0 ? 1 : 0,

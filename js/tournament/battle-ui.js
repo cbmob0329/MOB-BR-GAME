@@ -8,7 +8,7 @@
 import { assetPath } from "../assets.js";
 import {
   motivationDisplay,
-} from "../../data/motivation-data.js?v=39";
+} from "../../data/motivation-data.js?v=42";
 import {
   COMMENTATOR,
   COMMENTARY_VERSION,
@@ -17,7 +17,7 @@ import {
   createCommentaryDirector,
 } from "./commentary.js";
 
-export const BATTLE_UI_VERSION = "mobbr-battle-ui-2.5.0";
+export const BATTLE_UI_VERSION = "mobbr-battle-ui-2.6.0";
 export const BATTLE_REPLAY_SCHEMA_VERSION =
   "mobbr-battle-replay-1.0.0";
 
@@ -279,26 +279,44 @@ export function balanceTournamentPortraits(
         normalizedSource.endsWith(
           "play/p1sup.png",
         );
+      const isSup =
+        image.dataset.role ===
+        "SUP";
       const isPlayerSup =
         playerTeam &&
-        image.dataset.role === "SUP";
+        isSup;
       let finalScale =
         Math.max(
-          0.68,
+          0.55,
           Math.min(
-            1.26,
+            1.12,
             scale,
           ),
         );
 
-      // P1sup has a visibly larger painted area than the IGL/ATK assets.
-      // Multiplying by the measured scale can cancel the correction when the
-      // transparent-margin analyser returns its upper bound, so cap it.
-      if (isPlayerSupAsset || isPlayerSup) {
-        finalScale = Math.min(
-          0.76,
-          finalScale * 0.78,
-        );
+      // Some CPU SUP artworks have a larger painted silhouette even when the
+      // transparent-margin analyser reports a normal canvas occupancy.
+      if (isSup) {
+        finalScale =
+          Math.min(
+            0.82,
+            finalScale *
+              0.88,
+          );
+      }
+
+      // The supplied player SUP artwork receives one common cap in every
+      // tournament scene, including opening and dropship deployment.
+      if (
+        isPlayerSupAsset ||
+        isPlayerSup
+      ) {
+        finalScale =
+          Math.min(
+            0.62,
+            finalScale *
+              0.74,
+          );
       }
       image.style.setProperty(
         "--portrait-balance-scale",
