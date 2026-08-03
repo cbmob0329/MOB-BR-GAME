@@ -10993,3 +10993,180 @@ img.asset-missing {
       .4rem
     ) !important;
 }
+
+/* ==========================================================
+   Generation 38: motivation system and stable SUP portraits
+   ========================================================== */
+
+.motivation-badge {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: 1px solid rgb(255 255 255 / 34%);
+  border-radius: 999px;
+  padding: 3px 6px;
+  background: rgb(18 27 43 / 88%);
+  color: #fff;
+  font-size: .42rem;
+  font-style: normal;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: 0 3px 7px rgb(0 0 0 / 24%);
+}
+
+.motivation-badge b,
+.motivation-badge em,
+.motivation-badge small {
+  color: inherit;
+  font: inherit;
+  font-style: normal;
+}
+
+.motivation-badge--terrible {
+  border-color: #8b9aaf;
+  background: linear-gradient(145deg, #293242, #111722);
+  color: #c7d0dc;
+}
+
+.motivation-badge--slump {
+  border-color: #7094ba;
+  background: linear-gradient(145deg, #29455f, #142536);
+  color: #b8ddff;
+}
+
+.motivation-badge--normal {
+  border-color: #9ba5b5;
+  background: linear-gradient(145deg, #596273, #323a49);
+  color: #fff;
+}
+
+.motivation-badge--good {
+  border-color: #74dca5;
+  background: linear-gradient(145deg, #1d8059, #104531);
+  color: #d7ffea;
+}
+
+.motivation-badge--excellent {
+  border-color: #ffd75f;
+  background: linear-gradient(145deg, #b87609, #6f3f02);
+  color: #fff2b2;
+}
+
+.motivation-badge--awakened {
+  border-color: #fff1a3;
+  background: linear-gradient(145deg, #f6cc3e, #a95b00 52%, #7b258c);
+  color: #fff;
+  text-shadow: 0 1px 2px #502300;
+  box-shadow: 0 0 13px rgb(255 212 65 / 52%);
+}
+
+.team-portrait-button > small {
+  color: rgb(255 255 255 / 64%);
+  font-size: .34rem;
+  white-space: nowrap;
+}
+
+.team-portrait-button .motivation-badge--team {
+  max-width: 96%;
+  font-size: .34rem;
+}
+
+.player-row .motivation-badge--row,
+.team-player-tab .motivation-badge--selector,
+.team-detail-card .motivation-badge--detail,
+.player-status-modal .motivation-badge--modal {
+  width: fit-content;
+  font-size: .36rem;
+}
+
+.player-status-modal__head .motivation-badge {
+  margin-block: 3px;
+}
+
+.motivation-change-presentation {
+  display: grid;
+  gap: 7px;
+  border: 2px solid rgb(240 200 73 / 43%);
+  border-radius: 13px;
+  padding: 8px;
+  background: rgb(14 24 39 / 94%);
+  color: #fff;
+}
+
+.motivation-change-presentation > header span,
+.motivation-change-presentation > header strong {
+  display: block;
+}
+
+.motivation-change-presentation > header span {
+  color: #f1cf57;
+  font-size: .4rem;
+  font-weight: 1000;
+  letter-spacing: .1em;
+}
+
+.motivation-change-presentation > header strong {
+  font-size: .62rem;
+}
+
+.motivation-change-presentation > div {
+  display: grid;
+  gap: 5px;
+}
+
+.motivation-change-presentation article {
+  display: grid;
+  grid-template-columns: 35px minmax(0, 1fr);
+  gap: 2px 6px;
+  align-items: center;
+  border-radius: 9px;
+  padding: 6px;
+  background: rgb(255 255 255 / 7%);
+}
+
+.motivation-change-presentation article > span {
+  grid-row: 1 / 3;
+  color: #f1cf57;
+  font-size: .38rem;
+  font-weight: 1000;
+}
+
+.motivation-change-presentation article > strong {
+  font-size: .47rem;
+}
+
+.motivation-change-presentation article > div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.motivation-change-presentation article > div i {
+  display: inline-flex;
+  font-size: .33rem;
+}
+
+.motivation-change-presentation article > small {
+  grid-column: 1 / -1;
+  color: rgb(255 255 255 / 69%);
+  font-size: .36rem;
+  line-height: 1.4;
+}
+
+/* The source art for P1sup has a larger painted silhouette. Use the same
+   fixed cap throughout the main application instead of stacking transforms. */
+.player-portrait[data-role="SUP"],
+.team-detail-card__portrait[data-role="SUP"],
+.team-portrait-button img[data-role="SUP"],
+.player-status-modal__portrait[data-role="SUP"],
+.team-player-tab img[data-role="SUP"],
+.player-row__image[data-role="SUP"] {
+  transform: none !important;
+  scale: .76 !important;
+  transform-origin: center bottom !important;
+}
+

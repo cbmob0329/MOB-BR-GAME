@@ -10537,3 +10537,113 @@ html[data-asset-prefix="../../"] .tournament-loading-overlay {
   max-height: 118px;
   margin: 0 0 5px;
 }
+
+/* ==========================================================
+   Generation 38: deterministic portrait fitting, motivation HUD,
+   and visible-battle winner state protection presentation
+   ========================================================== */
+
+img[data-character-portrait][data-portrait-balanced="pending"] {
+  opacity: 0 !important;
+}
+
+img[data-character-portrait][data-portrait-balanced="true"] {
+  opacity: 1 !important;
+  transition: opacity 100ms ease, scale 160ms ease !important;
+}
+
+img[data-character-portrait],
+.opening-lineup__member > img,
+.player-intro-card > img,
+.deployment-team img,
+.actual-round-result-list img,
+.battle-fighter__portrait > img,
+.battle-survivor-grid img,
+.encounter-compact-team img,
+.match-champion-members img,
+.award-place img {
+  transform: none !important;
+  scale: var(--portrait-balance-scale, 1) !important;
+  transform-origin: center bottom !important;
+  object-fit: contain !important;
+  object-position: center bottom !important;
+}
+
+.motivation-badge {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: 1px solid rgb(255 255 255 / 30%);
+  border-radius: 999px;
+  padding: 3px 6px;
+  background: rgb(17 26 40 / 90%);
+  color: #fff;
+  font-size: .34rem;
+  font-style: normal;
+  font-weight: 1000;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: 0 3px 7px rgb(0 0 0 / 25%);
+}
+
+.motivation-badge b,
+.motivation-badge em,
+.motivation-badge small {
+  color: inherit;
+  font: inherit;
+  font-style: normal;
+}
+
+.motivation-badge--terrible { background:#1e2735; color:#c8d0db; border-color:#8794a7; }
+.motivation-badge--slump { background:#183c58; color:#c5e5ff; border-color:#5a9acc; }
+.motivation-badge--normal { background:#3a4351; color:#fff; border-color:#8993a2; }
+.motivation-badge--good { background:#145d42; color:#d5ffea; border-color:#69d79d; }
+.motivation-badge--excellent { background:#8c5406; color:#fff0ad; border-color:#ffd45c; }
+.motivation-badge--awakened {
+  background: linear-gradient(145deg,#edc735,#9d5400 55%,#70217e);
+  color:#fff;
+  border-color:#fff0a0;
+  box-shadow:0 0 12px rgb(255 211 61 / 52%);
+}
+
+.opening-lineup__member .motivation-badge,
+.player-intro-card .motivation-badge,
+.deployment-team .motivation-badge {
+  margin-inline: auto;
+  font-size: .3rem;
+}
+
+.encounter-compact-team .motivation-badge {
+  width: fit-content;
+  max-width: 100%;
+  font-size: .27rem;
+}
+
+.battle-fighter__label {
+  align-content: center;
+}
+
+.battle-fighter__label .motivation-badge {
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 2px;
+  padding: 2px 4px;
+  font-size: .25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.actual-round-result-list .motivation-badge {
+  width: fit-content;
+  margin-top: 2px;
+  font-size: .27rem;
+}
+
+@media (max-height: 700px) {
+  .battle-fighter__label .motivation-badge {
+    padding: 1px 3px;
+    font-size: .22rem;
+  }
+}
