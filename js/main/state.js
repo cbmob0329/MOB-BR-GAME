@@ -19,11 +19,11 @@ import {
   getCompanyRankData,
   rankToWeaponValue,
   validateGameDate,
-} from "../../data/game-data.js?v=39";
+} from "../../data/game-data.js?v=42";
 import {
   BATTLE_CONFIG_VERSION,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=39";
+} from "../../data/battle-config.js?v=42";
 import {
   TRAINING_DATA_VERSION,
 } from "../../data/training-data.js";
@@ -56,7 +56,7 @@ import {
   motivationLevelIndex,
   normalizeMotivationRecord,
   shiftMotivation,
-} from "../../data/motivation-data.js?v=39";
+} from "../../data/motivation-data.js?v=42";
 import {
   EMPLOYEE_DATA_VERSION,
   EMPLOYEE_MASTER,
@@ -69,9 +69,24 @@ import {
   getEmployeeRankData,
   getEmployeeWeeklyCoinBonusRate,
   normalizeEmployeeRecord,
-} from "../../data/employee-data.js?v=39";
+} from "../../data/employee-data.js?v=42";
+import {
+  COOKING_DATA_VERSION,
+  COOKING_STATE_SCHEMA_VERSION,
+  COOKING_UTENSIL_MASTER_VERSION,
+  INGREDIENT_MASTER_VERSION,
+  RECIPE_MASTER_VERSION,
+  addCookingUtensilToStateToDraft,
+  addIngredientToCookingStateToDraft,
+  createInitialCookingState,
+  getCookingUtensil,
+  getIngredient,
+  normalizeCookingState,
+  refreshWeeklyIngredientStockToDraft,
+  validateCookingState,
+} from "../../data/cooking-data.js?v=42";
 
-export const SAVE_SCHEMA_VERSION = "mobbr-save-2.2.0";
+export const SAVE_SCHEMA_VERSION = "mobbr-save-2.5.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
 
 export const STORAGE_KEYS = Object.freeze({
@@ -476,6 +491,11 @@ function createMasterVersions() {
     strategyMaster: STRATEGY_MASTER_VERSION,
     motivationData: MOTIVATION_DATA_VERSION,
     employeeData: EMPLOYEE_DATA_VERSION,
+    cookingData: COOKING_DATA_VERSION,
+    ingredientMaster: INGREDIENT_MASTER_VERSION,
+    recipeMaster: RECIPE_MASTER_VERSION,
+    cookingUtensilMaster: COOKING_UTENSIL_MASTER_VERSION,
+    cookingStateSchema: COOKING_STATE_SCHEMA_VERSION,
   };
 }
 
@@ -669,6 +689,16 @@ export function createNewGameState(
     ],
 
     employees: createInitialEmployeeRecords(timestamp),
+
+    cooking: createInitialCookingState(
+      INITIAL_GAME_DATA.gameDate,
+      {
+        seed:
+          `${saveSlotId}:${companyName}`,
+        createdAt:
+          timestamp,
+      },
+    ),
 
     collections: {
       cards: {},
@@ -1063,6 +1093,13 @@ export function validateSaveState(state) {
   }
 
   validateEmployees(state.employees);
+  validateCookingState(
+    state.cooking,
+    {
+      gameDate:
+        state.gameDate,
+    },
+  );
 
   assertPlainObject(state.weeklyBonus, "Weekly bonus state");
   if (!Array.isArray(state.weeklyBonus.history)) {
@@ -1242,6 +1279,18 @@ function migrateUnversionedSave(rawState, timestamp) {
           normalizeEmployeeRecord(employee, employee?.employeeId),
         )
       : createInitialEmployeeRecords(timestamp);
+  migrated.cooking =
+    normalizeCookingState(
+      migrated.cooking,
+      {
+        gameDate:
+          migrated.gameDate ??
+          INITIAL_GAME_DATA.gameDate,
+        seed:
+          `${migrated.saveSlotId ?? DEFAULT_SAVE_SLOT_ID}:${migrated.company?.companyName ?? "MOB BR"}`,
+        timestamp,
+      },
+    );
   migrated.collections =
     migrated.collections ?? {
       cards: {},
@@ -1334,7 +1383,10 @@ export function migrateSaveState(
     rawState.schemaVersion === "mobbr-save-1.8.0" ||
     rawState.schemaVersion === "mobbr-save-1.9.0" ||
     rawState.schemaVersion === "mobbr-save-2.0.0" ||
-    rawState.schemaVersion === "mobbr-save-2.1.0"
+    rawState.schemaVersion === "mobbr-save-2.1.0" ||
+    rawState.schemaVersion === "mobbr-save-2.2.0" ||
+    rawState.schemaVersion === "mobbr-save-2.3.0" ||
+    rawState.schemaVersion === "mobbr-save-2.4.0"
   ) {
     const migrated = migrateUnversionedSave(rawState, timestamp);
     validateSaveState(migrated);
@@ -1412,6 +1464,130 @@ export function applyResourceDeltaToDraft(draft, delta) {
 
   draft.resources = nextResources;
   return deepFreeze(deepClone(nextResources));
+}
+
+export function purchaseCookingIngredientToDraft(
+  draft,
+  ingredientId,
+  quantity = 1,
+  {
+    requireWeeklyStock = true,
+  } = {},
+) {
+  assertPlainObject(
+    draft,
+    "Draft state",
+  );
+  const ingredient =
+    getIngredient(
+      ingredientId,
+    );
+  if (
+    !Number.isInteger(quantity) ||
+    quantity < 1
+  ) {
+    throw new RangeError(
+      "Ingredient purchase quantity must be a positive integer.",
+    );
+  }
+  if (
+    requireWeeklyStock &&
+    !draft.cooking
+      .weeklyIngredientStock
+      .ingredientIds
+      .includes(
+        ingredientId,
+      )
+  ) {
+    throw new RangeError(
+      `${ingredient.name}は今週の仕入れ対象ではありません。`,
+    );
+  }
+  const costCoin =
+    ingredient.priceCoin *
+    quantity;
+  if (
+    draft.resources.coin <
+    costCoin
+  ) {
+    throw new RangeError(
+      "食材購入に必要なコインが不足しています。",
+    );
+  }
+  draft.resources.coin -=
+    costCoin;
+  const ownedQuantity =
+    addIngredientToCookingStateToDraft(
+      draft.cooking,
+      ingredientId,
+      quantity,
+    );
+  return deepFreeze({
+    ingredientId,
+    name:
+      ingredient.name,
+    quantity,
+    costCoin,
+    ownedQuantity,
+  });
+}
+
+export function purchaseCookingUtensilToDraft(
+  draft,
+  utensilId,
+  quantity = 1,
+) {
+  assertPlainObject(
+    draft,
+    "Draft state",
+  );
+  const utensil =
+    getCookingUtensil(
+      utensilId,
+    );
+  if (
+    utensil.shopAvailable !==
+    true
+  ) {
+    throw new RangeError(
+      `${utensil.name}は初期配布専用です。`,
+    );
+  }
+  if (
+    !Number.isInteger(quantity) ||
+    quantity < 1
+  ) {
+    throw new RangeError(
+      "Cooking utensil purchase quantity must be a positive integer.",
+    );
+  }
+  const costCoin =
+    utensil.priceCoin *
+    quantity;
+  if (
+    draft.resources.coin <
+    costCoin
+  ) {
+    throw new RangeError(
+      "調理器具購入に必要なコインが不足しています。",
+    );
+  }
+  draft.resources.coin -=
+    costCoin;
+  const ownedQuantity =
+    addCookingUtensilToStateToDraft(
+      draft.cooking,
+      utensilId,
+      quantity,
+    );
+  return deepFreeze({
+    utensilId,
+    name:
+      utensil.name,
+    quantity,
+    costCoin,
+    ownedQuantity,
+  });
 }
 
 export function getEmployeeById(state, employeeId) {
@@ -1595,6 +1771,16 @@ export function advanceWeeksToDraft(
       deepClone(
         advanceGameWeek(draft.gameDate, 1),
       );
+    refreshWeeklyIngredientStockToDraft(
+      draft.cooking,
+      draft.gameDate,
+      {
+        seed:
+          `${draft.saveSlotId}:${draft.company.companyId}`,
+        generatedAt:
+          nowIso(clock),
+      },
+    );
     const monthChanged =
       previousGameDate.year !== draft.gameDate.year ||
       previousGameDate.month !== draft.gameDate.month;

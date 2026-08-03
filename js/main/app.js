@@ -22,7 +22,7 @@ import {
   clearPendingEmployeeRankUpsToDraft,
   createGameStateManager,
   grantEmployeeCookingPointsToDraft,
-} from "./state.js?v=39";
+} from "./state.js?v=42";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -44,7 +44,7 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=39";
+} from "./team.js?v=42";
 import {
   getSpecialAbility,
 } from "../../data/ability-data.js";
@@ -54,26 +54,26 @@ import {
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=39";
+} from "../../data/motivation-data.js?v=42";
 import {
   getRoomMaster,
-} from "../../data/collection-data.js?v=39";
+} from "../../data/collection-data.js?v=42";
 import {
   EMPLOYEE_RULES,
   getEmployeeRankData,
   getTotalEmployeeHpBonus,
-} from "../../data/employee-data.js?v=39";
+} from "../../data/employee-data.js?v=42";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=39";
+} from "./management.js?v=42";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=39";
+} from "./tournament-bridge.js?v=42";
 
-export const APP_VERSION = "mobbr-main-app-2.6.0";
+export const APP_VERSION = "mobbr-main-app-2.9.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -85,6 +85,7 @@ export const ROUTES = Object.freeze({
   shop: "shop",
   settings: "settings",
   room: "room",
+  cooking: "cooking",
   coach: "coach",
   scout: "scout",
   schedule: "schedule",
@@ -220,6 +221,11 @@ const PINK_GUIDES = Object.freeze({
     text:
       "集めたカードやバッジを飾れる企業ルームです。企業ランクが上がると新しい部屋も解放できます。",
   }),
+  cooking: Object.freeze({
+    title: "MOB KITCHEN",
+    text:
+      "調理場・保存ボックス・料理図鑑・食堂を切り替えられます。完成した料理は保存ボックスへ入り、通常・高級・伝説を別々に管理します。",
+  }),
   news: Object.freeze({
     title: "NEWS",
     text:
@@ -232,6 +238,7 @@ const MANAGEMENT_ROUTES = Object.freeze([
   ROUTES.collection,
   ROUTES.shop,
   ROUTES.room,
+  ROUTES.cooking,
   ROUTES.coach,
   ROUTES.scout,
   ROUTES.record,
@@ -287,6 +294,12 @@ const ROUTE_META = Object.freeze({
     description: "コレクションを飾る企業ルーム",
     backgroundClass: "screen--sub",
     icon: "menu/room.png",
+  },
+  [ROUTES.cooking]: {
+    title: "KITCHEN",
+    description: "調理器具と食材を組み合わせて料理を作る",
+    backgroundClass: "screen--cooking",
+    icon: "icon/kitbox.png",
   },
   [ROUTES.coach]: {
     title: "COACH",
@@ -347,7 +360,7 @@ const ROUTE_META = Object.freeze({
 const FACILITY_DEFINITIONS = Object.freeze([
   { facilityId: "team_lab", name: "TEAM LAB", japaneseName: "チームラボ", note: "チーム育成・装備・コレクション", status: "OPEN", accent: "LAB", homeImage: "back/homelabo.png" },
   { facilityId: "mob_shop", name: "MOB SHOP", japaneseName: "MOB SHOP", note: "ショップ・パック・商品購入", status: "OPEN", accent: "SHOP", homeImage: "back/homeshop.png" },
-  { facilityId: "cooking", name: "COOKING", japaneseName: "料理", note: "食材購入とキッチン機能", status: "LOCKED", accent: "COMING SOON", homeImage: "back/homekit.png" },
+  { facilityId: "cooking", name: "COOKING", japaneseName: "料理", note: "調理器具を配置し、食材から料理を作る", status: "OPEN", accent: "KITCHEN", homeImage: "back/homekit.png" },
   { facilityId: "mob_room", name: "MOB ROOM", japaneseName: "モブルーム", note: "部屋を選択してコレクションを配置", status: "OPEN", accent: "ROOM", homeImage: "back/homeroom.png" },
   { facilityId: "collection", name: "COLLECTION", japaneseName: "コレクション", note: "カード・バッジ・パックファイル", status: "OPEN", accent: "ARCHIVE", homeImage: "back/homecol.png" },
 ]);
@@ -371,7 +384,9 @@ const FACILITY_MENUS = Object.freeze({
   mob_shop: Object.freeze([
     { route: ROUTES.shop, name: "MOB SHOP", note: "商品カテゴリを開く", icon: "menu/mobshopt.png" },
   ]),
-  cooking: Object.freeze([]),
+  cooking: Object.freeze([
+    { route: ROUTES.cooking, name: "KITCHEN", note: "調理・完成・回収", icon: "icon/kitbox.png" },
+  ]),
   mob_room: Object.freeze([
     { route: ROUTES.room, name: "ROOM SELECT", note: "部屋を選択・編集", icon: "menu/room.png" },
   ]),
@@ -424,6 +439,7 @@ const TEAM_MENU = Object.freeze([
 
 const BOTTOM_NAV = Object.freeze([
   { route: ROUTES.home, name: "HOME", icon: "menu/home.png" },
+  { route: ROUTES.train, name: "TRAINING", icon: "menu/traning.png" },
   { route: ROUTES.schedule, name: "SCHEDULE", icon: "menu/sc.png" },
   { route: ROUTES.team, name: "TEAM", icon: "menu/team.png" },
   { route: ROUTES.settings, name: "SET", icon: "menu/setting.png" },
@@ -843,6 +859,87 @@ function titleTemplate(hasSave, saveSummary = null) {
   `;
 }
 
+function homeRoomStageTemplate(
+  snapshot,
+  {
+    preview = false,
+  } = {},
+) {
+  const homeRoomId =
+    snapshot.company.homeRoomId ??
+    snapshot.company.activeRoomId;
+  const homeRoom =
+    getRoomMaster(homeRoomId);
+  const homeLayout =
+    snapshot.collections.roomLayouts?.[
+      homeRoomId
+    ] ?? [];
+
+  return `
+    <div
+      class="home-room-stage ${preview ? "is-preview" : ""}"
+      aria-hidden="${preview ? "false" : "true"}"
+    >
+      <img
+        class="home-room-stage__background"
+        src="${escapeAttribute(homeRoom.image)}"
+        alt=""
+      >
+      <div class="home-room-stage__placements">
+        ${homeLayout
+          .slice()
+          .sort(
+            (left, right) =>
+              (left.z ?? 0) -
+              (right.z ?? 0),
+          )
+          .map(
+            (placement) => `
+              <img
+                src="${escapeAttribute(placement.image)}"
+                alt=""
+                style="
+                  left:${placement.x}%;
+                  top:${placement.y}%;
+                  z-index:${placement.z};
+                  --home-placement-scale:${placement.scale};
+                  --home-placement-flip:${placement.flipped ? -1 : 1};
+                "
+              >
+            `,
+          )
+          .join("")}
+      </div>
+      ${
+        preview
+          ? ""
+          : `<div class="home-room-stage__shade"></div>`
+      }
+    </div>
+  `;
+}
+
+function homeRoomPreviewTemplate(
+  snapshot,
+) {
+  return `
+    <main class="screen home-room-preview-screen">
+      ${homeRoomStageTemplate(
+        snapshot,
+        {
+          preview: true,
+        },
+      )}
+      <button
+        type="button"
+        class="home-room-preview-dismiss"
+        data-action="close-home-room-preview"
+        aria-label="HOMEへ戻る"
+      ></button>
+    </main>
+  `;
+}
+
 function homeTemplate(snapshot, currentRoute) {
   const tournamentWeek = getTournamentWeekStatus(snapshot);
   const tournamentNotice = tournamentWeek.hasTournament
@@ -874,56 +971,30 @@ function homeTemplate(snapshot, currentRoute) {
       </section>`
     : "";
 
-  const homeRoomId =
-    snapshot.company.homeRoomId ??
-    snapshot.company.activeRoomId;
-  const homeRoom =
-    getRoomMaster(homeRoomId);
-  const homeLayout =
-    snapshot.collections.roomLayouts?.[
-      homeRoomId
-    ] ?? [];
-
   return `
     <main
       class="screen screen--home app-layout has-home-room"
-      style="--selected-home-room:url('${escapeAttribute(homeRoom.image)}')"
     >
-      <div class="home-room-stage" aria-hidden="true">
-        <img
-          class="home-room-stage__background"
-          src="${escapeAttribute(homeRoom.image)}"
-          alt=""
-        >
-        <div class="home-room-stage__placements">
-          ${homeLayout
-            .slice()
-            .sort(
-              (left, right) =>
-                (left.z ?? 0) -
-                (right.z ?? 0),
-            )
-            .map(
-              (placement) => `
-                <img
-                  src="${escapeAttribute(placement.image)}"
-                  alt=""
-                  style="
-                    left:${placement.x}%;
-                    top:${placement.y}%;
-                    z-index:${placement.z};
-                    --home-placement-scale:${placement.scale};
-                    --home-placement-flip:${placement.flipped ? -1 : 1};
-                  "
-                >
-              `,
-            )
-            .join("")}
-        </div>
-        <div class="home-room-stage__shade"></div>
-      </div>
+      ${homeRoomStageTemplate(snapshot)}
       ${topStatusTemplate(snapshot)}
       <div class="page-content home-facility-only">
+        <nav class="home-quick-actions" aria-label="HOMEショートカット">
+          <button
+            type="button"
+            data-action="navigate"
+            data-route="${ROUTES.news}"
+          >
+            <img src="icon/news.png" alt="">
+            <span>新聞</span>
+          </button>
+          <button
+            type="button"
+            data-action="open-home-room-preview"
+          >
+            <img src="menu/room.png" alt="">
+            <span>部屋を見る</span>
+          </button>
+        </nav>
         ${tournamentNotice}
         <section class="home-facility-grid" aria-label="施設一覧">
           ${FACILITY_DEFINITIONS.map((facility) => `
@@ -1000,7 +1071,7 @@ function facilityTemplate(
         </section>
         ${
           selected.status === "LOCKED"
-            ? `<section class="facility-locked-panel"><strong>LOCKED</strong><p>料理機能は今後のアップデートで追加予定です。</p></section>`
+            ? `<section class="facility-locked-panel"><strong>LOCKED</strong><p>食材・料理・調理器具の基盤を準備しました。調理場の操作機能は次の更新で解放します。</p></section>`
             : selected.facilityId === "team_lab"
               ? `
                 <section class="team-lab-orbit" aria-label="チームラボ機能">
@@ -1223,6 +1294,7 @@ function settingsTemplate(snapshot, currentRoute, fromTitle = false) {
                 <button type="button" data-action="test-grant-points">全選手PT補充</button>
                 <button type="button" data-action="test-max-player-build">選手・武器・スキルMAX</button>
                 <button type="button" data-action="test-employee-points">従業員 料理PT+25</button>
+                <button type="button" data-action="test-cooking-supplies">料理素材・器具補充</button>
                 <button type="button" data-action="test-advance-week" data-weeks="1">+1週</button>
                 <button type="button" data-action="test-advance-week" data-weeks="4">+4週</button>
                 <button type="button" data-action="test-advance-week" data-weeks="12">+12週</button>
@@ -1395,7 +1467,9 @@ function managementFeatureTemplate(snapshot, route, currentRoute) {
     ? "mob_shop"
     : route === ROUTES.room
       ? "mob_room"
-      : "team_lab";
+      : route === ROUTES.cooking
+        ? "cooking"
+        : "team_lab";
   return `
     <main class="screen ${escapeAttribute(meta.backgroundClass)} app-layout">
       ${topStatusTemplate(snapshot)}
@@ -1406,7 +1480,8 @@ function managementFeatureTemplate(snapshot, route, currentRoute) {
           </button>
         </div>
         ${
-          route === ROUTES.shop
+          route === ROUTES.shop ||
+          route === ROUTES.cooking
             ? ""
             : `
               <section class="management-command-bar management-command-bar--${escapeAttribute(route)}">
@@ -1640,6 +1715,7 @@ export function createMainApp({
   const stateManager = createGameStateManager({ storage });
   let route = ROUTES.title;
   let titleSettingsOpen = false;
+  let homeRoomPreviewOpen = false;
   let wizardStep = 0;
   let wizardData = createInitialWizardData();
   let wizardError = "";
@@ -2590,6 +2666,285 @@ export function createMainApp({
     scheduleUpdate();
   }
 
+  const MAIN_PORTRAIT_SCALE_CACHE =
+    new Map();
+  let mainPortraitFrameId =
+    null;
+
+  function calculateMainPortraitScale(
+    image,
+  ) {
+    try {
+      const width =
+        image.naturalWidth;
+      const height =
+        image.naturalHeight;
+      if (
+        width < 2 ||
+        height < 2
+      ) {
+        return 1;
+      }
+
+      const canvas =
+        document.createElement(
+          "canvas",
+        );
+      const context =
+        canvas.getContext(
+          "2d",
+          {
+            willReadFrequently:
+              true,
+          },
+        );
+      if (!context) {
+        return 1;
+      }
+      const sampleWidth =
+        Math.min(
+          160,
+          width,
+        );
+      const sampleHeight =
+        Math.min(
+          160,
+          height,
+        );
+      canvas.width =
+        sampleWidth;
+      canvas.height =
+        sampleHeight;
+      context.drawImage(
+        image,
+        0,
+        0,
+        sampleWidth,
+        sampleHeight,
+      );
+      const pixels =
+        context.getImageData(
+          0,
+          0,
+          sampleWidth,
+          sampleHeight,
+        ).data;
+      let minX =
+        sampleWidth;
+      let maxX =
+        -1;
+      let minY =
+        sampleHeight;
+      let maxY =
+        -1;
+      for (
+        let y = 0;
+        y < sampleHeight;
+        y += 1
+      ) {
+        for (
+          let x = 0;
+          x < sampleWidth;
+          x += 1
+        ) {
+          const alpha =
+            pixels[
+              (
+                y *
+                sampleWidth +
+                x
+              ) *
+                4 +
+              3
+            ];
+          if (alpha < 18) {
+            continue;
+          }
+          minX =
+            Math.min(
+              minX,
+              x,
+            );
+          maxX =
+            Math.max(
+              maxX,
+              x,
+            );
+          minY =
+            Math.min(
+              minY,
+              y,
+            );
+          maxY =
+            Math.max(
+              maxY,
+              y,
+            );
+        }
+      }
+      if (
+        maxX < minX ||
+        maxY < minY
+      ) {
+        return 1;
+      }
+      const visibleWidth =
+        (
+          maxX -
+          minX +
+          1
+        ) /
+        sampleWidth;
+      const visibleHeight =
+        (
+          maxY -
+          minY +
+          1
+        ) /
+        sampleHeight;
+      const heightScale =
+        0.74 /
+        Math.max(
+          0.42,
+          visibleHeight,
+        );
+      const widthScale =
+        0.70 /
+        Math.max(
+          0.34,
+          visibleWidth,
+        );
+      return Math.max(
+        0.55,
+        Math.min(
+          1.08,
+          Math.min(
+            heightScale,
+            widthScale,
+          ),
+        ),
+      );
+    } catch (_error) {
+      return 1;
+    }
+  }
+
+  function balanceMainPortraits() {
+    mainPortraitFrameId =
+      null;
+    const images = [
+      ...root.querySelectorAll(
+        [
+          "img[data-character-portrait]",
+          "img.player-portrait",
+          ".team-portrait-button img[data-role]",
+          ".training-cinematic__portrait img",
+          ".training-result-member__player",
+        ].join(","),
+      ),
+      ...modalRoot.querySelectorAll(
+        [
+          "img[data-character-portrait]",
+          "img.player-portrait",
+          ".training-cinematic__portrait img",
+          ".training-result-member__player",
+        ].join(","),
+      ),
+    ];
+    for (const image of images) {
+      const apply = () => {
+        const source =
+          image.currentSrc ||
+          image.src ||
+          "";
+        if (!source) {
+          return;
+        }
+        let scale =
+          MAIN_PORTRAIT_SCALE_CACHE.get(
+            source,
+          );
+        if (!Number.isFinite(scale)) {
+          scale =
+            calculateMainPortraitScale(
+              image,
+            );
+          MAIN_PORTRAIT_SCALE_CACHE.set(
+            source,
+            scale,
+          );
+        }
+        const role =
+          image.dataset.role ??
+          image.closest(
+            "[data-role]",
+          )?.dataset.role ??
+          "";
+        const normalizedSource =
+          source.toLowerCase();
+        if (
+          normalizedSource.includes(
+            "/play/p1sup.png",
+          ) ||
+          normalizedSource.endsWith(
+            "play/p1sup.png",
+          )
+        ) {
+          scale =
+            Math.min(
+              0.62,
+              scale *
+                0.72,
+            );
+        } else if (
+          role ===
+          "SUP"
+        ) {
+          scale =
+            Math.min(
+              0.80,
+              scale *
+                0.88,
+            );
+        }
+        image.style.setProperty(
+          "--main-portrait-scale",
+          scale.toFixed(3),
+        );
+        image.dataset
+          .portraitBalanced =
+          "true";
+      };
+      if (
+        image.complete &&
+        image.naturalWidth > 0
+      ) {
+        apply();
+      } else {
+        image.addEventListener(
+          "load",
+          apply,
+          {
+            once: true,
+          },
+        );
+      }
+    }
+  }
+
+  function scheduleMainPortraitBalance() {
+    if (
+      mainPortraitFrameId !==
+      null
+    ) {
+      return;
+    }
+    mainPortraitFrameId =
+      requestAnimationFrame(
+        balanceMainPortraits,
+      );
+  }
+
   function render() {
     const snapshot = getSafeSnapshot();
 
@@ -2644,8 +2999,20 @@ export function createMainApp({
     }
 
     if (route === ROUTES.home) {
-      root.innerHTML = homeTemplate(snapshot, route);
-      if (snapshot.ui?.pendingWeekStart) {
+      root.innerHTML =
+        homeRoomPreviewOpen
+          ? homeRoomPreviewTemplate(
+              snapshot,
+            )
+          : homeTemplate(
+              snapshot,
+              route,
+            );
+      scheduleMainPortraitBalance();
+      if (
+        !homeRoomPreviewOpen &&
+        snapshot.ui?.pendingWeekStart
+      ) {
         queueMicrotask(
           showPendingWeekStartPresentation,
         );
@@ -2677,6 +3044,7 @@ export function createMainApp({
       queueMicrotask(
         initializeTeamMenuDeck,
       );
+      scheduleMainPortraitBalance();
       return;
     }
     if (route === ROUTES.settings) {
@@ -2694,6 +3062,7 @@ export function createMainApp({
     if (MANAGEMENT_ROUTES.includes(route)) {
       root.innerHTML = managementFeatureTemplate(snapshot, route, route);
       queueMicrotask(() => managementController.afterRender(route));
+      scheduleMainPortraitBalance();
       return;
     }
     if (
@@ -2853,6 +3222,8 @@ export function createMainApp({
   }
 
   function navigate(nextRoute) {
+    homeRoomPreviewOpen =
+      false;
     const requestedRoute = nextRoute;
     const normalized =
       normaliseRoute(nextRoute);
@@ -3003,6 +3374,18 @@ export function createMainApp({
       render();
       return;
     }
+    if (action === "open-home-room-preview") {
+      homeRoomPreviewOpen =
+        true;
+      render();
+      return;
+    }
+    if (action === "close-home-room-preview") {
+      homeRoomPreviewOpen =
+        false;
+      render();
+      return;
+    }
     if (action === "open-player-weapon") {
       selectedTeamPlayerId =
         actionElement.dataset.playerId;
@@ -3018,6 +3401,10 @@ export function createMainApp({
       selectedFacilityId = actionElement.dataset.facilityId ?? "team_lab";
       if (selectedFacilityId === "collection") {
         navigate(ROUTES.collection);
+        return;
+      }
+      if (selectedFacilityId === "cooking") {
+        navigate(ROUTES.cooking);
         return;
       }
       navigate(ROUTES.facility);
@@ -3259,6 +3646,60 @@ export function createMainApp({
         "TEST MODE：全従業員へ料理PT+25",
       );
       await showPendingEmployeeRankUpPresentation();
+      renderPreservingPageScroll();
+      return;
+    }
+    if (action === "test-cooking-supplies") {
+      const snapshot =
+        stateManager.getSnapshot();
+      if (!snapshot?.settings?.testMode) {
+        return;
+      }
+      stateManager.transact(
+        "test_cooking_supplies_granted",
+        (draft) => {
+          for (
+            let index = 1;
+            index <= 41;
+            index += 1
+          ) {
+            const ingredientId =
+              `ingredient_${String(index).padStart(2, "0")}`;
+            draft.cooking.ingredientInventory[
+              ingredientId
+            ] = Math.max(
+              20,
+              draft.cooking.ingredientInventory[
+                ingredientId
+              ] ??
+              0,
+            );
+          }
+          for (
+            const utensilId
+            of [
+              "frying_pan",
+              "pot",
+              "oven",
+              "steamer",
+              "mixer",
+            ]
+          ) {
+            draft.cooking.utensilInventory[
+              utensilId
+            ] = Math.max(
+              5,
+              draft.cooking.utensilInventory[
+                utensilId
+              ] ??
+              0,
+            );
+          }
+        },
+      );
+      showToast(
+        "TEST MODE：食材41種と調理器具を補充しました",
+      );
       renderPreservingPageScroll();
       return;
     }
@@ -4150,6 +4591,24 @@ export function createMainApp({
   }
 
   async function start() {
+    const portraitObserver =
+      new MutationObserver(
+        scheduleMainPortraitBalance,
+      );
+    portraitObserver.observe(
+      root,
+      {
+        childList: true,
+        subtree: true,
+      },
+    );
+    portraitObserver.observe(
+      modalRoot,
+      {
+        childList: true,
+        subtree: true,
+      },
+    );
     installAcceleratedRepeat(root);
     installAcceleratedRepeat(modalRoot);
     showLoading("画像を読み込んでいます");
@@ -4158,6 +4617,10 @@ export function createMainApp({
     await preloadImages([
       assetPath("back/Load.png"), assetPath("back/main1.png"), assetPath("back/sub.png"), assetPath("back/coh.png"),
       assetPath("back/homecol.png"), assetPath("back/backcol.png"), assetPath("back/backcoh.png"), assetPath("back/backshop.png"),
+      assetPath("back/kitmain.png"), assetPath("back/kitroom.png"), assetPath("icon/kitbox.png"),
+      ...Array.from({ length: 41 }, (_, index) =>
+        assetPath(`sk/${String(index + 1).padStart(2, "0")}.png`)
+      ),
       ...Array.from({ length: 16 }, (_, index) =>
         assetPath(`home/${String(index + 1).padStart(2, "0")}.png`)
       ),

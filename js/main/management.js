@@ -10,12 +10,12 @@ import {
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=39";
+} from "../../data/game-data.js?v=42";
 import {
   isCasualTournamentType,
   resolveCpuTeamMaster,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=39";
+} from "../../data/circuit-data.js?v=42";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
@@ -63,13 +63,34 @@ import {
 import {
   advanceWeeksToDraft,
   applyResourceDeltaToDraft,
-} from "./state.js?v=39";
+  purchaseCookingIngredientToDraft,
+  purchaseCookingUtensilToDraft,
+} from "./state.js?v=42";
+import {
+  COOKING_RULES,
+  COOKING_SCREEN_ASSETS,
+  COOKING_UTENSIL_MASTER,
+  FOOD_QUALITY_MASTER,
+  INGREDIENT_MASTER,
+  RECIPE_MASTER,
+  collectCookingJobToDraft,
+  createFoodVariant,
+  getCookingJobRemainingSeconds,
+  getCookingUtensil,
+  getIngredient,
+  getRecipe,
+  getRecipeCandidates,
+  isCookingJobReady,
+  placeCookingUtensilToDraft,
+  removeCookingUtensilFromSlotToDraft,
+  startCookingJobToDraft,
+} from "../../data/cooking-data.js?v=42";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=39";
+} from "./tournament-bridge.js?v=42";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-1.8.0";
+  "mobbr-management-feature-2.0.0";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -85,6 +106,17 @@ const MANAGEMENT_VIEW_STATE = {
   roomCategory: null,
   roomSelectedItem: null,
   roomSelectedPlacementId: null,
+  cookingSelectedSlot: 0,
+  cookingIngredientSlots: Array.from(
+    { length: 5 },
+    () => null,
+  ),
+  cookingIngredientPickerSlot: null,
+  cookingView: "kitchen",
+  cookingCookbookQuality: "normal",
+  cookingCookbookPage: 1,
+  collectionFoodQuality: "normal",
+  collectionFoodPage: 1,
 };
 
 const ROOM_CATEGORY_DEFINITIONS = Object.freeze([
@@ -115,11 +147,95 @@ const ROOM_CATEGORY_DEFINITIONS = Object.freeze([
   }),
 ]);
 
+const COOKING_UTENSIL_SYMBOLS = Object.freeze({
+  frying_pan: "PAN",
+  pot: "POT",
+  oven: "OVEN",
+  steamer: "STEAM",
+  mixer: "MIX",
+});
+
+function cookingUtensilSymbol(
+  utensilId,
+) {
+  return (
+    COOKING_UTENSIL_SYMBOLS[
+      utensilId
+    ] ??
+    "TOOL"
+  );
+}
+
+function formatCookingTime(
+  seconds,
+) {
+  const safe =
+    Math.max(
+      0,
+      Math.floor(
+        Number(seconds) ||
+        0,
+      ),
+    );
+  const minutes =
+    Math.floor(
+      safe / 60,
+    );
+  const remaining =
+    safe % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(remaining).padStart(2, "0")}`;
+}
+
+function selectedCookingIngredients() {
+  return MANAGEMENT_VIEW_STATE
+    .cookingIngredientSlots
+    .filter(Boolean);
+}
+
+function resetCookingSelection({
+  keepSlot = true,
+} = {}) {
+  MANAGEMENT_VIEW_STATE.cookingIngredientSlots =
+    Array.from(
+      {
+        length:
+          COOKING_RULES
+            .maximumIngredientSlots,
+      },
+      () => null,
+    );
+  MANAGEMENT_VIEW_STATE.cookingIngredientPickerSlot =
+    null;
+  if (!keepSlot) {
+    MANAGEMENT_VIEW_STATE.cookingSelectedSlot =
+      0;
+  }
+}
+
+function foodInventoryCount(
+  cookingState,
+) {
+  return Object.values(
+    cookingState.foodInventory ??
+    {},
+  ).reduce(
+    (sum, record) =>
+      sum +
+      Number(
+        record.quantity ??
+        0,
+      ),
+    0,
+  );
+}
+
 const SHOP_CATEGORY_DEFINITIONS = Object.freeze([
   { id: "item", label: "アイテム", icon: "icon/item.png", dialogue: "大会用アイテムです。必要な数をまとめて購入できます。" },
   { id: "card", label: "カード", icon: "icon/card.png", dialogue: "カードパックです。解放済み商品を複数まとめて購入できます。" },
   { id: "skin", label: "スキン", icon: "menu/gacha.png", dialogue: "武器スキンです。未所持スキンだけが抽選対象です。" },
   { id: "good", label: "GOOD", icon: "icon/bagi.png", dialogue: "バッジパックなどの大会記念品です。大会報酬で入手できます。" },
+  { id: "ingredient", label: "食材", icon: "sk/01.png", dialogue: "今週仕入れた20種類の食材です。料理に使う数を購入してください。" },
+  { id: "utensil", label: "調理器具", icon: "icon/kitbox.png", dialogue: "キッチンへ配置する調理器具です。同じ器具を複数購入できます。" },
 ]);
 
 function latestHistory(snapshot, types, year = snapshot.gameDate.year) {
@@ -1720,6 +1836,60 @@ export function renderShopManagement(snapshot) {
         </div>
       </section>
     `;
+  } else if (category === "ingredient") {
+    const weeklyIngredients =
+      snapshot.cooking
+        .weeklyIngredientStock
+        .ingredientIds
+        .map(getIngredient);
+    categoryContent = `
+      <section class="management-section cooking-shop-section">
+        <div class="management-section__heading">
+          <h2>今週の食材</h2>
+          <span>${escapeHtml(snapshot.cooking.weeklyIngredientStock.message)}</span>
+        </div>
+        <div class="cooking-shop-grid">
+          ${weeklyIngredients.map((ingredient) => `
+            <button
+              type="button"
+              class="cooking-shop-product"
+              data-action="inspect-cooking-ingredient"
+              data-ingredient-id="${escapeAttribute(ingredient.ingredientId)}"
+            >
+              <img src="${escapeAttribute(ingredient.image)}" alt="">
+              <strong>${escapeHtml(ingredient.name)}</strong>
+              <small>${formatNumber(ingredient.priceCoin)} COIN</small>
+              <em>所持 ×${formatNumber(snapshot.cooking.ingredientInventory[ingredient.ingredientId] ?? 0)}</em>
+            </button>
+          `).join("")}
+        </div>
+      </section>
+    `;
+  } else if (category === "utensil") {
+    categoryContent = `
+      <section class="management-section cooking-shop-section">
+        <div class="management-section__heading">
+          <h2>調理器具</h2>
+          <span>同じ器具を複数所持できます</span>
+        </div>
+        <div class="cooking-shop-grid cooking-shop-grid--utensil">
+          ${COOKING_UTENSIL_MASTER.map((utensil) => `
+            <button
+              type="button"
+              class="cooking-shop-product cooking-shop-product--utensil"
+              data-action="inspect-cooking-utensil"
+              data-utensil-id="${escapeAttribute(utensil.utensilId)}"
+              ${utensil.shopAvailable ? "" : "disabled"}
+            >
+              <i>${escapeHtml(cookingUtensilSymbol(utensil.utensilId))}</i>
+              <strong>${escapeHtml(utensil.name)}</strong>
+              <small>${utensil.shopAvailable ? `${formatNumber(utensil.priceCoin)} COIN` : "初期配布"}</small>
+              <em>所持 ×${formatNumber(snapshot.cooking.utensilInventory[utensil.utensilId] ?? 0)}</em>
+            </button>
+          `).join("")}
+        </div>
+      </section>
+    `;
   }
 
   return `
@@ -2038,12 +2208,179 @@ function selectedPackPanel(snapshot) {
   `;
 }
 
+export function collectionFoodBookTemplate(snapshot) {
+  const cooking =
+    snapshot.cooking;
+  const qualityId =
+    FOOD_QUALITY_MASTER.some(
+      (quality) =>
+        quality.qualityId ===
+        MANAGEMENT_VIEW_STATE
+          .collectionFoodQuality,
+    )
+      ? MANAGEMENT_VIEW_STATE
+          .collectionFoodQuality
+      : "normal";
+  MANAGEMENT_VIEW_STATE.collectionFoodQuality =
+    qualityId;
+
+  const pageSize =
+    COOKING_RULES.storageBoxPageSize;
+  const pageCount =
+    Math.max(
+      1,
+      Math.ceil(
+        RECIPE_MASTER.length /
+        pageSize,
+      ),
+    );
+  const page =
+    Math.min(
+      pageCount,
+      Math.max(
+        1,
+        Math.floor(
+          Number(
+            MANAGEMENT_VIEW_STATE
+              .collectionFoodPage,
+          ) ||
+          1,
+        ),
+      ),
+    );
+  MANAGEMENT_VIEW_STATE.collectionFoodPage =
+    page;
+  const quality =
+    FOOD_QUALITY_MASTER.find(
+      (entry) =>
+        entry.qualityId ===
+        qualityId,
+    );
+  const discoveredCount =
+    RECIPE_MASTER.filter(
+      (recipe) =>
+        cooking.recipeDiscovery?.[
+          recipe.recipeId
+        ]?.qualityIds?.includes(
+          qualityId,
+        ),
+    ).length;
+  const visible =
+    RECIPE_MASTER.slice(
+      (page - 1) * pageSize,
+      page * pageSize,
+    );
+
+  return `
+    <section class="collection-food-file">
+      <header class="collection-food-file__header">
+        <button
+          type="button"
+          class="back-button"
+          data-action="close-collection-file"
+        >
+          ← COLLECTION
+        </button>
+        <div>
+          <img src="icon/kitbox.png" alt="">
+          <span>COOKING COLLECTION</span>
+          <strong>料理図鑑</strong>
+        </div>
+        <b>${discoveredCount} / ${RECIPE_MASTER.length}</b>
+      </header>
+
+      <nav class="cooking-quality-tabs" aria-label="料理品質">
+        ${FOOD_QUALITY_MASTER.map((entry) => `
+          <button
+            type="button"
+            class="is-${escapeAttribute(entry.qualityId)} ${qualityId === entry.qualityId ? "is-active" : ""}"
+            data-action="select-collection-food-quality"
+            data-quality-id="${escapeAttribute(entry.qualityId)}"
+          >
+            <span>${escapeHtml(entry.japaneseLabel)}</span>
+            <small>${entry.qualityId === "normal" ? "NORMAL" : entry.qualityId.toUpperCase()}</small>
+          </button>
+        `).join("")}
+      </nav>
+
+      <section class="cooking-cookbook-grid collection-food-file__grid">
+        ${Array.from(
+          { length: pageSize },
+          (_value, index) => {
+            const recipe =
+              visible[index];
+            if (!recipe) {
+              return `<div class="cooking-cookbook-card is-empty"></div>`;
+            }
+            const discovered =
+              cooking.recipeDiscovery?.[
+                recipe.recipeId
+              ]?.qualityIds?.includes(
+                qualityId,
+              ) === true;
+            const variant =
+              createFoodVariant(
+                recipe,
+                qualityId,
+              );
+            return `
+              <button
+                type="button"
+                class="cooking-cookbook-card is-${escapeAttribute(qualityId)} ${discovered ? "is-discovered" : "is-undiscovered"}"
+                data-action="inspect-cookbook-food"
+                data-recipe-id="${escapeAttribute(recipe.recipeId)}"
+                data-quality-id="${escapeAttribute(qualityId)}"
+              >
+                <b>No.${String(recipe.number).padStart(3, "0")}</b>
+                <div>
+                  <img src="${escapeAttribute(recipe.image)}" alt="">
+                  ${discovered ? "" : "<i>?</i>"}
+                </div>
+                <span>${escapeHtml(variant.rank)} / ${escapeHtml(quality.japaneseLabel)}</span>
+                <strong>${discovered ? escapeHtml(variant.name) : "？？？？"}</strong>
+              </button>
+            `;
+          },
+        ).join("")}
+      </section>
+
+      <footer class="cooking-page-controls">
+        <button
+          type="button"
+          data-action="change-collection-food-page"
+          data-page="${page - 1}"
+          ${page <= 1 ? "disabled" : ""}
+        >
+          ←
+        </button>
+        <strong>${page} / ${pageCount}</strong>
+        <button
+          type="button"
+          data-action="change-collection-food-page"
+          data-page="${page + 1}"
+          ${page >= pageCount ? "disabled" : ""}
+        >
+          →
+        </button>
+      </footer>
+    </section>
+  `;
+}
+
 export function renderCollectionManagement(snapshot) {
   const cardCompletion = getCollectionCompletion(snapshot.collections.cards, "card");
   const badgeCompletion = getCollectionCompletion(snapshot.collections.badges, "badge");
   const fileType = MANAGEMENT_VIEW_STATE.collectionFile;
   const allCards = allCollectionEntries(snapshot, "card");
   const allBadges = allCollectionEntries(snapshot, "badge");
+
+  if (fileType === "food") {
+    return `
+      <div class="management-live-section" data-live-section="collection">
+        ${collectionFoodBookTemplate(snapshot)}
+      </div>
+    `;
+  }
 
   if (fileType === "card" || fileType === "badge") {
     return `
@@ -2074,6 +2411,9 @@ export function renderCollectionManagement(snapshot) {
       </button>
       <button type="button" data-action="open-collection-file" data-file-type="badge">
         <img src="icon/bagif.png" alt=""><strong>BADGE FILE</strong><span>${badgeCompletion.ownedCount}/${badgeCompletion.totalCount}</span>
+      </button>
+      <button type="button" data-action="open-collection-file" data-file-type="food">
+        <img src="icon/kitbox.png" alt=""><strong>FOOD BOOK</strong><span>${Object.values(snapshot.cooking.recipeDiscovery ?? {}).filter((entry) => (entry.qualityIds ?? []).length > 0).length}/${RECIPE_MASTER.length}</span>
       </button>
     </section>
     <section class="collection-completion-grid">
@@ -2128,6 +2468,1298 @@ export function renderCollectionManagement(snapshot) {
     <section class="management-section"><h2>バッジパック</h2><div class="pack-icon-strip">${packOpenButtons("badge", BADGE_PACKS, snapshot.inventory.badgePacks)}</div></section>
     ${selectedPackPanel(snapshot)}
     </div>
+  `;
+}
+
+const FOOD_RANK_ORDER = Object.freeze({
+  D: 1,
+  C: 2,
+  B: 3,
+  A: 4,
+  S: 5,
+  SS: 6,
+});
+
+const HUNGRY_SPEECHES = Object.freeze([
+  "お腹すいた…",
+  "ご飯なにかな？",
+  "楽しみだな！",
+  "早く～！",
+  "ご飯、ご飯♪",
+  "今日は何を食べようかな？",
+  "いい匂いがしてきた！",
+  "温かい料理がいいな！",
+  "甘いものも食べたい！",
+  "おかわりできるかな？",
+  "今週もいっぱい動いた！",
+  "できたてが楽しみ！",
+  "料理、完成したかな？",
+  "何から食べようかな？",
+  "お腹ぺこぺこです！",
+  "みんなで食べると美味しいね！",
+  "今日は豪華かな？",
+  "食堂へ急ごう！",
+  "好きな料理があるといいな！",
+  "いただきますの準備できてます！",
+]);
+
+function deterministicTextIndex(
+  value,
+  length,
+) {
+  let hash = 2166136261;
+  for (
+    const character
+    of String(value ?? "")
+  ) {
+    hash ^=
+      character.codePointAt(0);
+    hash =
+      Math.imul(
+        hash,
+        16777619,
+      );
+  }
+  return (
+    Math.abs(hash) %
+    Math.max(
+      1,
+      length,
+    )
+  );
+}
+
+function cookingNavigationTemplate(
+  activeView,
+) {
+  const items = [
+    {
+      view: "kitchen",
+      label: "調理場",
+      icon: "icon/kitbox.png",
+    },
+    {
+      view: "storage",
+      label: "保存ボックス",
+      icon:
+        COOKING_SCREEN_ASSETS
+          .storageBoxIcon,
+    },
+    {
+      view: "cookbook",
+      label: "料理図鑑",
+      icon: "menu/COL.png",
+    },
+    {
+      view: "dining",
+      label: "食堂",
+      icon: "icon/pink.png",
+    },
+  ];
+  return `
+    <nav
+      class="cooking-subnav"
+      aria-label="料理施設"
+    >
+      ${items.map((item) => `
+        <button
+          type="button"
+          class="${activeView === item.view ? "is-active" : ""}"
+          data-action="switch-cooking-view"
+          data-cooking-view="${escapeAttribute(item.view)}"
+        >
+          <img
+            src="${escapeAttribute(item.icon)}"
+            alt=""
+          >
+          <span>${escapeHtml(item.label)}</span>
+        </button>
+      `).join("")}
+    </nav>
+  `;
+}
+
+function cookingStorageEntries(
+  cooking,
+) {
+  const records =
+    Object.values(
+      cooking.foodInventory ??
+      {},
+    )
+      .filter(
+        (record) =>
+          Number(
+            record.quantity ??
+            0,
+          ) > 0,
+      )
+      .map(
+        (record) => {
+          const recipe =
+            getRecipe(
+              record.recipeId,
+            );
+          const variant =
+            createFoodVariant(
+              recipe,
+              record.qualityId,
+            );
+          return {
+            ...record,
+            recipe,
+            variant,
+          };
+        },
+      );
+
+  const mode =
+    cooking.storageBox
+      ?.sortMode ??
+    "cookedAt";
+  records.sort(
+    (left, right) => {
+      if (
+        mode ===
+        "number"
+      ) {
+        return (
+          left.recipe.number -
+            right.recipe.number ||
+          FOOD_QUALITY_MASTER.findIndex(
+            (quality) =>
+              quality.qualityId ===
+              left.qualityId,
+          ) -
+            FOOD_QUALITY_MASTER.findIndex(
+              (quality) =>
+                quality.qualityId ===
+                right.qualityId,
+            )
+        );
+      }
+      if (
+        mode ===
+        "rarity"
+      ) {
+        return (
+          (
+            FOOD_RANK_ORDER[
+              right.variant.rank
+            ] ??
+            0
+          ) -
+            (
+              FOOD_RANK_ORDER[
+                left.variant.rank
+              ] ??
+              0
+            ) ||
+          right.recipe.number -
+            left.recipe.number
+        );
+      }
+      if (
+        mode ===
+        "quantity"
+      ) {
+        return (
+          Number(
+            right.quantity ??
+            0,
+          ) -
+            Number(
+              left.quantity ??
+              0,
+            ) ||
+          right.lastSequence -
+            left.lastSequence
+        );
+      }
+      return (
+        Number(
+          right.lastSequence ??
+          0,
+        ) -
+          Number(
+            left.lastSequence ??
+            0,
+          ) ||
+        right.recipe.number -
+          left.recipe.number
+      );
+    },
+  );
+  return records;
+}
+
+export function renderCookingStorage(
+  snapshot,
+) {
+  const cooking =
+    snapshot.cooking;
+  const entries =
+    cookingStorageEntries(
+      cooking,
+    );
+  const pageSize =
+    COOKING_RULES
+      .storageBoxPageSize;
+  const pageCount =
+    Math.max(
+      1,
+      Math.ceil(
+        entries.length /
+        pageSize,
+      ),
+    );
+  const requestedPage =
+    Math.max(
+      1,
+      Math.floor(
+        Number(
+          cooking.storageBox?.page,
+        ) ||
+        1,
+      ),
+    );
+  const page =
+    Math.min(
+      pageCount,
+      requestedPage,
+    );
+  const visible =
+    entries.slice(
+      (
+        page -
+        1
+      ) *
+        pageSize,
+      page *
+        pageSize,
+    );
+  const modes = [
+    [
+      "number",
+      "No.",
+    ],
+    [
+      "rarity",
+      "レア度",
+    ],
+    [
+      "quantity",
+      "所持数",
+    ],
+    [
+      "cookedAt",
+      "調理順",
+    ],
+  ];
+
+  return `
+    <section
+      class="cooking-storage-screen"
+      style="--storage-background:url('${escapeAttribute(COOKING_SCREEN_ASSETS.kitchenBackground)}')"
+    >
+      <header class="cooking-screen-heading">
+        <img
+          src="${escapeAttribute(COOKING_SCREEN_ASSETS.storageBoxIcon)}"
+          alt=""
+        >
+        <div>
+          <span>FOOD STORAGE BOX</span>
+          <h1>保存ボックス</h1>
+          <p>通常・高級・伝説を別々の料理として保管します。</p>
+        </div>
+        <strong>${formatNumber(foodInventoryCount(cooking))} FOOD</strong>
+      </header>
+
+      ${cookingNavigationTemplate("storage")}
+
+      <section class="cooking-storage-sort">
+        <span>SORT</span>
+        <div>
+          ${modes.map(([mode, label]) => `
+            <button
+              type="button"
+              class="${cooking.storageBox?.sortMode === mode ? "is-active" : ""}"
+              data-action="set-cooking-storage-sort"
+              data-sort-mode="${mode}"
+            >
+              ${label}
+            </button>
+          `).join("")}
+        </div>
+      </section>
+
+      <section
+        class="cooking-storage-grid"
+        aria-label="保存ボックス ${page}ページ"
+      >
+        ${Array.from(
+          {
+            length:
+              pageSize,
+          },
+          (_value, index) => {
+            const entry =
+              visible[index];
+            const absoluteIndex =
+              (
+                page -
+                1
+              ) *
+                pageSize +
+              index +
+              1;
+            if (!entry) {
+              return `
+                <div class="cooking-storage-slot is-empty">
+                  <b>${String(absoluteIndex).padStart(3, "0")}</b>
+                </div>
+              `;
+            }
+            return `
+              <button
+                type="button"
+                class="cooking-storage-slot is-${escapeAttribute(entry.qualityId)}"
+                data-action="inspect-stored-food"
+                data-variant-key="${escapeAttribute(entry.variantKey)}"
+              >
+                <b>No.${String(entry.recipe.number).padStart(3, "0")}</b>
+                <img
+                  src="${escapeAttribute(entry.variant.image)}"
+                  alt=""
+                >
+                <span>${escapeHtml(entry.variant.rank)} / ${escapeHtml(entry.variant.qualityLabel)}</span>
+                <strong>${escapeHtml(entry.variant.name)}</strong>
+                <em>×${formatNumber(entry.quantity)}</em>
+                <small>調理順 ${formatNumber(entry.lastSequence)}</small>
+              </button>
+            `;
+          },
+        ).join("")}
+      </section>
+
+      <footer class="cooking-page-controls">
+        <button
+          type="button"
+          data-action="change-cooking-storage-page"
+          data-page="${page - 1}"
+          ${page <= 1 ? "disabled" : ""}
+        >
+          ←
+        </button>
+        <strong>${page} / ${pageCount}</strong>
+        <button
+          type="button"
+          data-action="change-cooking-storage-page"
+          data-page="${page + 1}"
+          ${page >= pageCount ? "disabled" : ""}
+        >
+          →
+        </button>
+      </footer>
+    </section>
+  `;
+}
+
+export function renderCookingCookbook(
+  snapshot,
+) {
+  const cooking =
+    snapshot.cooking;
+  const qualityId =
+    FOOD_QUALITY_MASTER.some(
+      (quality) =>
+        quality.qualityId ===
+        MANAGEMENT_VIEW_STATE
+          .cookingCookbookQuality,
+    )
+      ? MANAGEMENT_VIEW_STATE
+          .cookingCookbookQuality
+      : "normal";
+  MANAGEMENT_VIEW_STATE.cookingCookbookQuality =
+    qualityId;
+  const pageSize =
+    COOKING_RULES
+      .storageBoxPageSize;
+  const pageCount =
+    Math.max(
+      1,
+      Math.ceil(
+        RECIPE_MASTER.length /
+        pageSize,
+      ),
+    );
+  const page =
+    Math.min(
+      pageCount,
+      Math.max(
+        1,
+        Math.floor(
+          Number(
+            MANAGEMENT_VIEW_STATE
+              .cookingCookbookPage,
+          ) ||
+          1,
+        ),
+      ),
+    );
+  MANAGEMENT_VIEW_STATE.cookingCookbookPage =
+    page;
+  const visible =
+    RECIPE_MASTER.slice(
+      (
+        page -
+        1
+      ) *
+        pageSize,
+      page *
+        pageSize,
+    );
+  const quality =
+    FOOD_QUALITY_MASTER.find(
+      (entry) =>
+        entry.qualityId ===
+        qualityId,
+    );
+  const discoveredCount =
+    RECIPE_MASTER.filter(
+      (recipe) =>
+        cooking.recipeDiscovery?.[
+          recipe.recipeId
+        ]?.qualityIds?.includes(
+          qualityId,
+        ),
+    ).length;
+
+  return `
+    <section
+      class="cooking-cookbook-screen"
+      style="--cookbook-background:url('${escapeAttribute(COOKING_SCREEN_ASSETS.kitchenBackground)}')"
+    >
+      <header class="cooking-screen-heading">
+        <img src="menu/COL.png" alt="">
+        <div>
+          <span>COOKING COLLECTION</span>
+          <h1>料理図鑑</h1>
+          <p>作った料理だけが図鑑へ登録されます。</p>
+        </div>
+        <strong>${discoveredCount} / ${RECIPE_MASTER.length}</strong>
+      </header>
+
+      ${cookingNavigationTemplate("cookbook")}
+
+      <nav class="cooking-quality-tabs" aria-label="料理品質">
+        ${FOOD_QUALITY_MASTER.map((entry) => `
+          <button
+            type="button"
+            class="is-${escapeAttribute(entry.qualityId)} ${qualityId === entry.qualityId ? "is-active" : ""}"
+            data-action="select-cooking-cookbook-quality"
+            data-quality-id="${escapeAttribute(entry.qualityId)}"
+          >
+            <span>${escapeHtml(entry.japaneseLabel)}</span>
+            <small>${entry.qualityId === "normal" ? "NORMAL" : entry.qualityId.toUpperCase()}</small>
+          </button>
+        `).join("")}
+      </nav>
+
+      <section class="cooking-cookbook-grid">
+        ${Array.from(
+          {
+            length:
+              pageSize,
+          },
+          (_value, index) => {
+            const recipe =
+              visible[index];
+            if (!recipe) {
+              return `<div class="cooking-cookbook-card is-empty"></div>`;
+            }
+            const discovered =
+              cooking.recipeDiscovery?.[
+                recipe.recipeId
+              ]?.qualityIds?.includes(
+                qualityId,
+              ) === true;
+            const variant =
+              createFoodVariant(
+                recipe,
+                qualityId,
+              );
+            return `
+              <button
+                type="button"
+                class="cooking-cookbook-card is-${escapeAttribute(qualityId)} ${discovered ? "is-discovered" : "is-undiscovered"}"
+                data-action="inspect-cookbook-food"
+                data-recipe-id="${escapeAttribute(recipe.recipeId)}"
+                data-quality-id="${escapeAttribute(qualityId)}"
+              >
+                <b>No.${String(recipe.number).padStart(3, "0")}</b>
+                <div>
+                  <img
+                    src="${escapeAttribute(recipe.image)}"
+                    alt=""
+                  >
+                  ${discovered ? "" : "<i>?</i>"}
+                </div>
+                <span>${escapeHtml(variant.rank)} / ${escapeHtml(quality.japaneseLabel)}</span>
+                <strong>${discovered ? escapeHtml(variant.name) : "？？？？"}</strong>
+              </button>
+            `;
+          },
+        ).join("")}
+      </section>
+
+      <footer class="cooking-page-controls">
+        <button
+          type="button"
+          data-action="change-cooking-cookbook-page"
+          data-page="${page - 1}"
+          ${page <= 1 ? "disabled" : ""}
+        >
+          ←
+        </button>
+        <strong>${page} / ${pageCount}</strong>
+        <button
+          type="button"
+          data-action="change-cooking-cookbook-page"
+          data-page="${page + 1}"
+          ${page >= pageCount ? "disabled" : ""}
+        >
+          →
+        </button>
+      </footer>
+    </section>
+  `;
+}
+
+function diningCharacterRecord(
+  entry,
+  type,
+  index,
+) {
+  if (!entry) {
+    return null;
+  }
+  return {
+    characterId:
+      entry.playerId ??
+      entry.coachId ??
+      entry.employeeId ??
+      `${type}-${index}`,
+    name:
+      entry.name ??
+      `${type} ${index + 1}`,
+    image:
+      entry.image ??
+      "",
+    role:
+      entry.role ??
+      (
+        type ===
+        "coach"
+          ? "COACH"
+          : "STAFF"
+      ),
+    type,
+  };
+}
+
+function renderDiningSeat(
+  character,
+  seatIndex,
+  snapshot,
+) {
+  if (!character) {
+    return `
+      <div class="dining-seat is-empty">
+        <i></i>
+      </div>
+    `;
+  }
+  const speech =
+    HUNGRY_SPEECHES[
+      deterministicTextIndex(
+        `${snapshot.gameDate.year}-${snapshot.gameDate.month}-${snapshot.gameDate.week}-${character.characterId}-${seatIndex}`,
+        HUNGRY_SPEECHES.length,
+      )
+    ];
+  return `
+    <button
+      type="button"
+      class="dining-seat has-character"
+      data-action="inspect-dining-character"
+      data-character-id="${escapeAttribute(character.characterId)}"
+      data-character-type="${escapeAttribute(character.type)}"
+    >
+      <span class="dining-hungry-bubble">${escapeHtml(speech)}</span>
+      <div class="dining-round-chair"></div>
+      <img
+        src="${escapeAttribute(character.image)}"
+        data-character-portrait
+        data-role="${escapeAttribute(character.role)}"
+        alt=""
+      >
+      <strong>${escapeHtml(character.name)}</strong>
+      <small>${escapeHtml(character.role)}</small>
+    </button>
+  `;
+}
+
+export function renderCookingDining(
+  snapshot,
+) {
+  const players =
+    snapshot.playerTeam.members.map(
+      (entry, index) =>
+        diningCharacterRecord(
+          entry,
+          "player",
+          index,
+        ),
+    );
+  const coaches =
+    (snapshot.coaches ?? []).map(
+      (entry, index) =>
+        diningCharacterRecord(
+          entry,
+          "coach",
+          index,
+        ),
+    );
+  const employees =
+    (snapshot.employees ?? []).map(
+      (entry, index) =>
+        diningCharacterRecord(
+          entry,
+          "employee",
+          index,
+        ),
+    );
+  const tables = [
+    {
+      tableId: "player",
+      label: "PLAYER TABLE",
+      seats: [
+        players[0],
+        players[1],
+        players[2],
+      ],
+    },
+    {
+      tableId: "coach-a",
+      label: "COACH TABLE 1",
+      seats: [
+        coaches[0],
+        coaches[1],
+      ],
+    },
+    {
+      tableId: "coach-b",
+      label: "COACH TABLE 2",
+      seats: [
+        coaches[2],
+        coaches[3],
+      ],
+    },
+    {
+      tableId: "staff-a",
+      label: "STAFF TABLE 1",
+      seats: [
+        employees[0],
+        employees[1],
+      ],
+    },
+    {
+      tableId: "staff-b",
+      label: "STAFF TABLE 2",
+      seats: [
+        employees[2],
+        employees[3],
+        employees[4],
+      ],
+    },
+  ];
+
+  return `
+    <section
+      class="cooking-dining-screen"
+      style="--dining-background:url('${escapeAttribute(COOKING_SCREEN_ASSETS.cafeteriaBackground)}')"
+    >
+      <header class="cooking-screen-heading cooking-screen-heading--dining">
+        <img src="icon/pink.png" alt="">
+        <div>
+          <span>MOB DINING ROOM</span>
+          <h1>食堂</h1>
+          <p>在籍している選手・コーチ・従業員だけが席へ表示されます。</p>
+        </div>
+        <strong>3 DISHES</strong>
+      </header>
+
+      ${cookingNavigationTemplate("dining")}
+
+      <section class="dining-room-stage">
+        <div class="dining-table-row dining-table-row--top">
+          ${tables.slice(0, 3).map((table) => `
+            <article class="dining-long-table dining-long-table--${escapeAttribute(table.tableId)}">
+              <span>${escapeHtml(table.label)}</span>
+              <div class="dining-table-surface"></div>
+              <div class="dining-table-seats">
+                ${table.seats.map((seat, index) =>
+                  renderDiningSeat(
+                    seat,
+                    index,
+                    snapshot,
+                  )
+                ).join("")}
+              </div>
+            </article>
+          `).join("")}
+        </div>
+        <div class="dining-table-row dining-table-row--bottom">
+          ${tables.slice(3).map((table) => `
+            <article class="dining-long-table dining-long-table--${escapeAttribute(table.tableId)}">
+              <span>${escapeHtml(table.label)}</span>
+              <div class="dining-table-surface"></div>
+              <div class="dining-table-seats">
+                ${table.seats.map((seat, index) =>
+                  renderDiningSeat(
+                    seat,
+                    index,
+                    snapshot,
+                  )
+                ).join("")}
+              </div>
+            </article>
+          `).join("")}
+        </div>
+      </section>
+
+      <aside class="dining-foundation-note">
+        <strong>食堂基礎を接続しました</strong>
+        <p>キャラクターをタップすると対象を確認できます。3品選択・10秒食事演出・料理効果は次の実装で接続します。</p>
+      </aside>
+    </section>
+  `;
+}
+
+export function renderCookingManagement(
+  snapshot,
+) {
+  const activeView =
+    MANAGEMENT_VIEW_STATE
+      .cookingView ??
+    "kitchen";
+  if (
+    activeView ===
+    "storage"
+  ) {
+    return renderCookingStorage(
+      snapshot,
+    );
+  }
+  if (
+    activeView ===
+    "cookbook"
+  ) {
+    return renderCookingCookbook(
+      snapshot,
+    );
+  }
+  if (
+    activeView ===
+    "dining"
+  ) {
+    return renderCookingDining(
+      snapshot,
+    );
+  }
+
+  const cooking =
+    snapshot.cooking;
+  const now =
+    new Date();
+  const selectedSlot =
+    Number.isInteger(
+      MANAGEMENT_VIEW_STATE
+        .cookingSelectedSlot,
+    ) &&
+    MANAGEMENT_VIEW_STATE
+      .cookingSelectedSlot >= 0 &&
+    MANAGEMENT_VIEW_STATE
+      .cookingSelectedSlot <
+      COOKING_RULES.utensilSlotCount
+      ? MANAGEMENT_VIEW_STATE
+          .cookingSelectedSlot
+      : 0;
+  MANAGEMENT_VIEW_STATE.cookingSelectedSlot =
+    selectedSlot;
+
+  const selectedUtensilId =
+    cooking.utensilSlots[
+      selectedSlot
+    ];
+  const selectedJob =
+    cooking.activeJobs[
+      selectedSlot
+    ];
+  const selectedIngredientIds =
+    selectedCookingIngredients();
+  const recipeCandidates =
+    selectedIngredientIds.length > 0 &&
+    selectedUtensilId &&
+    !selectedJob
+      ? getRecipeCandidates(
+          selectedIngredientIds,
+          {
+            companyRank:
+              snapshot.company.rank,
+            includeLocked:
+              true,
+            utensilId:
+              selectedUtensilId,
+          },
+        )
+      : [];
+  const pickerSlot =
+    MANAGEMENT_VIEW_STATE
+      .cookingIngredientPickerSlot;
+  const selectedCounts =
+    MANAGEMENT_VIEW_STATE
+      .cookingIngredientSlots
+      .reduce(
+        (record, ingredientId) => {
+          if (ingredientId) {
+            record[ingredientId] =
+              (
+                record[ingredientId] ??
+                0
+              ) +
+              1;
+          }
+          return record;
+        },
+        {},
+      );
+  const ownedIngredients =
+    INGREDIENT_MASTER.filter(
+      (ingredient) =>
+        (
+          cooking
+            .ingredientInventory[
+              ingredient.ingredientId
+            ] ??
+          0
+        ) > 0,
+    );
+  const placedCounts =
+    cooking.utensilSlots.reduce(
+      (record, utensilId) => {
+        if (utensilId) {
+          record[utensilId] =
+            (
+              record[utensilId] ??
+              0
+            ) +
+            1;
+        }
+        return record;
+      },
+      {},
+    );
+  const activeCount =
+    cooking.activeJobs.filter(
+      Boolean,
+    ).length;
+  const readyCount =
+    cooking.activeJobs.filter(
+      (job) =>
+        job &&
+        isCookingJobReady(
+          job,
+          now,
+        ),
+    ).length;
+
+  return `
+    <section
+      class="cooking-kitchen"
+      style="--kitchen-background:url('${escapeAttribute(COOKING_SCREEN_ASSETS.kitchenBackground)}')"
+      data-cooking-kitchen
+    >
+      <header class="cooking-kitchen__header">
+        <div>
+          <span>MOB KITCHEN SYSTEM</span>
+          <h1>調理場</h1>
+          <p>調理器具を配置し、最大5つの食材から料理を作ります。</p>
+        </div>
+        <div class="cooking-kitchen__status">
+          <strong>${activeCount} COOKING</strong>
+          <em>${readyCount} READY</em>
+        </div>
+      </header>
+
+      ${cookingNavigationTemplate("kitchen")}
+
+      <section class="cooking-utensil-board">
+        <header>
+          <span>COOKING UTENSIL GRID</span>
+          <strong>調理器具 5 × 3</strong>
+          <small>空き枠をタップして器具を配置</small>
+        </header>
+        <div class="cooking-utensil-grid">
+          ${cooking.utensilSlots.map((utensilId, slotIndex) => {
+            const job =
+              cooking.activeJobs[
+                slotIndex
+              ];
+            const selected =
+              selectedSlot ===
+              slotIndex;
+            const ready =
+              job &&
+              isCookingJobReady(
+                job,
+                now,
+              );
+            const recipe =
+              job
+                ? getRecipe(
+                    job.recipeId,
+                  )
+                : null;
+            const remaining =
+              job &&
+              !ready
+                ? getCookingJobRemainingSeconds(
+                    job,
+                    now,
+                  )
+                : 0;
+            return `
+              <button
+                type="button"
+                class="cooking-utensil-slot ${selected ? "is-selected" : ""} ${job ? "is-working" : ""} ${ready ? "is-ready" : ""} ${utensilId ? "has-utensil" : "is-empty"}"
+                data-action="${ready ? "collect-cooking-job" : "select-cooking-slot"}"
+                data-slot-index="${slotIndex}"
+              >
+                <b>${String(slotIndex + 1).padStart(2, "0")}</b>
+                ${
+                  utensilId
+                    ? `
+                      <div class="cooking-utensil-visual">
+                        <i>${escapeHtml(cookingUtensilSymbol(utensilId))}</i>
+                        ${job && !ready ? `<span class="cooking-steam"><em></em><em></em><em></em></span>` : ""}
+                      </div>
+                      <strong>${escapeHtml(getCookingUtensil(utensilId).name)}</strong>
+                      ${
+                        ready
+                          ? `
+                            <img class="cooking-ready-food" src="${escapeAttribute(recipe.image)}" alt="">
+                            <span class="cooking-slot-state">完成！</span>
+                          `
+                          : job
+                            ? `
+                              <span
+                                class="cooking-countdown"
+                                data-cooking-countdown
+                                data-ready-at="${escapeAttribute(job.readyAt)}"
+                              >${formatCookingTime(remaining)}</span>
+                              <small>調理中</small>
+                            `
+                            : `<small>READY TO COOK</small>`
+                      }
+                    `
+                    : `
+                      <div class="cooking-utensil-empty-mark">＋</div>
+                      <strong>EMPTY SLOT</strong>
+                      <small>器具を配置</small>
+                    `
+                }
+              </button>
+            `;
+          }).join("")}
+        </div>
+      </section>
+
+      <section class="cooking-workbench">
+        <header>
+          <div>
+            <span>ACTIVE STATION ${String(selectedSlot + 1).padStart(2, "0")}</span>
+            <strong>${selectedUtensilId ? escapeHtml(getCookingUtensil(selectedUtensilId).name) : "調理器具を選択"}</strong>
+          </div>
+          ${
+            selectedUtensilId &&
+            !selectedJob
+              ? `
+                <button
+                  type="button"
+                  class="cooking-remove-utensil"
+                  data-action="remove-cooking-utensil"
+                  data-slot-index="${selectedSlot}"
+                >器具を収納</button>
+              `
+              : ""
+          }
+        </header>
+
+        ${
+          !selectedUtensilId
+            ? `
+              <section class="cooking-utensil-picker">
+                <h2>所持している調理器具</h2>
+                <p>配置する器具を選択してください。配置前に確認が入ります。</p>
+                <div>
+                  ${COOKING_UTENSIL_MASTER.map((utensil) => {
+                    const owned =
+                      cooking.utensilInventory[
+                        utensil.utensilId
+                      ] ??
+                      0;
+                    const placed =
+                      placedCounts[
+                        utensil.utensilId
+                      ] ??
+                      0;
+                    const available =
+                      Math.max(
+                        0,
+                        owned -
+                        placed,
+                      );
+                    return `
+                      <button
+                        type="button"
+                        data-action="place-cooking-utensil"
+                        data-slot-index="${selectedSlot}"
+                        data-utensil-id="${escapeAttribute(utensil.utensilId)}"
+                        ${available > 0 ? "" : "disabled"}
+                      >
+                        <i>${escapeHtml(cookingUtensilSymbol(utensil.utensilId))}</i>
+                        <strong>${escapeHtml(utensil.name)}</strong>
+                        <span>所持 ×${formatNumber(owned)}</span>
+                        <small>配置可能 ×${formatNumber(available)}</small>
+                      </button>
+                    `;
+                  }).join("")}
+                </div>
+              </section>
+            `
+            : selectedJob
+              ? (() => {
+                  const recipe =
+                    getRecipe(
+                      selectedJob.recipeId,
+                    );
+                  const ready =
+                    isCookingJobReady(
+                      selectedJob,
+                      now,
+                    );
+                  const remaining =
+                    ready
+                      ? 0
+                      : getCookingJobRemainingSeconds(
+                          selectedJob,
+                          now,
+                        );
+                  return `
+                    <section class="cooking-job-detail ${ready ? "is-ready" : "is-cooking"}">
+                      <div class="cooking-job-detail__visual">
+                        <div class="cooking-utensil-visual cooking-utensil-visual--large">
+                          <i>${escapeHtml(cookingUtensilSymbol(selectedUtensilId))}</i>
+                          ${ready ? "" : `<span class="cooking-steam"><em></em><em></em><em></em></span>`}
+                        </div>
+                        <img src="${escapeAttribute(recipe.image)}" alt="">
+                      </div>
+                      <span>${ready ? "COOKING COMPLETE" : "NOW COOKING"}</span>
+                      <h2>${ready ? escapeHtml(recipe.name) : "料理を調理しています"}</h2>
+                      <strong
+                        ${ready ? "" : `data-cooking-countdown data-ready-at="${escapeAttribute(selectedJob.readyAt)}"`}
+                      >${ready ? "READY" : formatCookingTime(remaining)}</strong>
+                      <p>${ready ? "料理画像をタップして回収できます。" : `${formatNumber(recipe.completionSeconds)}秒で完成します。調理中の器具は移動できません。`}</p>
+                      ${
+                        ready
+                          ? `
+                            <button
+                              type="button"
+                              class="primary-button cooking-collect-button"
+                              data-action="collect-cooking-job"
+                              data-slot-index="${selectedSlot}"
+                            >
+                              <img src="${escapeAttribute(recipe.image)}" alt="">
+                              <span>料理を回収</span>
+                            </button>
+                          `
+                          : ""
+                      }
+                    </section>
+                  `;
+                })()
+              : `
+                <section class="cooking-ingredient-builder">
+                  <header>
+                    <div>
+                      <span>INGREDIENT SELECT</span>
+                      <h2>食材を最大5つ選択</h2>
+                    </div>
+                    <button
+                      type="button"
+                      data-action="clear-cooking-ingredients"
+                    >すべて外す</button>
+                  </header>
+
+                  <div class="cooking-ingredient-slots">
+                    ${MANAGEMENT_VIEW_STATE.cookingIngredientSlots.map((ingredientId, ingredientSlot) => {
+                      const ingredient =
+                        ingredientId
+                          ? getIngredient(
+                              ingredientId,
+                            )
+                          : null;
+                      return `
+                        <button
+                          type="button"
+                          class="${pickerSlot === ingredientSlot ? "is-picker-open" : ""} ${ingredient ? "has-ingredient" : "is-empty"}"
+                          data-action="select-cooking-ingredient-slot"
+                          data-ingredient-slot="${ingredientSlot}"
+                        >
+                          <b>${ingredientSlot + 1}</b>
+                          ${
+                            ingredient
+                              ? `
+                                <img src="${escapeAttribute(ingredient.image)}" alt="">
+                                <strong>${escapeHtml(ingredient.name)}</strong>
+                                <small>変更・取消</small>
+                              `
+                              : `
+                                <i>＋</i>
+                                <strong>食材</strong>
+                                <small>タップして選択</small>
+                              `
+                          }
+                        </button>
+                      `;
+                    }).join("")}
+                  </div>
+
+                  ${
+                    Number.isInteger(
+                      pickerSlot,
+                    )
+                      ? `
+                        <section class="cooking-ingredient-picker">
+                          <header>
+                            <strong>食材枠${pickerSlot + 1}を選択</strong>
+                            <button
+                              type="button"
+                              data-action="remove-cooking-ingredient"
+                              data-ingredient-slot="${pickerSlot}"
+                            >この枠を空にする</button>
+                          </header>
+                          <div>
+                            ${
+                              ownedIngredients.length > 0
+                                ? ownedIngredients.map((ingredient) => {
+                                    const owned =
+                                      cooking.ingredientInventory[
+                                        ingredient.ingredientId
+                                      ] ??
+                                      0;
+                                    const targetCurrent =
+                                      MANAGEMENT_VIEW_STATE
+                                        .cookingIngredientSlots[
+                                          pickerSlot
+                                        ] ===
+                                      ingredient.ingredientId
+                                        ? 1
+                                        : 0;
+                                    const usedElsewhere =
+                                      (
+                                        selectedCounts[
+                                          ingredient.ingredientId
+                                        ] ??
+                                        0
+                                      ) -
+                                      targetCurrent;
+                                    const available =
+                                      owned -
+                                      usedElsewhere;
+                                    return `
+                                      <button
+                                        type="button"
+                                        data-action="choose-cooking-ingredient"
+                                        data-ingredient-slot="${pickerSlot}"
+                                        data-ingredient-id="${escapeAttribute(ingredient.ingredientId)}"
+                                        ${available > 0 ? "" : "disabled"}
+                                      >
+                                        <img src="${escapeAttribute(ingredient.image)}" alt="">
+                                        <strong>${escapeHtml(ingredient.name)}</strong>
+                                        <span>×${formatNumber(owned)}</span>
+                                      </button>
+                                    `;
+                                  }).join("")
+                                : `<p>食材を所持していません。MOB SHOPで購入してください。</p>`
+                            }
+                          </div>
+                        </section>
+                      `
+                      : ""
+                  }
+
+                  <section class="cooking-recipe-candidates">
+                    <header>
+                      <span>RECIPE CANDIDATES</span>
+                      <strong>作れる料理</strong>
+                      <small>未調理の料理はシルエットで表示</small>
+                    </header>
+                    <div>
+                      ${
+                        selectedIngredientIds.length === 0
+                          ? `<p class="cooking-recipe-empty">食材を選ぶと料理候補が表示されます。</p>`
+                          : recipeCandidates.length === 0
+                            ? `<p class="cooking-recipe-empty">この食材の組み合わせで作れる料理はありません。</p>`
+                            : recipeCandidates.map((recipe) => {
+                                const discovered =
+                                  Boolean(
+                                    cooking.recipeDiscovery[
+                                      recipe.recipeId
+                                    ],
+                                  );
+                                return `
+                                  <button
+                                    type="button"
+                                    class="cooking-recipe-card ${discovered ? "is-discovered" : "is-undiscovered"} ${recipe.unlocked ? "" : "is-locked"}"
+                                    data-action="start-cooking"
+                                    data-recipe-id="${escapeAttribute(recipe.recipeId)}"
+                                    data-slot-index="${selectedSlot}"
+                                    ${recipe.unlocked ? "" : "disabled"}
+                                  >
+                                    <div>
+                                      <img src="${escapeAttribute(recipe.image)}" alt="">
+                                      ${discovered ? "" : `<i>?</i>`}
+                                    </div>
+                                    <span>${escapeHtml(recipe.baseRank)} RANK</span>
+                                    <strong>${discovered ? escapeHtml(recipe.name) : "？？？"}</strong>
+                                    <small>${recipe.unlocked ? `${formatNumber(recipe.completionSeconds)}秒` : `企業${escapeHtml(recipe.requiredCompanyRank)}で解放`}</small>
+                                  </button>
+                                `;
+                              }).join("")
+                      }
+                    </div>
+                  </section>
+
+                  <p class="cooking-utensil-compatibility-note">
+                    調理器具ごとのレシピ指定は情報源にないため、現在はすべての器具で共通レシピを調理できます。
+                  </p>
+                </section>
+              `
+        }
+      </section>
+    </section>
   `;
 }
 
@@ -2431,6 +4063,7 @@ export function renderRecordManagement(snapshot) {
           <article>
             <img
               class="player-portrait"
+              data-character-portrait
               data-role="${escapeAttribute(player.role)}"
               src="${escapeAttribute(player.image)}"
               alt=""
@@ -2865,6 +4498,8 @@ export function renderManagementSection(snapshot, route) {
       return renderCollectionManagement(snapshot);
     case "room":
       return renderRoomManagement(snapshot);
+    case "cooking":
+      return renderCookingManagement(snapshot);
     case "record":
       return renderRecordManagement(snapshot);
     case "news":
@@ -2889,6 +4524,9 @@ export function createManagementController({
   if (!stateManager || !root) {
     throw new TypeError("Management controller dependencies are missing.");
   }
+
+  let cookingTimerId = null;
+  let cookingReadyRefreshScheduled = false;
 
   async function showError(title, error) {
     await openAlert({
@@ -2974,6 +4612,45 @@ export function createManagementController({
     );
   }
 
+  async function playCookingCompletionCinematic(
+    result,
+  ) {
+    const overlay =
+      document.createElement(
+        "section",
+      );
+    overlay.className =
+      `cooking-completion-cinematic is-${result.qualityId}`;
+    overlay.innerHTML = `
+      <div class="cooking-completion-cinematic__glow" aria-hidden="true"></div>
+      <div class="cooking-completion-cinematic__sparkles" aria-hidden="true">
+        ${Array.from({ length: 18 }, (_, index) => `
+          <i style="--spark-index:${index};--spark-x:${7 + (index % 9) * 11}%;--spark-y:${14 + (index % 6) * 12}%;--spark-delay:${index * 45}ms"></i>
+        `).join("")}
+      </div>
+      <span>COOKING COMPLETE</span>
+      <img src="${escapeAttribute(result.image)}" alt="">
+      <small>${escapeHtml(result.qualityLabel)} / ${escapeHtml(result.rank)} RANK</small>
+      <h2>${escapeHtml(result.name)}が完成した！</h2>
+      <strong>保存ボックスへ ×${formatNumber(result.quantity)}</strong>
+    `;
+    root.append(
+      overlay,
+    );
+    requestAnimationFrame(
+      () =>
+        overlay.classList.add(
+          "is-show",
+        ),
+    );
+    await wait(1550);
+    overlay.classList.add(
+      "is-exit",
+    );
+    await wait(300);
+    overlay.remove();
+  }
+
   async function playTrainingCinematic(
     snapshot,
     assignments,
@@ -3012,6 +4689,7 @@ export function createManagementController({
               <div class="training-cinematic__portrait">
                 <img
                   class="player-portrait"
+                  data-character-portrait
                   data-role="${escapeAttribute(player.role)}"
                   src="${escapeAttribute(player.image)}"
                   alt=""
@@ -3240,6 +4918,248 @@ export function createManagementController({
   async function handleAction(actionElement) {
     const action = actionElement.dataset.action;
 
+    if (action === "switch-cooking-view") {
+      MANAGEMENT_VIEW_STATE.cookingView =
+        actionElement.dataset.cookingView ??
+        "kitchen";
+      MANAGEMENT_VIEW_STATE.cookingIngredientPickerSlot =
+        null;
+      renderPreservingScroll();
+      return true;
+    }
+
+    if (action === "set-cooking-storage-sort") {
+      const sortMode =
+        actionElement.dataset.sortMode;
+      if (
+        ![
+          "number",
+          "rarity",
+          "quantity",
+          "cookedAt",
+        ].includes(sortMode)
+      ) {
+        return true;
+      }
+      try {
+        stateManager.transact(
+          "cooking_storage_sort_changed",
+          (draft) => {
+            draft.cooking.storageBox.sortMode =
+              sortMode;
+            draft.cooking.storageBox.page =
+              1;
+          },
+        );
+        renderPreservingScroll();
+      } catch (error) {
+        await showError(
+          "保存ボックスを並び替えできません",
+          error,
+        );
+      }
+      return true;
+    }
+
+    if (action === "change-cooking-storage-page") {
+      const page =
+        Math.max(
+          1,
+          Math.floor(
+            Number(
+              actionElement.dataset.page,
+            ) ||
+            1,
+          ),
+        );
+      try {
+        stateManager.transact(
+          "cooking_storage_page_changed",
+          (draft) => {
+            draft.cooking.storageBox.page =
+              page;
+          },
+        );
+        renderPreservingScroll();
+      } catch (error) {
+        await showError(
+          "保存ボックスのページを変更できません",
+          error,
+        );
+      }
+      return true;
+    }
+
+    if (action === "select-cooking-cookbook-quality") {
+      MANAGEMENT_VIEW_STATE.cookingCookbookQuality =
+        actionElement.dataset.qualityId ??
+        "normal";
+      MANAGEMENT_VIEW_STATE.cookingCookbookPage =
+        1;
+      renderPreservingScroll();
+      return true;
+    }
+
+    if (action === "change-cooking-cookbook-page") {
+      MANAGEMENT_VIEW_STATE.cookingCookbookPage =
+        Math.max(
+          1,
+          Math.floor(
+            Number(
+              actionElement.dataset.page,
+            ) ||
+            1,
+          ),
+        );
+      renderPreservingScroll();
+      return true;
+    }
+
+    if (action === "inspect-stored-food") {
+      const snapshot =
+        stateManager.getSnapshot();
+      const variantKey =
+        actionElement.dataset.variantKey;
+      const record =
+        snapshot.cooking
+          .foodInventory?.[
+            variantKey
+          ];
+      if (!record) {
+        return true;
+      }
+      const recipe =
+        getRecipe(
+          record.recipeId,
+        );
+      const variant =
+        createFoodVariant(
+          recipe,
+          record.qualityId,
+        );
+      await openAlert({
+        title:
+          variant.name,
+        body: `
+          <section class="cooking-food-detail is-${escapeAttribute(record.qualityId)}">
+            <img src="${escapeAttribute(variant.image)}" alt="">
+            <span>No.${String(recipe.number).padStart(3, "0")} / ${escapeHtml(variant.qualityLabel)}</span>
+            <h3>${escapeHtml(variant.name)}</h3>
+            <strong>RANK ${escapeHtml(variant.rank)} / 所持 ×${formatNumber(record.quantity)}</strong>
+            <p>初回調理 ${escapeHtml(record.firstCookedAt ?? "-")}</p>
+            <p>最終調理 ${escapeHtml(record.lastCookedAt ?? "-")}</p>
+            <small>初回順 ${formatNumber(record.firstSequence ?? 0)} / 最新順 ${formatNumber(record.lastSequence ?? 0)}</small>
+          </section>
+        `,
+        buttonLabel:
+          "OK",
+      });
+      return true;
+    }
+
+    if (action === "inspect-cookbook-food") {
+      const snapshot =
+        stateManager.getSnapshot();
+      const recipeId =
+        actionElement.dataset.recipeId;
+      const qualityId =
+        actionElement.dataset.qualityId;
+      const recipe =
+        getRecipe(
+          recipeId,
+        );
+      const discovered =
+        snapshot.cooking
+          .recipeDiscovery?.[
+            recipeId
+          ]?.qualityIds?.includes(
+            qualityId,
+          ) === true;
+      if (!discovered) {
+        await openAlert({
+          title:
+            `No.${String(recipe.number).padStart(3, "0")}`,
+          body:
+            "<p>この品質の料理はまだ作ったことがありません。</p>",
+          buttonLabel:
+            "OK",
+        });
+        return true;
+      }
+      const variant =
+        createFoodVariant(
+          recipe,
+          qualityId,
+        );
+      const owned =
+        snapshot.cooking
+          .foodInventory?.[
+            variant.variantKey
+          ]?.quantity ??
+        0;
+      await openAlert({
+        title:
+          variant.name,
+        body: `
+          <section class="cooking-food-detail is-${escapeAttribute(qualityId)}">
+            <img src="${escapeAttribute(variant.image)}" alt="">
+            <span>No.${String(recipe.number).padStart(3, "0")} / ${escapeHtml(variant.qualityLabel)}</span>
+            <h3>${escapeHtml(variant.name)}</h3>
+            <strong>RANK ${escapeHtml(variant.rank)} / 所持 ×${formatNumber(owned)}</strong>
+            <p>基本ランク ${escapeHtml(recipe.baseRank)} / 完成時間 ${formatCookingTime(recipe.completionSeconds)}</p>
+            <small>必要食材 ${recipe.ingredientIds.map((ingredientId) => escapeHtml(getIngredient(ingredientId).name)).join("・")}</small>
+          </section>
+        `,
+        buttonLabel:
+          "OK",
+      });
+      return true;
+    }
+
+    if (action === "inspect-dining-character") {
+      const snapshot =
+        stateManager.getSnapshot();
+      const characterId =
+        actionElement.dataset.characterId;
+      const type =
+        actionElement.dataset.characterType;
+      const source =
+        type === "player"
+          ? snapshot.playerTeam.members.find(
+              (entry) =>
+                entry.playerId ===
+                characterId,
+            )
+          : type === "coach"
+            ? snapshot.coaches.find(
+                (entry) =>
+                  entry.coachId ===
+                  characterId,
+              )
+            : snapshot.employees.find(
+                (entry) =>
+                  entry.employeeId ===
+                  characterId,
+              );
+      await openAlert({
+        title:
+          source?.name ??
+          "食堂",
+        body: `
+          <section class="dining-character-preview">
+            <img src="${escapeAttribute(source?.image ?? "")}" data-character-portrait data-role="${escapeAttribute(source?.role ?? type)}" alt="">
+            <span>${escapeHtml(type.toUpperCase())}</span>
+            <h3>${escapeHtml(source?.name ?? "CHARACTER")}</h3>
+            <p>1回の食事には異なる料理を3品選びます。</p>
+            <small>料理選択と食事効果は次の生成で接続します。</small>
+          </section>
+        `,
+        buttonLabel:
+          "OK",
+      });
+      return true;
+    }
+
     if (action === "select-training-program") {
       const playerId = actionElement.dataset.playerId;
       const programId = actionElement.dataset.programId;
@@ -3283,6 +5203,19 @@ export function createManagementController({
     }
     if (action === "close-collection-file") {
       MANAGEMENT_VIEW_STATE.collectionFile = null;
+      updateCollectionInPlace();
+      return true;
+    }
+    if (action === "select-collection-food-quality") {
+      MANAGEMENT_VIEW_STATE.collectionFoodQuality =
+        actionElement.dataset.qualityId;
+      MANAGEMENT_VIEW_STATE.collectionFoodPage = 1;
+      updateCollectionInPlace();
+      return true;
+    }
+    if (action === "change-collection-food-page") {
+      MANAGEMENT_VIEW_STATE.collectionFoodPage =
+        Number(actionElement.dataset.page) || 1;
       updateCollectionInPlace();
       return true;
     }
@@ -3340,7 +5273,7 @@ export function createManagementController({
           const program = TRAINING_PROGRAMS.find((entry) => entry.id === memberResult.programId);
           return `
             <article class="training-result-member" style="--result-index:${index}">
-              <img class="training-result-member__player player-portrait" data-role="${escapeAttribute(player.role)}" src="${escapeAttribute(player.image)}" alt="">
+              <img class="training-result-member__player player-portrait" data-character-portrait data-role="${escapeAttribute(player.role)}" src="${escapeAttribute(player.image)}" alt="">
               <img class="training-result-member__program" src="${escapeAttribute(program.image)}" alt="">
               <strong>${escapeHtml(player.name)}</strong>
               <span>${escapeHtml(program.name)}</span>
@@ -3369,6 +5302,137 @@ export function createManagementController({
         // 共通の従業員週開始画面をHOMEで表示します。
         renderPreservingScroll();
       } catch (error) { await showError("トレーニングできません", error); }
+      return true;
+    }
+
+    if (action === "inspect-cooking-ingredient") {
+      const ingredient =
+        getIngredient(
+          actionElement.dataset.ingredientId,
+        );
+      const snapshot =
+        stateManager.getSnapshot();
+      const maximum =
+        Math.max(
+          1,
+          Math.min(
+            99,
+            Math.floor(
+              snapshot.resources.coin /
+              ingredient.priceCoin,
+            ),
+          ),
+        );
+      const quantity =
+        await openQuantityPrompt({
+          title:
+            ingredient.name,
+          body: `
+            <section class="shop-item-detail-modal cooking-shop-detail">
+              <div class="shop-item-detail-modal__image">
+                <img src="${escapeAttribute(ingredient.image)}" alt="">
+              </div>
+              <p>料理を始める時に1個消費します。</p>
+              <div class="cost-tags"><span>${formatNumber(ingredient.priceCoin)} COIN</span></div>
+              <strong>所持 ${formatNumber(snapshot.cooking.ingredientInventory[ingredient.ingredientId] ?? 0)}</strong>
+            </section>
+          `,
+          initialValue: 1,
+          minimum: 1,
+          maximum,
+          confirmLabel:
+            "購入する",
+        });
+      if (quantity === false) {
+        return true;
+      }
+      try {
+        const transaction =
+          stateManager.transact(
+            "cooking_ingredient_purchased",
+            (draft) =>
+              purchaseCookingIngredientToDraft(
+                draft,
+                ingredient.ingredientId,
+                quantity,
+              ),
+          );
+        showToast(
+          `${transaction.result.name}を${formatNumber(quantity)}個購入しました`,
+        );
+        renderPreservingScroll();
+      } catch (error) {
+        await showError(
+          "食材を購入できません",
+          error,
+        );
+      }
+      return true;
+    }
+
+    if (action === "inspect-cooking-utensil") {
+      const utensil =
+        getCookingUtensil(
+          actionElement.dataset.utensilId,
+        );
+      if (!utensil.shopAvailable) {
+        return true;
+      }
+      const snapshot =
+        stateManager.getSnapshot();
+      const maximum =
+        Math.max(
+          1,
+          Math.min(
+            15,
+            Math.floor(
+              snapshot.resources.coin /
+              utensil.priceCoin,
+            ),
+          ),
+        );
+      const quantity =
+        await openQuantityPrompt({
+          title:
+            utensil.name,
+          body: `
+            <section class="shop-item-detail-modal cooking-shop-detail cooking-shop-detail--utensil">
+              <i>${escapeHtml(cookingUtensilSymbol(utensil.utensilId))}</i>
+              <p>キッチンの15枠へ配置できます。同じ器具を複数所持できます。</p>
+              <div class="cost-tags"><span>${formatNumber(utensil.priceCoin)} COIN</span></div>
+              <strong>所持 ${formatNumber(snapshot.cooking.utensilInventory[utensil.utensilId] ?? 0)}</strong>
+            </section>
+          `,
+          initialValue: 1,
+          minimum: 1,
+          maximum,
+          confirmLabel:
+            "購入する",
+        });
+      if (quantity === false) {
+        return true;
+      }
+      try {
+        const transaction =
+          stateManager.transact(
+            "cooking_utensil_purchased",
+            (draft) =>
+              purchaseCookingUtensilToDraft(
+                draft,
+                utensil.utensilId,
+                quantity,
+              ),
+          );
+        showToast(
+          `${transaction.result.name}を${formatNumber(quantity)}個購入しました`,
+        );
+        renderPreservingScroll();
+      } catch (error) {
+        await showError(
+          "調理器具を購入できません",
+          error,
+        );
+      }
       return true;
     }
 
@@ -3606,6 +5670,334 @@ export function createManagementController({
       return true;
     }
 
+    if (action === "select-cooking-slot") {
+      const slotIndex =
+        Number(
+          actionElement.dataset.slotIndex,
+        );
+      if (
+        Number.isInteger(slotIndex)
+      ) {
+        if (
+          MANAGEMENT_VIEW_STATE.cookingSelectedSlot !==
+          slotIndex
+        ) {
+          resetCookingSelection();
+        }
+        MANAGEMENT_VIEW_STATE.cookingSelectedSlot =
+          slotIndex;
+        renderPreservingScroll();
+      }
+      return true;
+    }
+
+    if (action === "place-cooking-utensil") {
+      const slotIndex =
+        Number(
+          actionElement.dataset.slotIndex,
+        );
+      const utensilId =
+        actionElement.dataset.utensilId;
+      const utensil =
+        getCookingUtensil(
+          utensilId,
+        );
+      const confirmed =
+        await openConfirm({
+          title: `${utensil.name}を配置しますか？`,
+          body: `
+            <section class="cooking-confirm-card">
+              <i>${escapeHtml(cookingUtensilSymbol(utensilId))}</i>
+              <strong>${escapeHtml(utensil.name)}</strong>
+              <p>調理枠${slotIndex + 1}へ配置します。</p>
+            </section>
+          `,
+          confirmLabel:
+            "配置する",
+          cancelLabel:
+            "やめる",
+        });
+      if (!confirmed) {
+        return true;
+      }
+      try {
+        stateManager.transact(
+          "cooking_utensil_placed",
+          (draft) =>
+            placeCookingUtensilToDraft(
+              draft.cooking,
+              slotIndex,
+              utensilId,
+            ),
+        );
+        MANAGEMENT_VIEW_STATE.cookingSelectedSlot =
+          slotIndex;
+        resetCookingSelection();
+        showToast(
+          `${utensil.name}を配置しました`,
+        );
+        renderPreservingScroll();
+      } catch (error) {
+        await showError(
+          "調理器具を配置できません",
+          error,
+        );
+      }
+      return true;
+    }
+
+    if (action === "remove-cooking-utensil") {
+      const slotIndex =
+        Number(
+          actionElement.dataset.slotIndex,
+        );
+      const snapshot =
+        stateManager.getSnapshot();
+      const utensilId =
+        snapshot.cooking.utensilSlots[
+          slotIndex
+        ];
+      const utensil =
+        getCookingUtensil(
+          utensilId,
+        );
+      const confirmed =
+        await openConfirm({
+          title: `${utensil.name}を収納しますか？`,
+          body: "<p>器具は所持品へ戻ります。調理中の器具は収納できません。</p>",
+          confirmLabel:
+            "収納する",
+          cancelLabel:
+            "戻る",
+        });
+      if (!confirmed) {
+        return true;
+      }
+      try {
+        stateManager.transact(
+          "cooking_utensil_removed",
+          (draft) =>
+            removeCookingUtensilFromSlotToDraft(
+              draft.cooking,
+              slotIndex,
+            ),
+        );
+        resetCookingSelection();
+        renderPreservingScroll();
+      } catch (error) {
+        await showError(
+          "調理器具を収納できません",
+          error,
+        );
+      }
+      return true;
+    }
+
+    if (action === "select-cooking-ingredient-slot") {
+      const ingredientSlot =
+        Number(
+          actionElement.dataset.ingredientSlot,
+        );
+      MANAGEMENT_VIEW_STATE.cookingIngredientPickerSlot =
+        MANAGEMENT_VIEW_STATE.cookingIngredientPickerSlot ===
+        ingredientSlot
+          ? null
+          : ingredientSlot;
+      renderPreservingScroll();
+      return true;
+    }
+
+    if (action === "choose-cooking-ingredient") {
+      const ingredientSlot =
+        Number(
+          actionElement.dataset.ingredientSlot,
+        );
+      const ingredientId =
+        actionElement.dataset.ingredientId;
+      const snapshot =
+        stateManager.getSnapshot();
+      const owned =
+        snapshot.cooking
+          .ingredientInventory[
+            ingredientId
+          ] ??
+        0;
+      const selectedElsewhere =
+        MANAGEMENT_VIEW_STATE
+          .cookingIngredientSlots
+          .filter(
+            (entry, index) =>
+              index !==
+                ingredientSlot &&
+              entry ===
+                ingredientId,
+          )
+          .length;
+      if (
+        owned <=
+        selectedElsewhere
+      ) {
+        showToast(
+          "この食材の所持数が不足しています",
+        );
+        return true;
+      }
+      MANAGEMENT_VIEW_STATE.cookingIngredientSlots[
+        ingredientSlot
+      ] = ingredientId;
+      MANAGEMENT_VIEW_STATE.cookingIngredientPickerSlot =
+        null;
+      renderPreservingScroll();
+      return true;
+    }
+
+    if (action === "remove-cooking-ingredient") {
+      const ingredientSlot =
+        Number(
+          actionElement.dataset.ingredientSlot,
+        );
+      MANAGEMENT_VIEW_STATE.cookingIngredientSlots[
+        ingredientSlot
+      ] = null;
+      MANAGEMENT_VIEW_STATE.cookingIngredientPickerSlot =
+        null;
+      renderPreservingScroll();
+      return true;
+    }
+
+    if (action === "clear-cooking-ingredients") {
+      resetCookingSelection();
+      renderPreservingScroll();
+      return true;
+    }
+
+    if (action === "start-cooking") {
+      const slotIndex =
+        Number(
+          actionElement.dataset.slotIndex,
+        );
+      const recipeId =
+        actionElement.dataset.recipeId;
+      const recipe =
+        getRecipe(
+          recipeId,
+        );
+      const snapshot =
+        stateManager.getSnapshot();
+      const discovered =
+        Boolean(
+          snapshot.cooking
+            .recipeDiscovery[
+              recipeId
+            ],
+        );
+      const ingredients =
+        selectedCookingIngredients();
+      const confirmed =
+        await openConfirm({
+          title:
+            "調理を開始しますか？",
+          body: `
+            <section class="cooking-start-confirm">
+              <div class="${discovered ? "is-known" : "is-unknown"}">
+                <img src="${escapeAttribute(recipe.image)}" alt="">
+                ${discovered ? "" : "<i>?</i>"}
+              </div>
+              <strong>${discovered ? escapeHtml(recipe.name) : "未発見の料理"}</strong>
+              <span>完成まで ${formatCookingTime(recipe.completionSeconds)}</span>
+              <p>選択した食材を各1個消費します。品質は通常80％・高級15％・伝説5％です。</p>
+            </section>
+          `,
+          confirmLabel:
+            "はい",
+          cancelLabel:
+            "いいえ",
+        });
+      if (!confirmed) {
+        return true;
+      }
+      try {
+        stateManager.transact(
+          "cooking_started",
+          (draft) =>
+            startCookingJobToDraft(
+              draft.cooking,
+              slotIndex,
+              recipeId,
+              ingredients,
+              {
+                companyRank:
+                  draft.company.rank,
+                startedAt:
+                  new Date().toISOString(),
+              },
+            ),
+        );
+        resetCookingSelection();
+        MANAGEMENT_VIEW_STATE.cookingSelectedSlot =
+          slotIndex;
+        showToast(
+          "調理を開始しました",
+        );
+        renderPreservingScroll();
+      } catch (error) {
+        await showError(
+          "調理を開始できません",
+          error,
+        );
+      }
+      return true;
+    }
+
+    if (action === "collect-cooking-job") {
+      const slotIndex =
+        Number(
+          actionElement.dataset.slotIndex,
+        );
+      try {
+        const transaction =
+          stateManager.transact(
+            "cooking_collected",
+            (draft) =>
+              collectCookingJobToDraft(
+                draft.cooking,
+                slotIndex,
+                {
+                  collectedAt:
+                    new Date().toISOString(),
+                },
+              ),
+          );
+        await playCookingCompletionCinematic(
+          transaction.result,
+        );
+        resetCookingSelection();
+        MANAGEMENT_VIEW_STATE.cookingSelectedSlot =
+          slotIndex;
+        renderPreservingScroll();
+      } catch (error) {
+        await showError(
+          "料理を回収できません",
+          error,
+        );
+      }
+      return true;
+    }
+
+    if (action === "open-cooking-storage") {
+      MANAGEMENT_VIEW_STATE.cookingView =
+        "storage";
+      renderPreservingScroll();
+      return true;
+    }
+
+    if (action === "open-cooking-cafeteria") {
+      MANAGEMENT_VIEW_STATE.cookingView =
+        "dining";
+      renderPreservingScroll();
+      return true;
+    }
+
     if (action === "purchase-room") {
       if (!(await openConfirm({
         title: "ROOMを購入しますか？",
@@ -3725,6 +6117,84 @@ export function createManagementController({
   }
 
   function afterRender(route) {
+    if (cookingTimerId !== null) {
+      clearInterval(
+        cookingTimerId,
+      );
+      cookingTimerId = null;
+    }
+    cookingReadyRefreshScheduled =
+      false;
+
+    if (route === "cooking") {
+      const updateCountdowns = () => {
+        const kitchen =
+          root.querySelector(
+            "[data-cooking-kitchen]",
+          );
+        if (!kitchen) {
+          if (cookingTimerId !== null) {
+            clearInterval(
+              cookingTimerId,
+            );
+            cookingTimerId = null;
+          }
+          return;
+        }
+        let becameReady =
+          false;
+        for (
+          const element
+          of kitchen.querySelectorAll(
+            "[data-cooking-countdown]",
+          )
+        ) {
+          const readyAt =
+            new Date(
+              element.dataset.readyAt,
+            ).getTime();
+          const remaining =
+            Math.max(
+              0,
+              Math.ceil(
+                (
+                  readyAt -
+                  Date.now()
+                ) /
+                1000,
+              ),
+            );
+          element.textContent =
+            remaining === 0
+              ? "READY"
+              : formatCookingTime(
+                  remaining,
+                );
+          if (remaining === 0) {
+            becameReady =
+              true;
+          }
+        }
+        if (
+          becameReady &&
+          !cookingReadyRefreshScheduled
+        ) {
+          cookingReadyRefreshScheduled =
+            true;
+          queueMicrotask(
+            renderPreservingScroll,
+          );
+        }
+      };
+      updateCountdowns();
+      cookingTimerId =
+        setInterval(
+          updateCountdowns,
+          500,
+        );
+      return;
+    }
+
     if (route !== "room") return;
     const canvas =
       root.querySelector(
