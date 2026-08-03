@@ -7,8 +7,11 @@
 
 import { assetPath } from "../assets.js";
 import {
+  fitPortraits,
+} from "../portrait-fit.js?v=43";
+import {
   motivationDisplay,
-} from "../../data/motivation-data.js?v=42";
+} from "../../data/motivation-data.js?v=43";
 import {
   COMMENTATOR,
   COMMENTARY_VERSION,
@@ -17,7 +20,7 @@ import {
   createCommentaryDirector,
 } from "./commentary.js";
 
-export const BATTLE_UI_VERSION = "mobbr-battle-ui-2.6.0";
+export const BATTLE_UI_VERSION = "mobbr-battle-ui-2.7.0";
 export const BATTLE_REPLAY_SCHEMA_VERSION =
   "mobbr-battle-replay-1.0.0";
 
@@ -62,288 +65,38 @@ function formatNumber(value) {
   return new Intl.NumberFormat("ja-JP").format(value);
 }
 
-const PORTRAIT_BALANCE_CACHE =
-  new Map();
-
-function calculateVisiblePortraitScale(
-  image,
-) {
-  if (
-    !image?.naturalWidth ||
-    !image?.naturalHeight ||
-    typeof document === "undefined"
-  ) {
-    return 1;
-  }
-
-  try {
-    const maximumSide = 192;
-    const ratio =
-      Math.min(
-        1,
-        maximumSide /
-          Math.max(
-            image.naturalWidth,
-            image.naturalHeight,
-          ),
-      );
-    const width =
-      Math.max(
-        1,
-        Math.round(
-          image.naturalWidth * ratio,
-        ),
-      );
-    const height =
-      Math.max(
-        1,
-        Math.round(
-          image.naturalHeight * ratio,
-        ),
-      );
-    const canvas =
-      document.createElement(
-        "canvas",
-      );
-    canvas.width = width;
-    canvas.height = height;
-    const context =
-      canvas.getContext(
-        "2d",
-        {
-          willReadFrequently: true,
-        },
-      );
-    if (!context) {
-      return 1;
-    }
-    context.drawImage(
-      image,
-      0,
-      0,
-      width,
-      height,
-    );
-    const pixels =
-      context.getImageData(
-        0,
-        0,
-        width,
-        height,
-      ).data;
-    let minX = width;
-    let maxX = -1;
-    let minY = height;
-    let maxY = -1;
-    for (
-      let y = 0;
-      y < height;
-      y += 1
-    ) {
-      for (
-        let x = 0;
-        x < width;
-        x += 1
-      ) {
-        const alpha =
-          pixels[
-            (y * width + x) * 4 + 3
-          ];
-        if (alpha < 18) {
-          continue;
-        }
-        minX = Math.min(minX, x);
-        maxX = Math.max(maxX, x);
-        minY = Math.min(minY, y);
-        maxY = Math.max(maxY, y);
-      }
-    }
-    if (
-      maxX < minX ||
-      maxY < minY
-    ) {
-      return 1;
-    }
-
-    const visibleWidth =
-      (maxX - minX + 1) /
-      width;
-    const visibleHeight =
-      (maxY - minY + 1) /
-      height;
-
-    // Balance by both height and width. This prevents wide characters from
-    // becoming oversized while still enlarging artwork with large transparent
-    // margins.
-    const heightScale =
-      0.82 /
-      Math.max(
-        0.42,
-        visibleHeight,
-      );
-    const widthScale =
-      0.76 /
-      Math.max(
-        0.34,
-        visibleWidth,
-      );
-
-    return Math.max(
-      0.72,
-      Math.min(
-        1.26,
-        Math.min(
-          heightScale,
-          widthScale,
-        ),
-      ),
-    );
-  } catch (_error) {
-    return 1;
-  }
-}
-
 export function balanceTournamentPortraits(
   root,
 ) {
-  const images =
-    root.querySelectorAll?.(
-      [
-        "img[data-character-portrait]",
-        ".battle-fighter__portrait > img",
-        ".battle-survivor-grid img[data-character-portrait]",
-        ".encounter-compact-team img[data-character-portrait]",
-        ".match-champion-members img",
-        ".award-place img",
-        ".opening-lineup__member > img",
-        ".player-intro-card > img",
-        ".deployment-team img",
-        ".actual-round-result-list img",
-      ].join(","),
-    ) ?? [];
-  for (const image of images) {
-    const source =
-      image.currentSrc ||
-      image.src ||
-      "";
-    if (
-      !source ||
-      source.includes(
-        "/icon/deth.png",
-      )
-    ) {
-      continue;
-    }
-
-    image.dataset.portraitBalanced = "pending";
-    const applyScale = () => {
-      const loadedSource =
-        image.currentSrc ||
-        image.src ||
-        source;
-      let scale =
-        PORTRAIT_BALANCE_CACHE.get(
-          loadedSource,
-        );
-      if (!Number.isFinite(scale)) {
-        scale =
-          calculateVisiblePortraitScale(
-            image,
-          );
-        PORTRAIT_BALANCE_CACHE.set(
-          loadedSource,
-          scale,
-        );
-      }
-      const fighter =
-        image.closest(
-          ".battle-fighter",
-        );
-      const playerTeam =
-        image.dataset.playerTeam ===
-          "true" ||
-        image.closest(
-          ".battle-team-column",
-        )?.classList.contains(
-          "is-player",
-        ) === true ||
-        image.closest(
-          ".battle-survivor-grid",
-        ) !== null;
-      const normalizedSource =
-        loadedSource.toLowerCase();
-      const isPlayerSupAsset =
-        normalizedSource.includes(
-          "/play/p1sup.png",
-        ) ||
-        normalizedSource.endsWith(
-          "play/p1sup.png",
-        );
-      const isSup =
-        image.dataset.role ===
-        "SUP";
-      const isPlayerSup =
-        playerTeam &&
-        isSup;
-      let finalScale =
-        Math.max(
-          0.55,
-          Math.min(
-            1.12,
-            scale,
-          ),
-        );
-
-      // Some CPU SUP artworks have a larger painted silhouette even when the
-      // transparent-margin analyser reports a normal canvas occupancy.
-      if (isSup) {
-        finalScale =
-          Math.min(
-            0.82,
-            finalScale *
-              0.88,
-          );
-      }
-
-      // The supplied player SUP artwork receives one common cap in every
-      // tournament scene, including opening and dropship deployment.
-      if (
-        isPlayerSupAsset ||
-        isPlayerSup
-      ) {
-        finalScale =
-          Math.min(
-            0.62,
-            finalScale *
-              0.74,
-          );
-      }
-      image.style.setProperty(
+  return fitPortraits(
+    root,
+    [
+      "img[data-character-portrait]",
+      ".battle-fighter__portrait > img",
+      ".battle-survivor-grid img",
+      ".encounter-compact-team img",
+      ".match-champion-members img",
+      ".award-place img",
+      ".opening-lineup__member > img",
+      ".player-intro-card > img",
+      ".deployment-team img",
+      ".actual-round-result-list img",
+    ],
+    {
+      scaleProperty:
         "--portrait-balance-scale",
-        finalScale.toFixed(3),
-      );
-      fighter?.style.setProperty(
-        "--portrait-visible-scale",
-        finalScale.toFixed(3),
-      );
-      image.dataset.portraitBalanced = "true";
-    };
-
-    if (
-      image.complete &&
-      image.naturalWidth > 0
-    ) {
-      applyScale();
-    } else {
-      image.addEventListener(
-        "load",
-        applyScale,
-        {
-          once: true,
-        },
-      );
-    }
-  }
+      translateProperty:
+        "--portrait-balance-y",
+      targetWidthRate:
+        0.84,
+      targetHeightRate:
+        0.82,
+      minimumScale:
+        0.52,
+      maximumScale:
+        1.42,
+    },
+  );
 }
 
 function getTeam(runtime, teamId) {
