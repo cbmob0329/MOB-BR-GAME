@@ -10647,3 +10647,24 @@ img[data-character-portrait],
     font-size: .22rem;
   }
 }
+
+
+/* Generation 42: final SUP scale is owned by the portrait analyser. */
+img[data-character-portrait],
+.battle-fighter__portrait > img,
+.opening-lineup__member > img,
+.player-intro-card > img,
+.deployment-team img,
+.encounter-compact-team img,
+.actual-round-result-list img,
+.award-place img {
+  transform: none !important;
+  scale:
+    var(
+      --portrait-balance-scale,
+      1
+    ) !important;
+  transform-origin:
+    center
+    bottom !important;
+}
