@@ -17,12 +17,15 @@ import {
   installAssetFallbacks,
 } from "../assets.js";
 import {
+  fitPortraits,
+} from "../portrait-fit.js?v=43";
+import {
   SaveError,
   SaveNotFoundError,
   clearPendingEmployeeRankUpsToDraft,
   createGameStateManager,
   grantEmployeeCookingPointsToDraft,
-} from "./state.js?v=42";
+} from "./state.js?v=43";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -44,7 +47,7 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=42";
+} from "./team.js?v=43";
 import {
   getSpecialAbility,
 } from "../../data/ability-data.js";
@@ -54,26 +57,26 @@ import {
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=42";
+} from "../../data/motivation-data.js?v=43";
 import {
   getRoomMaster,
-} from "../../data/collection-data.js?v=42";
+} from "../../data/collection-data.js?v=43";
 import {
   EMPLOYEE_RULES,
   getEmployeeRankData,
   getTotalEmployeeHpBonus,
-} from "../../data/employee-data.js?v=42";
+} from "../../data/employee-data.js?v=43";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=42";
+} from "./management.js?v=43";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=42";
+} from "./tournament-bridge.js?v=43";
 
-export const APP_VERSION = "mobbr-main-app-2.9.0";
+export const APP_VERSION = "mobbr-main-app-3.0.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -2666,270 +2669,45 @@ export function createMainApp({
     scheduleUpdate();
   }
 
-  const MAIN_PORTRAIT_SCALE_CACHE =
-    new Map();
   let mainPortraitFrameId =
     null;
-
-  function calculateMainPortraitScale(
-    image,
-  ) {
-    try {
-      const width =
-        image.naturalWidth;
-      const height =
-        image.naturalHeight;
-      if (
-        width < 2 ||
-        height < 2
-      ) {
-        return 1;
-      }
-
-      const canvas =
-        document.createElement(
-          "canvas",
-        );
-      const context =
-        canvas.getContext(
-          "2d",
-          {
-            willReadFrequently:
-              true,
-          },
-        );
-      if (!context) {
-        return 1;
-      }
-      const sampleWidth =
-        Math.min(
-          160,
-          width,
-        );
-      const sampleHeight =
-        Math.min(
-          160,
-          height,
-        );
-      canvas.width =
-        sampleWidth;
-      canvas.height =
-        sampleHeight;
-      context.drawImage(
-        image,
-        0,
-        0,
-        sampleWidth,
-        sampleHeight,
-      );
-      const pixels =
-        context.getImageData(
-          0,
-          0,
-          sampleWidth,
-          sampleHeight,
-        ).data;
-      let minX =
-        sampleWidth;
-      let maxX =
-        -1;
-      let minY =
-        sampleHeight;
-      let maxY =
-        -1;
-      for (
-        let y = 0;
-        y < sampleHeight;
-        y += 1
-      ) {
-        for (
-          let x = 0;
-          x < sampleWidth;
-          x += 1
-        ) {
-          const alpha =
-            pixels[
-              (
-                y *
-                sampleWidth +
-                x
-              ) *
-                4 +
-              3
-            ];
-          if (alpha < 18) {
-            continue;
-          }
-          minX =
-            Math.min(
-              minX,
-              x,
-            );
-          maxX =
-            Math.max(
-              maxX,
-              x,
-            );
-          minY =
-            Math.min(
-              minY,
-              y,
-            );
-          maxY =
-            Math.max(
-              maxY,
-              y,
-            );
-        }
-      }
-      if (
-        maxX < minX ||
-        maxY < minY
-      ) {
-        return 1;
-      }
-      const visibleWidth =
-        (
-          maxX -
-          minX +
-          1
-        ) /
-        sampleWidth;
-      const visibleHeight =
-        (
-          maxY -
-          minY +
-          1
-        ) /
-        sampleHeight;
-      const heightScale =
-        0.74 /
-        Math.max(
-          0.42,
-          visibleHeight,
-        );
-      const widthScale =
-        0.70 /
-        Math.max(
-          0.34,
-          visibleWidth,
-        );
-      return Math.max(
-        0.55,
-        Math.min(
-          1.08,
-          Math.min(
-            heightScale,
-            widthScale,
-          ),
-        ),
-      );
-    } catch (_error) {
-      return 1;
-    }
-  }
 
   function balanceMainPortraits() {
     mainPortraitFrameId =
       null;
-    const images = [
-      ...root.querySelectorAll(
-        [
-          "img[data-character-portrait]",
-          "img.player-portrait",
-          ".team-portrait-button img[data-role]",
-          ".training-cinematic__portrait img",
-          ".training-result-member__player",
-        ].join(","),
-      ),
-      ...modalRoot.querySelectorAll(
-        [
-          "img[data-character-portrait]",
-          "img.player-portrait",
-          ".training-cinematic__portrait img",
-          ".training-result-member__player",
-        ].join(","),
-      ),
+    const selectors = [
+      "img[data-character-portrait]",
+      "img.player-portrait",
+      ".team-portrait-button img[data-role]",
+      ".training-cinematic__portrait img",
+      ".training-result-member__player",
+      ".player-row__image",
+      ".dining-seat > img",
     ];
-    for (const image of images) {
-      const apply = () => {
-        const source =
-          image.currentSrc ||
-          image.src ||
-          "";
-        if (!source) {
-          return;
-        }
-        let scale =
-          MAIN_PORTRAIT_SCALE_CACHE.get(
-            source,
-          );
-        if (!Number.isFinite(scale)) {
-          scale =
-            calculateMainPortraitScale(
-              image,
-            );
-          MAIN_PORTRAIT_SCALE_CACHE.set(
-            source,
-            scale,
-          );
-        }
-        const role =
-          image.dataset.role ??
-          image.closest(
-            "[data-role]",
-          )?.dataset.role ??
-          "";
-        const normalizedSource =
-          source.toLowerCase();
-        if (
-          normalizedSource.includes(
-            "/play/p1sup.png",
-          ) ||
-          normalizedSource.endsWith(
-            "play/p1sup.png",
-          )
-        ) {
-          scale =
-            Math.min(
-              0.62,
-              scale *
-                0.72,
-            );
-        } else if (
-          role ===
-          "SUP"
-        ) {
-          scale =
-            Math.min(
-              0.80,
-              scale *
-                0.88,
-            );
-        }
-        image.style.setProperty(
-          "--main-portrait-scale",
-          scale.toFixed(3),
-        );
-        image.dataset
-          .portraitBalanced =
-          "true";
-      };
-      if (
-        image.complete &&
-        image.naturalWidth > 0
-      ) {
-        apply();
-      } else {
-        image.addEventListener(
-          "load",
-          apply,
-          {
-            once: true,
-          },
-        );
-      }
-    }
+    const options = {
+      scaleProperty:
+        "--main-portrait-scale",
+      translateProperty:
+        "--main-portrait-y",
+      targetWidthRate:
+        0.84,
+      targetHeightRate:
+        0.82,
+      minimumScale:
+        0.52,
+      maximumScale:
+        1.42,
+    };
+    fitPortraits(
+      root,
+      selectors,
+      options,
+    );
+    fitPortraits(
+      modalRoot,
+      selectors,
+      options,
+    );
   }
 
   function scheduleMainPortraitBalance() {
@@ -2941,7 +2719,12 @@ export function createMainApp({
     }
     mainPortraitFrameId =
       requestAnimationFrame(
-        balanceMainPortraits,
+        () => {
+          balanceMainPortraits();
+          requestAnimationFrame(
+            balanceMainPortraits,
+          );
+        },
       );
   }
 

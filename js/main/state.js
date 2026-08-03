@@ -19,11 +19,11 @@ import {
   getCompanyRankData,
   rankToWeaponValue,
   validateGameDate,
-} from "../../data/game-data.js?v=42";
+} from "../../data/game-data.js?v=43";
 import {
   BATTLE_CONFIG_VERSION,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=42";
+} from "../../data/battle-config.js?v=43";
 import {
   TRAINING_DATA_VERSION,
 } from "../../data/training-data.js";
@@ -56,7 +56,7 @@ import {
   motivationLevelIndex,
   normalizeMotivationRecord,
   shiftMotivation,
-} from "../../data/motivation-data.js?v=42";
+} from "../../data/motivation-data.js?v=43";
 import {
   EMPLOYEE_DATA_VERSION,
   EMPLOYEE_MASTER,
@@ -69,7 +69,7 @@ import {
   getEmployeeRankData,
   getEmployeeWeeklyCoinBonusRate,
   normalizeEmployeeRecord,
-} from "../../data/employee-data.js?v=42";
+} from "../../data/employee-data.js?v=43";
 import {
   COOKING_DATA_VERSION,
   COOKING_STATE_SCHEMA_VERSION,
@@ -84,9 +84,21 @@ import {
   normalizeCookingState,
   refreshWeeklyIngredientStockToDraft,
   validateCookingState,
-} from "../../data/cooking-data.js?v=42";
+  createFoodVariant,
+} from "../../data/cooking-data.js?v=43";
+import {
+  DINING_DATA_VERSION,
+  DINING_RULES,
+  DINING_STATE_SCHEMA_VERSION,
+  createInitialDiningState,
+  diningWeekKey,
+  mealCoachTrainingRate,
+  normalizeDiningState,
+  refreshDiningWeekToDraft,
+  validateDiningState,
+} from "../../data/dining-data.js?v=43";
 
-export const SAVE_SCHEMA_VERSION = "mobbr-save-2.5.0";
+export const SAVE_SCHEMA_VERSION = "mobbr-save-2.6.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
 
 export const STORAGE_KEYS = Object.freeze({
@@ -496,6 +508,8 @@ function createMasterVersions() {
     recipeMaster: RECIPE_MASTER_VERSION,
     cookingUtensilMaster: COOKING_UTENSIL_MASTER_VERSION,
     cookingStateSchema: COOKING_STATE_SCHEMA_VERSION,
+    diningData: DINING_DATA_VERSION,
+    diningStateSchema: DINING_STATE_SCHEMA_VERSION,
   };
 }
 
@@ -695,6 +709,14 @@ export function createNewGameState(
       {
         seed:
           `${saveSlotId}:${companyName}`,
+        createdAt:
+          timestamp,
+      },
+    ),
+
+    dining: createInitialDiningState(
+      INITIAL_GAME_DATA.gameDate,
+      {
         createdAt:
           timestamp,
       },
@@ -1100,6 +1122,13 @@ export function validateSaveState(state) {
         state.gameDate,
     },
   );
+  validateDiningState(
+    state.dining,
+    {
+      gameDate:
+        state.gameDate,
+    },
+  );
 
   assertPlainObject(state.weeklyBonus, "Weekly bonus state");
   if (!Array.isArray(state.weeklyBonus.history)) {
@@ -1194,13 +1223,33 @@ function migrateLegacyPlayer(player) {
       ? migrated.stats.stamina
       : 10;
   const newBaseline =
-    Math.round((550 + stamina * 10) / 10) * 10;
+    Math.round(
+      (
+        550 +
+        stamina *
+          10
+      ) /
+      10,
+    ) *
+    10;
+
+  // Rebuild base HP once from permanent stamina. The old migration compared
+  // this value with previousMaxHp * 1.3, so repeated schema upgrades could
+  // multiply an already migrated HP value.
   migrated.maxHp =
-    Math.max(newBaseline, Math.round(previousMaxHp * 1.3));
+    Math.max(
+      1,
+      newBaseline,
+    );
   migrated.currentHp =
     Math.max(
-      previousCurrentHp > 0 ? 1 : 0,
-      Math.round(migrated.maxHp * hpRate),
+      previousCurrentHp > 0
+        ? 1
+        : 0,
+      Math.round(
+        migrated.maxHp *
+        hpRate,
+      ),
     );
 
   if (migrated.stats?.sap !== undefined) {
@@ -1288,6 +1337,16 @@ function migrateUnversionedSave(rawState, timestamp) {
           INITIAL_GAME_DATA.gameDate,
         seed:
           `${migrated.saveSlotId ?? DEFAULT_SAVE_SLOT_ID}:${migrated.company?.companyName ?? "MOB BR"}`,
+        timestamp,
+      },
+    );
+  migrated.dining =
+    normalizeDiningState(
+      migrated.dining,
+      {
+        gameDate:
+          migrated.gameDate ??
+          INITIAL_GAME_DATA.gameDate,
         timestamp,
       },
     );
@@ -1386,7 +1445,8 @@ export function migrateSaveState(
     rawState.schemaVersion === "mobbr-save-2.1.0" ||
     rawState.schemaVersion === "mobbr-save-2.2.0" ||
     rawState.schemaVersion === "mobbr-save-2.3.0" ||
-    rawState.schemaVersion === "mobbr-save-2.4.0"
+    rawState.schemaVersion === "mobbr-save-2.4.0" ||
+    rawState.schemaVersion === "mobbr-save-2.5.0"
   ) {
     const migrated = migrateUnversionedSave(rawState, timestamp);
     validateSaveState(migrated);
@@ -1778,6 +1838,14 @@ export function advanceWeeksToDraft(
         seed:
           `${draft.saveSlotId}:${draft.company.companyId}`,
         generatedAt:
+          nowIso(clock),
+      },
+    );
+    refreshDiningWeekToDraft(
+      draft.dining,
+      draft.gameDate,
+      {
+        timestamp:
           nowIso(clock),
       },
     );
@@ -2232,6 +2300,269 @@ function tournamentMotivationTier(tournamentType) {
   if (type === "championship") return "championship";
   if (type.startsWith("casual_")) return "casual";
   return "other";
+}
+
+function stableDiningUnit(seed) {
+  const text = String(seed);
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) / 4294967296;
+}
+
+function diningCharacter(draft, type, characterId) {
+  if (type === "player") {
+    return draft.playerTeam.members.find(
+      (entry) => entry.playerId === characterId,
+    );
+  }
+  if (type === "coach") {
+    return draft.coaches.find(
+      (entry) => entry.coachId === characterId,
+    );
+  }
+  if (type === "employee") {
+    return draft.employees.find(
+      (entry) => entry.employeeId === characterId,
+    );
+  }
+  return null;
+}
+
+function diningFoodRecords(draft, variantKeys) {
+  if (
+    !Array.isArray(variantKeys) ||
+    variantKeys.length !== DINING_RULES.dishesPerMeal ||
+    new Set(variantKeys).size !== variantKeys.length
+  ) {
+    throw new RangeError("異なる料理を3品選んでください。");
+  }
+
+  const variants = variantKeys.map((variantKey) => {
+    const record = draft.cooking.foodInventory[variantKey];
+    if (!record || record.quantity < 1) {
+      throw new RangeError("選択した料理の所持数が不足しています。");
+    }
+    return {
+      ...createFoodVariant(record.recipeId, record.qualityId),
+      variantKey,
+    };
+  });
+  if (
+    new Set(variants.map((entry) => entry.recipeId)).size !==
+    variants.length
+  ) {
+    throw new RangeError("同じ料理は1回の食事に複数選べません。");
+  }
+  return variants;
+}
+
+function recordDiningMotivationEvent(
+  draft,
+  player,
+  shifted,
+  { mealId, food, occurredAt },
+) {
+  const event = {
+    eventId: `${mealId}:${player.playerId}:${food.variantKey}`,
+    resultId: null,
+    tournamentId: null,
+    tournamentType: null,
+    playerId: player.playerId,
+    playerName: player.name,
+    role: player.role,
+    sourceType: "dining_food",
+    sourceId: food.variantKey,
+    reason: `${food.name}を食べてやる気が上がった`,
+    before: deepClone(shifted.before),
+    after: deepClone(shifted.after),
+    direction: "up",
+    changedAt: occurredAt,
+  };
+  draft.ui.pendingMotivationEvents.push(event);
+  draft.system.motivationHistory.push(deepClone(event));
+  draft.ui.pendingMotivationEvents =
+    draft.ui.pendingMotivationEvents.slice(-100);
+  draft.system.motivationHistory =
+    draft.system.motivationHistory.slice(-300);
+  return event;
+}
+
+export function serveDiningMealToDraft(
+  draft,
+  {
+    characterType,
+    characterId,
+    variantKeys,
+    startedAt = new Date().toISOString(),
+  },
+) {
+  assertPlainObject(draft, "Draft state");
+  refreshDiningWeekToDraft(
+    draft.dining,
+    draft.gameDate,
+    { timestamp: startedAt },
+  );
+
+  const character = diningCharacter(
+    draft,
+    characterType,
+    characterId,
+  );
+  if (!character) {
+    throw new RangeError("食事対象のキャラクターが見つかりません。");
+  }
+  if (
+    draft.dining.completedCharacterIds.includes(characterId) ||
+    draft.dining.activeMeals[characterId]
+  ) {
+    throw new RangeError(
+      "このキャラクターは今週すでに食事を終えています。",
+    );
+  }
+
+  const foods = diningFoodRecords(draft, variantKeys);
+  for (const food of foods) {
+    draft.cooking.foodInventory[food.variantKey].quantity -= 1;
+  }
+
+  const startTime = new Date(startedAt).getTime();
+  const mealId =
+    `meal:${diningWeekKey(draft.gameDate)}:${characterId}:${startTime}`;
+  const effect = {
+    type: characterType,
+    motivationEvents: [],
+    employeeEvents: [],
+    coachTrainingBonusRate: 0,
+  };
+
+  if (characterType === "player") {
+    for (const food of foods) {
+      const chance =
+        MOTIVATION_RULES.playerFoodChance[food.rank] ?? 0;
+      const roll = stableDiningUnit(
+        `${mealId}:${food.variantKey}:motivation-roll`,
+      );
+      if (roll >= chance) continue;
+      const shifted = shiftMotivation(
+        character.motivation,
+        "up",
+        {
+          steps: 1,
+          changeUnit: stableDiningUnit(
+            `${mealId}:${food.variantKey}:change`,
+          ),
+          modifierUnit: stableDiningUnit(
+            `${mealId}:${food.variantKey}:modifier`,
+          ),
+          awakenedUnit: stableDiningUnit(
+            `${mealId}:${food.variantKey}:awakened`,
+          ),
+          reason: `${food.name}を食べた`,
+          changedAt: startedAt,
+        },
+      );
+      if (shifted.changed) {
+        character.motivation = shifted.after;
+        effect.motivationEvents.push(
+          recordDiningMotivationEvent(
+            draft,
+            character,
+            shifted,
+            { mealId, food, occurredAt: startedAt },
+          ),
+        );
+      }
+    }
+  } else if (characterType === "employee") {
+    for (const food of foods) {
+      effect.employeeEvents.push(
+        grantEmployeeMealPointsToDraft(
+          draft,
+          characterId,
+          food.rank,
+          {
+            source: "dining_meal",
+            reason: `${food.name}を食べた`,
+            occurredAt: startedAt,
+            queuePresentation: true,
+          },
+        ),
+      );
+    }
+  } else if (characterType === "coach") {
+    const rate = mealCoachTrainingRate(
+      foods.map((food) => food.rank),
+    );
+    draft.dining.coachMealBonuses[characterId] = rate;
+    draft.dining.coachTrainingBonusRate = Math.min(
+      DINING_RULES.maximumCoachTrainingBonusRate,
+      Object.values(draft.dining.coachMealBonuses).reduce(
+        (sum, value) => sum + Number(value || 0),
+        0,
+      ),
+    );
+    effect.coachTrainingBonusRate = rate;
+  }
+
+  const readyAt = new Date(
+    startTime + DINING_RULES.mealDurationSeconds * 1000,
+  ).toISOString();
+  const clearAt = new Date(
+    startTime +
+      (
+        DINING_RULES.mealDurationSeconds +
+        DINING_RULES.clearDelaySeconds
+      ) *
+        1000,
+  ).toISOString();
+  const meal = {
+    mealId,
+    characterId,
+    characterType,
+    characterName: character.name,
+    characterImage: character.image,
+    role:
+      character.role ??
+      (characterType === "coach" ? "COACH" : "STAFF"),
+    foods: deepClone(foods),
+    startedAt,
+    readyAt,
+    clearAt,
+    effect: deepClone(effect),
+  };
+
+  draft.dining.activeMeals[characterId] = meal;
+  draft.dining.completedCharacterIds.push(characterId);
+  draft.dining.history.push(deepClone(meal));
+  draft.dining.history = draft.dining.history.slice(-500);
+  draft.dining.updatedAt = startedAt;
+  draft.cooking.updatedAt = startedAt;
+
+  return deepFreeze(deepClone(meal));
+}
+
+export function settleDiningMealsToDraft(
+  draft,
+  { settledAt = new Date().toISOString() } = {},
+) {
+  assertPlainObject(draft, "Draft state");
+  const now = new Date(settledAt).getTime();
+  const cleared = [];
+  for (const [characterId, meal] of Object.entries(
+    draft.dining.activeMeals,
+  )) {
+    if (new Date(meal.clearAt).getTime() <= now) {
+      delete draft.dining.activeMeals[characterId];
+      cleared.push(characterId);
+    }
+  }
+  if (cleared.length > 0) {
+    draft.dining.updatedAt = settledAt;
+  }
+  return deepFreeze(cleared);
 }
 
 function createMotivationEvent({

@@ -10,12 +10,12 @@ import {
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=42";
+} from "../../data/game-data.js?v=43";
 import {
   isCasualTournamentType,
   resolveCpuTeamMaster,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=42";
+} from "../../data/circuit-data.js?v=43";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
@@ -65,7 +65,9 @@ import {
   applyResourceDeltaToDraft,
   purchaseCookingIngredientToDraft,
   purchaseCookingUtensilToDraft,
-} from "./state.js?v=42";
+  serveDiningMealToDraft,
+  settleDiningMealsToDraft,
+} from "./state.js?v=43";
 import {
   COOKING_RULES,
   COOKING_SCREEN_ASSETS,
@@ -84,13 +86,19 @@ import {
   placeCookingUtensilToDraft,
   removeCookingUtensilFromSlotToDraft,
   startCookingJobToDraft,
-} from "../../data/cooking-data.js?v=42";
+} from "../../data/cooking-data.js?v=43";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=42";
+} from "./tournament-bridge.js?v=43";
+import {
+  DINING_EATING_SPEECHES,
+  DINING_HUNGRY_SPEECHES,
+  DINING_RULES,
+  diningWeekKey,
+} from "../../data/dining-data.js?v=43";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-2.0.0";
+  "mobbr-management-feature-2.1.0";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -117,6 +125,9 @@ const MANAGEMENT_VIEW_STATE = {
   cookingCookbookPage: 1,
   collectionFoodQuality: "normal",
   collectionFoodPage: 1,
+  diningSelectedCharacterId: null,
+  diningSelectedCharacterType: null,
+  diningSelectedFoods: [],
 };
 
 const ROOM_CATEGORY_DEFINITIONS = Object.freeze([
@@ -552,7 +563,24 @@ export function executeTrainingToDraft(
     calculateBadgeTrainingBonusRate(
       Object.values(draft.collections.badges ?? {}),
     );
-  const result = calculateWeeklyTraining(assignments, badgeBonusRate);
+  const diningCoachBonusRate =
+    Math.max(
+      0,
+      Math.min(
+        DINING_RULES.maximumCoachTrainingBonusRate,
+        Number(
+          draft.dining?.coachTrainingBonusRate ??
+          0,
+        ),
+      ),
+    );
+  const totalTrainingBonusRate =
+    badgeBonusRate +
+    diningCoachBonusRate;
+  const result = calculateWeeklyTraining(
+    assignments,
+    totalTrainingBonusRate,
+  );
 
   const playerPointPools = ensurePlayerTrainingPointsToDraft(draft);
   for (const memberResult of result.memberResults) {
@@ -612,6 +640,9 @@ export function executeTrainingToDraft(
 
   return {
     ...deepClone(result),
+    badgeBonusRate,
+    diningCoachBonusRate,
+    totalTrainingBonusRate,
     weekAdvance,
     trainingCompleted: draft.records.trainingCompleted,
   };
@@ -1679,7 +1710,15 @@ function packOpeningPresentation(result) {
 }
 
 export function renderTrainingManagement(snapshot) {
-  const bonusRate = snapshot.collectionBonuses?.trainingPointRate ?? 0;
+  const badgeBonusRate =
+    snapshot.collectionBonuses?.trainingPointRate ??
+    0;
+  const diningCoachBonusRate =
+    snapshot.dining?.coachTrainingBonusRate ??
+    0;
+  const totalBonusRate =
+    badgeBonusRate +
+    diningCoachBonusRate;
   const tournamentWeek = getTournamentWeekStatus(snapshot);
   const notice = tournamentWeek.hasTournament
     ? `<section class="training-tournament-notice ${tournamentWeek.trainingBlocked ? "is-blocked" : "is-observer"}">
@@ -1702,8 +1741,12 @@ export function renderTrainingManagement(snapshot) {
   return `
     ${notice}
     <section class="management-summary training-summary">
-      <strong>バッジ補正 +${(bonusRate * 100).toFixed(1)}%</strong>
-      <span>各選手のアイコンから練習を選択。獲得ポイントは選手ごとに保存されます。</span>
+      <div class="training-bonus-ledger">
+        <span>バッジ <strong>+${(badgeBonusRate * 100).toFixed(1)}%</strong></span>
+        <span>コーチ食事 <strong>+${(diningCoachBonusRate * 100).toFixed(1)}%</strong></span>
+        <span class="is-total">合計 <strong>+${(totalBonusRate * 100).toFixed(1)}%</strong></span>
+      </div>
+      <span>各選手のアイコンから練習を選択。コーチへ料理を提供した週は獲得ポイントが上昇します。</span>
     </section>
     <form class="training-assignment-form training-stage training-stage--icons" data-form="training">
       ${snapshot.playerTeam.members.map((player, playerIndex) => {
@@ -1909,7 +1952,7 @@ export function renderShopManagement(snapshot) {
         </section>
       </header>
       <div class="mobshop-counter-light" aria-hidden="true"><i></i><i></i><i></i></div>
-      <nav class="mobshop-category-grid" aria-label="ショップカテゴリ">
+      <nav class="mobshop-category-grid" data-scroll-memory="mobshop-category-strip" aria-label="ショップカテゴリ">
         ${SHOP_CATEGORY_DEFINITIONS.map((entry) => `
           <button type="button" class="${category === entry.id ? "is-active" : ""}" data-action="select-shop-category" data-shop-category="${escapeAttribute(entry.id)}">
             <img src="${escapeAttribute(entry.icon)}" alt="">
@@ -2480,29 +2523,6 @@ const FOOD_RANK_ORDER = Object.freeze({
   SS: 6,
 });
 
-const HUNGRY_SPEECHES = Object.freeze([
-  "お腹すいた…",
-  "ご飯なにかな？",
-  "楽しみだな！",
-  "早く～！",
-  "ご飯、ご飯♪",
-  "今日は何を食べようかな？",
-  "いい匂いがしてきた！",
-  "温かい料理がいいな！",
-  "甘いものも食べたい！",
-  "おかわりできるかな？",
-  "今週もいっぱい動いた！",
-  "できたてが楽しみ！",
-  "料理、完成したかな？",
-  "何から食べようかな？",
-  "お腹ぺこぺこです！",
-  "みんなで食べると美味しいね！",
-  "今日は豪華かな？",
-  "食堂へ急ごう！",
-  "好きな料理があるといいな！",
-  "いただきますの準備できてます！",
-]);
-
 function deterministicTextIndex(
   value,
   length,
@@ -3068,6 +3088,114 @@ function diningCharacterRecord(
   };
 }
 
+function diningCharacterSource(
+  snapshot,
+  type,
+  characterId,
+) {
+  const source =
+    type === "player"
+      ? snapshot.playerTeam.members.find(
+          (entry) =>
+            entry.playerId === characterId,
+        )
+      : type === "coach"
+        ? (snapshot.coaches ?? []).find(
+            (entry) =>
+              entry.coachId === characterId,
+          )
+        : (snapshot.employees ?? []).find(
+            (entry) =>
+              entry.employeeId === characterId,
+          );
+  return source
+    ? diningCharacterRecord(
+        source,
+        type,
+        0,
+      )
+    : null;
+}
+
+function diningAvailableFoodEntries(
+  snapshot,
+) {
+  return Object.values(
+    snapshot.cooking.foodInventory ?? {},
+  )
+    .filter(
+      (record) =>
+        Number(record.quantity ?? 0) > 0,
+    )
+    .map(
+      (record) => {
+        const variant =
+          createFoodVariant(
+            record.recipeId,
+            record.qualityId,
+          );
+        return {
+          ...record,
+          ...variant,
+          number:
+            getRecipe(record.recipeId).number,
+        };
+      },
+    )
+    .sort(
+      (left, right) =>
+        (FOOD_RANK_ORDER[right.rank] ?? 0) -
+          (FOOD_RANK_ORDER[left.rank] ?? 0) ||
+        left.number - right.number ||
+        left.name.localeCompare(right.name),
+    );
+}
+
+function diningMealPhase(
+  meal,
+  now = Date.now(),
+) {
+  if (!meal) {
+    return "hungry";
+  }
+  if (
+    now >=
+    new Date(meal.readyAt).getTime()
+  ) {
+    return "finished";
+  }
+  return "eating";
+}
+
+function diningEffectDescription(
+  characterType,
+  foods,
+) {
+  if (characterType === "player") {
+    return "料理ランクごとにやる気上昇を3回判定します。";
+  }
+  if (characterType === "coach") {
+    const rate =
+      foods.reduce(
+        (sum, food) => {
+          const value = {
+            D: 0.05,
+            C: 0.10,
+            B: 0.15,
+            A: 0.20,
+            S: 0.30,
+            SS: 0.50,
+          }[food.rank] ?? 0;
+          return sum + value;
+        },
+        0,
+      ) /
+      Math.max(1, foods.length);
+    return `今週のトレーニング獲得量 +${(rate * 100).toFixed(1)}%。複数コーチ分は加算されます。`;
+  }
+  return "料理ランクに応じた料理ポイントを3品分獲得します。";
+}
+
 function renderDiningSeat(
   character,
   seatIndex,
@@ -3080,32 +3208,231 @@ function renderDiningSeat(
       </div>
     `;
   }
+
+  const meal =
+    snapshot.dining?.activeMeals?.[
+      character.characterId
+    ] ?? null;
+  const completed =
+    snapshot.dining?.completedCharacterIds?.includes(
+      character.characterId,
+    ) === true;
+  if (completed && !meal) {
+    return `
+      <div class="dining-seat is-finished">
+        <i></i>
+      </div>
+    `;
+  }
+
+  const phase =
+    diningMealPhase(meal);
+  const speechMaster =
+    phase === "eating"
+      ? DINING_EATING_SPEECHES
+      : DINING_HUNGRY_SPEECHES;
   const speech =
-    HUNGRY_SPEECHES[
-      deterministicTextIndex(
-        `${snapshot.gameDate.year}-${snapshot.gameDate.month}-${snapshot.gameDate.week}-${character.characterId}-${seatIndex}`,
-        HUNGRY_SPEECHES.length,
-      )
-    ];
+    phase === "finished"
+      ? "ごちそうさまでした！"
+      : speechMaster[
+          deterministicTextIndex(
+            `${snapshot.dining?.weekKey}-${character.characterId}-${seatIndex}-${phase}`,
+            speechMaster.length,
+          )
+        ];
+  const tagName =
+    meal
+      ? "div"
+      : "button";
+  const actionAttributes =
+    meal
+      ? ""
+      : `data-action="inspect-dining-character" data-character-id="${escapeAttribute(character.characterId)}" data-character-type="${escapeAttribute(character.type)}"`;
+  const remaining =
+    meal
+      ? Math.max(
+          0,
+          Math.ceil(
+            (
+              new Date(meal.readyAt).getTime() -
+              Date.now()
+            ) /
+            1000,
+          ),
+        )
+      : 0;
+
   return `
-    <button
-      type="button"
-      class="dining-seat has-character"
-      data-action="inspect-dining-character"
-      data-character-id="${escapeAttribute(character.characterId)}"
-      data-character-type="${escapeAttribute(character.type)}"
+    <${tagName}
+      ${tagName === "button" ? 'type="button"' : ""}
+      class="dining-seat has-character is-${escapeAttribute(phase)}"
+      ${actionAttributes}
     >
-      <span class="dining-hungry-bubble">${escapeHtml(speech)}</span>
+      <div class="dining-seat__character">
+        <span class="dining-hungry-bubble">${escapeHtml(speech)}</span>
+        <img
+          src="${escapeAttribute(character.image)}"
+          data-character-portrait
+          data-role="${escapeAttribute(character.role)}"
+          alt=""
+        >
+        <strong>${escapeHtml(character.name)}</strong>
+        <small>${escapeHtml(character.role)}</small>
+      </div>
       <div class="dining-round-chair"></div>
-      <img
-        src="${escapeAttribute(character.image)}"
-        data-character-portrait
-        data-role="${escapeAttribute(character.role)}"
-        alt=""
+      ${
+        meal
+          ? `
+            <div class="dining-seat__meal">
+              ${meal.foods.map((food) => `
+                <img
+                  src="${escapeAttribute(food.image)}"
+                  alt="${escapeAttribute(food.name)}"
+                >
+              `).join("")}
+              <b
+                data-dining-countdown
+                data-phase="${escapeAttribute(phase)}"
+                data-ready-at="${escapeAttribute(meal.readyAt)}"
+                data-clear-at="${escapeAttribute(meal.clearAt)}"
+              >${phase === "finished" ? "FINISH" : `${remaining}s`}</b>
+            </div>
+          `
+          : ""
+      }
+    </${tagName}>
+  `;
+}
+
+function renderDiningSelectionPanel(
+  snapshot,
+  character,
+) {
+  if (!character) {
+    return `
+      <aside class="dining-selection-panel is-empty">
+        <strong>キャラクターをタップ</strong>
+        <span>今週まだ食事をしていないキャラクターへ、異なる料理を3品選んでください。</span>
+      </aside>
+    `;
+  }
+
+  const foods =
+    diningAvailableFoodEntries(snapshot);
+  const selectedKeys =
+    MANAGEMENT_VIEW_STATE
+      .diningSelectedFoods;
+  const selectedFoods =
+    selectedKeys
+      .map(
+        (key) =>
+          foods.find(
+            (food) =>
+              food.variantKey === key,
+          ),
+      )
+      .filter(Boolean);
+
+  return `
+    <aside class="dining-selection-panel">
+      <header>
+        <img
+          src="${escapeAttribute(character.image)}"
+          data-character-portrait
+          data-role="${escapeAttribute(character.role)}"
+          alt=""
+        >
+        <div>
+          <span>${escapeHtml(character.type.toUpperCase())}</span>
+          <strong>${escapeHtml(character.name)}</strong>
+          <small>異なる料理を3品選択</small>
+        </div>
+        <button
+          type="button"
+          data-action="cancel-dining-selection"
+        >閉じる</button>
+      </header>
+
+      <div class="dining-selected-dishes">
+        ${Array.from(
+          { length: DINING_RULES.dishesPerMeal },
+          (_value, index) => {
+            const food =
+              selectedFoods[index];
+            return food
+              ? `
+                <button
+                  type="button"
+                  data-action="toggle-dining-food"
+                  data-variant-key="${escapeAttribute(food.variantKey)}"
+                >
+                  <img src="${escapeAttribute(food.image)}" alt="">
+                  <strong>${escapeHtml(food.name)}</strong>
+                  <small>${escapeHtml(food.rank)} RANK</small>
+                </button>
+              `
+              : `
+                <div class="is-empty">
+                  <b>${index + 1}</b>
+                  <span>料理</span>
+                </div>
+              `;
+          },
+        ).join("")}
+      </div>
+
+      <div
+        class="dining-food-shelf"
+        data-scroll-memory="dining-food-shelf"
       >
-      <strong>${escapeHtml(character.name)}</strong>
-      <small>${escapeHtml(character.role)}</small>
-    </button>
+        ${
+          foods.length > 0
+            ? foods.map((food) => {
+                const selected =
+                  selectedKeys.includes(
+                    food.variantKey,
+                  );
+                const duplicateRecipe =
+                  selectedFoods.some(
+                    (selectedFood) =>
+                      selectedFood.recipeId ===
+                        food.recipeId &&
+                      selectedFood.variantKey !==
+                        food.variantKey,
+                  );
+                return `
+                  <button
+                    type="button"
+                    class="${selected ? "is-selected" : ""}"
+                    data-action="toggle-dining-food"
+                    data-variant-key="${escapeAttribute(food.variantKey)}"
+                    ${duplicateRecipe && !selected ? "disabled" : ""}
+                  >
+                    <img src="${escapeAttribute(food.image)}" alt="">
+                    <span>${escapeHtml(food.qualityLabel)}</span>
+                    <strong>${escapeHtml(food.name)}</strong>
+                    <small>${escapeHtml(food.rank)} / ×${formatNumber(food.quantity)}</small>
+                  </button>
+                `;
+              }).join("")
+            : `
+              <p>保存ボックスに料理がありません。キッチンで料理を作ってください。</p>
+            `
+        }
+      </div>
+
+      <div class="dining-selection-panel__effect">
+        ${escapeHtml(diningEffectDescription(character.type, selectedFoods))}
+      </div>
+      <button
+        type="button"
+        class="primary-button dining-serve-button"
+        data-action="serve-dining-meal"
+        ${selectedFoods.length === DINING_RULES.dishesPerMeal ? "" : "disabled"}
+      >
+        3品を提供する
+      </button>
+    </aside>
   `;
 }
 
@@ -3183,6 +3510,18 @@ export function renderCookingDining(
       ],
     },
   ];
+  const selectedCharacter =
+    diningCharacterSource(
+      snapshot,
+      MANAGEMENT_VIEW_STATE
+        .diningSelectedCharacterType,
+      MANAGEMENT_VIEW_STATE
+        .diningSelectedCharacterId,
+    );
+  const completedCount =
+    snapshot.dining
+      ?.completedCharacterIds
+      ?.length ?? 0;
 
   return `
     <section
@@ -3194,19 +3533,23 @@ export function renderCookingDining(
         <div>
           <span>MOB DINING ROOM</span>
           <h1>食堂</h1>
-          <p>在籍している選手・コーチ・従業員だけが席へ表示されます。</p>
+          <p>1人につき週1回、異なる料理を3品提供できます。</p>
         </div>
-        <strong>3 DISHES</strong>
+        <strong>${formatNumber(completedCount)} FED</strong>
       </header>
 
       ${cookingNavigationTemplate("dining")}
+
+      ${renderDiningSelectionPanel(
+        snapshot,
+        selectedCharacter,
+      )}
 
       <section class="dining-room-stage">
         <div class="dining-table-row dining-table-row--top">
           ${tables.slice(0, 3).map((table) => `
             <article class="dining-long-table dining-long-table--${escapeAttribute(table.tableId)}">
               <span>${escapeHtml(table.label)}</span>
-              <div class="dining-table-surface"></div>
               <div class="dining-table-seats">
                 ${table.seats.map((seat, index) =>
                   renderDiningSeat(
@@ -3216,6 +3559,7 @@ export function renderCookingDining(
                   )
                 ).join("")}
               </div>
+              <div class="dining-table-surface"></div>
             </article>
           `).join("")}
         </div>
@@ -3223,7 +3567,6 @@ export function renderCookingDining(
           ${tables.slice(3).map((table) => `
             <article class="dining-long-table dining-long-table--${escapeAttribute(table.tableId)}">
               <span>${escapeHtml(table.label)}</span>
-              <div class="dining-table-surface"></div>
               <div class="dining-table-seats">
                 ${table.seats.map((seat, index) =>
                   renderDiningSeat(
@@ -3233,15 +3576,11 @@ export function renderCookingDining(
                   )
                 ).join("")}
               </div>
+              <div class="dining-table-surface"></div>
             </article>
           `).join("")}
         </div>
       </section>
-
-      <aside class="dining-foundation-note">
-        <strong>食堂基礎を接続しました</strong>
-        <p>キャラクターをタップすると対象を確認できます。3品選択・10秒食事演出・料理効果は次の実装で接続します。</p>
-      </aside>
     </section>
   `;
 }
@@ -3485,7 +3824,7 @@ export function renderCookingManagement(
         </div>
       </section>
 
-      <section class="cooking-workbench">
+      <section class="cooking-workbench" data-cooking-anchor="workbench">
         <header>
           <div>
             <span>ACTIVE STATION ${String(selectedSlot + 1).padStart(2, "0")}</span>
@@ -3651,7 +3990,7 @@ export function renderCookingManagement(
                       pickerSlot,
                     )
                       ? `
-                        <section class="cooking-ingredient-picker">
+                        <section class="cooking-ingredient-picker" data-scroll-memory="cooking-ingredient-picker">
                           <header>
                             <strong>食材枠${pickerSlot + 1}を選択</strong>
                             <button
@@ -3660,7 +3999,7 @@ export function renderCookingManagement(
                               data-ingredient-slot="${pickerSlot}"
                             >この枠を空にする</button>
                           </header>
-                          <div>
+                          <div data-scroll-memory="cooking-ingredient-shelf">
                             ${
                               ownedIngredients.length > 0
                                 ? ownedIngredients.map((ingredient) => {
@@ -3710,7 +4049,7 @@ export function renderCookingManagement(
                       : ""
                   }
 
-                  <section class="cooking-recipe-candidates">
+                  <section class="cooking-recipe-candidates" data-scroll-memory="cooking-recipe-candidates">
                     <header>
                       <span>RECIPE CANDIDATES</span>
                       <strong>作れる料理</strong>
@@ -4606,6 +4945,109 @@ export function createManagementController({
     return true;
   }
 
+  function updateCookingInPlace({
+    anchorSelector =
+      ".cooking-workbench",
+  } = {}) {
+    const current =
+      root.querySelector(
+        ".management-app-content--cooking",
+      );
+    if (!current) {
+      renderPreservingScroll();
+      return false;
+    }
+
+    const page =
+      root.querySelector(
+        ".page-content",
+      );
+    const oldAnchor =
+      current.querySelector(
+        anchorSelector,
+      ) ?? current;
+    const oldTop =
+      oldAnchor
+        .getBoundingClientRect()
+        .top;
+    const oldPageTop =
+      page?.scrollTop ?? 0;
+    const memories =
+      new Map(
+        [...current.querySelectorAll(
+          "[data-scroll-memory]",
+        )].map(
+          (element) => [
+            element.dataset.scrollMemory,
+            {
+              left:
+                element.scrollLeft,
+              top:
+                element.scrollTop,
+            },
+          ],
+        ),
+      );
+
+    const template =
+      document.createElement(
+        "template",
+      );
+    template.innerHTML =
+      `<div class="management-app-content management-app-content--cooking">${renderCookingManagement(
+        stateManager.getSnapshot(),
+      )}</div>`;
+    const replacement =
+      template.content
+        .firstElementChild;
+    current.replaceWith(
+      replacement,
+    );
+
+    for (
+      const element
+      of replacement.querySelectorAll(
+        "[data-scroll-memory]",
+      )
+    ) {
+      const memory =
+        memories.get(
+          element.dataset.scrollMemory,
+        );
+      if (!memory) continue;
+      element.scrollLeft =
+        memory.left;
+      element.scrollTop =
+        memory.top;
+    }
+
+    requestAnimationFrame(
+      () => {
+        const nextAnchor =
+          replacement.querySelector(
+            anchorSelector,
+          ) ?? replacement;
+        if (page) {
+          const nextTop =
+            nextAnchor
+              .getBoundingClientRect()
+              .top;
+          page.scrollTop =
+            Math.max(
+              0,
+              oldPageTop +
+              nextTop -
+              oldTop,
+            );
+        }
+        afterRender(
+          "cooking",
+        );
+      },
+    );
+    return true;
+  }
+
   function wait(milliseconds) {
     return new Promise((resolve) =>
       setTimeout(resolve, milliseconds),
@@ -4924,7 +5366,15 @@ export function createManagementController({
         "kitchen";
       MANAGEMENT_VIEW_STATE.cookingIngredientPickerSlot =
         null;
-      renderPreservingScroll();
+      MANAGEMENT_VIEW_STATE.diningSelectedCharacterId =
+        null;
+      MANAGEMENT_VIEW_STATE.diningSelectedCharacterType =
+        null;
+      MANAGEMENT_VIEW_STATE.diningSelectedFoods = [];
+      updateCookingInPlace({
+        anchorSelector:
+          ".cooking-subnav",
+      });
       return true;
     }
 
@@ -5117,46 +5567,197 @@ export function createManagementController({
     }
 
     if (action === "inspect-dining-character") {
+      MANAGEMENT_VIEW_STATE.diningSelectedCharacterId =
+        actionElement.dataset.characterId;
+      MANAGEMENT_VIEW_STATE.diningSelectedCharacterType =
+        actionElement.dataset.characterType;
+      MANAGEMENT_VIEW_STATE.diningSelectedFoods = [];
+      updateCookingInPlace({
+        anchorSelector:
+          ".dining-selection-panel",
+      });
+      return true;
+    }
+
+    if (action === "cancel-dining-selection") {
+      MANAGEMENT_VIEW_STATE.diningSelectedCharacterId =
+        null;
+      MANAGEMENT_VIEW_STATE.diningSelectedCharacterType =
+        null;
+      MANAGEMENT_VIEW_STATE.diningSelectedFoods = [];
+      updateCookingInPlace({
+        anchorSelector:
+          ".dining-room-stage",
+      });
+      return true;
+    }
+
+    if (action === "toggle-dining-food") {
+      const variantKey =
+        actionElement.dataset.variantKey;
       const snapshot =
         stateManager.getSnapshot();
-      const characterId =
-        actionElement.dataset.characterId;
-      const type =
-        actionElement.dataset.characterType;
-      const source =
-        type === "player"
-          ? snapshot.playerTeam.members.find(
-              (entry) =>
-                entry.playerId ===
-                characterId,
-            )
-          : type === "coach"
-            ? snapshot.coaches.find(
-                (entry) =>
-                  entry.coachId ===
-                  characterId,
-              )
-            : snapshot.employees.find(
-                (entry) =>
-                  entry.employeeId ===
-                  characterId,
-              );
-      await openAlert({
-        title:
-          source?.name ??
-          "食堂",
-        body: `
-          <section class="dining-character-preview">
-            <img src="${escapeAttribute(source?.image ?? "")}" data-character-portrait data-role="${escapeAttribute(source?.role ?? type)}" alt="">
-            <span>${escapeHtml(type.toUpperCase())}</span>
-            <h3>${escapeHtml(source?.name ?? "CHARACTER")}</h3>
-            <p>1回の食事には異なる料理を3品選びます。</p>
-            <small>料理選択と食事効果は次の生成で接続します。</small>
-          </section>
-        `,
-        buttonLabel:
-          "OK",
+      const record =
+        snapshot.cooking.foodInventory?.[
+          variantKey
+        ];
+      if (!record || record.quantity < 1) {
+        showToast(
+          "この料理は所持していません",
+        );
+        return true;
+      }
+      const selected =
+        MANAGEMENT_VIEW_STATE
+          .diningSelectedFoods;
+      const index =
+        selected.indexOf(
+          variantKey,
+        );
+      if (index >= 0) {
+        selected.splice(index, 1);
+      } else {
+        const recipeDuplicate =
+          selected.some(
+            (key) =>
+              snapshot.cooking.foodInventory?.[
+                key
+              ]?.recipeId ===
+              record.recipeId,
+          );
+        if (recipeDuplicate) {
+          showToast(
+            "同じ料理は重複して選べません",
+          );
+          return true;
+        }
+        if (
+          selected.length >=
+          DINING_RULES.dishesPerMeal
+        ) {
+          showToast(
+            "料理は3品までです",
+          );
+          return true;
+        }
+        selected.push(
+          variantKey,
+        );
+      }
+      updateCookingInPlace({
+        anchorSelector:
+          ".dining-selection-panel",
       });
+      return true;
+    }
+
+    if (action === "serve-dining-meal") {
+      const snapshot =
+        stateManager.getSnapshot();
+      const character =
+        diningCharacterSource(
+          snapshot,
+          MANAGEMENT_VIEW_STATE
+            .diningSelectedCharacterType,
+          MANAGEMENT_VIEW_STATE
+            .diningSelectedCharacterId,
+        );
+      const selected =
+        [...MANAGEMENT_VIEW_STATE
+          .diningSelectedFoods];
+      if (
+        !character ||
+        selected.length !==
+          DINING_RULES.dishesPerMeal
+      ) {
+        return true;
+      }
+      const foods =
+        selected.map(
+          (variantKey) => {
+            const record =
+              snapshot.cooking
+                .foodInventory[
+                  variantKey
+                ];
+            return {
+              ...createFoodVariant(
+                record.recipeId,
+                record.qualityId,
+              ),
+              quantity:
+                record.quantity,
+            };
+          },
+        );
+      const confirmed =
+        await openConfirm({
+          title:
+            "これで提供しますか？",
+          body: `
+            <section class="dining-serve-confirm">
+              <header>
+                <img src="${escapeAttribute(character.image)}" alt="">
+                <strong>${escapeHtml(character.name)}</strong>
+              </header>
+              <div>
+                ${foods.map((food) => `
+                  <article>
+                    <img src="${escapeAttribute(food.image)}" alt="">
+                    <span>${escapeHtml(food.qualityLabel)}</span>
+                    <strong>${escapeHtml(food.name)}</strong>
+                    <small>${escapeHtml(food.rank)} RANK</small>
+                  </article>
+                `).join("")}
+              </div>
+              <p>${escapeHtml(diningEffectDescription(character.type, foods))}</p>
+            </section>
+          `,
+          confirmLabel:
+            "はい",
+          cancelLabel:
+            "考え直す",
+        });
+      if (!confirmed) {
+        return true;
+      }
+      try {
+        const transaction =
+          stateManager.transact(
+            "dining_meal_served",
+            (draft) =>
+              serveDiningMealToDraft(
+                draft,
+                {
+                  characterType:
+                    character.type,
+                  characterId:
+                    character.characterId,
+                  variantKeys:
+                    selected,
+                  startedAt:
+                    new Date().toISOString(),
+                },
+              ),
+          );
+        MANAGEMENT_VIEW_STATE.diningSelectedCharacterId =
+          null;
+        MANAGEMENT_VIEW_STATE.diningSelectedCharacterType =
+          null;
+        MANAGEMENT_VIEW_STATE.diningSelectedFoods = [];
+        showToast(
+          `${transaction.result.characterName}へ料理を提供しました`,
+        );
+        updateCookingInPlace({
+          anchorSelector:
+            ".dining-room-stage",
+        });
+      } catch (error) {
+        await showError(
+          "料理を提供できません",
+          error,
+        );
+      }
       return true;
     }
 
@@ -5294,6 +5895,7 @@ export function createManagementController({
                 <span>MENTAL <strong>+${formatNumber(total.mental)}</strong></span>
                 <span>SHOOT <strong>+${formatNumber(total.shoot)}</strong></span>
               </div>
+              <small>バッジ +${(tx.result.badgeBonusRate * 100).toFixed(1)}% / コーチ食事 +${(tx.result.diningCoachBonusRate * 100).toFixed(1)}% / 合計 +${(tx.result.totalTrainingBonusRate * 100).toFixed(1)}%</small>
             </section>
           `,
           buttonLabel: "新しい週へ",
@@ -5686,7 +6288,10 @@ export function createManagementController({
         }
         MANAGEMENT_VIEW_STATE.cookingSelectedSlot =
           slotIndex;
-        renderPreservingScroll();
+        updateCookingInPlace({
+          anchorSelector:
+            ".cooking-workbench",
+        });
       }
       return true;
     }
@@ -5736,7 +6341,10 @@ export function createManagementController({
         showToast(
           `${utensil.name}を配置しました`,
         );
-        renderPreservingScroll();
+        updateCookingInPlace({
+          anchorSelector:
+            ".cooking-workbench",
+        });
       } catch (error) {
         await showError(
           "調理器具を配置できません",
@@ -5783,7 +6391,10 @@ export function createManagementController({
             ),
         );
         resetCookingSelection();
-        renderPreservingScroll();
+        updateCookingInPlace({
+          anchorSelector:
+            ".cooking-workbench",
+        });
       } catch (error) {
         await showError(
           "調理器具を収納できません",
@@ -5803,7 +6414,10 @@ export function createManagementController({
         ingredientSlot
           ? null
           : ingredientSlot;
-      renderPreservingScroll();
+      updateCookingInPlace({
+        anchorSelector:
+          ".cooking-ingredient-builder",
+      });
       return true;
     }
 
@@ -5845,9 +6459,31 @@ export function createManagementController({
       MANAGEMENT_VIEW_STATE.cookingIngredientSlots[
         ingredientSlot
       ] = ingredientId;
+      const nextEmptySlot =
+        MANAGEMENT_VIEW_STATE
+          .cookingIngredientSlots
+          .findIndex(
+            (entry, index) =>
+              index > ingredientSlot &&
+              entry === null,
+          );
+      const firstEmptySlot =
+        MANAGEMENT_VIEW_STATE
+          .cookingIngredientSlots
+          .findIndex(
+            (entry) =>
+              entry === null,
+          );
       MANAGEMENT_VIEW_STATE.cookingIngredientPickerSlot =
-        null;
-      renderPreservingScroll();
+        nextEmptySlot >= 0
+          ? nextEmptySlot
+          : firstEmptySlot >= 0
+            ? firstEmptySlot
+            : ingredientSlot;
+      updateCookingInPlace({
+        anchorSelector:
+          ".cooking-ingredient-builder",
+      });
       return true;
     }
 
@@ -5860,14 +6496,20 @@ export function createManagementController({
         ingredientSlot
       ] = null;
       MANAGEMENT_VIEW_STATE.cookingIngredientPickerSlot =
-        null;
-      renderPreservingScroll();
+        ingredientSlot;
+      updateCookingInPlace({
+        anchorSelector:
+          ".cooking-ingredient-builder",
+      });
       return true;
     }
 
     if (action === "clear-cooking-ingredients") {
       resetCookingSelection();
-      renderPreservingScroll();
+      updateCookingInPlace({
+        anchorSelector:
+          ".cooking-ingredient-builder",
+      });
       return true;
     }
 
@@ -5939,7 +6581,10 @@ export function createManagementController({
         showToast(
           "調理を開始しました",
         );
-        renderPreservingScroll();
+        updateCookingInPlace({
+          anchorSelector:
+            ".cooking-workbench",
+        });
       } catch (error) {
         await showError(
           "調理を開始できません",
@@ -5974,7 +6619,10 @@ export function createManagementController({
         resetCookingSelection();
         MANAGEMENT_VIEW_STATE.cookingSelectedSlot =
           slotIndex;
-        renderPreservingScroll();
+        updateCookingInPlace({
+          anchorSelector:
+            ".cooking-workbench",
+        });
       } catch (error) {
         await showError(
           "料理を回収できません",
@@ -5987,14 +6635,20 @@ export function createManagementController({
     if (action === "open-cooking-storage") {
       MANAGEMENT_VIEW_STATE.cookingView =
         "storage";
-      renderPreservingScroll();
+      updateCookingInPlace({
+        anchorSelector:
+          ".cooking-subnav",
+      });
       return true;
     }
 
     if (action === "open-cooking-cafeteria") {
       MANAGEMENT_VIEW_STATE.cookingView =
         "dining";
-      renderPreservingScroll();
+      updateCookingInPlace({
+        anchorSelector:
+          ".cooking-subnav",
+      });
       return true;
     }
 
@@ -6128,24 +6782,14 @@ export function createManagementController({
 
     if (route === "cooking") {
       const updateCountdowns = () => {
-        const kitchen =
-          root.querySelector(
-            "[data-cooking-kitchen]",
-          );
-        if (!kitchen) {
-          if (cookingTimerId !== null) {
-            clearInterval(
-              cookingTimerId,
-            );
-            cookingTimerId = null;
-          }
-          return;
-        }
-        let becameReady =
+        let refreshRequired =
           false;
+        const now =
+          Date.now();
+
         for (
           const element
-          of kitchen.querySelectorAll(
+          of root.querySelectorAll(
             "[data-cooking-countdown]",
           )
         ) {
@@ -6158,8 +6802,7 @@ export function createManagementController({
               0,
               Math.ceil(
                 (
-                  readyAt -
-                  Date.now()
+                  readyAt - now
                 ) /
                 1000,
               ),
@@ -6171,18 +6814,92 @@ export function createManagementController({
                   remaining,
                 );
           if (remaining === 0) {
-            becameReady =
+            refreshRequired =
               true;
           }
         }
+
+        let diningNeedsSettle =
+          false;
+        for (
+          const element
+          of root.querySelectorAll(
+            "[data-dining-countdown]",
+          )
+        ) {
+          const readyAt =
+            new Date(
+              element.dataset.readyAt,
+            ).getTime();
+          const clearAt =
+            new Date(
+              element.dataset.clearAt,
+            ).getTime();
+          if (now >= clearAt) {
+            diningNeedsSettle =
+              true;
+            continue;
+          }
+          if (now >= readyAt) {
+            element.textContent =
+              "FINISH";
+            if (
+              element.dataset.phase !==
+              "finished"
+            ) {
+              element.dataset.phase =
+                "finished";
+              refreshRequired =
+                true;
+            }
+          } else {
+            element.textContent =
+              `${Math.max(0, Math.ceil((readyAt - now) / 1000))}s`;
+          }
+        }
+
+        if (diningNeedsSettle) {
+          try {
+            const transaction =
+              stateManager.transact(
+                "dining_meals_settled",
+                (draft) =>
+                  settleDiningMealsToDraft(
+                    draft,
+                    {
+                      settledAt:
+                        new Date().toISOString(),
+                    },
+                  ),
+              );
+            if (
+              transaction.result.length > 0
+            ) {
+              updateCookingInPlace({
+                anchorSelector:
+                  ".dining-room-stage",
+              });
+              return;
+            }
+          } catch (_error) {
+            // A later timer pass can safely retry settlement.
+          }
+        }
+
         if (
-          becameReady &&
+          refreshRequired &&
           !cookingReadyRefreshScheduled
         ) {
           cookingReadyRefreshScheduled =
             true;
           queueMicrotask(
-            renderPreservingScroll,
+            () =>
+              updateCookingInPlace({
+                anchorSelector:
+                  MANAGEMENT_VIEW_STATE.cookingView === "dining"
+                    ? ".dining-room-stage"
+                    : ".cooking-workbench",
+              }),
           );
         }
       };
@@ -6190,7 +6907,7 @@ export function createManagementController({
       cookingTimerId =
         setInterval(
           updateCountdowns,
-          500,
+          250,
         );
       return;
     }
