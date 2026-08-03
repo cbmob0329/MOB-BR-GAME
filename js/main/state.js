@@ -19,11 +19,11 @@ import {
   getCompanyRankData,
   rankToWeaponValue,
   validateGameDate,
-} from "../../data/game-data.js?v=37";
+} from "../../data/game-data.js?v=39";
 import {
   BATTLE_CONFIG_VERSION,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=37";
+} from "../../data/battle-config.js?v=39";
 import {
   TRAINING_DATA_VERSION,
 } from "../../data/training-data.js";
@@ -48,8 +48,30 @@ import {
   STRATEGY_RULES,
   getStrategy,
 } from "../../data/strategy-data.js";
+import {
+  MOTIVATION_DATA_VERSION,
+  MOTIVATION_RULES,
+  createMotivationRecord,
+  getMotivationDefinition,
+  motivationLevelIndex,
+  normalizeMotivationRecord,
+  shiftMotivation,
+} from "../../data/motivation-data.js?v=39";
+import {
+  EMPLOYEE_DATA_VERSION,
+  EMPLOYEE_MASTER,
+  EMPLOYEE_RULES,
+  applyEmployeeCookingPoints,
+  createInitialEmployeeRecords,
+  getCookingPointsForFoodRank,
+  getEmployeeHpBonus,
+  getEmployeePointsToNext,
+  getEmployeeRankData,
+  getEmployeeWeeklyCoinBonusRate,
+  normalizeEmployeeRecord,
+} from "../../data/employee-data.js?v=39";
 
-export const SAVE_SCHEMA_VERSION = "mobbr-save-2.0.0";
+export const SAVE_SCHEMA_VERSION = "mobbr-save-2.2.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
 
 export const STORAGE_KEYS = Object.freeze({
@@ -416,6 +438,7 @@ function createInitialPlayer(definition, playerName, weaponName) {
       baseCt: skill.baseCt,
     })),
     specialAbilities: [],
+    motivation: createMotivationRecord("normal"),
     temporaryBonuses: {},
     careerRecord: createEmptyCareerRecord(),
   };
@@ -428,6 +451,8 @@ function createInitialWeeklyBonusRecord(timestamp) {
     rank: INITIAL_GAME_DATA.company.rank,
     baseCoin: INITIAL_GAME_DATA.resources.coin,
     cardBonusRate: 0,
+    employeeBonusRate: 0,
+    totalCoinBonusRate: 0,
     granted: deepClone(INITIAL_GAME_DATA.resources),
     source: "new_game_initial_weekly_bonus",
     grantedAt: timestamp,
@@ -449,6 +474,8 @@ function createMasterVersions() {
     roomMaster: ROOM_MASTER_VERSION,
     strategyData: STRATEGY_DATA_VERSION,
     strategyMaster: STRATEGY_MASTER_VERSION,
+    motivationData: MOTIVATION_DATA_VERSION,
+    employeeData: EMPLOYEE_DATA_VERSION,
   };
 }
 
@@ -641,6 +668,8 @@ export function createNewGameState(
       },
     ],
 
+    employees: createInitialEmployeeRecords(timestamp),
+
     collections: {
       cards: {},
       badges: {},
@@ -712,6 +741,8 @@ export function createNewGameState(
       lastSubScreen: null,
       guideFlags: {},
       pendingWeekStart: null,
+      pendingMotivationEvents: [],
+      pendingEmployeeRankUps: [],
     },
 
     system: {
@@ -723,6 +754,8 @@ export function createNewGameState(
         },
       ],
       migrationHistory: [],
+      motivationHistory: [],
+      employeeHistory: [],
     },
   };
 
@@ -773,6 +806,19 @@ function validatePlayer(player, index) {
     throw new SaveCorruptionError(
       `Player ${player.playerId} current HP exceeds max HP.`,
       { code: "INVALID_PLAYER_HP" },
+    );
+  }
+
+  const motivation = normalizeMotivationRecord(player.motivation);
+  const motivationDefinition =
+    getMotivationDefinition(motivation.level);
+  if (
+    motivation.modifier < motivationDefinition.minimumModifier ||
+    motivation.modifier > motivationDefinition.maximumModifier
+  ) {
+    throw new SaveCorruptionError(
+      `Player ${player.playerId} has invalid motivation.`,
+      { code: "INVALID_PLAYER_MOTIVATION" },
     );
   }
 
@@ -834,6 +880,62 @@ function validateInventoryCounts(record, label) {
   for (const [id, quantity] of Object.entries(record)) {
     assertNonEmptyString(id, `${label} ID`, 150);
     assertNonNegativeInteger(quantity, `${label}.${id}`);
+  }
+}
+
+function validateEmployees(employees) {
+  if (
+    !Array.isArray(employees) ||
+    employees.length < 1 ||
+    employees.length > EMPLOYEE_RULES.maximumEmployeeCount
+  ) {
+    throw new SaveCorruptionError(
+      `Employee count must be from 1 to ${EMPLOYEE_RULES.maximumEmployeeCount}.`,
+      { code: "INVALID_EMPLOYEE_COUNT" },
+    );
+  }
+
+  const ids = new Set();
+  for (const employee of employees) {
+    assertPlainObject(employee, "Employee");
+    const employeeId = assertNonEmptyString(
+      employee.employeeId,
+      "Employee ID",
+      100,
+    );
+    if (ids.has(employeeId)) {
+      throw new SaveCorruptionError(
+        `Employee IDs must be unique: ${employeeId}`,
+        { code: "DUPLICATE_EMPLOYEE_ID" },
+      );
+    }
+    ids.add(employeeId);
+
+    const rankData = getEmployeeRankData(employee.rank);
+    if (
+      employee.rankIndex !== rankData.index ||
+      employee.hpBonus !== rankData.hpBonus
+    ) {
+      throw new SaveCorruptionError(
+        `Employee ${employeeId} rank data is inconsistent.`,
+        { code: "EMPLOYEE_RANK_MISMATCH" },
+      );
+    }
+    assertNonNegativeInteger(
+      employee.cookingPoints,
+      `Employee ${employeeId} cooking points`,
+    );
+    if (
+      rankData.pointsToNext !== null &&
+      employee.cookingPoints >= rankData.pointsToNext
+    ) {
+      throw new SaveCorruptionError(
+        `Employee ${employeeId} cooking points exceed the current-rank requirement.`,
+        { code: "INVALID_EMPLOYEE_COOKING_POINTS" },
+      );
+    }
+    assertNonEmptyString(employee.name, `Employee ${employeeId} name`, 40);
+    assertNonEmptyString(employee.image, `Employee ${employeeId} image`, 200);
   }
 }
 
@@ -960,6 +1062,8 @@ export function validateSaveState(state) {
     });
   }
 
+  validateEmployees(state.employees);
+
   assertPlainObject(state.weeklyBonus, "Weekly bonus state");
   if (!Array.isArray(state.weeklyBonus.history)) {
     throw new SaveCorruptionError(
@@ -1009,6 +1113,17 @@ export function validateSaveState(state) {
     throw new SaveCorruptionError("Audit trail must be an array.", {
       code: "INVALID_AUDIT_TRAIL",
     });
+  }
+  if (!Array.isArray(state.system.employeeHistory)) {
+    throw new SaveCorruptionError("Employee history must be an array.", {
+      code: "INVALID_EMPLOYEE_HISTORY",
+    });
+  }
+  if (!Array.isArray(state.ui.pendingEmployeeRankUps)) {
+    throw new SaveCorruptionError(
+      "Pending employee rank-up events must be an array.",
+      { code: "INVALID_EMPLOYEE_PENDING_EVENTS" },
+    );
   }
 
   return true;
@@ -1081,6 +1196,11 @@ function migrateLegacyPlayer(player) {
     };
   });
 
+  migrated.motivation =
+    normalizeMotivationRecord(
+      migrated.motivation,
+    );
+
   delete migrated.secondaryWeapon;
   delete migrated.ult;
 
@@ -1098,6 +1218,14 @@ function migrateUnversionedSave(rawState, timestamp) {
   migrated.ui.lastSubScreen = null;
   migrated.ui.pendingWeekStart =
     migrated.ui.pendingWeekStart ?? null;
+  migrated.ui.pendingMotivationEvents =
+    Array.isArray(migrated.ui.pendingMotivationEvents)
+      ? migrated.ui.pendingMotivationEvents
+      : [];
+  migrated.ui.pendingEmployeeRankUps =
+    Array.isArray(migrated.ui.pendingEmployeeRankUps)
+      ? migrated.ui.pendingEmployeeRankUps
+      : [];
   migrated.company.homeRoomId =
     migrated.company.homeRoomId ??
     migrated.company.activeRoomId ??
@@ -1108,6 +1236,12 @@ function migrateUnversionedSave(rawState, timestamp) {
       deepClone(migrated.trainingPoints ?? createEmptyTrainingPoints()),
     ]),
   );
+  migrated.employees =
+    Array.isArray(migrated.employees) && migrated.employees.length > 0
+      ? migrated.employees.map((employee) =>
+          normalizeEmployeeRecord(employee, employee?.employeeId),
+        )
+      : createInitialEmployeeRecords(timestamp);
   migrated.collections =
     migrated.collections ?? {
       cards: {},
@@ -1152,6 +1286,14 @@ function migrateUnversionedSave(rawState, timestamp) {
   migrated.system.auditTrail = migrated.system.auditTrail ?? [];
   migrated.system.migrationHistory =
     migrated.system.migrationHistory ?? [];
+  migrated.system.motivationHistory =
+    Array.isArray(migrated.system.motivationHistory)
+      ? migrated.system.motivationHistory
+      : [];
+  migrated.system.employeeHistory =
+    Array.isArray(migrated.system.employeeHistory)
+      ? migrated.system.employeeHistory
+      : [];
   migrated.system.migrationHistory.push({
     from: rawState.schemaVersion ?? "unversioned",
     to: SAVE_SCHEMA_VERSION,
@@ -1190,7 +1332,9 @@ export function migrateSaveState(
     rawState.schemaVersion === "mobbr-save-1.6.0" ||
     rawState.schemaVersion === "mobbr-save-1.7.0" ||
     rawState.schemaVersion === "mobbr-save-1.8.0" ||
-    rawState.schemaVersion === "mobbr-save-1.9.0"
+    rawState.schemaVersion === "mobbr-save-1.9.0" ||
+    rawState.schemaVersion === "mobbr-save-2.0.0" ||
+    rawState.schemaVersion === "mobbr-save-2.1.0"
   ) {
     const migrated = migrateUnversionedSave(rawState, timestamp);
     validateSaveState(migrated);
@@ -1270,6 +1414,105 @@ export function applyResourceDeltaToDraft(draft, delta) {
   return deepFreeze(deepClone(nextResources));
 }
 
+export function getEmployeeById(state, employeeId) {
+  assertPlainObject(state, "State");
+  const employee = state.employees?.find(
+    (entry) => entry.employeeId === employeeId,
+  );
+  if (!employee) {
+    throw new RangeError(`Employee not found: ${employeeId}`);
+  }
+  return employee;
+}
+
+export function grantEmployeeCookingPointsToDraft(
+  draft,
+  employeeId,
+  amount,
+  {
+    source = "cooking",
+    reason = "料理を食べた",
+    occurredAt = new Date().toISOString(),
+    queuePresentation = true,
+  } = {},
+) {
+  assertPlainObject(draft, "Draft state");
+  const employee = getEmployeeById(draft, employeeId);
+  const result = applyEmployeeCookingPoints(employee, amount);
+
+  Object.assign(employee, result.employee);
+
+  const event = {
+    eventId: `employee-${employeeId}-${occurredAt}-${draft.system.employeeHistory.length + 1}`,
+    employeeId,
+    employeeName: employee.name,
+    image: employee.image,
+    addedPoints: amount,
+    source,
+    reason,
+    occurredAt,
+    rank: employee.rank,
+    rankIndex: employee.rankIndex,
+    cookingPoints: employee.cookingPoints,
+    pointsToNext: getEmployeePointsToNext(employee.rank),
+    hpBonus: getEmployeeHpBonus(employee.rank),
+    rankUps: deepClone(result.rankUps),
+  };
+
+  draft.system.employeeHistory.push(event);
+  draft.system.employeeHistory =
+    draft.system.employeeHistory.slice(-300);
+
+  if (queuePresentation && result.rankUps.length > 0) {
+    draft.ui.pendingEmployeeRankUps.push(
+      ...result.rankUps.map((rankUp, index) => ({
+        eventId: `${event.eventId}-rank-${index + 1}`,
+        employeeId,
+        employeeName: employee.name,
+        image: employee.image,
+        beforeRank: rankUp.from,
+        afterRank: rankUp.to,
+        beforeHpBonus: rankUp.beforeHpBonus,
+        afterHpBonus: rankUp.afterHpBonus,
+        reason,
+        occurredAt,
+      })),
+    );
+    draft.ui.pendingEmployeeRankUps =
+      draft.ui.pendingEmployeeRankUps.slice(-100);
+  }
+
+  return deepFreeze(deepClone(event));
+}
+
+export function grantEmployeeMealPointsToDraft(
+  draft,
+  employeeId,
+  foodRank,
+  options = {},
+) {
+  const points = getCookingPointsForFoodRank(foodRank);
+  return grantEmployeeCookingPointsToDraft(
+    draft,
+    employeeId,
+    points,
+    {
+      ...options,
+      source: options.source ?? "employee_meal",
+      reason:
+        options.reason ??
+        `${String(foodRank).toUpperCase()}ランク料理を食べた`,
+    },
+  );
+}
+
+export function clearPendingEmployeeRankUpsToDraft(draft) {
+  assertPlainObject(draft, "Draft state");
+  const cleared = deepClone(draft.ui.pendingEmployeeRankUps ?? []);
+  draft.ui.pendingEmployeeRankUps = [];
+  return deepFreeze(cleared);
+}
+
 export function grantWeeklyBonusToDraft(
   draft,
   {
@@ -1289,9 +1532,14 @@ export function grantWeeklyBonusToDraft(
     });
   }
 
+  const employeeBonusRate =
+    getEmployeeWeeklyCoinBonusRate(
+      draft.employees,
+    );
   const bonus = calculateWeeklyCompanyBonus(
     draft.company.rank,
-    cardBonusRate,
+    cardBonusRate +
+      employeeBonusRate,
   );
   applyResourceDeltaToDraft(draft, {
     coin: bonus.coin,
@@ -1304,7 +1552,11 @@ export function grantWeeklyBonusToDraft(
     gameDate: deepClone(draft.gameDate),
     rank: draft.company.rank,
     baseCoin: bonus.baseCoin,
-    cardBonusRate: bonus.cardBonusRate,
+    cardBonusRate:
+      Number(cardBonusRate) || 0,
+    employeeBonusRate,
+    totalCoinBonusRate:
+      bonus.cardBonusRate,
     granted: {
       coin: bonus.coin,
       diamond: bonus.diamond,
@@ -1775,6 +2027,234 @@ function applyConsumedStrategies(
   return applied;
 }
 
+
+function stableMotivationUnit(seedText) {
+  const text = String(seedText);
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0) / 0x1_0000_0000;
+}
+
+function tournamentMotivationTier(tournamentType) {
+  const type = String(tournamentType ?? "").toLowerCase();
+  if (type === "local") return "local";
+  if (type.startsWith("national")) return "national";
+  if (type.startsWith("world")) return "world";
+  if (type === "championship") return "championship";
+  if (type.startsWith("casual_")) return "casual";
+  return "other";
+}
+
+function createMotivationEvent({
+  result,
+  player,
+  sourceType,
+  sourceId,
+  reason,
+  before,
+  after,
+  at,
+}) {
+  return {
+    eventId:
+      `${result.resultId}:${player.playerId}:${sourceType}:${sourceId}`,
+    resultId: result.resultId,
+    tournamentId: result.tournamentId,
+    tournamentType: result.tournamentType,
+    playerId: player.playerId,
+    playerName: player.name,
+    role: player.role,
+    sourceType,
+    sourceId,
+    reason,
+    before: deepClone(before),
+    after: deepClone(after),
+    direction:
+      motivationLevelIndex(after.level) > motivationLevelIndex(before.level)
+        ? "up"
+        : motivationLevelIndex(after.level) < motivationLevelIndex(before.level)
+          ? "down"
+          : after.modifier >= before.modifier
+            ? "up"
+            : "down",
+    changedAt: at,
+  };
+}
+
+function applyPlayerMotivationChange(
+  player,
+  result,
+  {
+    direction,
+    steps = 1,
+    sourceType,
+    sourceId,
+    reason,
+    clock,
+  },
+) {
+  const seedBase =
+    `${result.resultId}:${player.playerId}:${sourceType}:${sourceId}`;
+  const changedAt = nowIso(clock);
+  const shifted = shiftMotivation(
+    player.motivation,
+    direction,
+    {
+      steps,
+      changeUnit: stableMotivationUnit(`${seedBase}:change`),
+      modifierUnit: stableMotivationUnit(`${seedBase}:modifier`),
+      awakenedUnit: stableMotivationUnit(`${seedBase}:awakened`),
+      reason,
+      changedAt,
+    },
+  );
+  if (!shifted.changed) {
+    return null;
+  }
+  player.motivation = shifted.after;
+  return createMotivationEvent({
+    result,
+    player,
+    sourceType,
+    sourceId,
+    reason,
+    before: shifted.before,
+    after: shifted.after,
+    at: changedAt,
+  });
+}
+
+function applyTournamentMotivationToDraft(
+  draft,
+  result,
+  { clock = () => new Date() } = {},
+) {
+  if (
+    result.status === "stage_in_progress" ||
+    !Number.isInteger(result.finalPlace)
+  ) {
+    return [];
+  }
+
+  const events = [];
+  const place = result.finalPlace;
+  const tier = tournamentMotivationTier(result.tournamentType);
+  const teamReason =
+    `${result.tournamentId} トータル${place}位`;
+
+  let negativeSteps = null;
+  if (tier === "local") {
+    if (place === 20) {
+      negativeSteps = 2;
+    } else if (place >= 15 && place <= 19) {
+      negativeSteps = null;
+    }
+  } else if (
+    ["national", "world"].includes(tier) &&
+    place >= 21
+  ) {
+    negativeSteps = null;
+  }
+
+  const negativeApplies =
+    (tier === "local" && place >= 15) ||
+    (["national", "world"].includes(tier) && place >= 21);
+
+  if (negativeApplies) {
+    for (const player of draft.playerTeam.members) {
+      const steps = negativeSteps ??
+        (1 + Math.floor(
+          stableMotivationUnit(
+            `${result.resultId}:${player.playerId}:placement-down-steps`,
+          ) * 2,
+        ));
+      const event = applyPlayerMotivationChange(
+        player,
+        result,
+        {
+          direction: "down",
+          steps,
+          sourceType: "team_placement",
+          sourceId: `place-${place}`,
+          reason: `${teamReason}でやる気が${steps}段階下がった`,
+          clock,
+        },
+      );
+      if (event) events.push(event);
+    }
+  } else {
+    const chance = MOTIVATION_RULES.placementUpChance[place] ?? 0;
+    if (chance > 0) {
+      for (const player of draft.playerTeam.members) {
+        const roll = stableMotivationUnit(
+          `${result.resultId}:${player.playerId}:placement-up-roll`,
+        );
+        if (roll >= chance) continue;
+        const event = applyPlayerMotivationChange(
+          player,
+          result,
+          {
+            direction: "up",
+            steps: 1,
+            sourceType: "team_placement",
+            sourceId: `place-${place}`,
+            reason: `${teamReason}でやる気が上がった`,
+            clock,
+          },
+        );
+        if (event) events.push(event);
+      }
+    }
+  }
+
+  const playerById = new Map(
+    draft.playerTeam.members.map((player) => [player.playerId, player]),
+  );
+  for (const award of Array.isArray(result.awards) ? result.awards : []) {
+    if (award?.category === "FINAL_PODIUM") continue;
+    for (const ranking of Array.isArray(award?.ranking) ? award.ranking : []) {
+      const player = playerById.get(ranking.playerId);
+      const chance = MOTIVATION_RULES.awardUpChance[ranking.place] ?? 0;
+      if (!player || chance <= 0) continue;
+      const sourceId = `${award.awardId ?? award.category}:${ranking.place}`;
+      const roll = stableMotivationUnit(
+        `${result.resultId}:${player.playerId}:award:${sourceId}:roll`,
+      );
+      if (roll >= chance) continue;
+      const event = applyPlayerMotivationChange(
+        player,
+        result,
+        {
+          direction: "up",
+          steps: 1,
+          sourceType: "individual_award",
+          sourceId,
+          reason:
+            `${award.label ?? award.category}で${ranking.place}位に入りやる気が上がった`,
+          clock,
+        },
+      );
+      if (event) events.push(event);
+    }
+  }
+
+  if (events.length > 0) {
+    draft.ui.pendingMotivationEvents = deepClone(events);
+    draft.system.motivationHistory ??= [];
+    draft.system.motivationHistory.push(...deepClone(events));
+    if (draft.system.motivationHistory.length > 300) {
+      draft.system.motivationHistory.splice(
+        0,
+        draft.system.motivationHistory.length - 300,
+      );
+    }
+  }
+  return events;
+}
+
 export function applyTournamentResultToDraft(
   draft,
   result,
@@ -1954,6 +2434,12 @@ export function applyTournamentResultToDraft(
       result.strategyUsage,
     );
   applyMemberTournamentResults(draft, result.memberResults);
+  const motivationEvents =
+    applyTournamentMotivationToDraft(
+      draft,
+      result,
+      { clock },
+    );
 
   const countsAsCompletedTournament =
     result.status !== "stage_in_progress";
@@ -2007,6 +2493,7 @@ export function applyTournamentResultToDraft(
     circuitStageId: result.circuitStageId ?? null,
     choiceGroupId: result.choiceGroupId ?? null,
     advancement: deepClone(result.advancement ?? null),
+    motivationEvents: deepClone(motivationEvents),
   };
 
   draft.tournament.history.push(historyEntry);
@@ -2037,6 +2524,8 @@ export function applyTournamentResultToDraft(
       deepClone(importedTrophies),
     consumedStrategies:
       deepClone(consumedStrategies),
+    motivationEvents:
+      deepClone(motivationEvents),
     weekAdvance,
   });
 }

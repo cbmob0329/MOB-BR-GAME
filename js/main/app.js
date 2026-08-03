@@ -19,8 +19,10 @@ import {
 import {
   SaveError,
   SaveNotFoundError,
+  clearPendingEmployeeRankUpsToDraft,
   createGameStateManager,
-} from "./state.js?v=37";
+  grantEmployeeCookingPointsToDraft,
+} from "./state.js?v=39";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -42,7 +44,7 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=37";
+} from "./team.js?v=39";
 import {
   getSpecialAbility,
 } from "../../data/ability-data.js";
@@ -50,19 +52,28 @@ import {
   getCompanyRankData,
 } from "../../data/game-data.js";
 import {
+  effectiveCharacterRank,
+  motivationDisplay,
+} from "../../data/motivation-data.js?v=39";
+import {
   getRoomMaster,
-} from "../../data/collection-data.js?v=37";
+} from "../../data/collection-data.js?v=39";
+import {
+  EMPLOYEE_RULES,
+  getEmployeeRankData,
+  getTotalEmployeeHpBonus,
+} from "../../data/employee-data.js?v=39";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=37";
+} from "./management.js?v=39";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=37";
+} from "./tournament-bridge.js?v=39";
 
-export const APP_VERSION = "mobbr-main-app-2.4.0";
+export const APP_VERSION = "mobbr-main-app-2.6.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -555,19 +566,81 @@ function menuCardTemplate(item, wide = false) {
   `;
 }
 
+function motivationBadgeTemplate(record, className = "") {
+  const display = motivationDisplay(record);
+  return `
+    <span class="motivation-badge motivation-badge--${escapeAttribute(display.id)} ${escapeAttribute(className)}">
+      <b>${escapeHtml(display.mark)}</b>
+      <em>${escapeHtml(display.name)}</em>
+      <small>${escapeHtml(display.modifierLabel)}</small>
+    </span>
+  `;
+}
+
+function playerEffectiveRank(player) {
+  return effectiveCharacterRank(
+    player.characterRank,
+    player.motivation,
+  );
+}
+
+function employeeHpBonus(snapshot) {
+  return getTotalEmployeeHpBonus(
+    snapshot?.employees ?? [],
+  );
+}
+
+function playerEffectiveHp(snapshot, player) {
+  const baseMaxHp =
+    Math.max(
+      1,
+      Number(player.maxHp) || 1,
+    );
+  const baseCurrentHp =
+    Math.max(
+      0,
+      Math.min(
+        baseMaxHp,
+        Number(player.currentHp) || 0,
+      ),
+    );
+  const bonus =
+    employeeHpBonus(snapshot);
+  const maxHp =
+    baseMaxHp + bonus;
+  const hpRate =
+    baseCurrentHp / baseMaxHp;
+  return {
+    bonus,
+    maxHp,
+    currentHp:
+      baseCurrentHp <= 0
+        ? 0
+        : Math.max(
+            1,
+            Math.round(
+              maxHp * hpRate,
+            ),
+          ),
+  };
+}
+
 function playerRowTemplate(player) {
   return `
     <button type="button" class="player-row player-row--tap" data-action="inspect-team-player" data-player-id="${escapeAttribute(player.playerId)}">
       <img
         class="player-row__image"
+        data-role="${escapeAttribute(player.role)}"
         src="${escapeAttribute(player.image)}"
         alt="${escapeAttribute(player.name)}"
       >
       <div class="player-row__main">
         <div class="player-row__name">${escapeHtml(player.name)}</div>
         <div class="player-row__weapon">
-          ${escapeHtml(player.weapon.weaponName)} / ${escapeHtml(player.characterRank)}
+          ${escapeHtml(player.weapon.weaponName)} /
+          ${escapeHtml(player.characterRank)} → ${escapeHtml(playerEffectiveRank(player))}
         </div>
+        ${motivationBadgeTemplate(player.motivation, "motivation-badge--row")}
       </div>
       <span class="role-badge">${escapeHtml(player.role)}</span>
       <span class="player-row__tap">TAP</span>
@@ -867,6 +940,29 @@ function homeTemplate(snapshot, currentRoute) {
             </button>
           `).join("")}
         </section>
+
+        <section class="home-employee-zone" aria-label="従業員">
+          <header>
+            <span>MOB STAFF</span>
+            <strong>TEAM HP +${formatNumber(employeeHpBonus(snapshot))}</strong>
+          </header>
+          <div class="home-employee-zone__stage">
+            ${(snapshot.employees ?? []).map((employee, index) => `
+              <button
+                type="button"
+                class="home-employee home-employee--${index % 2 === 0 ? "forward" : "reverse"}"
+                style="--employee-delay:${index * -2.7}s"
+                data-action="inspect-employee"
+                data-employee-id="${escapeAttribute(employee.employeeId)}"
+                aria-label="${escapeAttribute(employee.name)} ${escapeAttribute(employee.rank)}"
+              >
+                <img src="${escapeAttribute(employee.image)}" alt="">
+                <span>${escapeHtml(employee.rank)}</span>
+              </button>
+            `).join("")}
+          </div>
+          <small>従業員をタップするとランクと料理ポイントを確認できます</small>
+        </section>
       </div>
       ${bottomNavTemplate(currentRoute)}
     </main>
@@ -957,7 +1053,7 @@ function teamTemplate(snapshot, currentRoute) {
         <section class="team-compact-heading">
           <span>TEAM MEMBERS</span>
           <strong>${escapeHtml(snapshot.playerTeam.teamName)}</strong>
-          <small>選手をタップすると詳細を表示します</small>
+          <small>選手をタップすると詳細を表示します / 従業員効果 TEAM HP +${formatNumber(employeeHpBonus(snapshot))}</small>
         </section>
 
         <section class="team-menu-deck" aria-label="TEAM MENU">
@@ -998,6 +1094,8 @@ function teamTemplate(snapshot, currentRoute) {
               >
               <span>${escapeHtml(player.role)}</span>
               <strong>${escapeHtml(player.name)}</strong>
+              ${motivationBadgeTemplate(player.motivation, "motivation-badge--team")}
+              <small>${escapeHtml(player.characterRank)} → ${escapeHtml(playerEffectiveRank(player))}</small>
               <em>TAP</em>
             </button>
           `).join("")}
@@ -1124,6 +1222,7 @@ function settingsTemplate(snapshot, currentRoute, fromTitle = false) {
                 <button type="button" data-action="test-grant-resources">通貨を補充</button>
                 <button type="button" data-action="test-grant-points">全選手PT補充</button>
                 <button type="button" data-action="test-max-player-build">選手・武器・スキルMAX</button>
+                <button type="button" data-action="test-employee-points">従業員 料理PT+25</button>
                 <button type="button" data-action="test-advance-week" data-weeks="1">+1週</button>
                 <button type="button" data-action="test-advance-week" data-weeks="4">+4週</button>
                 <button type="button" data-action="test-advance-week" data-weeks="12">+12週</button>
@@ -1554,6 +1653,7 @@ export function createMainApp({
   let weaponPlanPlayerId = null;
   let modalQuantityValue = 1;
   let weekStartPresentationOpen = false;
+  let employeeRankPresentationOpen = false;
   let progressionQueue =
     Promise.resolve();
   let toastTimer = null;
@@ -2199,6 +2299,59 @@ export function createMainApp({
     );
   }
 
+  async function showPendingEmployeeRankUpPresentation() {
+    if (
+      employeeRankPresentationOpen ||
+      modalResolver
+    ) {
+      return false;
+    }
+    const snapshot =
+      stateManager.getSnapshot();
+    const pending =
+      snapshot?.ui?.pendingEmployeeRankUps;
+    if (
+      !Array.isArray(pending) ||
+      pending.length === 0
+    ) {
+      return false;
+    }
+
+    employeeRankPresentationOpen = true;
+    try {
+      for (const event of pending) {
+        await playProgressionPresentation({
+          kind: "employee",
+          label: "EMPLOYEE RANK UP",
+          title: "従業員ランクアップ",
+          subject: event.employeeName,
+          rankUp: true,
+          entries: [{
+            label: `${event.beforeRank} → ${event.afterRank}`,
+            before: event.beforeRank,
+            after: event.afterRank,
+            note:
+              `プレイヤー全員 HP +${event.beforeHpBonus} → +${event.afterHpBonus}`,
+            icon:
+              event.image ??
+              "icon/rankup.png",
+          }],
+        });
+      }
+      stateManager.transact(
+        "employee_rank_up_presentations_completed",
+        (draft) => {
+          clearPendingEmployeeRankUpsToDraft(
+            draft,
+          );
+        },
+      );
+    } finally {
+      employeeRankPresentationOpen = false;
+    }
+    return true;
+  }
+
   async function showPendingWeekStartPresentation() {
     if (
       weekStartPresentationOpen ||
@@ -2260,6 +2413,37 @@ export function createMainApp({
               </div>
             </div>
             ${
+              Array.isArray(snapshot.ui?.pendingMotivationEvents) &&
+              snapshot.ui.pendingMotivationEvents.length > 0
+                ? `
+                  <section class="motivation-change-presentation">
+                    <header>
+                      <span>MOTIVATION UPDATE</span>
+                      <strong>大会後のやる気変動</strong>
+                    </header>
+                    <div>
+                      ${snapshot.ui.pendingMotivationEvents.map((event) => {
+                        const before = motivationDisplay(event.before);
+                        const after = motivationDisplay(event.after);
+                        return `
+                          <article data-direction="${escapeAttribute(event.direction)}">
+                            <span>${escapeHtml(event.role)}</span>
+                            <strong>${escapeHtml(event.playerName)}</strong>
+                            <div>
+                              <i class="motivation-badge motivation-badge--${escapeAttribute(before.id)}">${escapeHtml(before.mark)} ${escapeHtml(before.name)}</i>
+                              <b>→</b>
+                              <i class="motivation-badge motivation-badge--${escapeAttribute(after.id)}">${escapeHtml(after.mark)} ${escapeHtml(after.name)} ${escapeHtml(after.modifierLabel)}</i>
+                            </div>
+                            <small>${escapeHtml(event.reason)}</small>
+                          </article>
+                        `;
+                      }).join("")}
+                    </div>
+                  </section>
+                `
+                : ""
+            }
+            ${
               bonus?.gameDate?.year === pending.gameDate.year &&
               bonus?.gameDate?.month === pending.gameDate.month &&
               bonus?.gameDate?.week === pending.gameDate.week
@@ -2282,6 +2466,7 @@ export function createMainApp({
         "week_start_presentation_completed",
         (draft) => {
           draft.ui.pendingWeekStart = null;
+          draft.ui.pendingMotivationEvents = [];
           draft.ui.lastScreen = ROUTES.home;
           draft.ui.lastSubScreen = null;
         },
@@ -2289,6 +2474,9 @@ export function createMainApp({
     } finally {
       weekStartPresentationOpen = false;
     }
+    queueMicrotask(
+      showPendingEmployeeRankUpPresentation,
+    );
     return true;
   }
 
@@ -2460,6 +2648,18 @@ export function createMainApp({
       if (snapshot.ui?.pendingWeekStart) {
         queueMicrotask(
           showPendingWeekStartPresentation,
+        );
+      } else if (
+        Array.isArray(
+          snapshot.ui
+            ?.pendingEmployeeRankUps,
+        ) &&
+        snapshot.ui
+          .pendingEmployeeRankUps
+          .length > 0
+      ) {
+        queueMicrotask(
+          showPendingEmployeeRankUpPresentation,
         );
       }
       return;
@@ -2850,6 +3050,75 @@ export function createMainApp({
       await finishNewGame();
       return;
     }
+    if (action === "inspect-employee") {
+      const snapshot =
+        stateManager.getSnapshot();
+      const employee =
+        snapshot.employees?.find(
+          (entry) =>
+            entry.employeeId ===
+            actionElement.dataset.employeeId,
+        );
+      if (!employee) {
+        return;
+      }
+      const rankData =
+        getEmployeeRankData(
+          employee.rank,
+        );
+      const totalBonus =
+        employeeHpBonus(snapshot);
+      const percentage =
+        rankData.pointsToNext === null
+          ? 100
+          : Math.max(
+              0,
+              Math.min(
+                100,
+                employee.cookingPoints /
+                  rankData.pointsToNext *
+                  100,
+              ),
+            );
+      await openAlert({
+        title:
+          employee.name,
+        body: `
+          <section class="employee-status-modal">
+            <div class="employee-status-modal__portrait">
+              <img src="${escapeAttribute(employee.image)}" alt="">
+              <span>EMPLOYEE</span>
+            </div>
+            <div class="employee-status-modal__main">
+              <span>RANK</span>
+              <strong>${escapeHtml(employee.rank)}</strong>
+              <p>この従業員の効果：プレイヤー全員 HP +${formatNumber(rankData.hpBonus)}</p>
+            </div>
+            <div class="employee-status-modal__gauge">
+              <span><i style="--employee-progress:${percentage}%"></i></span>
+              <strong>
+                ${
+                  rankData.pointsToNext === null
+                    ? "MAX RANK"
+                    : `${formatNumber(employee.cookingPoints)} / ${formatNumber(rankData.pointsToNext)} 料理PT`
+                }
+              </strong>
+            </div>
+            <dl class="employee-status-modal__summary">
+              <div><dt>NEXT RANK</dt><dd>${escapeHtml(rankData.nextRank ?? "MAX")}</dd></div>
+              <div><dt>TEAM HP</dt><dd>+${formatNumber(totalBonus)}</dd></div>
+              <div><dt>STAFF</dt><dd>${formatNumber(snapshot.employees.length)} / ${formatNumber(EMPLOYEE_RULES.maximumEmployeeCount)}</dd></div>
+            </dl>
+            <p class="employee-status-modal__note">
+              料理システム導入後、料理ランクに応じたポイントで成長します。
+            </p>
+          </section>
+        `,
+        buttonLabel:
+          "OK",
+      });
+      return;
+    }
     if (action === "inspect-team-player") {
       const snapshot = stateManager.getSnapshot();
       const player = snapshot.playerTeam.members.find(
@@ -2866,15 +3135,21 @@ export function createMainApp({
         support: "サポート",
       };
       const pointPool = snapshot.playerTrainingPoints?.[player.playerId] ?? snapshot.trainingPoints;
+      const effectiveHp =
+        playerEffectiveHp(
+          snapshot,
+          player,
+        );
       await openAlert({
         title: `${player.role} ${player.name}`,
         body: `
           <section class="player-status-modal">
             <img class="player-status-modal__portrait player-portrait" data-role="${escapeAttribute(player.role)}" src="${escapeAttribute(player.image)}" alt="">
             <div class="player-status-modal__head">
-              <span>総合RANK ${escapeHtml(player.characterRank)}</span>
+              <span>総合RANK ${escapeHtml(player.characterRank)} → ${escapeHtml(playerEffectiveRank(player))}</span>
+              ${motivationBadgeTemplate(player.motivation, "motivation-badge--modal")}
               <strong>${escapeHtml(player.weapon.weaponName)}</strong>
-              <small>HP ${formatNumber(player.currentHp)} / ${formatNumber(player.maxHp)}</small>
+              <small>HP ${formatNumber(effectiveHp.currentHp)} / ${formatNumber(effectiveHp.maxHp)} <b>STAFF +${formatNumber(effectiveHp.bonus)}</b></small>
             </div>
             <div class="player-status-modal__weapon-stats">
               <span>CLOSE <strong>${escapeHtml(player.weapon.rangeRanks.close)}</strong></span>
@@ -2949,6 +3224,41 @@ export function createMainApp({
         }
       });
       showToast("TEST MODE：全選手の能力PTを補充しました");
+      renderPreservingPageScroll();
+      return;
+    }
+    if (action === "test-employee-points") {
+      const snapshot =
+        stateManager.getSnapshot();
+      if (!snapshot?.settings?.testMode) {
+        return;
+      }
+      stateManager.transact(
+        "test_employee_cooking_points_granted",
+        (draft) => {
+          for (const employee of draft.employees) {
+            grantEmployeeCookingPointsToDraft(
+              draft,
+              employee.employeeId,
+              25,
+              {
+                source:
+                  "test_mode",
+                reason:
+                  "TEST MODE 料理ポイント",
+                occurredAt:
+                  new Date().toISOString(),
+                queuePresentation:
+                  true,
+              },
+            );
+          }
+        },
+      );
+      showToast(
+        "TEST MODE：全従業員へ料理PT+25",
+      );
+      await showPendingEmployeeRankUpPresentation();
       renderPreservingPageScroll();
       return;
     }
@@ -3851,7 +4161,7 @@ export function createMainApp({
       ...Array.from({ length: 16 }, (_, index) =>
         assetPath(`home/${String(index + 1).padStart(2, "0")}.png`)
       ),
-      "icon/pink.png", "icon/rankup.png", "icon/kigyo.png", "icon/weponup.png", "icon/skillup.png", "icon/brtetsu.png",
+      "icon/pink.png", "icon/white.png", "icon/rankup.png", "icon/kigyo.png", "icon/weponup.png", "icon/skillup.png", "icon/brtetsu.png",
       "menu/home.png", "menu/team.png", "menu/traning.png", "menu/COL.png",
       "icon/coin.png", "icon/daia.png", "icon/rubi.png",
     ]);

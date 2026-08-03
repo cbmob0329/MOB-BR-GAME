@@ -12,11 +12,15 @@ import {
   characterValueToRank,
   weaponValueToRank,
   getCompanyRankData,
-} from "../../data/game-data.js?v=37";
+} from "../../data/game-data.js?v=39";
 import {
   calculateMaxHp,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=37";
+} from "../../data/battle-config.js?v=39";
+import {
+  effectiveCharacterRank,
+  motivationDisplay,
+} from "../../data/motivation-data.js?v=39";
 import {
   WEAPON_SKINS,
   getWeaponSkin,
@@ -34,7 +38,7 @@ import {
   getWeaponUpgradeCost,
 } from "../../data/ability-data.js";
 
-export const TEAM_FEATURE_VERSION = "mobbr-team-feature-1.1.0";
+export const TEAM_FEATURE_VERSION = "mobbr-team-feature-1.2.0";
 
 const ROLE_ICONS = Object.freeze({
   IGL: "icon/IGL.png",
@@ -80,6 +84,21 @@ function escapeHtml(value) {
 
 function escapeAttribute(value) {
   return escapeHtml(value).replaceAll("`", "&#096;");
+}
+
+function motivationBadgeTemplate(record, className = "") {
+  const display = motivationDisplay(record);
+  return `
+    <span class="motivation-badge motivation-badge--${escapeAttribute(display.id)} ${escapeAttribute(className)}">
+      <b>${escapeHtml(display.mark)}</b>
+      <em>${escapeHtml(display.name)}</em>
+      <small>${escapeHtml(display.modifierLabel)}</small>
+    </span>
+  `;
+}
+
+function effectiveRankForPlayer(player) {
+  return effectiveCharacterRank(player.characterRank, player.motivation);
 }
 
 function formatNumber(value) {
@@ -899,6 +918,7 @@ export function renderPlayerSelector(snapshot, selectedPlayerId) {
           >
           <span>${escapeHtml(player.role)}</span>
           <strong>${escapeHtml(player.name)}</strong>
+          ${motivationBadgeTemplate(player.motivation, "motivation-badge--selector")}
         </button>
       `).join("")}
     </div>
@@ -935,7 +955,8 @@ export function renderTeamDetailsSection(snapshot) {
                 ${escapeHtml(player.role)}
               </span>
               <h3>${escapeHtml(player.name)}</h3>
-              <p>総合RANK ${escapeHtml(player.characterRank)}</p>
+              <p>総合RANK ${escapeHtml(player.characterRank)} → ${escapeHtml(effectiveRankForPlayer(player))}</p>
+              ${motivationBadgeTemplate(player.motivation, "motivation-badge--detail")}
             </div>
           </header>
           <div class="player-stat-mini-grid">

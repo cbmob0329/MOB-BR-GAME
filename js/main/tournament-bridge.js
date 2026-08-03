@@ -12,12 +12,13 @@ import {
   STAT_IDS,
   TOURNAMENT_SCHEDULE_TEMPLATE,
   TOURNAMENT_SESSION_RULES,
+  calculateCharacterOverallRank,
   getChampionshipPoints,
   getCompanyRankData,
   getPlacementPoints,
   getTournamentEventsForDate,
   isChampionshipYear,
-} from "../../data/game-data.js?v=37";
+} from "../../data/game-data.js?v=39";
 import {
   CASUAL_TOURNAMENT_RULES,
   FORMAL_CIRCUIT_RULES,
@@ -31,7 +32,7 @@ import {
   selectTeamIds,
   sourcePoolForTeamId,
   teamSeed,
-} from "../../data/circuit-data.js?v=37";
+} from "../../data/circuit-data.js?v=39";
 import {
   LOCAL_CPU_TEAMS,
 } from "../../data/cpu-local-data.js";
@@ -43,7 +44,7 @@ import {
 } from "../../data/cpu-world-data.js";
 import {
   BATTLE_CONFIG_VERSION,
-} from "../../data/battle-config.js?v=37";
+} from "../../data/battle-config.js?v=39";
 import {
   CONSUMABLE_ITEMS,
   ITEM_MASTER_VERSION,
@@ -51,7 +52,7 @@ import {
 } from "../../data/shop-data.js";
 import {
   getCasualCup,
-} from "../../data/casual-data.js?v=37";
+} from "../../data/casual-data.js?v=39";
 import {
   STRATEGIES,
   STRATEGY_MASTER_VERSION,
@@ -60,9 +61,17 @@ import {
   DuplicateTournamentResultError,
   STORAGE_KEYS,
   calculateChecksum,
-} from "./state.js?v=37";
+} from "./state.js?v=39";
+import {
+  applyMotivationToStats,
+  normalizeMotivationRecord,
+} from "../../data/motivation-data.js?v=39";
+import {
+  EMPLOYEE_DATA_VERSION,
+  getTotalEmployeeHpBonus,
+} from "../../data/employee-data.js?v=39";
 
-export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-2.3.0";
+export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-2.5.0";
 export const TOURNAMENT_ENTRY_SCHEMA_VERSION =
   "mobbr-tournament-entry-1.0.0";
 export const TOURNAMENT_RESULT_SCHEMA_VERSION =
@@ -1096,17 +1105,60 @@ function createSessionId(event, idFactory) {
   return `${event.tournamentId}-${idFactory("session")}`;
 }
 
-function createPlayerMemberSnapshot(player) {
+function createPlayerMemberSnapshot(player, employeeHpBonus = 0) {
+  const motivation =
+    normalizeMotivationRecord(
+      player.motivation,
+    );
+  const effectiveStats =
+    applyMotivationToStats(
+      player.stats,
+      motivation,
+    );
+  const effectiveOverall =
+    calculateCharacterOverallRank(
+      effectiveStats,
+    );
+  const sourceMaxHp = Math.max(1, Number(player.maxHp) || 1);
+  const sourceHp = Math.max(
+    0,
+    Math.min(sourceMaxHp, Number(player.currentHp) || 0),
+  );
+  const hpRate = sourceHp / sourceMaxHp;
+  const normalizedEmployeeHpBonus =
+    Math.max(
+      0,
+      Math.floor(
+        Number(employeeHpBonus) || 0,
+      ),
+    );
+  const effectiveMaxHp = Math.max(
+    1,
+    sourceMaxHp +
+      normalizedEmployeeHpBonus +
+      (effectiveStats.stamina - player.stats.stamina) * 10,
+  );
+  const effectiveCurrentHp = Math.max(
+    sourceHp > 0 ? 1 : 0,
+    Math.round(effectiveMaxHp * hpRate),
+  );
   return {
     playerId: player.playerId,
     name: player.name,
     role: player.role === "SAP" ? "SUP" : player.role,
     image: player.image,
-    characterRank: player.characterRank,
-    characterRankValue: player.characterRankValue,
-    stats: deepClone(player.stats),
-    maxHp: player.maxHp,
-    currentHp: player.currentHp,
+    baseCharacterRank: player.characterRank,
+    baseCharacterRankValue: player.characterRankValue,
+    characterRank: effectiveOverall.rank,
+    characterRankValue: effectiveOverall.internalAverage,
+    baseStats: deepClone(player.stats),
+    stats: deepClone(effectiveStats),
+    motivation: deepClone(motivation),
+    baseMaxHp: player.maxHp,
+    employeeHpBonus:
+      normalizedEmployeeHpBonus,
+    maxHp: effectiveMaxHp,
+    currentHp: effectiveCurrentHp,
     weapon: {
       ...deepClone(player.weapon),
       ammoCurrent: player.weapon.ammoMax,
@@ -1796,7 +1848,18 @@ export function createTournamentEntryData(
     );
   }
 
-  const members = snapshot.playerTeam.members.map(createPlayerMemberSnapshot);
+  const employeeHpBonus =
+    getTotalEmployeeHpBonus(
+      snapshot.employees,
+    );
+  const members =
+    snapshot.playerTeam.members.map(
+      (player) =>
+        createPlayerMemberSnapshot(
+          player,
+          employeeHpBonus,
+        ),
+    );
   const rewardTableSnapshot = deepClone(
     getRewardTableForTournamentType(tournamentType),
   );
@@ -1914,6 +1977,7 @@ export function createTournamentEntryData(
       teamLogo: snapshot.playerTeam.teamLogo,
       companyName: snapshot.playerTeam.companyName,
       members,
+      employeeHpBonus,
       teamCardBonus: snapshot.collectionBonuses.weeklyCoinRate,
       teamBadgeBonus: snapshot.collectionBonuses.trainingPointRate,
       currentForm: snapshot.playerTeam.currentForm,
@@ -1942,6 +2006,10 @@ export function createTournamentEntryData(
       battleConfig: BATTLE_CONFIG_VERSION,
       itemMaster: ITEM_MASTER_VERSION,
       strategyMaster: STRATEGY_MASTER_VERSION,
+      motivationData: snapshot.masterVersions.motivationData,
+      employeeData:
+        snapshot.masterVersions.employeeData ??
+        EMPLOYEE_DATA_VERSION,
       saveMasterVersions: deepClone(snapshot.masterVersions),
     },
     returnContract: {
