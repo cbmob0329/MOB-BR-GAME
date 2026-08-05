@@ -7,7 +7,7 @@
  */
 
 export const PORTRAIT_FIT_VERSION =
-  "mobbr-portrait-fit-1.1.0";
+  "mobbr-portrait-fit-1.2.0";
 
 const ALPHA_BOUNDS_CACHE =
   new Map();
@@ -198,10 +198,14 @@ export function fitPortraitImage(
       Number.isFinite(cssHeightRate)
         ? cssHeightRate
         : targetHeightRate;
+    const cssMinimumScale = Number.parseFloat(computed?.getPropertyValue("--portrait-min-scale") ?? "");
+    const cssMaximumScale = Number.parseFloat(computed?.getPropertyValue("--portrait-max-scale") ?? "");
     const resolvedWidthLimitRate =
       Number.isFinite(cssWidthLimitRate)
         ? cssWidthLimitRate
         : targetWidthRate;
+    const resolvedMinimumScale = Number.isFinite(cssMinimumScale) ? cssMinimumScale : minimumScale;
+    const resolvedMaximumScale = Number.isFinite(cssMaximumScale) ? cssMaximumScale : maximumScale;
 
     // Normalize visible character HEIGHT first. IGL/ATK artwork often has
     // wide arms or weapons, while SUP artwork is narrow and tall. Equal width
@@ -217,8 +221,8 @@ export function fitPortraitImage(
           resolvedHeightRate,
         widthLimitRate:
           resolvedWidthLimitRate,
-        minimumScale,
-        maximumScale,
+        minimumScale: resolvedMinimumScale,
+        maximumScale: resolvedMaximumScale,
       });
     const scale =
       fit.scale;
