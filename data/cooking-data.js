@@ -8,18 +8,18 @@
 
 import {
   getCompanyRankData,
-} from "./game-data.js?v=45";
+} from "./game-data.js?v=46";
 
 export const COOKING_DATA_VERSION =
-  "mobbr-cooking-data-1.1.0";
+  "mobbr-cooking-data-1.2.0";
 export const INGREDIENT_MASTER_VERSION =
   "mobbr-ingredient-master-1.0.0";
 export const RECIPE_MASTER_VERSION =
   "mobbr-recipe-master-1.0.0";
 export const COOKING_UTENSIL_MASTER_VERSION =
-  "mobbr-cooking-utensil-master-1.0.0";
+  "mobbr-cooking-utensil-master-1.1.0";
 export const COOKING_STATE_SCHEMA_VERSION =
-  "mobbr-cooking-state-1.1.0";
+  "mobbr-cooking-state-1.2.0";
 
 function deepFreeze(value) {
   if (
@@ -107,8 +107,8 @@ export const COOKING_SCREEN_ASSETS =
 export const COOKING_RULES = deepFreeze({
   maximumIngredientSlots: 5,
   utensilSlotColumns: 5,
-  utensilSlotRows: 3,
-  utensilSlotCount: 15,
+  utensilSlotRows: 1,
+  utensilSlotCount: 5,
   weeklyIngredientStockCount: 20,
   storageBoxColumns: 5,
   storageBoxRows: 5,
@@ -605,57 +605,57 @@ export const INGREDIENT_MASTER =
 
 export const COOKING_UTENSIL_MASTER =
   deepFreeze([
-  {
-    "utensilId": "frying_pan",
-    "name": "フライパン",
-    "image": null,
-    "priceCoin": 0,
-    "initialOwned": 1,
-    "shopAvailable": false,
-    "shopCategory": "cooking_utensil",
-    "imageStatus": "not_specified_in_source"
-  },
-  {
-    "utensilId": "pot",
-    "name": "鍋",
-    "image": null,
-    "priceCoin": 10000,
-    "initialOwned": 0,
-    "shopAvailable": true,
-    "shopCategory": "cooking_utensil",
-    "imageStatus": "not_specified_in_source"
-  },
-  {
-    "utensilId": "oven",
-    "name": "オーブン",
-    "image": null,
-    "priceCoin": 50000,
-    "initialOwned": 0,
-    "shopAvailable": true,
-    "shopCategory": "cooking_utensil",
-    "imageStatus": "not_specified_in_source"
-  },
-  {
-    "utensilId": "steamer",
-    "name": "蒸し器",
-    "image": null,
-    "priceCoin": 100000,
-    "initialOwned": 0,
-    "shopAvailable": true,
-    "shopCategory": "cooking_utensil",
-    "imageStatus": "not_specified_in_source"
-  },
-  {
-    "utensilId": "mixer",
-    "name": "ミキサー",
-    "image": null,
-    "priceCoin": 300000,
-    "initialOwned": 0,
-    "shopAvailable": true,
-    "shopCategory": "cooking_utensil",
-    "imageStatus": "not_specified_in_source"
-  }
-]);
+    {
+      utensilId: "frying_pan",
+      name: "フライパン",
+      image: null,
+      priceCoin: 0,
+      initialUnlocked: true,
+      shopAvailable: false,
+      unlockLocation: "kitchen",
+      imageStatus: "not_specified_in_source",
+    },
+    {
+      utensilId: "pot",
+      name: "鍋",
+      image: null,
+      priceCoin: 10000,
+      initialUnlocked: false,
+      shopAvailable: false,
+      unlockLocation: "kitchen",
+      imageStatus: "not_specified_in_source",
+    },
+    {
+      utensilId: "oven",
+      name: "オーブン",
+      image: null,
+      priceCoin: 50000,
+      initialUnlocked: false,
+      shopAvailable: false,
+      unlockLocation: "kitchen",
+      imageStatus: "not_specified_in_source",
+    },
+    {
+      utensilId: "steamer",
+      name: "蒸し器",
+      image: null,
+      priceCoin: 100000,
+      initialUnlocked: false,
+      shopAvailable: false,
+      unlockLocation: "kitchen",
+      imageStatus: "not_specified_in_source",
+    },
+    {
+      utensilId: "mixer",
+      name: "ミキサー",
+      image: null,
+      priceCoin: 300000,
+      initialUnlocked: false,
+      shopAvailable: false,
+      unlockLocation: "kitchen",
+      imageStatus: "not_specified_in_source",
+    },
+  ]);
 
 export const RECIPE_MASTER =
   deepFreeze([
@@ -3112,26 +3112,28 @@ export function createInitialCookingState(
       {},
     utensilInventory:
       Object.fromEntries(
-        COOKING_UTENSIL_MASTER
-          .filter(
-            (utensil) =>
-              utensil.initialOwned > 0,
-          )
-          .map(
-            (utensil) => [
-              utensil.utensilId,
-              utensil.initialOwned,
-            ],
-          ),
+        COOKING_UTENSIL_MASTER.map(
+          (utensil) => [
+            utensil.utensilId,
+            1,
+          ],
+        ),
       ),
+    unlockedUtensilIds:
+      COOKING_UTENSIL_MASTER
+        .filter(
+          (utensil) =>
+            utensil.initialUnlocked ===
+            true,
+        )
+        .map(
+          (utensil) =>
+            utensil.utensilId,
+        ),
     utensilSlots:
-      Array.from(
-        {
-          length:
-            COOKING_RULES
-              .utensilSlotCount,
-        },
-        () => null,
+      COOKING_UTENSIL_MASTER.map(
+        (utensil) =>
+          utensil.utensilId,
       ),
     activeJobs:
       Array.from(
@@ -3217,61 +3219,154 @@ export function normalizeCookingState(
           value.ingredientInventory,
         )
       : {};
-  normalized.utensilInventory =
+  const legacyInventory =
     value.utensilInventory &&
     typeof value.utensilInventory ===
       "object" &&
     !Array.isArray(
       value.utensilInventory,
     )
-      ? deepClone(
-          value.utensilInventory,
-        )
-      : deepClone(
-          base.utensilInventory,
-        );
-  normalized.utensilSlots =
+      ? value.utensilInventory
+      : {};
+  const legacySlots =
     Array.isArray(
       value.utensilSlots,
     )
       ? value.utensilSlots
-          .slice(
-            0,
-            COOKING_RULES
-              .utensilSlotCount,
-          )
-      : deepClone(
-          base.utensilSlots,
-        );
-  while (
-    normalized.utensilSlots.length <
-    COOKING_RULES.utensilSlotCount
-  ) {
-    normalized.utensilSlots.push(
-      null,
-    );
-  }
-  normalized.activeJobs =
+      : [];
+  const legacyJobs =
     Array.isArray(
       value.activeJobs,
     )
       ? value.activeJobs
-          .slice(
-            0,
-            COOKING_RULES
-              .utensilSlotCount,
-          )
-      : deepClone(
-          base.activeJobs,
-        );
-  while (
-    normalized.activeJobs.length <
-    COOKING_RULES.utensilSlotCount
-  ) {
-    normalized.activeJobs.push(
-      null,
+      : [];
+  const legacyUtensilMigration =
+    value.schemaVersion !==
+    COOKING_STATE_SCHEMA_VERSION;
+
+  normalized.utensilInventory =
+    Object.fromEntries(
+      COOKING_UTENSIL_MASTER.map(
+        (utensil) => [
+          utensil.utensilId,
+          1,
+        ],
+      ),
     );
+
+  const unlocked =
+    new Set(
+      Array.isArray(
+        value.unlockedUtensilIds,
+      )
+        ? value.unlockedUtensilIds
+        : [],
+    );
+  for (
+    const utensil
+    of COOKING_UTENSIL_MASTER
+  ) {
+    if (
+      utensil.initialUnlocked ===
+        true ||
+      (
+        legacyUtensilMigration &&
+        (
+          Number(
+            legacyInventory[
+              utensil.utensilId
+            ] ??
+            0,
+          ) > 0 ||
+          legacySlots.includes(
+            utensil.utensilId,
+          )
+        )
+      )
+    ) {
+      unlocked.add(
+        utensil.utensilId,
+      );
+    }
   }
+
+  normalized.utensilSlots =
+    COOKING_UTENSIL_MASTER.map(
+      (utensil) =>
+        utensil.utensilId,
+    );
+  normalized.activeJobs =
+    Array.from(
+      {
+        length:
+          COOKING_RULES
+            .utensilSlotCount,
+      },
+      () => null,
+    );
+
+  // Preserve up to five Generation 45 jobs while changing from the old
+  // free-placement grid to five fixed cooking stations.
+  for (
+    let index = 0;
+    index < legacyJobs.length;
+    index += 1
+  ) {
+    const job =
+      legacyJobs[index];
+    if (!job) {
+      continue;
+    }
+    const legacyUtensilId =
+      legacySlots[index] ??
+      job.utensilId ??
+      null;
+    let targetIndex =
+      normalized.utensilSlots
+        .indexOf(
+          legacyUtensilId,
+        );
+    if (
+      targetIndex < 0 ||
+      normalized.activeJobs[
+        targetIndex
+      ] !== null
+    ) {
+      targetIndex =
+        normalized.activeJobs
+          .findIndex(
+            (entry) =>
+              entry === null,
+          );
+    }
+    if (targetIndex < 0) {
+      break;
+    }
+    normalized.activeJobs[
+      targetIndex
+    ] =
+      deepClone(
+        job,
+      );
+    if (legacyUtensilId) {
+      unlocked.add(
+        legacyUtensilId,
+      );
+    }
+  }
+
+  normalized.unlockedUtensilIds =
+    COOKING_UTENSIL_MASTER
+      .map(
+        (utensil) =>
+          utensil.utensilId,
+      )
+      .filter(
+        (utensilId) =>
+          unlocked.has(
+            utensilId,
+          ),
+      );
   normalized.foodInventory =
     value.foodInventory &&
     typeof value.foodInventory ===
@@ -4041,51 +4136,65 @@ export function validateCookingState(
 
   if (
     !Array.isArray(
+      cookingState.unlockedUtensilIds,
+    )
+  ) {
+    throw new RangeError(
+      "Unlocked cooking utensils must be an array.",
+    );
+  }
+  for (
+    const utensilId
+    of cookingState
+      .unlockedUtensilIds
+  ) {
+    getCookingUtensil(
+      utensilId,
+    );
+  }
+  if (
+    new Set(
+      cookingState
+        .unlockedUtensilIds,
+    ).size !==
+    cookingState
+      .unlockedUtensilIds
+      .length
+  ) {
+    throw new RangeError(
+      "Unlocked cooking utensils must be unique.",
+    );
+  }
+
+  if (
+    !Array.isArray(
       cookingState.utensilSlots,
     ) ||
     cookingState.utensilSlots.length !==
       COOKING_RULES.utensilSlotCount
   ) {
     throw new RangeError(
-      "Cooking utensil slot count must equal 15.",
+      "Cooking utensil slot count must equal 5.",
     );
   }
 
-  const placedCounts = {};
   cookingState.utensilSlots.forEach(
     (utensilId, slotIndex) => {
-      if (utensilId === null) {
-        return;
+      const expectedUtensilId =
+        COOKING_UTENSIL_MASTER[
+          slotIndex
+        ]?.utensilId;
+      if (
+        utensilId !==
+        expectedUtensilId
+      ) {
+        throw new RangeError(
+          `Cooking station ${slotIndex} must contain ${expectedUtensilId}.`,
+        );
       }
       getCookingUtensil(
         utensilId,
       );
-      placedCounts[
-        utensilId
-      ] =
-        (
-          placedCounts[
-            utensilId
-          ] ??
-          0
-        ) +
-        1;
-      if (
-        placedCounts[
-          utensilId
-        ] >
-        (
-          cookingState
-            .utensilInventory[
-              utensilId
-            ] ??
-          0
-        )
-      ) {
-        throw new RangeError(
-          `Placed utensil count exceeds inventory: ${utensilId}`,
-        );
-      }
       if (
         cookingState.activeJobs?.[
           slotIndex

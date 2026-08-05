@@ -11,15 +11,15 @@ import {
 } from "./game-data.js";
 import {
   LOCAL_CPU_TEAMS,
-} from "./cpu-local-data.js";
-import {
   NATIONAL_CPU_TEAMS,
-} from "./cpu-national-data.js";
-import {
+  getCpuLeagueForTeamId,
   getWorldCpuTeamsForYear,
-} from "./cpu-world-data.js";
+} from "./cpu-league-registry.js";
 
-export const CIRCUIT_DATA_VERSION = "mobbr-circuit-data-1.3.0";
+export const CIRCUIT_DATA_VERSION = "mobbr-circuit-data-1.4.0";
+
+export const MOB_BR_PRO_LEAGUE_NAME =
+  "MOB BR PRO LEAGUE";
 
 export const FORMAL_STAGE_TYPES = Object.freeze([
   "local",
@@ -228,10 +228,14 @@ export function normalizeCircuitTier(tournamentType) {
 }
 
 export function sourcePoolForTeamId(teamId) {
-  const value = String(teamId ?? "");
-  if (/^L\d+$/i.test(value)) return "local";
-  if (/^N\d+$/i.test(value)) return "national";
-  if (/^W\d+$/i.test(value)) return "world";
+  const assignedLeague =
+    getCpuLeagueForTeamId(teamId);
+  if (
+    ["local", "national", "world", "denden"]
+      .includes(assignedLeague)
+  ) {
+    return assignedLeague;
+  }
   return "player";
 }
 
@@ -247,6 +251,8 @@ export function getCpuPool(sourcePool, year) {
   if (sourcePool === "local") return LOCAL_CPU_TEAMS;
   if (sourcePool === "national") return NATIONAL_CPU_TEAMS;
   if (sourcePool === "world") return getWorldCpuTeamsForYear(year);
+  // Reserved for the future dedicated Denden roster.
+  if (sourcePool === "denden") return [];
   return [];
 }
 
