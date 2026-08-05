@@ -14801,3 +14801,519 @@ img.player-portrait,
       ) !important;
   }
 }
+
+
+/* ==========================================================
+   Generation 44: height-normalized portraits, two-row shop,
+   compact tournament notice and low-flicker cooking/dining UI
+   ========================================================== */
+
+/* The visible character HEIGHT is the common reference.
+   Wide IGL/ATK silhouettes may use slightly more horizontal space instead
+   of being reduced until they look much shorter than SUP. */
+.team-portrait-button img[data-role],
+.training-player-station img.player-portrait,
+.training-cinematic__portrait img,
+.training-result-member__player,
+.player-row__image,
+.dining-seat__character > img,
+.dining-selection-panel img[data-character-portrait] {
+  --portrait-target-height-rate: .78;
+  --portrait-width-limit-rate: 1.24;
+}
+
+.team-portrait-button img[data-role] {
+  height: 198px !important;
+  max-height: 27vh !important;
+}
+
+.training-result-member {
+  overflow: hidden !important;
+}
+
+.training-result-member__player {
+  max-height: 72% !important;
+}
+
+/* Compact tournament notice never occupies the facility-card area. */
+.home-tournament-notice--compact {
+  display: grid !important;
+  width: auto !important;
+  min-height: 60px !important;
+  max-height: 60px !important;
+  grid-template-columns:
+    38px
+    minmax(0, 1fr)
+    82px !important;
+  gap: 6px !important;
+  align-items: center !important;
+  margin: 3px 8px 5px !important;
+  border-width: 2px !important;
+  border-radius: 12px !important;
+  padding: 5px 6px !important;
+  overflow: hidden !important;
+}
+
+.home-tournament-notice--compact > img {
+  width: 38px !important;
+  height: 38px !important;
+}
+
+.home-tournament-notice--compact > div {
+  display: grid !important;
+  min-width: 0;
+  gap: 1px;
+}
+
+.home-tournament-notice--compact span {
+  font-size: .28rem !important;
+}
+
+.home-tournament-notice--compact strong {
+  overflow: hidden !important;
+  font-size: .43rem !important;
+  line-height: 1.15 !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.home-tournament-notice--compact p {
+  display: none !important;
+}
+
+.home-tournament-notice--compact button {
+  width: 82px !important;
+  min-width: 82px !important;
+  min-height: 34px !important;
+  border-radius: 8px !important;
+  padding: 4px !important;
+  font-size: .35rem !important;
+}
+
+.home-facility-grid {
+  gap: 8px !important;
+  padding:
+    4px
+    max(
+      14px,
+      calc((100vw - min(49vw, 188px)) / 2)
+    )
+    5px !important;
+}
+
+.home-facility-image {
+  flex:
+    0 0
+    min(
+      49vw,
+      188px
+    ) !important;
+  min-width:
+    min(
+      49vw,
+      188px
+    ) !important;
+  border-radius: 16px !important;
+}
+
+.home-facility-only.has-tournament-notice
+  .home-facility-grid {
+  margin-top: 0 !important;
+}
+
+.home-facility-only.has-tournament-notice
+  .home-facility-image {
+  flex-basis:
+    min(
+      46vw,
+      178px
+    ) !important;
+  min-width:
+    min(
+      46vw,
+      178px
+    ) !important;
+}
+
+/* Every shop product shelf is exactly two rows and scrolls horizontally.
+   Product tiles are never clipped by a six-column fixed grid. */
+.shop-item-grid,
+.shop-category-product-grid,
+.cooking-shop-grid,
+.cooking-shop-grid--utensil {
+  display: grid !important;
+  grid-template-columns: none !important;
+  grid-template-rows:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    ) !important;
+  grid-auto-flow: column !important;
+  grid-auto-columns:
+    minmax(
+      112px,
+      27vw
+    ) !important;
+  gap: 7px !important;
+  max-height: none !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  padding:
+    7px
+    8px
+    12px !important;
+  scroll-padding-inline: 8px;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.shop-item-grid::-webkit-scrollbar,
+.shop-category-product-grid::-webkit-scrollbar,
+.cooking-shop-grid::-webkit-scrollbar {
+  display: none;
+}
+
+.shop-item-tile,
+.shop-category-product,
+.cooking-shop-product {
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  min-height: 142px !important;
+  scroll-snap-align: start;
+}
+
+.shop-item-tile__image,
+.shop-item-tile__image img,
+.shop-category-product img,
+.cooking-shop-product img {
+  max-width: 74px !important;
+  max-height: 74px !important;
+}
+
+.mobshop-content {
+  min-height: 0 !important;
+  overflow: visible !important;
+  padding-bottom:
+    calc(
+      var(--safe-bottom) +
+      82px
+    ) !important;
+}
+
+.mobshop-content .management-section {
+  overflow: hidden !important;
+}
+
+.mobshop-category-grid {
+  overscroll-behavior-inline: contain;
+}
+
+/* Category changes only replace the content shelf. Suppress tap flashes and
+   transition-driven movement while the new shelf is patched in. */
+.mobshop-popup button,
+.cooking-kitchen button,
+.cooking-dining-screen button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobshop-content,
+.cooking-ingredient-builder,
+.dining-selection-panel,
+.dining-room-stage {
+  overflow-anchor: none;
+}
+
+/* Stable cooking layout. Ingredient changes replace only this fragment,
+   so the page, header and utensil grid do not flash or jump. */
+.management-app-content--cooking {
+  overflow-anchor: none;
+}
+
+.cooking-workbench {
+  gap: 7px !important;
+}
+
+.cooking-ingredient-builder {
+  min-height: 420px;
+  contain: layout style;
+  border-radius: 14px !important;
+  padding: 8px !important;
+}
+
+.cooking-ingredient-builder button,
+.cooking-recipe-card,
+.cooking-ingredient-picker button,
+.cooking-ingredient-slots > button {
+  transition: none !important;
+}
+
+.cooking-ingredient-slots {
+  display: grid !important;
+  grid-template-columns:
+    repeat(
+      5,
+      minmax(78px, 1fr)
+    ) !important;
+  gap: 5px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  padding: 4px 2px 8px !important;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+.cooking-ingredient-slots::-webkit-scrollbar {
+  display: none;
+}
+
+.cooking-ingredient-slots > button {
+  min-width: 78px !important;
+  min-height: 92px !important;
+  scroll-snap-align: start;
+  padding: 4px 2px !important;
+}
+
+.cooking-ingredient-slots > button > img {
+  width: 48px !important;
+  height: 48px !important;
+}
+
+.cooking-ingredient-picker {
+  min-height: 126px;
+  border-radius: 11px !important;
+  padding: 6px !important;
+}
+
+.cooking-ingredient-picker > div,
+.cooking-recipe-candidates > div,
+.dining-food-shelf {
+  display: grid !important;
+  grid-template-columns: none !important;
+  grid-template-rows:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    ) !important;
+  grid-auto-flow: column !important;
+  grid-auto-columns:
+    minmax(
+      84px,
+      22vw
+    ) !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  gap: 5px !important;
+  padding: 4px 2px 8px !important;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+.cooking-ingredient-picker > div::-webkit-scrollbar,
+.cooking-recipe-candidates > div::-webkit-scrollbar,
+.dining-food-shelf::-webkit-scrollbar {
+  display: none;
+}
+
+.cooking-ingredient-picker > div > button,
+.cooking-recipe-card,
+.dining-food-shelf > button {
+  min-width: 0 !important;
+  scroll-snap-align: start;
+}
+
+.cooking-recipe-card {
+  min-height: 116px !important;
+  padding: 5px 3px !important;
+}
+
+.cooking-recipe-card img {
+  width: 62px !important;
+  height: 62px !important;
+}
+
+/* Dining room: one full-width table per row. All characters and the table
+   surface remain visible, with food placed on the foreground surface. */
+.cooking-dining-screen {
+  gap: 7px !important;
+  padding-bottom:
+    calc(
+      var(--safe-bottom) +
+      84px
+    ) !important;
+}
+
+.cooking-screen-heading--dining {
+  min-height: 70px !important;
+  padding: 7px !important;
+}
+
+.dining-selection-panel {
+  min-height: 80px;
+  margin: 3px 7px 8px !important;
+  contain: layout style;
+}
+
+.dining-selection-panel.is-empty {
+  display: grid;
+  min-height: 68px !important;
+  place-content: center;
+  text-align: center;
+}
+
+.dining-room-stage {
+  display: block !important;
+  min-height: 0 !important;
+  padding: 0 7px 12px !important;
+  background: transparent !important;
+}
+
+.dining-table-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.dining-long-table {
+  position: relative !important;
+  display: grid !important;
+  min-height: 188px !important;
+  grid-template-rows:
+    22px
+    minmax(0, 1fr) !important;
+  overflow: hidden !important;
+  border: 2px solid rgb(127 220 255 / 18%) !important;
+  border-radius: 15px !important;
+  padding: 5px 5px 7px !important;
+  background:
+    linear-gradient(
+      180deg,
+      rgb(3 13 25 / 91%),
+      rgb(8 20 34 / 96%)
+    ) !important;
+  box-shadow:
+    0 10px 18px
+    rgb(0 0 0 / 25%);
+}
+
+.dining-long-table > span {
+  position: relative !important;
+  z-index: 15 !important;
+  inset: auto !important;
+  align-self: center;
+  justify-self: start;
+  padding-left: 5px;
+  color: #83e5ff !important;
+  font-size: .3rem !important;
+}
+
+.dining-table-seats {
+  position: relative !important;
+  z-index: 3;
+  display: grid !important;
+  min-height: 154px !important;
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    ) !important;
+  align-items: end !important;
+  gap: 4px !important;
+}
+
+.dining-seat,
+.dining-seat.is-empty,
+.dining-seat.is-finished {
+  min-height: 154px !important;
+  grid-template-rows:
+    1fr
+    24px !important;
+  overflow: visible !important;
+}
+
+.dining-seat__character {
+  height: 132px !important;
+  overflow: visible !important;
+}
+
+.dining-seat__character > img {
+  bottom: 27px !important;
+  width: 100% !important;
+  height: 104px !important;
+  max-width: 118px !important;
+  --portrait-target-height-rate: .82;
+  --portrait-width-limit-rate: 1.12;
+}
+
+.dining-hungry-bubble {
+  top: 0 !important;
+  max-width: 104px !important;
+  padding: 4px 6px !important;
+  font-size: .23rem !important;
+}
+
+.dining-table-surface {
+  z-index: 7 !important;
+  right: 5% !important;
+  bottom: 19px !important;
+  left: 5% !important;
+  height: 43px !important;
+  border-radius: 999px !important;
+}
+
+.dining-round-chair {
+  z-index: 2 !important;
+  height: 24px !important;
+}
+
+.dining-seat__meal {
+  z-index: 10 !important;
+  bottom: 27px !important;
+}
+
+.dining-seat__meal img {
+  width: 29px !important;
+  height: 29px !important;
+}
+
+.dining-selected-dishes {
+  min-height: 78px;
+}
+
+@media (max-width: 390px) {
+  .home-facility-image {
+    flex-basis:
+      min(
+        47vw,
+        176px
+      ) !important;
+    min-width:
+      min(
+        47vw,
+        176px
+      ) !important;
+  }
+
+  .shop-item-grid,
+  .shop-category-product-grid,
+  .cooking-shop-grid,
+  .cooking-shop-grid--utensil {
+    grid-auto-columns:
+      minmax(
+        104px,
+        31vw
+      ) !important;
+  }
+
+  .dining-seat__character > img {
+    height: 94px !important;
+    max-width: 104px !important;
+  }
+
+  .dining-hungry-bubble {
+    max-width: 92px !important;
+    font-size: .2rem !important;
+  }
+}

@@ -10691,3 +10691,42 @@ img[data-character-portrait],
 .encounter-compact-team img {
   height: 105px !important;
 }
+
+
+/* ==========================================================
+   Generation 44: visible-height portrait normalization
+   ========================================================== */
+
+/* All roles and both sides use the same height target. The wider safety limit
+   allows IGL/ATK arm and weapon silhouettes to remain the same body height as
+   narrow SUP artwork. */
+img[data-character-portrait],
+.opening-lineup__member > img,
+.player-intro-card > img,
+.deployment-team img,
+.encounter-compact-team img,
+.battle-fighter__portrait > img,
+.actual-round-result-list img,
+.battle-survivor-grid img,
+.match-champion-members img,
+.award-place img {
+  --portrait-target-height-rate: .80;
+  --portrait-width-limit-rate: 1.24;
+}
+
+.opening-lineup__member,
+.player-intro-card,
+.deployment-team article,
+.encounter-compact-team article,
+.battle-fighter__portrait {
+  overflow: hidden !important;
+}
+
+/* Recalculation is screen-specific. Avoid animating between stale and current
+   scales when the same source image appears in a different layout box. */
+img[data-character-portrait][data-portrait-balanced="true"] {
+  transition:
+    opacity
+    90ms
+    ease !important;
+}
