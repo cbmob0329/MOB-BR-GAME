@@ -13,12 +13,12 @@ import {
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=46";
+} from "../../data/game-data.js?v=48";
 import {
   isCasualTournamentType,
   resolveCpuTeamMaster,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=46";
+} from "../../data/circuit-data.js?v=48";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
@@ -56,6 +56,7 @@ import {
   COLLECTION_DUPLICATE_RULES,
   ROOM_MASTER,
   ROOM_PLACEMENT_RULES,
+  RETIRED_CARD_COLLECTION_IDS,
   calculateCollectionBonusRate,
   getBadgesForTier,
   getCardsForTeamIds,
@@ -70,7 +71,7 @@ import {
   unlockCookingUtensilToDraft,
   serveDiningMealToDraft,
   settleDiningMealsToDraft,
-} from "./state.js?v=46";
+} from "./state.js?v=48";
 import {
   COOKING_RULES,
   COOKING_SCREEN_ASSETS,
@@ -87,23 +88,27 @@ import {
   getRecipeCandidates,
   isCookingJobReady,
   startCookingJobToDraft,
-} from "../../data/cooking-data.js?v=46";
+} from "../../data/cooking-data.js?v=48";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=46";
+} from "./tournament-bridge.js?v=48";
 import {
   DINING_EATING_SPEECHES,
   DINING_HUNGRY_SPEECHES,
   DINING_RULES,
   diningWeekKey,
-} from "../../data/dining-data.js?v=46";
+} from "../../data/dining-data.js?v=48";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-2.4.0";
+  "mobbr-management-feature-2.5.0";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
 const ROOM_EPSILON = 0.001;
+const RETIRED_CARD_ID_SET =
+  new Set(
+    RETIRED_CARD_COLLECTION_IDS,
+  );
 
 const MANAGEMENT_VIEW_STATE = {
   shopCategory: null,
@@ -944,7 +949,23 @@ export function openCardPacksToDraft(
     throw new RangeError("開封できるカードパックがありません。");
   }
 
-  const pool = getCardsForTeamIds(pack.teamIds);
+  const pool =
+    getCardsForTeamIds(
+      pack.teamIds,
+    ).filter(
+      (card) =>
+        !RETIRED_CARD_ID_SET.has(
+          card.collectionId,
+        ) &&
+        !/^card:(?:L11|L12|L13|L15|L16|L17|L18|L19|L20|N11|N12|N13|N20|N21|N25|N26|W15|W20|W25|W27)[ABC]$/.test(
+          card.collectionId,
+        ),
+    );
+  if (pool.length === 0) {
+    throw new RangeError(
+      "このパックに有効な新カードが登録されていません。",
+    );
+  }
   const results = [];
   for (let index = 0; index < count; index += 1) {
     const card = chooseUniform(pool, random);
@@ -1869,21 +1890,35 @@ export function renderShopManagement(snapshot) {
       </section>
     `;
   } else if (category === "card") {
+    const unlockedPacks =
+      CARD_PACKS.filter(
+        (pack) =>
+          isCardPackUnlocked(
+            pack.packId,
+            unlockProgress,
+          ),
+      );
     categoryContent = `
       <section class="management-section">
-        <div class="management-section__heading"><h2>CARD PACK</h2><span>複数購入対応</span></div>
+        <div class="management-section__heading">
+          <h2>CARD PACK</h2>
+          <span>解放済みパックのみ表示</span>
+        </div>
         <div class="shop-category-product-grid">
-          ${CARD_PACKS.map((pack) => {
-            const unlocked = isCardPackUnlocked(pack.packId, unlockProgress);
-            return `
-              <button type="button" class="shop-category-product ${unlocked ? "" : "is-silhouette-locked"}" data-action="inspect-shop-pack" data-pack-type="card" data-pack-id="${escapeAttribute(pack.packId)}" ${unlocked ? "" : "disabled"}>
-                <img src="${escapeAttribute(pack.image)}" alt="">
-                <strong>${escapeHtml(pack.name)}</strong>
-                <small>${unlocked ? currencyPriceTemplate(pack.price) : "大会条件未達"}</small>
-                <em>所持 ${formatNumber(snapshot.inventory.cardPacks[pack.packId] ?? 0)}</em>
-              </button>
-            `;
-          }).join("")}
+          ${unlockedPacks.map((pack) => `
+            <button
+              type="button"
+              class="shop-category-product"
+              data-action="inspect-shop-pack"
+              data-pack-type="card"
+              data-pack-id="${escapeAttribute(pack.packId)}"
+            >
+              <img src="${escapeAttribute(pack.image)}" alt="">
+              <strong>${escapeHtml(pack.name)}</strong>
+              <small>${currencyPriceTemplate(pack.price)}</small>
+              <em>所持 ${formatNumber(snapshot.inventory.cardPacks[pack.packId] ?? 0)}</em>
+            </button>
+          `).join("")}
         </div>
       </section>
     `;

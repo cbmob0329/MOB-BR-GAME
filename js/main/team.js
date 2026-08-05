@@ -12,15 +12,15 @@ import {
   characterValueToRank,
   weaponValueToRank,
   getCompanyRankData,
-} from "../../data/game-data.js?v=46";
+} from "../../data/game-data.js?v=48";
 import {
   calculateMaxHp,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=46";
+} from "../../data/battle-config.js?v=48";
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=46";
+} from "../../data/motivation-data.js?v=48";
 import {
   WEAPON_SKINS,
   getWeaponSkin,
@@ -38,7 +38,7 @@ import {
   getWeaponUpgradeCost,
 } from "../../data/ability-data.js";
 
-export const TEAM_FEATURE_VERSION = "mobbr-team-feature-1.2.0";
+export const TEAM_FEATURE_VERSION = "mobbr-team-feature-1.3.0";
 
 const ROLE_ICONS = Object.freeze({
   IGL: "icon/IGL.png",
@@ -988,6 +988,51 @@ function abilityCostTemplate(cost) {
     .join("");
 }
 
+
+const PLAYER_STAT_DESCRIPTIONS = Object.freeze({
+  stamina:
+    "最大HPと粘り強さを伸ばします。長い戦闘や連戦で倒れにくくなります。",
+  mind:
+    "精神面の安定性を高め、プレッシャー下の戦闘性能を支えます。",
+  physical:
+    "近距離の押し合いと被弾時の耐久力を伸ばします。",
+  aim:
+    "射撃精度と有効弾の出やすさを高めます。",
+  agility:
+    "移動・回避・間合い調整の性能を高めます。",
+  technique:
+    "武器操作、戦術対応、スキル運用の安定性を高めます。",
+  support:
+    "回復・蘇生・味方支援の効果を高めます。",
+});
+
+const WEAPON_STAT_DESCRIPTIONS = Object.freeze({
+  close:
+    "近距離での武器ダメージと押し込み性能を高めます。",
+  mid:
+    "中距離での安定火力と命中期待値を高めます。",
+  far:
+    "遠距離での武器ダメージと射線維持力を高めます。",
+  fireRate:
+    "連射間隔を改善し、短時間に与えるダメージを増やします。",
+  reload:
+    "リロード時間を短縮し、攻撃が止まる時間を減らします。",
+});
+
+function upgradeResourceStripTemplate(entries) {
+  return `
+    <section class="upgrade-console__resources">
+      ${entries.map((entry) => `
+        <span class="${entry.negative ? "is-negative" : ""}">
+          ${escapeHtml(entry.label)}
+          <strong>${escapeHtml(entry.before)}</strong>
+          <em>→ ${escapeHtml(entry.after)}</em>
+        </span>
+      `).join("")}
+    </section>
+  `;
+}
+
 export function renderAbilityUpSection(
   snapshot,
   selectedPlayerId,
@@ -996,47 +1041,184 @@ export function renderAbilityUpSection(
     includeSelector = true,
   } = {},
 ) {
-  const playerId = getSelectedPlayerId(snapshot, selectedPlayerId);
-  const player = getPlayer(snapshot, playerId);
-  const plan = calculatePlayerStatUpgradePlan(snapshot, playerId, pendingIncrements);
+  const playerId =
+    getSelectedPlayerId(
+      snapshot,
+      selectedPlayerId,
+    );
+  const player =
+    getPlayer(
+      snapshot,
+      playerId,
+    );
+  const plan =
+    calculatePlayerStatUpgradePlan(
+      snapshot,
+      playerId,
+      pendingIncrements,
+    );
+  const totalUpgrades =
+    plan.rows.reduce(
+      (sum, row) =>
+        sum + row.increment,
+      0,
+    );
 
   return `
-    <div class="team-feature-live-section" data-live-section="ability">
-    ${includeSelector ? renderPlayerSelector(snapshot, playerId) : ""}
-    <section class="ability-plan-points">
-      ${TRAINING_POINT_IDS.map((pointId) => `
-        <span class="${plan.remainingPoints[pointId] < 0 ? "is-negative" : ""}">
-          ${POINT_LABELS[pointId]}
-          <strong>${formatNumber(getPlayerTrainingPointPool(snapshot, playerId)[pointId])}</strong>
-          <em>→ ${formatNumber(plan.remainingPoints[pointId])}</em>
-        </span>
-      `).join("")}
-    </section>
-    <section class="growth-grid growth-grid--planned">
-      ${plan.rows.map((row) => {
-        const projectedRank = characterValueToRank(row.projectedValue);
-        const nextAffordable = !row.atMaximum && canAffordPointCost(plan.remainingPoints, row.nextCost);
-        return `
-          <article class="growth-card growth-card--planned">
-            <img class="growth-card__icon" src="${escapeAttribute(row.definition.icon)}" alt="">
-            <div class="growth-card__main">
-              <h3>${escapeHtml(row.definition.displayName)}</h3>
-              <p>${escapeHtml(characterValueToRank(row.currentValue))}${row.increment > 0 ? ` → <strong>${escapeHtml(projectedRank)}</strong>` : ""}<span>内部値 ${row.currentValue}${row.increment > 0 ? ` + ${row.increment}` : ""}</span></p>
-              ${row.atMaximum ? `<div class="cost-tags"><span>MAX</span></div>` : `<div class="cost-tags">${abilityCostTemplate(row.nextCost)}</div>`}
-            </div>
-            <div class="growth-stepper">
-              <button type="button" data-repeat-action data-action="ability-plan-minus" data-player-id="${escapeAttribute(playerId)}" data-stat-id="${escapeAttribute(row.definition.id)}" ${row.increment > 0 ? "" : "disabled"}>−</button>
-              <strong>${row.increment}</strong>
-              <button type="button" data-repeat-action data-action="ability-plan-plus" data-player-id="${escapeAttribute(playerId)}" data-stat-id="${escapeAttribute(row.definition.id)}" ${nextAffordable ? "" : "disabled"}>＋</button>
-            </div>
-          </article>
-        `;
-      }).join("")}
-    </section>
-    <section class="ability-plan-footer">
-      <div><span>予定強化</span><strong>${plan.rows.reduce((sum, row) => sum + row.increment, 0)}段階</strong></div>
-      <button type="button" class="primary-button" data-action="ability-plan-confirm" data-player-id="${escapeAttribute(playerId)}" ${plan.hasChanges && plan.affordable ? "" : "disabled"}>能力アップを確定</button>
-    </section>
+    <div
+      class="team-feature-live-section"
+      data-live-section="ability"
+    >
+      ${
+        includeSelector
+          ? renderPlayerSelector(
+              snapshot,
+              playerId,
+            )
+          : ""
+      }
+
+      ${upgradeResourceStripTemplate(
+        TRAINING_POINT_IDS.map(
+          (pointId) => ({
+            label:
+              POINT_LABELS[
+                pointId
+              ],
+            before:
+              formatNumber(
+                getPlayerTrainingPointPool(
+                  snapshot,
+                  playerId,
+                )[pointId],
+              ),
+            after:
+              formatNumber(
+                plan.remainingPoints[
+                  pointId
+                ],
+              ),
+            negative:
+              plan.remainingPoints[
+                pointId
+              ] < 0,
+          }),
+        ),
+      )}
+
+      <section class="upgrade-console upgrade-console--ability">
+        <div class="upgrade-console__visual">
+          <span>PLAYER ABILITY</span>
+          <div class="upgrade-console__portrait-ring">
+            <img
+              class="player-portrait"
+              data-role="${escapeAttribute(player.role)}"
+              src="${escapeAttribute(player.image)}"
+              alt=""
+            >
+          </div>
+          <strong>${escapeHtml(player.name)}</strong>
+          <small>
+            ${escapeHtml(player.role)}
+            /
+            RANK ${escapeHtml(player.characterRank)}
+          </small>
+          <div class="upgrade-console__orbit">
+            ${plan.rows.map((row) => `
+              <i title="${escapeAttribute(row.definition.displayName)}">
+                <img src="${escapeAttribute(row.definition.icon)}" alt="">
+                <b>${escapeHtml(characterValueToRank(row.projectedValue))}</b>
+              </i>
+            `).join("")}
+          </div>
+        </div>
+
+        <section
+          class="upgrade-console__detail"
+          data-scroll-memory="ability-upgrade-detail"
+        >
+          <header>
+            <span>ABILITY LEVEL UP</span>
+            <strong>強化内容と必要ポイント</strong>
+          </header>
+
+          ${plan.rows.map((row) => {
+            const projectedRank =
+              characterValueToRank(
+                row.projectedValue,
+              );
+            const nextAffordable =
+              !row.atMaximum &&
+              canAffordPointCost(
+                plan.remainingPoints,
+                row.nextCost,
+              );
+            return `
+              <article class="upgrade-console__row">
+                <img
+                  src="${escapeAttribute(row.definition.icon)}"
+                  alt=""
+                >
+                <div class="upgrade-console__row-main">
+                  <span>${escapeHtml(row.definition.name)}</span>
+                  <strong>${escapeHtml(row.definition.displayName)}</strong>
+                  <p>${escapeHtml(PLAYER_STAT_DESCRIPTIONS[row.definition.id] ?? "")}</p>
+                  <div>
+                    <b>
+                      ${escapeHtml(characterValueToRank(row.currentValue))}
+                      ${row.increment > 0 ? `→ ${escapeHtml(projectedRank)}` : ""}
+                    </b>
+                    <small>
+                      内部値 ${row.currentValue}
+                      ${row.increment > 0 ? ` +${row.increment}` : ""}
+                    </small>
+                  </div>
+                  ${
+                    row.atMaximum
+                      ? `<em>MAX</em>`
+                      : `<section class="cost-tags">${abilityCostTemplate(row.nextCost)}</section>`
+                  }
+                </div>
+                <div class="upgrade-console__stepper">
+                  <button
+                    type="button"
+                    data-repeat-action
+                    data-action="ability-plan-minus"
+                    data-player-id="${escapeAttribute(playerId)}"
+                    data-stat-id="${escapeAttribute(row.definition.id)}"
+                    ${row.increment > 0 ? "" : "disabled"}
+                  >−</button>
+                  <strong>${row.increment}</strong>
+                  <button
+                    type="button"
+                    data-repeat-action
+                    data-action="ability-plan-plus"
+                    data-player-id="${escapeAttribute(playerId)}"
+                    data-stat-id="${escapeAttribute(row.definition.id)}"
+                    ${nextAffordable ? "" : "disabled"}
+                  >＋</button>
+                </div>
+              </article>
+            `;
+          }).join("")}
+        </section>
+      </section>
+
+      <section class="upgrade-console__footer">
+        <div>
+          <span>予定強化</span>
+          <strong>${totalUpgrades}段階</strong>
+        </div>
+        <button
+          type="button"
+          class="primary-button"
+          data-action="ability-plan-confirm"
+          data-player-id="${escapeAttribute(playerId)}"
+          ${plan.hasChanges && plan.affordable ? "" : "disabled"}
+        >
+          能力アップを確定
+        </button>
+      </section>
     </div>
   `;
 }
@@ -1050,138 +1232,212 @@ export function renderEquipmentSection(
   } = {},
 ) {
   const playerId =
-    getSelectedPlayerId(snapshot, selectedPlayerId);
-  const player = getPlayer(snapshot, playerId);
-  const ownedSkins = WEAPON_SKINS.filter(
-    (skin) =>
-      snapshot.inventory.weaponSkins?.[skin.skinId] === true,
-  );
-  const plan = calculateWeaponUpgradePlan(
-    snapshot,
-    playerId,
-    pendingIncrements,
-  );
+    getSelectedPlayerId(
+      snapshot,
+      selectedPlayerId,
+    );
+  const player =
+    getPlayer(
+      snapshot,
+      playerId,
+    );
+  const ownedSkins =
+    WEAPON_SKINS.filter(
+      (skin) =>
+        snapshot.inventory
+          .weaponSkins?.[
+            skin.skinId
+          ] === true,
+    );
+  const plan =
+    calculateWeaponUpgradePlan(
+      snapshot,
+      playerId,
+      pendingIncrements,
+    );
+  const totalUpgrades =
+    plan.rows.reduce(
+      (sum, row) =>
+        sum + row.increment,
+      0,
+    );
 
   return `
-    <div class="team-feature-live-section" data-live-section="equipment">
-      ${includeSelector ? renderPlayerSelector(snapshot, playerId) : ""}
-      <section class="weapon-overview">
-        <img
-          class="weapon-overview__image"
-          src="${escapeAttribute(player.weapon.image)}"
-          alt="${escapeAttribute(player.weapon.weaponName)}"
-        >
-        <div class="weapon-overview__main">
-          <span>${escapeHtml(player.role)} WEAPON</span>
-          <h2>${escapeHtml(player.weapon.weaponName)}</h2>
-          <p>装弾数 ${player.weapon.ammoMax} / スキン ${escapeHtml(player.weapon.skinId)}</p>
-        </div>
-        <button
-          type="button"
-          class="secondary-button"
-          data-action="rename-weapon"
-          data-player-id="${escapeAttribute(playerId)}"
-        >
-          武器名変更
-        </button>
-      </section>
+    <div
+      class="team-feature-live-section"
+      data-live-section="equipment"
+    >
+      ${
+        includeSelector
+          ? renderPlayerSelector(
+              snapshot,
+              playerId,
+            )
+          : ""
+      }
 
-      <section class="content-panel weapon-skin-panel">
-        <label for="weaponSkinSelect">武器スキン</label>
-        <select
-          id="weaponSkinSelect"
-          data-player-id="${escapeAttribute(playerId)}"
-        >
-          ${ownedSkins.map((skin) => `
-            <option
-              value="${escapeAttribute(skin.skinId)}"
-              ${skin.skinId === player.weapon.skinId ? "selected" : ""}
+      ${upgradeResourceStripTemplate([
+        {
+          label: "COIN",
+          before:
+            formatNumber(
+              snapshot.resources.coin,
+            ),
+          after:
+            formatNumber(
+              plan.remainingCoin,
+            ),
+          negative:
+            plan.remainingCoin < 0,
+        },
+        {
+          label: "RUBY",
+          before:
+            formatNumber(
+              snapshot.resources.ruby,
+            ),
+          after:
+            formatNumber(
+              plan.remainingRuby,
+            ),
+          negative:
+            plan.remainingRuby < 0,
+        },
+      ])}
+
+      <section class="upgrade-console upgrade-console--weapon">
+        <div class="upgrade-console__visual">
+          <span>PERSONAL WEAPON</span>
+          <div class="upgrade-console__weapon-ring">
+            <img
+              src="${escapeAttribute(player.weapon.image)}"
+              alt=""
             >
-              ${escapeHtml(skin.name)}
-            </option>
-          `).join("")}
-        </select>
-        <button
-          type="button"
-          class="primary-button"
-          data-action="change-weapon-skin"
-          data-player-id="${escapeAttribute(playerId)}"
+          </div>
+          <strong>${escapeHtml(player.weapon.weaponName)}</strong>
+          <small>
+            ${escapeHtml(player.name)}
+            /
+            ${escapeHtml(player.role)}
+          </small>
+          <div class="upgrade-console__visual-actions">
+            <button
+              type="button"
+              class="secondary-button"
+              data-action="rename-weapon"
+              data-player-id="${escapeAttribute(playerId)}"
+            >
+              武器名変更
+            </button>
+          </div>
+        </div>
+
+        <section
+          class="upgrade-console__detail"
+          data-scroll-memory="weapon-upgrade-detail"
         >
-          スキンを変更
-        </button>
-      </section>
+          <header>
+            <span>WEAPON LEVEL UP</span>
+            <strong>強化内容と必要コスト</strong>
+          </header>
 
-      <section class="weapon-plan-resources weapon-plan-resources--coin-only">
-        <span>
-          COIN ONLY
-          <strong>${formatNumber(snapshot.resources.coin)}</strong>
-          <em>→ ${formatNumber(plan.remainingCoin)}</em>
-        </span>
-      </section>
-
-      <section class="growth-grid growth-grid--planned">
-        ${plan.rows.map((row) => {
-          const nextAffordable =
-            row.nextCost &&
-            plan.remainingCoin >= row.nextCost.coin;
-          return `
-            <article class="growth-card growth-card--weapon growth-card--planned">
-              <div class="growth-card__main">
-                <h3>${escapeHtml(row.definition.name)}</h3>
-                <p>
-                  ${escapeHtml(row.currentRank)}
+          ${plan.rows.map((row) => {
+            const nextAffordable =
+              row.nextCost &&
+              plan.remainingCoin >=
+                row.nextCost.coin &&
+              plan.remainingRuby >=
+                row.nextCost.ruby;
+            return `
+              <article class="upgrade-console__row">
+                <img src="menu/eq.png" alt="">
+                <div class="upgrade-console__row-main">
+                  <span>WEAPON PARAMETER</span>
+                  <strong>${escapeHtml(row.definition.name)}</strong>
+                  <p>${escapeHtml(WEAPON_STAT_DESCRIPTIONS[row.definition.id] ?? "")}</p>
+                  <div>
+                    <b>
+                      ${escapeHtml(row.currentRank)}
+                      ${
+                        row.increment > 0
+                          ? `→ ${escapeHtml(row.projectedRank)}`
+                          : ""
+                      }
+                    </b>
+                    <small>
+                      内部値 ${row.currentValue}
+                      ${row.increment > 0 ? ` +${row.increment}` : ""}
+                    </small>
+                  </div>
                   ${
-                    row.increment > 0
-                      ? ` → <strong>${escapeHtml(row.projectedRank)}</strong>`
-                      : ""
+                    row.nextCost
+                      ? `
+                        <section class="cost-tags">
+                          <span>COIN ${formatNumber(row.nextCost.coin)}</span>
+                          ${
+                            row.nextCost.ruby > 0
+                              ? `<span>RUBY ${formatNumber(row.nextCost.ruby)}</span>`
+                              : ""
+                          }
+                        </section>
+                      `
+                      : `<em>MAX</em>`
                   }
-                  <span>
-                    内部値 ${row.currentValue}
-                    ${row.increment > 0 ? ` + ${row.increment}` : ""}
-                  </span>
-                </p>
-                ${
-                  row.nextCost
-                    ? `
-                      <div class="cost-tags">
-                        <span>COIN ${formatNumber(row.nextCost.coin)}</span>
-                      </div>
-                    `
-                    : `<div class="cost-tags"><span>MAX</span></div>`
-                }
-              </div>
-              <div class="growth-stepper">
-                <button
-                  type="button"
-                  data-repeat-action
-                  data-action="weapon-plan-minus"
-                  data-player-id="${escapeAttribute(playerId)}"
-                  data-weapon-stat-id="${escapeAttribute(row.definition.id)}"
-                  ${row.increment > 0 ? "" : "disabled"}
+                </div>
+                <div class="upgrade-console__stepper">
+                  <button
+                    type="button"
+                    data-repeat-action
+                    data-action="weapon-plan-minus"
+                    data-player-id="${escapeAttribute(playerId)}"
+                    data-weapon-stat-id="${escapeAttribute(row.definition.id)}"
+                    ${row.increment > 0 ? "" : "disabled"}
+                  >−</button>
+                  <strong>${row.increment}</strong>
+                  <button
+                    type="button"
+                    data-repeat-action
+                    data-action="weapon-plan-plus"
+                    data-player-id="${escapeAttribute(playerId)}"
+                    data-weapon-stat-id="${escapeAttribute(row.definition.id)}"
+                    ${nextAffordable ? "" : "disabled"}
+                  >＋</button>
+                </div>
+              </article>
+            `;
+          }).join("")}
+
+          <section class="upgrade-console__skin">
+            <label for="weaponSkinSelect">武器スキン</label>
+            <select
+              id="weaponSkinSelect"
+              data-player-id="${escapeAttribute(playerId)}"
+            >
+              ${ownedSkins.map((skin) => `
+                <option
+                  value="${escapeAttribute(skin.skinId)}"
+                  ${skin.skinId === player.weapon.skinId ? "selected" : ""}
                 >
-                  −
-                </button>
-                <strong>${row.increment}</strong>
-                <button
-                  type="button"
-                  data-repeat-action
-                  data-action="weapon-plan-plus"
-                  data-player-id="${escapeAttribute(playerId)}"
-                  data-weapon-stat-id="${escapeAttribute(row.definition.id)}"
-                  ${nextAffordable ? "" : "disabled"}
-                >
-                  ＋
-                </button>
-              </div>
-            </article>
-          `;
-        }).join("")}
+                  ${escapeHtml(skin.name)}
+                </option>
+              `).join("")}
+            </select>
+            <button
+              type="button"
+              class="secondary-button"
+              data-action="change-weapon-skin"
+              data-player-id="${escapeAttribute(playerId)}"
+            >
+              スキン変更
+            </button>
+          </section>
+        </section>
       </section>
 
-      <section class="ability-plan-footer weapon-plan-footer">
+      <section class="upgrade-console__footer">
         <div>
           <span>予定強化</span>
-          <strong>${plan.rows.reduce((sum, row) => sum + row.increment, 0)}段階</strong>
+          <strong>${totalUpgrades}段階</strong>
         </div>
         <button
           type="button"

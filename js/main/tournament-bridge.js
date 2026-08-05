@@ -18,7 +18,7 @@ import {
   getPlacementPoints,
   getTournamentEventsForDate,
   isChampionshipYear,
-} from "../../data/game-data.js?v=46";
+} from "../../data/game-data.js?v=48";
 import {
   CASUAL_TOURNAMENT_RULES,
   FORMAL_CIRCUIT_RULES,
@@ -32,15 +32,16 @@ import {
   selectTeamIds,
   sourcePoolForTeamId,
   teamSeed,
-} from "../../data/circuit-data.js?v=46";
+} from "../../data/circuit-data.js?v=48";
 import {
+  DENDEN_CPU_TEAMS,
   LOCAL_CPU_TEAMS,
   NATIONAL_CPU_TEAMS,
   getWorldCpuTeamsForYear,
-} from "../../data/cpu-league-registry.js?v=46";
+} from "../../data/cpu-league-registry.js?v=48";
 import {
   BATTLE_CONFIG_VERSION,
-} from "../../data/battle-config.js?v=46";
+} from "../../data/battle-config.js?v=48";
 import {
   CONSUMABLE_ITEMS,
   ITEM_MASTER_VERSION,
@@ -48,7 +49,7 @@ import {
 } from "../../data/shop-data.js";
 import {
   getCasualCup,
-} from "../../data/casual-data.js?v=46";
+} from "../../data/casual-data.js?v=48";
 import {
   STRATEGIES,
   STRATEGY_MASTER_VERSION,
@@ -57,17 +58,17 @@ import {
   DuplicateTournamentResultError,
   STORAGE_KEYS,
   calculateChecksum,
-} from "./state.js?v=46";
+} from "./state.js?v=48";
 import {
   applyMotivationToStats,
   normalizeMotivationRecord,
-} from "../../data/motivation-data.js?v=46";
+} from "../../data/motivation-data.js?v=48";
 import {
   EMPLOYEE_DATA_VERSION,
   getTotalEmployeeHpBonus,
-} from "../../data/employee-data.js?v=46";
+} from "../../data/employee-data.js?v=48";
 
-export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-2.6.0";
+export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-2.7.0";
 export const TOURNAMENT_ENTRY_SCHEMA_VERSION =
   "mobbr-tournament-entry-1.0.0";
 export const TOURNAMENT_RESULT_SCHEMA_VERSION =
@@ -652,7 +653,7 @@ export function getTournamentEntryAvailability(snapshot, event) {
   if (type === "casual_denden") {
     return {
       eligible: true,
-      reason: "企業ランク制限なし。今月は4大会から1つだけ選べます。",
+      reason: "企業ランク制限なし。今月のカジュアル大会はデンデンカップです。",
       status: "optional",
     };
   }
@@ -1406,25 +1407,54 @@ export function createTournamentCircuitContext(snapshot, event) {
   }
 
   if (type === "casual_denden") {
-    const localIds = selectTeamIds(
-      LOCAL_CPU_TEAMS,
-      CASUAL_TOURNAMENT_RULES.casual_denden.localSlots,
-      `${seed}:local`,
-    );
-    const lowerNationalPool = NATIONAL_CPU_TEAMS.slice(20);
-    const nationalIds = selectTeamIds(
-      lowerNationalPool,
-      CASUAL_TOURNAMENT_RULES.casual_denden.nationalLowerSlots,
-      `${seed}:national-lower`,
-    );
-    const teamIds = [playerTeamId, ...localIds, ...nationalIds];
+    const rules =
+      CASUAL_TOURNAMENT_RULES
+        .casual_denden;
+    const hostTeamId =
+      rules.fixedHostTeamId;
+    const dedicatedPool =
+      DENDEN_CPU_TEAMS.filter(
+        (team) =>
+          team.teamId !==
+          hostTeamId,
+      );
+    const dedicatedIds = [
+      hostTeamId,
+      ...selectTeamIds(
+        dedicatedPool,
+        rules.dendenSlots - 1,
+        `${seed}:denden-dedicated`,
+      ),
+    ];
+    const localGuestIds =
+      selectTeamIds(
+        LOCAL_CPU_TEAMS,
+        rules.localGuestSlots,
+        `${seed}:local-guests`,
+      );
+    const teamIds = [
+      playerTeamId,
+      ...dedicatedIds,
+      ...localGuestIds,
+    ];
     return {
       ...base,
-      participantSeeds: participantSeedsFromIds(teamIds, { playerTeamId }),
-      matchPlan: createSimpleMatchPlan(
-        teamIds,
-        CASUAL_TOURNAMENT_RULES.casual_denden.matches,
-      ),
+      guestTeamIds:
+        localGuestIds,
+      participantSeeds:
+        participantSeedsFromIds(
+          teamIds,
+          {
+            playerTeamId,
+            guestTeamIds:
+              localGuestIds,
+          },
+        ),
+      matchPlan:
+        createSimpleMatchPlan(
+          teamIds,
+          rules.matches,
+        ),
     };
   }
 
@@ -3130,7 +3160,7 @@ function tournamentRuleSummary(event) {
   if (type === "world_qualifier_week_2") return "第4～6節 / 9MATCH / 上位10Final / 11～30位Last Chance";
   if (type === "world_last_chance") return "20チーム / 3MATCH / 上位10がWorld Finalへ";
   if (type === "world_final") return "20チーム / 50POINT MATCH POINT / 世界王者決定";
-  if (type === "casual_denden") return "20チーム / 3MATCH / Local14＋National下位5";
+  if (type === "casual_denden") return "20チーム / 3MATCH / Denden専用16＋Localゲスト3";
   if (type === "casual_mobutetsu") return "企業C1以上 / 5MATCH / Worldゲスト1チーム";
   if (type === "casual_rockets") return "20チーム / 3MATCH / ジョーダンロケッツ＋National・Local上位＋World3";
   if (type === "casual_tempest") return "20チーム / 3MATCH / ゴールデンテンペスト＋World中心";
@@ -3298,7 +3328,7 @@ export function renderTournamentSchedule(snapshot, storage) {
         <div>
           <span>YEAR SCHEDULE</span>
           <h2>${snapshot.gameDate.year} TOURNAMENT CALENDAR</h2>
-          <p>正式大会と月例カジュアル大会を、月・週単位で確認できます。</p>
+          <p>プロリーグとデンデンカップを、月・週単位で確認できます。</p>
         </div>
         <div class="tournament-calendar-legend">
           <span class="is-formal">正式大会</span>
@@ -3479,7 +3509,7 @@ export function createTournamentBridgeController({
       if (!(await openConfirm({
         title: `${TOURNAMENT_TYPE_PRESETS[event.tournamentType].tournamentName}へ参加しますか？`,
         body: event.choiceGroupId
-          ? "<p>今月のカジュアル大会は1つだけ選択できます。参加しない場合は記録されません。</p><p>現在の選手・武器・作戦・バッグ・特殊能力を参加データとして固定します。</p>"
+          ? "<p>デンデンカップは任意参加です。参加しない場合は記録されません。</p><p>現在の選手・武器・作戦・バッグ・特殊能力を参加データとして固定します。</p>"
           : "<p>現在の選手・武器・作戦・バッグ・特殊能力を大会参加スナップショットとして固定します。</p>",
         confirmLabel: event.choiceGroupId ? "この大会を選ぶ" : "大会へ進む",
       }))) return true;

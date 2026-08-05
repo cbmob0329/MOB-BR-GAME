@@ -19,11 +19,11 @@ import {
   getCompanyRankData,
   rankToWeaponValue,
   validateGameDate,
-} from "../../data/game-data.js?v=46";
+} from "../../data/game-data.js?v=48";
 import {
   BATTLE_CONFIG_VERSION,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=46";
+} from "../../data/battle-config.js?v=48";
 import {
   TRAINING_DATA_VERSION,
 } from "../../data/training-data.js";
@@ -40,8 +40,13 @@ import {
 import {
   COLLECTION_DATA_VERSION,
   COLLECTION_MASTER_VERSION,
+  RETIRED_BADGE_COLLECTION_IDS,
+  RETIRED_CARD_COLLECTION_IDS,
   ROOM_MASTER_VERSION,
-} from "../../data/collection-data.js";
+} from "../../data/collection-data.js?v=48";
+import {
+  CPU_ROSTER_47_DATA_VERSION,
+} from "../../data/cpu-roster-47-data.js?v=48";
 import {
   STRATEGY_DATA_VERSION,
   STRATEGY_MASTER_VERSION,
@@ -56,7 +61,7 @@ import {
   motivationLevelIndex,
   normalizeMotivationRecord,
   shiftMotivation,
-} from "../../data/motivation-data.js?v=46";
+} from "../../data/motivation-data.js?v=48";
 import {
   EMPLOYEE_DATA_VERSION,
   EMPLOYEE_MASTER,
@@ -69,7 +74,7 @@ import {
   getEmployeeRankData,
   getEmployeeWeeklyCoinBonusRate,
   normalizeEmployeeRecord,
-} from "../../data/employee-data.js?v=46";
+} from "../../data/employee-data.js?v=48";
 import {
   COOKING_DATA_VERSION,
   COOKING_STATE_SCHEMA_VERSION,
@@ -84,7 +89,7 @@ import {
   refreshWeeklyIngredientStockToDraft,
   validateCookingState,
   createFoodVariant,
-} from "../../data/cooking-data.js?v=46";
+} from "../../data/cooking-data.js?v=48";
 import {
   DINING_DATA_VERSION,
   DINING_RULES,
@@ -95,9 +100,9 @@ import {
   normalizeDiningState,
   refreshDiningWeekToDraft,
   validateDiningState,
-} from "../../data/dining-data.js?v=46";
+} from "../../data/dining-data.js?v=48";
 
-export const SAVE_SCHEMA_VERSION = "mobbr-save-2.7.0";
+export const SAVE_SCHEMA_VERSION = "mobbr-save-2.8.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
 
 export const STORAGE_KEYS = Object.freeze({
@@ -498,6 +503,7 @@ function createMasterVersions() {
     collectionData: COLLECTION_DATA_VERSION,
     collectionMaster: COLLECTION_MASTER_VERSION,
     roomMaster: ROOM_MASTER_VERSION,
+    cpuRoster47: CPU_ROSTER_47_DATA_VERSION,
     strategyData: STRATEGY_DATA_VERSION,
     strategyMaster: STRATEGY_MASTER_VERSION,
     motivationData: MOTIVATION_DATA_VERSION,
@@ -1292,6 +1298,68 @@ function migrateLegacyPlayer(player) {
   return migrated;
 }
 
+function removeRetiredCpuCollectionsToDraft(
+  draft,
+) {
+  const retiredIds =
+    new Set([
+      ...RETIRED_CARD_COLLECTION_IDS,
+      ...RETIRED_BADGE_COLLECTION_IDS,
+    ]);
+
+  draft.collections =
+    draft.collections ?? {};
+  draft.collections.cards =
+    draft.collections.cards ?? {};
+  draft.collections.badges =
+    draft.collections.badges ?? {};
+
+  for (
+    const collectionId
+    of RETIRED_CARD_COLLECTION_IDS
+  ) {
+    delete draft.collections.cards[
+      collectionId
+    ];
+  }
+  for (
+    const collectionId
+    of RETIRED_BADGE_COLLECTION_IDS
+  ) {
+    delete draft.collections.badges[
+      collectionId
+    ];
+  }
+
+  const layouts =
+    draft.collections.roomLayouts ??
+    {};
+  for (
+    const [
+      roomId,
+      placements,
+    ]
+    of Object.entries(layouts)
+  ) {
+    if (
+      !Array.isArray(placements)
+    ) {
+      continue;
+    }
+    layouts[roomId] =
+      placements.filter(
+        (placement) =>
+          !(
+            placement?.itemRef?.kind ===
+              "collection" &&
+            retiredIds.has(
+              placement.itemRef.id,
+            )
+          ),
+      );
+  }
+}
+
 function migrateUnversionedSave(rawState, timestamp) {
   const migrated = deepClone(rawState);
 
@@ -1363,6 +1431,10 @@ function migrateUnversionedSave(rawState, timestamp) {
       : [];
   migrated.ui.guideFlags =
     migrated.ui.guideFlags ?? {};
+
+  removeRetiredCpuCollectionsToDraft(
+    migrated,
+  );
 
   migrated.saveSlotId =
     migrated.saveSlotId ??
@@ -1446,7 +1518,8 @@ export function migrateSaveState(
     rawState.schemaVersion === "mobbr-save-2.3.0" ||
     rawState.schemaVersion === "mobbr-save-2.4.0" ||
     rawState.schemaVersion === "mobbr-save-2.5.0" ||
-    rawState.schemaVersion === "mobbr-save-2.6.0"
+    rawState.schemaVersion === "mobbr-save-2.6.0" ||
+    rawState.schemaVersion === "mobbr-save-2.7.0"
   ) {
     const migrated = migrateUnversionedSave(rawState, timestamp);
     validateSaveState(migrated);

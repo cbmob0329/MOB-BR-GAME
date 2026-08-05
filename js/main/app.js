@@ -18,14 +18,14 @@ import {
 } from "../assets.js";
 import {
   fitPortraits,
-} from "../portrait-fit.js?v=46";
+} from "../portrait-fit.js?v=48";
 import {
   SaveError,
   SaveNotFoundError,
   clearPendingEmployeeRankUpsToDraft,
   createGameStateManager,
   grantEmployeeCookingPointsToDraft,
-} from "./state.js?v=46";
+} from "./state.js?v=48";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -47,7 +47,7 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=46";
+} from "./team.js?v=48";
 import {
   getSpecialAbility,
 } from "../../data/ability-data.js";
@@ -57,26 +57,26 @@ import {
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=46";
+} from "../../data/motivation-data.js?v=48";
 import {
   getRoomMaster,
-} from "../../data/collection-data.js?v=46";
+} from "../../data/collection-data.js?v=48";
 import {
   EMPLOYEE_RULES,
   getEmployeeRankData,
   getTotalEmployeeHpBonus,
-} from "../../data/employee-data.js?v=46";
+} from "../../data/employee-data.js?v=48";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=46";
+} from "./management.js?v=48";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=46";
+} from "./tournament-bridge.js?v=48";
 
-export const APP_VERSION = "mobbr-main-app-3.3.0";
+export const APP_VERSION = "mobbr-main-app-3.5.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -217,7 +217,7 @@ const PINK_GUIDES = Object.freeze({
   schedule: Object.freeze({
     title: "大会スケジュール",
     text:
-      "MOB BRの正式大会とカジュアルカップを確認できます。カジュアル週は4大会から1つ選択できます。",
+      "MOB BRのプロリーグとデンデンカップを確認できます。現在、カジュアル大会はデンデンカップだけを表示しています。",
   }),
   room: Object.freeze({
     title: "MOB ROOM",
@@ -1822,14 +1822,57 @@ export function createMainApp({
                     ROUTES.ability,
                 },
               );
-    const template = document.createElement("template");
-    template.innerHTML = markup.trim();
+    const nestedScrolls =
+      new Map(
+        [
+          ...oldSection.querySelectorAll(
+            "[data-scroll-memory]",
+          ),
+        ].map(
+          (element) => [
+            element.dataset.scrollMemory,
+            {
+              top: element.scrollTop,
+              left: element.scrollLeft,
+            },
+          ],
+        ),
+      );
+    const template =
+      document.createElement(
+        "template",
+      );
+    template.innerHTML =
+      markup.trim();
     const replacement =
-      template.content.firstElementChild;
-    const top = page?.scrollTop ?? 0;
-    oldSection.replaceWith(replacement);
+      template.content
+        .firstElementChild;
+    const top =
+      page?.scrollTop ?? 0;
+    oldSection.replaceWith(
+      replacement,
+    );
     if (page) {
       page.scrollTop = top;
+    }
+    for (
+      const element
+      of replacement.querySelectorAll(
+        "[data-scroll-memory]",
+      )
+    ) {
+      const saved =
+        nestedScrolls.get(
+          element.dataset
+            .scrollMemory,
+        );
+      if (!saved) {
+        continue;
+      }
+      element.scrollTop =
+        saved.top;
+      element.scrollLeft =
+        saved.left;
     }
   }
 
@@ -2968,6 +3011,24 @@ export function createMainApp({
         `,
         buttonLabel: "HOMEへ",
       });
+      await showPinkGuide(
+        "new-game:pro-league-entry",
+        {
+          title:
+            "プロリーグ参戦",
+          text:
+            `${snapshot.playerTeam.teamName}として本日からプロリーグ参戦です！最初はたくさん負けてもいいので、経験を積みましょう！`,
+        },
+      );
+      await showPinkGuide(
+        "new-game:denden-cup",
+        {
+          title:
+            "デンデンカップ",
+          text:
+            "デンデンカップはプロではないチームがたくさん出場します。腕試しをしてレベルアップしていきましょう！",
+        },
+      );
       await showPinkGuideForRoute(
         ROUTES.home,
       );
@@ -3677,7 +3738,7 @@ export function createMainApp({
       if (!plan.hasChanges || !plan.affordable) return;
       const confirmed = await openConfirm({
         title: "武器強化を確定しますか？",
-        body: `<p>${plan.rows.reduce((sum, row) => sum + row.increment, 0)}段階をまとめて強化します。</p><p>必要COIN ${formatNumber(plan.totalCoin)}</p>`,
+        body: `<p>${plan.rows.reduce((sum, row) => sum + row.increment, 0)}段階をまとめて強化します。</p><p>必要COIN ${formatNumber(plan.totalCoin)}</p>${plan.totalRuby > 0 ? `<p>必要RUBY ${formatNumber(plan.totalRuby)}</p>` : ""}`,
         confirmLabel: "確定する",
       });
       if (!confirmed) return;
