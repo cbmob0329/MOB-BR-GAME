@@ -7,13 +7,78 @@
  */
 
 export const PORTRAIT_FIT_VERSION =
-  "mobbr-portrait-fit-1.0.0";
+  "mobbr-portrait-fit-1.1.0";
 
 const ALPHA_BOUNDS_CACHE =
   new Map();
 
 function clamp(value, minimum, maximum) {
   return Math.min(maximum, Math.max(minimum, value));
+}
+
+export function calculatePortraitFitScale({
+  boxWidth,
+  boxHeight,
+  visibleWidth,
+  visibleHeight,
+  targetHeightRate = 0.80,
+  widthLimitRate = 1.24,
+  minimumScale = 0.46,
+  maximumScale = 1.70,
+}) {
+  const normalizedBoxWidth =
+    Math.max(
+      1,
+      Number(boxWidth) || 0,
+    );
+  const normalizedBoxHeight =
+    Math.max(
+      1,
+      Number(boxHeight) || 0,
+    );
+  const normalizedVisibleWidth =
+    Math.max(
+      1,
+      Number(visibleWidth) || 0,
+    );
+  const normalizedVisibleHeight =
+    Math.max(
+      1,
+      Number(visibleHeight) || 0,
+    );
+  const heightScale =
+    (
+      normalizedBoxHeight *
+      targetHeightRate
+    ) /
+    normalizedVisibleHeight;
+  const widthLimitScale =
+    (
+      normalizedBoxWidth *
+      widthLimitRate
+    ) /
+    normalizedVisibleWidth;
+  const scale =
+    clamp(
+      Math.min(
+        heightScale,
+        widthLimitScale,
+      ),
+      minimumScale,
+      maximumScale,
+    );
+
+  return {
+    scale,
+    heightScale,
+    widthLimitScale,
+    finalVisibleHeight:
+      normalizedVisibleHeight *
+      scale,
+    finalVisibleWidth:
+      normalizedVisibleWidth *
+      scale,
+  };
 }
 
 function sourceKey(image) {
@@ -85,10 +150,10 @@ export function fitPortraitImage(
   {
     scaleProperty = "--portrait-fit-scale",
     translateProperty = "--portrait-fit-y",
-    targetWidthRate = 0.84,
-    targetHeightRate = 0.82,
-    minimumScale = 0.52,
-    maximumScale = 1.42,
+    targetWidthRate = 1.24,
+    targetHeightRate = 0.80,
+    minimumScale = 0.46,
+    maximumScale = 1.70,
   } = {},
 ) {
   const key = sourceKey(image);
@@ -113,15 +178,50 @@ export function fitPortraitImage(
     const renderedHeight = image.naturalHeight * containScale;
     const visibleWidth = renderedWidth * bounds.width;
     const visibleHeight = renderedHeight * bounds.height;
-    const widthScale =
-      (boxWidth * targetWidthRate) / Math.max(1, visibleWidth);
-    const heightScale =
-      (boxHeight * targetHeightRate) / Math.max(1, visibleHeight);
-    const scale = clamp(
-      Math.min(widthScale, heightScale),
-      minimumScale,
-      maximumScale,
-    );
+    const computed =
+      typeof getComputedStyle === "function"
+        ? getComputedStyle(image)
+        : null;
+    const cssHeightRate =
+      Number.parseFloat(
+        computed?.getPropertyValue(
+          "--portrait-target-height-rate",
+        ) ?? "",
+      );
+    const cssWidthLimitRate =
+      Number.parseFloat(
+        computed?.getPropertyValue(
+          "--portrait-width-limit-rate",
+        ) ?? "",
+      );
+    const resolvedHeightRate =
+      Number.isFinite(cssHeightRate)
+        ? cssHeightRate
+        : targetHeightRate;
+    const resolvedWidthLimitRate =
+      Number.isFinite(cssWidthLimitRate)
+        ? cssWidthLimitRate
+        : targetWidthRate;
+
+    // Normalize visible character HEIGHT first. IGL/ATK artwork often has
+    // wide arms or weapons, while SUP artwork is narrow and tall. Equal width
+    // and height targets made the wide roles short and SUP look oversized.
+    // Width is now only an overflow safety limit.
+    const fit =
+      calculatePortraitFitScale({
+        boxWidth,
+        boxHeight,
+        visibleWidth,
+        visibleHeight,
+        targetHeightRate:
+          resolvedHeightRate,
+        widthLimitRate:
+          resolvedWidthLimitRate,
+        minimumScale,
+        maximumScale,
+      });
+    const scale =
+      fit.scale;
 
     const transparentBottom = renderedHeight * (1 - bounds.bottom);
     const translateY = clamp(
@@ -136,7 +236,20 @@ export function fitPortraitImage(
       `${translateY.toFixed(2)}px`,
     );
     image.dataset.portraitBalanced = "true";
-    return { scale, translateY, visibleWidth, visibleHeight };
+    image.dataset.portraitFitScale =
+      scale.toFixed(4);
+    image.dataset.portraitVisibleHeight =
+      visibleHeight.toFixed(2);
+    image.dataset.portraitVisibleWidth =
+      visibleWidth.toFixed(2);
+    return {
+      scale,
+      translateY,
+      visibleWidth,
+      visibleHeight,
+      resolvedHeightRate,
+      resolvedWidthLimitRate,
+    };
   };
 
   image.dataset.portraitBalanced = "pending";
