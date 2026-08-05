@@ -12,14 +12,14 @@ import {
 } from "../assets.js";
 import {
   motivationDisplay,
-} from "../../data/motivation-data.js?v=44";
+} from "../../data/motivation-data.js?v=45";
 import {
   TOURNAMENT_PHASES,
   createTournamentRuntimeManager,
-} from "./runtime.js?v=44";
+} from "./runtime.js?v=45";
 import {
   executeCurrentBattleToDraft,
-} from "./battle-core.js?v=44";
+} from "./battle-core.js?v=45";
 import {
   getItem,
 } from "../../data/shop-data.js";
@@ -27,7 +27,7 @@ import {
   balanceTournamentPortraits,
   createBattlePlaybackController,
   renderBattleOutcomeScreen,
-} from "./battle-ui.js?v=44";
+} from "./battle-ui.js?v=45";
 import {
   EXPLORATION_PAGES,
   beginExplorationToDraft,
@@ -49,7 +49,7 @@ import {
   useInventoryItemToDraft,
   useMobSlotToDraft,
   useRespawnTurntableToDraft,
-} from "./exploration.js?v=44";
+} from "./exploration.js?v=45";
 import {
   advanceAwardToDraft,
   finalizeCurrentMatchToDraft,
@@ -65,13 +65,13 @@ import {
   renderReturningResultScreen,
   renderTournamentResultScreen,
   writePreparedResultToStorage,
-} from "./results.js?v=44";
+} from "./results.js?v=45";
 
 import {
   applyMatchPlanToDraft,
   circuitSectionLabel,
   isPlayerMatch,
-} from "./circuit.js?v=44";
+} from "./circuit.js?v=45";
 
 import {
   fastForwardMatchToChampionToDraft,
@@ -81,7 +81,7 @@ import {
   getRoundTarget,
   isPlayerActive,
   resolveRoundEncounterToDraft,
-} from "./round.js?v=44";
+} from "./round.js?v=45";
 
 export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-3.6.0";
 
@@ -715,7 +715,13 @@ function encounterPreviewTemplate(runtime) {
                 <span>${escapeHtml(member.role)}</span>
                 <b>${escapeHtml(member.name)}</b>
                 ${motivationBadgeTemplate(member.motivation, "motivation-badge--encounter")}
-                <small>HP ${member.currentHp}/${member.maxHp}</small>
+                <small>
+                  ${
+                    runtime.memberRuntime[member.playerId]?.combatState === "dead"
+                      ? "DEATH BOX"
+                      : `HP ${formatNumber(runtime.memberRuntime[member.playerId]?.hp ?? member.currentHp ?? member.maxHp)} / ${formatNumber(runtime.memberRuntime[member.playerId]?.maxHp ?? member.maxHp)}`
+                  }
+                </small>
               </div>
             </article>
           `).join("")}
@@ -2151,7 +2157,7 @@ export function createTournamentFlowController({
         );
         await preloadTournamentImages(
           runtimeImagePaths(runtime),
-          6500,
+          10000,
         );
         dynamicImagePreloadKey =
           preloadKey;
@@ -2897,19 +2903,27 @@ export function createTournamentFlowController({
   });
 }
 
-function preloadTournamentImages(paths, timeoutMs = 1800) {
-  if (typeof Image === "undefined") {
-    return Promise.resolve();
-  }
+function preloadTournamentImages(paths, timeoutMs = 10000) {
+  if (typeof Image === "undefined") return Promise.resolve();
   const unique = [...new Set(paths.filter(Boolean))];
   const tasks = unique.map((path) => new Promise((resolve) => {
     const image = new Image();
-    image.onload = resolve;
-    image.onerror = resolve;
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    image.onload = async () => {
+      try { await image.decode?.(); } catch (_error) {}
+      finish();
+    };
+    image.onerror = finish;
     image.src = path;
+    setTimeout(finish, Math.min(timeoutMs, 8000));
   }));
   return Promise.race([
-    Promise.all(tasks),
+    Promise.allSettled(tasks),
     new Promise((resolve) => setTimeout(resolve, timeoutMs)),
   ]);
 }

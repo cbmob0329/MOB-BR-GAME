@@ -19,7 +19,7 @@ import {
 } from "../../data/strategy-data.js";
 import {
   getPlayableRoundCount,
-} from "./round.js?v=44";
+} from "./round.js?v=45";
 
 export const EXPLORATION_VERSION =
   "mobbr-tournament-exploration-1.8.0";
