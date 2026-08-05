@@ -9,14 +9,14 @@
 import {
   STORAGE_KEYS,
   calculateChecksum,
-} from "../main/state.js?v=46";
+} from "../main/state.js?v=48";
 import {
   TOURNAMENT_BRIDGE_VERSION,
   TOURNAMENT_ENTRY_SCHEMA_VERSION,
   TOURNAMENT_RESUME_SCHEMA_VERSION,
   readTournamentEntryFromStorage,
   validateTournamentEntryData,
-} from "../main/tournament-bridge.js?v=46";
+} from "../main/tournament-bridge.js?v=48";
 import {
   CPU_LOCAL_DATA_VERSION,
   CPU_LOCAL_MASTER_VERSION,
@@ -33,35 +33,36 @@ import {
   LOCAL_CPU_TEAMS,
   NATIONAL_CPU_TEAMS,
   getWorldCpuTeamsForYear,
-} from "../../data/cpu-league-registry.js?v=46";
+} from "../../data/cpu-league-registry.js?v=48";
 import {
+  characterValueToRank,
   rankToCharacterValue,
-} from "../../data/game-data.js?v=46";
+} from "../../data/game-data.js?v=48";
 import {
   effectiveCharacterRank,
   selectCpuMotivation,
-} from "../../data/motivation-data.js?v=46";
+} from "../../data/motivation-data.js?v=48";
 import {
   buildCpuBattleStats,
   calculateMaxHp,
   getRoleCommonSkills,
   resolveCpuRankFromRange,
   resolveCpuWeaponProfile,
-} from "../../data/battle-config.js?v=46";
+} from "../../data/battle-config.js?v=48";
 import {
   resolveCpuTeamMaster,
-} from "../../data/circuit-data.js?v=46";
+} from "../../data/circuit-data.js?v=48";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=46";
+} from "./circuit.js?v=48";
 import {
   createCpuFlavorSkills,
   createCpuFlavorWeaponName,
-} from "../../data/cpu-flavor-data.js?v=46";
+} from "../../data/cpu-flavor-data.js?v=48";
 
 export const TOURNAMENT_RUNTIME_VERSION =
-  "mobbr-tournament-runtime-2.4.0";
+  "mobbr-tournament-runtime-2.5.0";
 
 export const TOURNAMENT_PHASES = Object.freeze([
   "IDLE",
@@ -846,16 +847,49 @@ function createCpuSkillSnapshots(
     });
 
   return flavored.map(
-    (skill, index) => ({
-      ...skill,
-      pendingUniqueSkillId:
+    (skill, index) => {
+      const uniqueSkillId =
         player.skillProfile ===
           "unique"
           ? player.uniqueSkillIds?.[
               index
             ] ?? null
-          : null,
-    }),
+          : null;
+
+      if (
+        uniqueSkillId ===
+        "air_ninety"
+      ) {
+        return {
+          skillId:
+            "air_ninety",
+          name:
+            "エアーナインティーズ",
+          description:
+            "敵チーム全員のCT回復速度を大きく低下させ、スキル発動を遅らせる。",
+          type:
+            "TEAM_DEBUFF",
+          target:
+            "enemy_all",
+          baseCt:
+            8,
+          source:
+            "generation47_unique_skill",
+          ctSpeed:
+            -0.62,
+          durationSeconds:
+            4.2,
+          pendingUniqueSkillId:
+            uniqueSkillId,
+        };
+      }
+
+      return {
+        ...skill,
+        pendingUniqueSkillId:
+          uniqueSkillId,
+      };
+    },
   );
 }
 
@@ -893,23 +927,116 @@ function createCpuMemberRecord(
 ) {
   const teamId =
     sourceTeam.teamId;
+
+  const explicitFormAnchor =
+    sourceTeam.rankModel ===
+    "explicit_form_anchor";
+  const motivationLevel =
+    motivation?.level ??
+    "normal";
   const rankRange =
-    sourcePlayer.normalRankRange ??
-    sourcePlayer.hotRankRange ??
-    sourcePlayer.slumpRankRange;
-  const baseCharacterRank = resolveCpuRankFromRange(
-    rankRange,
-    random(),
-  );
-  const characterRank = effectiveCharacterRank(
-    baseCharacterRank,
-    motivation,
-  );
-  const battleStats = buildCpuBattleStats(
-    characterRank,
-    sourcePlayer.role,
-  );
-  const maxHp = calculateMaxHp(battleStats.stamina);
+    explicitFormAnchor
+      ? (
+          motivationLevel ===
+            "terrible" ||
+          motivationLevel ===
+            "slump"
+            ? sourcePlayer.slumpRankRange
+            : motivationLevel ===
+                "normal"
+              ? sourcePlayer.normalRankRange
+              : sourcePlayer.hotRankRange
+        )
+      : (
+          sourcePlayer.normalRankRange ??
+          sourcePlayer.hotRankRange ??
+          sourcePlayer.slumpRankRange
+        );
+
+  const baseCharacterRank =
+    resolveCpuRankFromRange(
+      rankRange,
+      random(),
+    );
+
+  let characterRank;
+  if (explicitFormAnchor) {
+    const anchorAdjustment = {
+      terrible: -2,
+      slump: 0,
+      normal: 0,
+      good: 0,
+      excellent: 2,
+      awakened: 5,
+    }[
+      motivationLevel
+    ] ?? 0;
+    characterRank =
+      characterValueToRank(
+        Math.max(
+          1,
+          Math.min(
+            73,
+            rankToCharacterValue(
+              baseCharacterRank,
+            ) +
+            anchorAdjustment,
+          ),
+        ),
+      );
+  } else {
+    characterRank =
+      effectiveCharacterRank(
+        baseCharacterRank,
+        motivation,
+      );
+  }
+
+  const battleStats =
+    deepClone(
+      buildCpuBattleStats(
+        characterRank,
+        sourcePlayer.role,
+      ),
+    );
+  for (
+    const [
+      statId,
+      bias,
+    ]
+    of Object.entries(
+      sourcePlayer.statBias ??
+      {},
+    )
+  ) {
+    if (
+      Number.isFinite(
+        battleStats[
+          statId
+        ],
+      ) &&
+      Number.isFinite(bias)
+    ) {
+      battleStats[statId] =
+        Math.max(
+          1,
+          Math.min(
+            73,
+            Math.round(
+              battleStats[
+                statId
+              ] +
+              bias,
+            ),
+          ),
+        );
+    }
+  }
+
+  const maxHp =
+    calculateMaxHp(
+      battleStats.stamina,
+    );
   const weaponProfile = resolveCpuWeaponProfile(sourcePlayer);
 
   return {

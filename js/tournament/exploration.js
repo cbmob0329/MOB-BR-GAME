@@ -19,10 +19,10 @@ import {
 } from "../../data/strategy-data.js";
 import {
   getPlayableRoundCount,
-} from "./round.js?v=46";
+} from "./round.js?v=48";
 
 export const EXPLORATION_VERSION =
-  "mobbr-tournament-exploration-1.8.0";
+  "mobbr-tournament-exploration-1.9.0";
 
 export const EXPLORATION_PAGES = Object.freeze([
   "SEARCH",
@@ -1807,6 +1807,12 @@ export function renderExplorationScreen(runtime) {
     );
   }
 
+  const requestedPage =
+    runtime.explorationRuntime.currentPage;
+  const currentPage =
+    EXPLORATION_PAGES.includes(requestedPage)
+      ? requestedPage
+      : "SEARCH";
   const canComplete =
     choice.searchResolved &&
     !runtime.explorationRuntime
@@ -1814,9 +1820,27 @@ export function renderExplorationScreen(runtime) {
     !runtime.explorationRuntime
       .pendingItemUse;
 
+  const pageContent =
+    currentPage === "SEARCH"
+      ? searchPageTemplate(runtime, choice)
+      : currentPage === "FACILITY"
+        ? facilityPageTemplate(runtime)
+        : currentPage === "BAG"
+          ? bagPageTemplate(runtime)
+          : aliveTeamsPageTemplate(runtime);
+
+  const pageTitle =
+    currentPage === "SEARCH"
+      ? "探索地点"
+      : currentPage === "FACILITY"
+        ? "エリア施設"
+        : currentPage === "BAG"
+          ? "バッグ"
+          : "生存チーム";
+
   return `
     <main
-      class="tournament-screen tournament-screen--exploration tournament-screen--exploration-unified"
+      class="tournament-screen tournament-screen--exploration tournament-screen--exploration-popup"
       style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')"
     >
       <img
@@ -1834,46 +1858,30 @@ export function renderExplorationScreen(runtime) {
         <em>ALIVE ${runtime.activeTeamIds.length}</em>
       </header>
 
-      <section class="exploration-unified-scroll">
-        <section class="exploration-unified-block exploration-unified-block--search">
-          <header>
-            <img src="icon/ex.png" alt="">
-            <div>
-              <span>SEARCH</span>
-              <strong>探索地点を1つ選択</strong>
-            </div>
-          </header>
-          ${searchPageTemplate(runtime, choice)}
-        </section>
+      <section class="exploration-popup-shell">
+        <header class="exploration-popup-shell__header">
+          <div>
+            <span>EXPLORE MENU</span>
+            <strong>${escapeHtml(pageTitle)}</strong>
+          </div>
+          <small>下のアイコンで切り替え</small>
+        </header>
 
-        <section class="exploration-unified-block exploration-unified-block--bag">
-          <header>
-            <img src="${escapeAttribute(assetPath("icon/back.png"))}" alt="">
-            <div>
-              <span>BACKPACK</span>
-              <strong>アイテムを使用</strong>
-            </div>
-          </header>
-          ${bagPageTemplate(runtime)}
-        </section>
+        ${pageTabsTemplate(currentPage)}
 
-        <section class="exploration-unified-block exploration-unified-block--facility">
-          <header>
-            <img src="icon/juke.png" alt="">
-            <div>
-              <span>AREA FACILITY</span>
-              <strong>施設専用アイコン</strong>
-            </div>
-          </header>
-          ${facilityPageTemplate(runtime)}
-        </section>
+        <div
+          class="exploration-popup-shell__body"
+          data-scroll-memory="exploration-popup-body"
+        >
+          ${pageContent}
+        </div>
       </section>
 
       <div class="tournament-bottom-area exploration-bottom-area">
         ${commentaryTemplate(
           choice.searchResolved
-            ? `${choice.resultItemId ? getItem(choice.resultItemId).name : "アイテム"}を確保！同じ画面でバッグと施設も確認できます！`
-            : `${choice.areaName}を探索中！3地点から選び、バッグと施設も確認しましょう！`,
+            ? `${choice.resultItemId ? getItem(choice.resultItemId).name : "アイテム"}を確保！必要な項目だけポップアップ内で切り替えられます！`
+            : `${choice.areaName}を探索中！探索地点・バッグ・施設をアイコンで切り替えましょう！`,
         )}
         <div class="tournament-actions">
           <button
@@ -1909,17 +1917,72 @@ function strategyMaster(strategyId) {
 }
 
 export function renderStrategySelectionScreen(runtime) {
-  const tab = runtime.strategyUi.tab;
-  const selectedId =
+  const allAvailable =
+    Object.values(
+      runtime.strategyRuntime,
+    ).filter(
+      (strategy) =>
+        strategy.unlimited ||
+        strategy.tournamentRemaining > 0,
+    );
+
+  const availableTabs = [
+    "ALL",
+    ...STRATEGY_RANKS.filter(
+      (rank) =>
+        allAvailable.some(
+          (strategy) =>
+            strategy.rank === rank,
+        ),
+    ),
+  ];
+  const requestedTab =
+    runtime.strategyUi.tab;
+  const tab =
+    availableTabs.includes(
+      requestedTab,
+    )
+      ? requestedTab
+      : "ALL";
+
+  const requestedSelectedId =
     runtime.strategyUi.selectedId ??
     STRATEGY_RULES.fallbackStrategyId;
+  const requestedSelected =
+    runtime.strategyRuntime[
+      requestedSelectedId
+    ];
   const selectedRuntime =
-    runtime.strategyRuntime[selectedId] ??
-    runtime.strategyRuntime[STRATEGY_RULES.fallbackStrategyId];
-  const selectedMaster = strategyMaster(selectedRuntime.strategyId);
-  const filtered = Object.values(runtime.strategyRuntime).filter(
-    (strategy) => tab === "ALL" || strategy.rank === tab,
-  );
+    requestedSelected &&
+    (
+      requestedSelected.unlimited ||
+      requestedSelected
+        .tournamentRemaining > 0
+    )
+      ? requestedSelected
+      : allAvailable.find(
+          (strategy) =>
+            strategy.strategyId ===
+            STRATEGY_RULES.fallbackStrategyId,
+        ) ??
+        allAvailable[0];
+
+  if (!selectedRuntime) {
+    throw new RangeError(
+      "使用できる作戦がありません。",
+    );
+  }
+
+  const selectedMaster =
+    strategyMaster(
+      selectedRuntime.strategyId,
+    );
+  const filtered =
+    allAvailable.filter(
+      (strategy) =>
+        tab === "ALL" ||
+        strategy.rank === tab,
+    );
 
   return `
     <main class="tournament-screen tournament-screen--strategy-select" style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
@@ -1929,7 +1992,7 @@ export function renderStrategySelectionScreen(runtime) {
       </header>
       <section class="strategy-select-shell strategy-select-shell--no-status">
         <nav class="strategy-rank-tabs">
-          ${STRATEGY_TABS.map((rankTab) => `
+          ${availableTabs.map((rankTab) => `
             <button
               type="button"
               class="${rankTab === tab ? "is-active" : ""}"
@@ -1942,32 +2005,39 @@ export function renderStrategySelectionScreen(runtime) {
         </nav>
         <div class="strategy-selection-layout">
           <div class="strategy-list">
-            ${filtered.map((strategy) => {
-              const master = strategyMaster(strategy.strategyId);
-              const disabled =
-                !strategy.unlimited &&
-                strategy.tournamentRemaining <= 0;
-              return `
-                <button
-                  type="button"
-                  class="strategy-list-card ${
-                    strategy.strategyId === selectedRuntime.strategyId
-                      ? "is-selected"
-                      : ""
-                  }"
-                  data-action="strategy-select"
-                  data-strategy-id="${escapeAttribute(strategy.strategyId)}"
-                  ${disabled ? "disabled" : ""}
-                >
-                  <span class="strategy-list-card__rank">${escapeHtml(strategy.rank)}</span>
-                  <div>
-                    <strong>${escapeHtml(strategy.name)}</strong>
-                    <small>${escapeHtml(master.description)}</small>
-                  </div>
-                  <em>${strategyCountLabel(strategy)}</em>
-                </button>
-              `;
-            }).join("")}
+            ${
+              filtered.length
+                ? filtered.map((strategy) => {
+                    const master =
+                      strategyMaster(
+                        strategy.strategyId,
+                      );
+                    return `
+                      <button
+                        type="button"
+                        class="strategy-list-card ${
+                          strategy.strategyId === selectedRuntime.strategyId
+                            ? "is-selected"
+                            : ""
+                        }"
+                        data-action="strategy-select"
+                        data-strategy-id="${escapeAttribute(strategy.strategyId)}"
+                      >
+                        <span class="strategy-list-card__rank">${escapeHtml(strategy.rank)}</span>
+                        <div>
+                          <strong>${escapeHtml(strategy.name)}</strong>
+                          <small>${escapeHtml(master.description)}</small>
+                        </div>
+                        <em>${strategyCountLabel(strategy)}</em>
+                      </button>
+                    `;
+                  }).join("")
+                : `
+                  <p class="strategy-list-empty">
+                    このランクの所持作戦はありません。
+                  </p>
+                `
+            }
           </div>
           <article class="strategy-detail-card">
             <span>${escapeHtml(selectedRuntime.rank)} / ${escapeHtml(selectedRuntime.strategyId)}</span>
@@ -1975,14 +2045,14 @@ export function renderStrategySelectionScreen(runtime) {
             <p>${escapeHtml(selectedMaster.description)}</p>
             <div>
               <strong>残り ${strategyCountLabel(selectedRuntime)}</strong>
-              <small>選択時点では消費しません。戦闘開始時に1回消費します。</small>
+              <small>未所持・残り0の作戦は一覧に表示しません。</small>
             </div>
           </article>
         </div>
       </section>
       <div class="tournament-bottom-area">
         ${commentaryTemplate(
-          `${selectedRuntime.name}を確認中！作戦は戦闘開始時に確定消費されます。`,
+          `${selectedRuntime.name}を確認中！所持している作戦だけを表示しています。`,
         )}
         <div class="tournament-actions">
           <button

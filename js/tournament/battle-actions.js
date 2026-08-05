@@ -25,12 +25,12 @@ import {
   calculateSkillCt,
   isAssistEligible,
   resolveWeaponBattleValue,
-} from "../../data/battle-config.js?v=46";
+} from "../../data/battle-config.js?v=48";
 import {
   STAT_IDS,
   clamp,
   rankToCharacterValue,
-} from "../../data/game-data.js?v=46";
+} from "../../data/game-data.js?v=48";
 import {
   adjustDebuffForSpecialAbility,
   applyNextBattleSpecialEffects,
@@ -52,7 +52,7 @@ import {
 } from "./special-abilities.js";
 
 export const BATTLE_ACTIONS_VERSION =
-  "mobbr-battle-actions-2.0.0";
+  "mobbr-battle-actions-2.1.0";
 
 export const BATTLE_ACTION_BALANCE = Object.freeze({
   criticalDamageMultiplier: 1.5,
@@ -511,6 +511,7 @@ export function createBattleParticipant({
       accuracyModifier: skill.accuracyModifier ?? 0,
       agilityPenalty: skill.agilityPenalty ?? 0,
       durationSeconds: skill.durationSeconds ?? 0,
+      ctSpeed: skill.ctSpeed ?? 0,
       balanceStatus: skill.balanceStatus ?? null,
     };
   });
@@ -2219,6 +2220,96 @@ function executeSmokeLauncher(
   };
 }
 
+function executeAirNinety(
+  battle,
+  actor,
+  skill,
+) {
+  const targets =
+    getTeamParticipants(
+      battle,
+      getEnemyTeamId(
+        battle,
+        actor.teamId,
+      ),
+      "alive",
+    );
+  if (
+    targets.length === 0
+  ) {
+    return null;
+  }
+
+  useSkillCharge(
+    actor,
+    skill,
+  );
+  for (
+    const target
+    of targets
+  ) {
+    addOrRefreshEffect(
+      target,
+      {
+        code:
+          "air_ninety_ct_slow",
+        sourcePlayerId:
+          actor.playerId,
+        remainingSeconds:
+          Math.max(
+            1,
+            skill.durationSeconds ??
+            4.2,
+          ),
+        ctSpeed:
+          Math.max(
+            -0.9,
+            Math.min(
+              -0.1,
+              skill.ctSpeed ??
+              -0.62,
+            ),
+          ),
+      },
+    );
+  }
+
+  appendBattleEvent(
+    battle,
+    "skill_area_debuff",
+    {
+      actorPlayerId:
+        actor.playerId,
+      actorTeamId:
+        actor.teamId,
+      skillId:
+        skill.skillId,
+      skillName:
+        skill.name,
+      targetPlayerIds:
+        targets.map(
+          (target) =>
+            target.playerId,
+        ),
+      duration:
+        skill.durationSeconds,
+      ctSpeed:
+        skill.ctSpeed,
+    },
+  );
+
+  return {
+    performed: true,
+    skillId:
+      skill.skillId,
+    targetPlayerIds:
+      targets.map(
+        (target) =>
+          target.playerId,
+      ),
+  };
+}
+
 function executePrisonBreaker(
   battle,
   actor,
@@ -2642,6 +2733,31 @@ export function getUsableReadySkills(
           ? 65
           : -1;
       } else if (
+        skill.skillId ===
+        "air_ninety"
+      ) {
+        const enemyTeamId =
+          getEnemyTeamId(
+            battle,
+            actor.teamId,
+          );
+        const alreadyActive =
+          getTeamParticipants(
+            battle,
+            enemyTeamId,
+            "alive",
+          ).some(
+            (enemy) =>
+              activeEffects(
+                enemy,
+                "air_ninety_ct_slow",
+              ).length > 0,
+          );
+        priority =
+          alreadyActive
+            ? -1
+            : 72;
+      } else if (
         skill.skillId === "atk_smoke_launcher"
       ) {
         priority = 60;
@@ -2716,6 +2832,12 @@ export function performSkillAction(
   );
 
   switch (skill.skillId) {
+    case "air_ninety":
+      return executeAirNinety(
+        battle,
+        actor,
+        skill,
+      );
     case "prison_breaker":
       return executePrisonBreaker(
         battle,
