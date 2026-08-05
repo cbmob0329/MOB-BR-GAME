@@ -18,7 +18,7 @@ import {
   getPlacementPoints,
   getTournamentEventsForDate,
   isChampionshipYear,
-} from "../../data/game-data.js?v=43";
+} from "../../data/game-data.js?v=44";
 import {
   CASUAL_TOURNAMENT_RULES,
   FORMAL_CIRCUIT_RULES,
@@ -32,7 +32,7 @@ import {
   selectTeamIds,
   sourcePoolForTeamId,
   teamSeed,
-} from "../../data/circuit-data.js?v=43";
+} from "../../data/circuit-data.js?v=44";
 import {
   LOCAL_CPU_TEAMS,
 } from "../../data/cpu-local-data.js";
@@ -44,7 +44,7 @@ import {
 } from "../../data/cpu-world-data.js";
 import {
   BATTLE_CONFIG_VERSION,
-} from "../../data/battle-config.js?v=43";
+} from "../../data/battle-config.js?v=44";
 import {
   CONSUMABLE_ITEMS,
   ITEM_MASTER_VERSION,
@@ -52,7 +52,7 @@ import {
 } from "../../data/shop-data.js";
 import {
   getCasualCup,
-} from "../../data/casual-data.js?v=43";
+} from "../../data/casual-data.js?v=44";
 import {
   STRATEGIES,
   STRATEGY_MASTER_VERSION,
@@ -61,15 +61,15 @@ import {
   DuplicateTournamentResultError,
   STORAGE_KEYS,
   calculateChecksum,
-} from "./state.js?v=43";
+} from "./state.js?v=44";
 import {
   applyMotivationToStats,
   normalizeMotivationRecord,
-} from "../../data/motivation-data.js?v=43";
+} from "../../data/motivation-data.js?v=44";
 import {
   EMPLOYEE_DATA_VERSION,
   getTotalEmployeeHpBonus,
-} from "../../data/employee-data.js?v=43";
+} from "../../data/employee-data.js?v=44";
 
 export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-2.5.0";
 export const TOURNAMENT_ENTRY_SCHEMA_VERSION =

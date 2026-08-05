@@ -10,12 +10,12 @@ import {
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=43";
+} from "../../data/game-data.js?v=44";
 import {
   isCasualTournamentType,
   resolveCpuTeamMaster,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=43";
+} from "../../data/circuit-data.js?v=44";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
@@ -67,7 +67,7 @@ import {
   purchaseCookingUtensilToDraft,
   serveDiningMealToDraft,
   settleDiningMealsToDraft,
-} from "./state.js?v=43";
+} from "./state.js?v=44";
 import {
   COOKING_RULES,
   COOKING_SCREEN_ASSETS,
@@ -86,19 +86,19 @@ import {
   placeCookingUtensilToDraft,
   removeCookingUtensilFromSlotToDraft,
   startCookingJobToDraft,
-} from "../../data/cooking-data.js?v=43";
+} from "../../data/cooking-data.js?v=44";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=43";
+} from "./tournament-bridge.js?v=44";
 import {
   DINING_EATING_SPEECHES,
   DINING_HUNGRY_SPEECHES,
   DINING_RULES,
   diningWeekKey,
-} from "../../data/dining-data.js?v=43";
+} from "../../data/dining-data.js?v=44";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-2.1.0";
+  "mobbr-management-feature-2.2.0";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -3546,25 +3546,8 @@ export function renderCookingDining(
       )}
 
       <section class="dining-room-stage">
-        <div class="dining-table-row dining-table-row--top">
-          ${tables.slice(0, 3).map((table) => `
-            <article class="dining-long-table dining-long-table--${escapeAttribute(table.tableId)}">
-              <span>${escapeHtml(table.label)}</span>
-              <div class="dining-table-seats">
-                ${table.seats.map((seat, index) =>
-                  renderDiningSeat(
-                    seat,
-                    index,
-                    snapshot,
-                  )
-                ).join("")}
-              </div>
-              <div class="dining-table-surface"></div>
-            </article>
-          `).join("")}
-        </div>
-        <div class="dining-table-row dining-table-row--bottom">
-          ${tables.slice(3).map((table) => `
+        <div class="dining-table-list">
+          ${tables.map((table) => `
             <article class="dining-long-table dining-long-table--${escapeAttribute(table.tableId)}">
               <span>${escapeHtml(table.label)}</span>
               <div class="dining-table-seats">
@@ -4945,6 +4928,88 @@ export function createManagementController({
     return true;
   }
 
+  function updateShopInPlace() {
+    const currentPopup =
+      root.querySelector(
+        ".mobshop-popup",
+      );
+    if (!currentPopup) {
+      renderPreservingScroll();
+      return false;
+    }
+
+    const categoryStrip =
+      currentPopup.querySelector(
+        ".mobshop-category-grid",
+      );
+    const categoryScroll =
+      categoryStrip?.scrollLeft ?? 0;
+
+    const template =
+      document.createElement(
+        "template",
+      );
+    template.innerHTML =
+      renderShopManagement(
+        stateManager.getSnapshot(),
+      ).trim();
+    const nextPopup =
+      template.content
+        .firstElementChild;
+    const nextContent =
+      nextPopup.querySelector(
+        ".mobshop-content",
+      );
+    const currentContent =
+      currentPopup.querySelector(
+        ".mobshop-content",
+      );
+
+    if (
+      !nextContent ||
+      !currentContent
+    ) {
+      renderPreservingScroll();
+      return false;
+    }
+
+    currentContent.replaceWith(
+      nextContent,
+    );
+
+    const nextDialogue =
+      nextPopup.querySelector(
+        ".mobshop-header-clerk p",
+      )?.textContent ?? "";
+    const currentDialogue =
+      currentPopup.querySelector(
+        ".mobshop-header-clerk p",
+      );
+    if (currentDialogue) {
+      currentDialogue.textContent =
+        nextDialogue;
+    }
+
+    for (
+      const button
+      of currentPopup.querySelectorAll(
+        "[data-shop-category]",
+      )
+    ) {
+      button.classList.toggle(
+        "is-active",
+        button.dataset.shopCategory ===
+          MANAGEMENT_VIEW_STATE.shopCategory,
+      );
+    }
+
+    if (categoryStrip) {
+      categoryStrip.scrollLeft =
+        categoryScroll;
+    }
+    return true;
+  }
+
   function updateCookingInPlace({
     anchorSelector =
       ".cooking-workbench",
@@ -4962,6 +5027,104 @@ export function createManagementController({
       root.querySelector(
         ".page-content",
       );
+    const oldPageTop =
+      page?.scrollTop ?? 0;
+    const template =
+      document.createElement(
+        "template",
+      );
+    template.innerHTML =
+      `<div class="management-app-content management-app-content--cooking">${renderCookingManagement(
+        stateManager.getSnapshot(),
+      )}</div>`;
+    const replacement =
+      template.content
+        .firstElementChild;
+
+    const fragmentSelectors =
+      anchorSelector ===
+        ".dining-room-stage"
+        ? [
+            ".dining-selection-panel",
+            ".dining-room-stage",
+          ]
+        : [
+            anchorSelector,
+          ];
+    const fragmentMode =
+      anchorSelector !==
+        ".cooking-subnav" &&
+      fragmentSelectors.every(
+        (selector) =>
+          current.querySelector(
+            selector,
+          ) &&
+          replacement.querySelector(
+            selector,
+          ),
+      );
+
+    if (fragmentMode) {
+      for (
+        const selector
+        of fragmentSelectors
+      ) {
+        const currentFragment =
+          current.querySelector(
+            selector,
+          );
+        const nextFragment =
+          replacement.querySelector(
+            selector,
+          );
+        const memories =
+          new Map(
+            [...currentFragment.querySelectorAll(
+              "[data-scroll-memory]",
+            )].map(
+              (element) => [
+                element.dataset.scrollMemory,
+                {
+                  left:
+                    element.scrollLeft,
+                  top:
+                    element.scrollTop,
+                },
+              ],
+            ),
+          );
+
+        currentFragment.replaceWith(
+          nextFragment,
+        );
+
+        for (
+          const element
+          of nextFragment.querySelectorAll(
+            "[data-scroll-memory]",
+          )
+        ) {
+          const memory =
+            memories.get(
+              element.dataset.scrollMemory,
+            );
+          if (!memory) {
+            continue;
+          }
+          element.scrollLeft =
+            memory.left;
+          element.scrollTop =
+            memory.top;
+        }
+      }
+
+      if (page) {
+        page.scrollTop =
+          oldPageTop;
+      }
+      return true;
+    }
+
     const oldAnchor =
       current.querySelector(
         anchorSelector,
@@ -4970,8 +5133,6 @@ export function createManagementController({
       oldAnchor
         .getBoundingClientRect()
         .top;
-    const oldPageTop =
-      page?.scrollTop ?? 0;
     const memories =
       new Map(
         [...current.querySelectorAll(
@@ -4989,17 +5150,6 @@ export function createManagementController({
         ),
       );
 
-    const template =
-      document.createElement(
-        "template",
-      );
-    template.innerHTML =
-      `<div class="management-app-content management-app-content--cooking">${renderCookingManagement(
-        stateManager.getSnapshot(),
-      )}</div>`;
-    const replacement =
-      template.content
-        .firstElementChild;
     current.replaceWith(
       replacement,
     );
@@ -5014,7 +5164,9 @@ export function createManagementController({
         memories.get(
           element.dataset.scrollMemory,
         );
-      if (!memory) continue;
+      if (!memory) {
+        continue;
+      }
       element.scrollLeft =
         memory.left;
       element.scrollTop =
@@ -5778,8 +5930,10 @@ export function createManagementController({
     }
 
     if (action === "select-shop-category") {
-      MANAGEMENT_VIEW_STATE.shopCategory = actionElement.dataset.shopCategory;
-      renderPreservingScroll();
+      MANAGEMENT_VIEW_STATE.shopCategory =
+        actionElement.dataset.shopCategory;
+      updateShopInPlace();
+      actionElement.blur();
       return true;
     }
     if (action === "select-room-category") {

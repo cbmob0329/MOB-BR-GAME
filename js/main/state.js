@@ -19,11 +19,11 @@ import {
   getCompanyRankData,
   rankToWeaponValue,
   validateGameDate,
-} from "../../data/game-data.js?v=43";
+} from "../../data/game-data.js?v=44";
 import {
   BATTLE_CONFIG_VERSION,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=43";
+} from "../../data/battle-config.js?v=44";
 import {
   TRAINING_DATA_VERSION,
 } from "../../data/training-data.js";
@@ -56,7 +56,7 @@ import {
   motivationLevelIndex,
   normalizeMotivationRecord,
   shiftMotivation,
-} from "../../data/motivation-data.js?v=43";
+} from "../../data/motivation-data.js?v=44";
 import {
   EMPLOYEE_DATA_VERSION,
   EMPLOYEE_MASTER,
@@ -69,7 +69,7 @@ import {
   getEmployeeRankData,
   getEmployeeWeeklyCoinBonusRate,
   normalizeEmployeeRecord,
-} from "../../data/employee-data.js?v=43";
+} from "../../data/employee-data.js?v=44";
 import {
   COOKING_DATA_VERSION,
   COOKING_STATE_SCHEMA_VERSION,
@@ -85,7 +85,7 @@ import {
   refreshWeeklyIngredientStockToDraft,
   validateCookingState,
   createFoodVariant,
-} from "../../data/cooking-data.js?v=43";
+} from "../../data/cooking-data.js?v=44";
 import {
   DINING_DATA_VERSION,
   DINING_RULES,
@@ -96,7 +96,7 @@ import {
   normalizeDiningState,
   refreshDiningWeekToDraft,
   validateDiningState,
-} from "../../data/dining-data.js?v=43";
+} from "../../data/dining-data.js?v=44";
 
 export const SAVE_SCHEMA_VERSION = "mobbr-save-2.6.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";

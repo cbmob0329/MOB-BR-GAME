@@ -18,14 +18,14 @@ import {
 } from "../assets.js";
 import {
   fitPortraits,
-} from "../portrait-fit.js?v=43";
+} from "../portrait-fit.js?v=44";
 import {
   SaveError,
   SaveNotFoundError,
   clearPendingEmployeeRankUpsToDraft,
   createGameStateManager,
   grantEmployeeCookingPointsToDraft,
-} from "./state.js?v=43";
+} from "./state.js?v=44";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -47,7 +47,7 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=43";
+} from "./team.js?v=44";
 import {
   getSpecialAbility,
 } from "../../data/ability-data.js";
@@ -57,26 +57,26 @@ import {
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=43";
+} from "../../data/motivation-data.js?v=44";
 import {
   getRoomMaster,
-} from "../../data/collection-data.js?v=43";
+} from "../../data/collection-data.js?v=44";
 import {
   EMPLOYEE_RULES,
   getEmployeeRankData,
   getTotalEmployeeHpBonus,
-} from "../../data/employee-data.js?v=43";
+} from "../../data/employee-data.js?v=44";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=43";
+} from "./management.js?v=44";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=43";
+} from "./tournament-bridge.js?v=44";
 
-export const APP_VERSION = "mobbr-main-app-3.0.0";
+export const APP_VERSION = "mobbr-main-app-3.1.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -946,7 +946,7 @@ function homeRoomPreviewTemplate(
 function homeTemplate(snapshot, currentRoute) {
   const tournamentWeek = getTournamentWeekStatus(snapshot);
   const tournamentNotice = tournamentWeek.hasTournament
-    ? `<section class="home-tournament-notice ${tournamentWeek.trainingBlocked ? "is-entry" : "is-observer"}">
+    ? `<section class="home-tournament-notice home-tournament-notice--compact ${tournamentWeek.trainingBlocked ? "is-entry" : "is-observer"}">
         <img src="${escapeAttribute((() => {
           const type = tournamentWeek.details[0]?.event.tournamentType ?? "local";
           if (type === "national") return "icon/national.png";
@@ -955,20 +955,8 @@ function homeTemplate(snapshot, currentRoute) {
           return "icon/local.png";
         })())}" alt="">
         <div>
-          <span>${tournamentWeek.trainingBlocked ? "TOURNAMENT WEEK" : "TOURNAMENT NOTICE"}</span>
-          <strong>${escapeHtml(tournamentWeek.details.map((detail) => detail.event.stageName).join(" / "))}</strong>
-          <p>${
-            tournamentWeek.trainingBlocked
-              ? "今週は出場予定大会があります。トレーニングは行えません。"
-              : tournamentWeek.details.some(
-                  (detail) =>
-                    String(
-                      detail.event.tournamentType,
-                    ).startsWith("casual_"),
-                )
-                ? "今週はカジュアルカップが開催されます。参加する大会を自由に選べます。"
-                : "今週は大会が開催されます。詳しい状況はスケジュールをご確認ください。"
-          }</p>
+          <span>${tournamentWeek.trainingBlocked ? "TOURNAMENT WEEK" : "TOURNAMENT NOTICE"} / ${formatNumber(tournamentWeek.details.length)} EVENT</span>
+          <strong title="${escapeAttribute(tournamentWeek.details.map((detail) => detail.event.stageName).join(" / "))}">${escapeHtml(tournamentWeek.details.map((detail) => detail.event.stageName).join(" / "))}</strong>
         </div>
         <button type="button" data-action="navigate" data-route="${ROUTES.schedule}">大会予定</button>
       </section>`
@@ -980,7 +968,7 @@ function homeTemplate(snapshot, currentRoute) {
     >
       ${homeRoomStageTemplate(snapshot)}
       ${topStatusTemplate(snapshot)}
-      <div class="page-content home-facility-only">
+      <div class="page-content home-facility-only ${tournamentWeek.hasTournament ? "has-tournament-notice" : ""}">
         <nav class="home-quick-actions" aria-label="HOMEショートカット">
           <button
             type="button"
@@ -2690,13 +2678,13 @@ export function createMainApp({
       translateProperty:
         "--main-portrait-y",
       targetWidthRate:
-        0.84,
+        1.24,
       targetHeightRate:
-        0.82,
+        0.80,
       minimumScale:
-        0.52,
+        0.46,
       maximumScale:
-        1.42,
+        1.70,
     };
     fitPortraits(
       root,
