@@ -19,11 +19,11 @@ import {
   getCompanyRankData,
   rankToWeaponValue,
   validateGameDate,
-} from "../../data/game-data.js?v=45";
+} from "../../data/game-data.js?v=46";
 import {
   BATTLE_CONFIG_VERSION,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=45";
+} from "../../data/battle-config.js?v=46";
 import {
   TRAINING_DATA_VERSION,
 } from "../../data/training-data.js";
@@ -56,7 +56,7 @@ import {
   motivationLevelIndex,
   normalizeMotivationRecord,
   shiftMotivation,
-} from "../../data/motivation-data.js?v=45";
+} from "../../data/motivation-data.js?v=46";
 import {
   EMPLOYEE_DATA_VERSION,
   EMPLOYEE_MASTER,
@@ -69,14 +69,13 @@ import {
   getEmployeeRankData,
   getEmployeeWeeklyCoinBonusRate,
   normalizeEmployeeRecord,
-} from "../../data/employee-data.js?v=45";
+} from "../../data/employee-data.js?v=46";
 import {
   COOKING_DATA_VERSION,
   COOKING_STATE_SCHEMA_VERSION,
   COOKING_UTENSIL_MASTER_VERSION,
   INGREDIENT_MASTER_VERSION,
   RECIPE_MASTER_VERSION,
-  addCookingUtensilToStateToDraft,
   addIngredientToCookingStateToDraft,
   createInitialCookingState,
   getCookingUtensil,
@@ -85,7 +84,7 @@ import {
   refreshWeeklyIngredientStockToDraft,
   validateCookingState,
   createFoodVariant,
-} from "../../data/cooking-data.js?v=45";
+} from "../../data/cooking-data.js?v=46";
 import {
   DINING_DATA_VERSION,
   DINING_RULES,
@@ -96,9 +95,9 @@ import {
   normalizeDiningState,
   refreshDiningWeekToDraft,
   validateDiningState,
-} from "../../data/dining-data.js?v=45";
+} from "../../data/dining-data.js?v=46";
 
-export const SAVE_SCHEMA_VERSION = "mobbr-save-2.6.0";
+export const SAVE_SCHEMA_VERSION = "mobbr-save-2.7.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
 
 export const STORAGE_KEYS = Object.freeze({
@@ -1446,7 +1445,8 @@ export function migrateSaveState(
     rawState.schemaVersion === "mobbr-save-2.2.0" ||
     rawState.schemaVersion === "mobbr-save-2.3.0" ||
     rawState.schemaVersion === "mobbr-save-2.4.0" ||
-    rawState.schemaVersion === "mobbr-save-2.5.0"
+    rawState.schemaVersion === "mobbr-save-2.5.0" ||
+    rawState.schemaVersion === "mobbr-save-2.6.0"
   ) {
     const migrated = migrateUnversionedSave(rawState, timestamp);
     validateSaveState(migrated);
@@ -1592,10 +1592,9 @@ export function purchaseCookingIngredientToDraft(
   });
 }
 
-export function purchaseCookingUtensilToDraft(
+export function unlockCookingUtensilToDraft(
   draft,
   utensilId,
-  quantity = 1,
 ) {
   assertPlainObject(
     draft,
@@ -1605,48 +1604,50 @@ export function purchaseCookingUtensilToDraft(
     getCookingUtensil(
       utensilId,
     );
+  draft.cooking.unlockedUtensilIds ??=
+    [];
   if (
-    utensil.shopAvailable !==
-    true
+    draft.cooking
+      .unlockedUtensilIds
+      .includes(
+        utensilId,
+      )
   ) {
-    throw new RangeError(
-      `${utensil.name}は初期配布専用です。`,
-    );
+    return deepFreeze({
+      utensilId,
+      name:
+        utensil.name,
+      costCoin:
+        0,
+      alreadyUnlocked:
+        true,
+    });
   }
-  if (
-    !Number.isInteger(quantity) ||
-    quantity < 1
-  ) {
-    throw new RangeError(
-      "Cooking utensil purchase quantity must be a positive integer.",
-    );
-  }
-  const costCoin =
-    utensil.priceCoin *
-    quantity;
   if (
     draft.resources.coin <
-    costCoin
+    utensil.priceCoin
   ) {
     throw new RangeError(
-      "調理器具購入に必要なコインが不足しています。",
+      "調理器具のロック解除に必要なコインが不足しています。",
     );
   }
   draft.resources.coin -=
-    costCoin;
-  const ownedQuantity =
-    addCookingUtensilToStateToDraft(
-      draft.cooking,
+    utensil.priceCoin;
+  draft.cooking
+    .unlockedUtensilIds
+    .push(
       utensilId,
-      quantity,
     );
+  draft.cooking.updatedAt =
+    new Date().toISOString();
   return deepFreeze({
     utensilId,
     name:
       utensil.name,
-    quantity,
-    costCoin,
-    ownedQuantity,
+    costCoin:
+      utensil.priceCoin,
+    alreadyUnlocked:
+      false,
   });
 }
 

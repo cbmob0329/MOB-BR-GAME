@@ -18,14 +18,14 @@ import {
 } from "../assets.js";
 import {
   fitPortraits,
-} from "../portrait-fit.js?v=45";
+} from "../portrait-fit.js?v=46";
 import {
   SaveError,
   SaveNotFoundError,
   clearPendingEmployeeRankUpsToDraft,
   createGameStateManager,
   grantEmployeeCookingPointsToDraft,
-} from "./state.js?v=45";
+} from "./state.js?v=46";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -47,7 +47,7 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=45";
+} from "./team.js?v=46";
 import {
   getSpecialAbility,
 } from "../../data/ability-data.js";
@@ -57,26 +57,26 @@ import {
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=45";
+} from "../../data/motivation-data.js?v=46";
 import {
   getRoomMaster,
-} from "../../data/collection-data.js?v=45";
+} from "../../data/collection-data.js?v=46";
 import {
   EMPLOYEE_RULES,
   getEmployeeRankData,
   getTotalEmployeeHpBonus,
-} from "../../data/employee-data.js?v=45";
+} from "../../data/employee-data.js?v=46";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=45";
+} from "./management.js?v=46";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=45";
+} from "./tournament-bridge.js?v=46";
 
-export const APP_VERSION = "mobbr-main-app-3.2.0";
+export const APP_VERSION = "mobbr-main-app-3.3.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -1457,7 +1457,7 @@ function managementFeatureTemplate(snapshot, route, currentRoute) {
       ${topStatusTemplate(snapshot)}
       <div class="page-content">
         <div class="back-row">
-          <button type="button" class="back-button" data-action="open-facility" data-facility-id="${parentFacility}">
+          <button type="button" class="back-button" data-action="show-facility-menu" data-facility-id="${parentFacility}">
             ← FACILITY
           </button>
         </div>
@@ -3195,6 +3195,15 @@ export function createMainApp({
       navigate(ROUTES.facility);
       return;
     }
+    if (action === "show-facility-menu") {
+      selectedFacilityId =
+        actionElement.dataset.facilityId ??
+        "team_lab";
+      navigate(
+        ROUTES.facility,
+      );
+      return;
+    }
     if (action === "select-facility") {
       selectedFacilityId = actionElement.dataset.facilityId ?? "team_lab";
       renderPreservingPageScroll();
@@ -3460,30 +3469,29 @@ export function createMainApp({
               0,
             );
           }
-          for (
-            const utensilId
-            of [
+          draft.cooking.unlockedUtensilIds =
+            [
               "frying_pan",
               "pot",
               "oven",
               "steamer",
               "mixer",
-            ]
-          ) {
-            draft.cooking.utensilInventory[
-              utensilId
-            ] = Math.max(
-              5,
-              draft.cooking.utensilInventory[
-                utensilId
-              ] ??
-              0,
+            ];
+          draft.cooking.utensilInventory =
+            Object.fromEntries(
+              draft.cooking
+                .unlockedUtensilIds
+                .map(
+                  (utensilId) => [
+                    utensilId,
+                    1,
+                  ],
+                ),
             );
-          }
         },
       );
       showToast(
-        "TEST MODE：食材41種と調理器具を補充しました",
+        "TEST MODE：食材41種と調理器具5種を解放しました",
       );
       renderPreservingPageScroll();
       return;

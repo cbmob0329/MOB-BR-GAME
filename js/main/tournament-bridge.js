@@ -18,7 +18,7 @@ import {
   getPlacementPoints,
   getTournamentEventsForDate,
   isChampionshipYear,
-} from "../../data/game-data.js?v=45";
+} from "../../data/game-data.js?v=46";
 import {
   CASUAL_TOURNAMENT_RULES,
   FORMAL_CIRCUIT_RULES,
@@ -32,19 +32,15 @@ import {
   selectTeamIds,
   sourcePoolForTeamId,
   teamSeed,
-} from "../../data/circuit-data.js?v=45";
+} from "../../data/circuit-data.js?v=46";
 import {
   LOCAL_CPU_TEAMS,
-} from "../../data/cpu-local-data.js";
-import {
   NATIONAL_CPU_TEAMS,
-} from "../../data/cpu-national-data.js";
-import {
   getWorldCpuTeamsForYear,
-} from "../../data/cpu-world-data.js";
+} from "../../data/cpu-league-registry.js?v=46";
 import {
   BATTLE_CONFIG_VERSION,
-} from "../../data/battle-config.js?v=45";
+} from "../../data/battle-config.js?v=46";
 import {
   CONSUMABLE_ITEMS,
   ITEM_MASTER_VERSION,
@@ -52,7 +48,7 @@ import {
 } from "../../data/shop-data.js";
 import {
   getCasualCup,
-} from "../../data/casual-data.js?v=45";
+} from "../../data/casual-data.js?v=46";
 import {
   STRATEGIES,
   STRATEGY_MASTER_VERSION,
@@ -61,17 +57,17 @@ import {
   DuplicateTournamentResultError,
   STORAGE_KEYS,
   calculateChecksum,
-} from "./state.js?v=45";
+} from "./state.js?v=46";
 import {
   applyMotivationToStats,
   normalizeMotivationRecord,
-} from "../../data/motivation-data.js?v=45";
+} from "../../data/motivation-data.js?v=46";
 import {
   EMPLOYEE_DATA_VERSION,
   getTotalEmployeeHpBonus,
-} from "../../data/employee-data.js?v=45";
+} from "../../data/employee-data.js?v=46";
 
-export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-2.5.0";
+export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-2.6.0";
 export const TOURNAMENT_ENTRY_SCHEMA_VERSION =
   "mobbr-tournament-entry-1.0.0";
 export const TOURNAMENT_RESULT_SCHEMA_VERSION =
@@ -1293,6 +1289,7 @@ function participantSeedsFromIds(
     playerTeamId,
     groupAssignments = null,
     guestTeamId = null,
+    guestTeamIds = [],
   },
 ) {
   const groupByTeamId = {};
@@ -1310,7 +1307,11 @@ function participantSeedsFromIds(
     isPlayer: teamId === playerTeamId,
     groupId: groupByTeamId[teamId] ?? null,
     seedIndex: index + 1,
-    guest: teamId === guestTeamId,
+    guest:
+      teamId === guestTeamId ||
+      guestTeamIds.includes(
+        teamId,
+      ),
   }));
 }
 
@@ -1898,6 +1899,12 @@ export function createTournamentEntryData(
       tournamentId:
         event.tournamentId ?? `${snapshot.gameDate.year}-${event.stageId}`,
       tournamentType,
+      leagueSeries:
+        isCasualTournamentType(
+          tournamentType,
+        )
+          ? "CASUAL CUP"
+          : "MOB BR PRO LEAGUE",
       tournamentName:
         tournamentOverrides.tournamentName ?? preset.tournamentName,
       stageName: event.stageName ?? event.stageId,
@@ -3237,12 +3244,12 @@ export function renderTournamentSchedule(snapshot, storage) {
   return `
     ${bridgePanel}
     <section class="annual-circuit-overview">
-      <span>MOB BR OFFICIAL SERIES</span>
+      <span>MOB BR PRO LEAGUE</span>
       <h2>${snapshot.gameDate.year} MOB BR</h2>
       <div>
         <b>LOCAL</b><i>→</i><b>NATIONAL</b><i>→</i><b>NATIONAL LC</b><i>→</i><b>WORLD予選</b><i>→</i><b>WORLD LC</b><i>→</i><b>WORLD FINAL</b>
       </div>
-      <p>MOB BRは年1回。毎月のカジュアル週は4つのカップから1大会だけ選択できます。</p>
+      <p>LOCAL・NATIONAL・WORLD・CHAMPIONSHIPはMOB BRのプロリーグです。月例カジュアル大会は別枠です。</p>
     </section>
     <section class="tournament-current-week">
       <h2>CURRENT WEEK</h2>
@@ -3260,7 +3267,7 @@ export function renderTournamentSchedule(snapshot, storage) {
               return `
                 <article class="tournament-current-card ${availability.eligible ? "is-entry" : "is-observer"} ${event.choiceGroupId ? "is-casual-choice" : "is-formal-stage"}">
                   <img class="tournament-type-logo" src="${escapeAttribute(getTournamentIcon(event.tournamentType))}" alt="">
-                  <span>${event.choiceGroupId ? "MONTHLY CASUAL CHOICE" : availability.eligible ? "FORMAL STAGE OPEN" : "TOURNAMENT NOTICE"}</span>
+                  <span>${event.choiceGroupId ? "MONTHLY CASUAL CHOICE" : availability.eligible ? "MOB BR PRO LEAGUE" : "PRO LEAGUE NOTICE"}</span>
                   <h3>${escapeHtml(preset.tournamentName)}</h3>
                   <p>${escapeHtml(event.stageName)}</p>
                   <div class="tournament-rule-summary">${escapeHtml(tournamentRuleSummary(event))}</div>
@@ -3360,7 +3367,7 @@ export function renderTournamentSchedule(snapshot, storage) {
                                       alt=""
                                     >
                                     <div>
-                                      <span>${casual ? "CASUAL CUP" : "FORMAL"}</span>
+                                      <span>${casual ? "CASUAL CUP" : "MOB BR PRO"}</span>
                                       <strong>${escapeHtml(preset.tournamentName)}</strong>
                                       <small>${escapeHtml(event.stageName)}</small>
                                     </div>
