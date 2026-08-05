@@ -8,10 +8,10 @@
 import { assetPath } from "../assets.js";
 import {
   fitPortraits,
-} from "../portrait-fit.js?v=43";
+} from "../portrait-fit.js?v=44";
 import {
   motivationDisplay,
-} from "../../data/motivation-data.js?v=43";
+} from "../../data/motivation-data.js?v=44";
 import {
   COMMENTATOR,
   COMMENTARY_VERSION,
@@ -20,7 +20,7 @@ import {
   createCommentaryDirector,
 } from "./commentary.js";
 
-export const BATTLE_UI_VERSION = "mobbr-battle-ui-2.7.0";
+export const BATTLE_UI_VERSION = "mobbr-battle-ui-2.8.0";
 export const BATTLE_REPLAY_SCHEMA_VERSION =
   "mobbr-battle-replay-1.0.0";
 
@@ -88,13 +88,13 @@ export function balanceTournamentPortraits(
       translateProperty:
         "--portrait-balance-y",
       targetWidthRate:
-        0.84,
+        1.24,
       targetHeightRate:
-        0.82,
+        0.80,
       minimumScale:
-        0.52,
+        0.46,
       maximumScale:
-        1.42,
+        1.70,
     },
   );
 }
