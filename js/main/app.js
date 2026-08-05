@@ -18,14 +18,14 @@ import {
 } from "../assets.js";
 import {
   fitPortraits,
-} from "../portrait-fit.js?v=48";
+} from "../portrait-fit.js?v=49";
 import {
   SaveError,
   SaveNotFoundError,
   clearPendingEmployeeRankUpsToDraft,
   createGameStateManager,
   grantEmployeeCookingPointsToDraft,
-} from "./state.js?v=48";
+} from "./state.js?v=49";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -38,8 +38,10 @@ import {
   learnSpecialAbilityToDraft,
   renameWeaponToDraft,
   renderAbilityUpSection,
+  renderAbilityUpgradeNodeModal,
   renderEquipmentSection,
   renderPlayerSelector,
+  renderWeaponUpgradeNodeModal,
   renderSkillUpgradeSection,
   renderSpecialAbilitySection,
   renderTeamDetailsSection,
@@ -47,7 +49,7 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=48";
+} from "./team.js?v=49";
 import {
   getSpecialAbility,
 } from "../../data/ability-data.js";
@@ -57,26 +59,26 @@ import {
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=48";
+} from "../../data/motivation-data.js?v=49";
 import {
   getRoomMaster,
-} from "../../data/collection-data.js?v=48";
+} from "../../data/collection-data.js?v=49";
 import {
   EMPLOYEE_RULES,
   getEmployeeRankData,
   getTotalEmployeeHpBonus,
-} from "../../data/employee-data.js?v=48";
+} from "../../data/employee-data.js?v=49";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=48";
+} from "./management.js?v=49";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=48";
+} from "./tournament-bridge.js?v=49";
 
-export const APP_VERSION = "mobbr-main-app-3.5.0";
+export const APP_VERSION = "mobbr-main-app-3.6.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -1733,6 +1735,7 @@ export function createMainApp({
   let weaponUpgradePlan = {};
   let weaponPlanPlayerId = null;
   let modalQuantityValue = 1;
+  let activeUpgradeNode = null;
   let weekStartPresentationOpen = false;
   let employeeRankPresentationOpen = false;
   let progressionQueue =
@@ -1906,6 +1909,7 @@ export function createMainApp({
   function closeModal(value = false) {
     modalRoot.classList.remove("is-open");
     modalRoot.innerHTML = "";
+    activeUpgradeNode = null;
     if (modalResolver) {
       const resolver = modalResolver;
       modalResolver = null;
@@ -2111,6 +2115,202 @@ export function createMainApp({
     });
   }
 
+
+  function renderActiveUpgradeNodeBody() {
+    if (!activeUpgradeNode) {
+      return "";
+    }
+    const snapshot =
+      stateManager.getSnapshot();
+    if (
+      activeUpgradeNode.kind ===
+      "ability"
+    ) {
+      return renderAbilityUpgradeNodeModal(
+        snapshot,
+        activeUpgradeNode.playerId,
+        activeUpgradeNode.statId,
+        abilityUpgradePlan,
+      );
+    }
+    return renderWeaponUpgradeNodeModal(
+      snapshot,
+      activeUpgradeNode.playerId,
+      activeUpgradeNode.statId,
+      weaponUpgradePlan,
+    );
+  }
+
+  function refreshUpgradeNodePopup() {
+    const body =
+      modalRoot.querySelector(
+        "[data-upgrade-node-body]",
+      );
+    if (!body) {
+      return;
+    }
+    body.innerHTML =
+      renderActiveUpgradeNodeBody();
+  }
+
+  function openUpgradeNodePopup({
+    kind,
+    playerId,
+    statId,
+  }) {
+    if (modalResolver) {
+      closeModal(false);
+    }
+    activeUpgradeNode = {
+      kind:
+        kind === "weapon"
+          ? "weapon"
+          : "ability",
+      playerId,
+      statId,
+    };
+    modalRoot.classList.add(
+      "is-open",
+    );
+    modalRoot.innerHTML = `
+      <div class="modal-backdrop modal-backdrop--upgrade-node">
+        <section
+          class="modal-card modal-card--upgrade-node"
+          role="dialog"
+          aria-modal="true"
+          aria-label="強化詳細"
+        >
+          <button
+            type="button"
+            class="upgrade-node-modal__close"
+            data-action="modal-upgrade-close"
+            aria-label="閉じる"
+          >
+            ×
+          </button>
+          <div data-upgrade-node-body>
+            ${renderActiveUpgradeNodeBody()}
+          </div>
+          <footer class="modal-card__actions modal-card__actions--single">
+            <button
+              type="button"
+              class="primary-button"
+              data-action="modal-upgrade-close"
+            >
+              閉じる
+            </button>
+          </footer>
+        </section>
+      </div>
+    `;
+  }
+
+  function adjustUpgradeNodePlan(
+    direction,
+  ) {
+    if (!activeUpgradeNode) {
+      return;
+    }
+    const {
+      kind,
+      playerId,
+      statId,
+    } =
+      activeUpgradeNode;
+    const amount =
+      direction === "plus"
+        ? 1
+        : -1;
+
+    if (kind === "ability") {
+      if (
+        abilityPlanPlayerId !==
+        playerId
+      ) {
+        abilityPlanPlayerId =
+          playerId;
+        abilityUpgradePlan = {};
+      }
+      const current =
+        Math.max(
+          0,
+          abilityUpgradePlan[
+            statId
+          ] ??
+          0,
+        );
+      const candidate = {
+        ...abilityUpgradePlan,
+        [statId]:
+          Math.max(
+            0,
+            current +
+            amount,
+          ),
+      };
+      const plan =
+        calculatePlayerStatUpgradePlan(
+          stateManager.getSnapshot(),
+          playerId,
+          candidate,
+        );
+      if (
+        direction === "minus" ||
+        plan.affordable
+      ) {
+        abilityUpgradePlan =
+          plan.increments;
+        updateTeamFeatureLiveSection(
+          "ability",
+        );
+        refreshUpgradeNodePopup();
+      }
+      return;
+    }
+
+    if (
+      weaponPlanPlayerId !==
+      playerId
+    ) {
+      weaponPlanPlayerId =
+        playerId;
+      weaponUpgradePlan = {};
+    }
+    const current =
+      Math.max(
+        0,
+        weaponUpgradePlan[
+          statId
+        ] ??
+        0,
+      );
+    const candidate = {
+      ...weaponUpgradePlan,
+      [statId]:
+        Math.max(
+          0,
+          current +
+          amount,
+        ),
+    };
+    const plan =
+      calculateWeaponUpgradePlan(
+        stateManager.getSnapshot(),
+        playerId,
+        candidate,
+      );
+    if (
+      direction === "minus" ||
+      plan.affordable
+    ) {
+      weaponUpgradePlan =
+        plan.increments;
+      updateTeamFeatureLiveSection(
+        "equipment",
+      );
+      refreshUpgradeNodePopup();
+    }
+  }
 
   function waitForUi(milliseconds) {
     return new Promise((resolve) =>
@@ -3606,6 +3806,32 @@ export function createMainApp({
       renderPreservingPageScroll();
       return;
     }
+    if (action === "open-upgrade-node") {
+      const kind =
+        actionElement.dataset
+          .upgradeKind ===
+        "weapon"
+          ? "weapon"
+          : "ability";
+      const playerId =
+        actionElement.dataset
+          .playerId;
+      const statId =
+        actionElement.dataset
+          .statId;
+      if (
+        !playerId ||
+        !statId
+      ) {
+        return;
+      }
+      openUpgradeNodePopup({
+        kind,
+        playerId,
+        statId,
+      });
+      return;
+    }
     if (action === "select-ability-color") {
       selectedAbilityColor =
         actionElement.dataset.abilityColor;
@@ -4202,7 +4428,26 @@ export function createMainApp({
       return;
     }
 
-    if (actionElement.dataset.action === "modal-inspect-special") {
+    if (
+      actionElement.dataset.action ===
+      "modal-upgrade-plus"
+    ) {
+      adjustUpgradeNodePlan(
+        "plus",
+      );
+    } else if (
+      actionElement.dataset.action ===
+      "modal-upgrade-minus"
+    ) {
+      adjustUpgradeNodePlan(
+        "minus",
+      );
+    } else if (
+      actionElement.dataset.action ===
+      "modal-upgrade-close"
+    ) {
+      closeModal(false);
+    } else if (actionElement.dataset.action === "modal-inspect-special") {
       const ability =
         getSpecialAbility(
           actionElement.dataset.abilityKey,

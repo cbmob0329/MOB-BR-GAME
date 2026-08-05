@@ -13,12 +13,12 @@ import {
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=48";
+} from "../../data/game-data.js?v=49";
 import {
   isCasualTournamentType,
   resolveCpuTeamMaster,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=48";
+} from "../../data/circuit-data.js?v=49";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
@@ -71,7 +71,7 @@ import {
   unlockCookingUtensilToDraft,
   serveDiningMealToDraft,
   settleDiningMealsToDraft,
-} from "./state.js?v=48";
+} from "./state.js?v=49";
 import {
   COOKING_RULES,
   COOKING_SCREEN_ASSETS,
@@ -88,16 +88,16 @@ import {
   getRecipeCandidates,
   isCookingJobReady,
   startCookingJobToDraft,
-} from "../../data/cooking-data.js?v=48";
+} from "../../data/cooking-data.js?v=49";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=48";
+} from "./tournament-bridge.js?v=49";
 import {
   DINING_EATING_SPEECHES,
   DINING_HUNGRY_SPEECHES,
   DINING_RULES,
   diningWeekKey,
-} from "../../data/dining-data.js?v=48";
+} from "../../data/dining-data.js?v=49";
 
 export const MANAGEMENT_FEATURE_VERSION =
   "mobbr-management-feature-2.5.0";
