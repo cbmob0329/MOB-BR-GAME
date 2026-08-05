@@ -8,7 +8,7 @@
 
 import {
   getCompanyRankData,
-} from "./game-data.js?v=43";
+} from "./game-data.js?v=44";
 
 export const COOKING_DATA_VERSION =
   "mobbr-cooking-data-1.1.0";
