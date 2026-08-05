@@ -6,9 +6,9 @@
  * snapshot instead of duplicating these definitions.
  */
 
-export const SHOP_DATA_VERSION = "mobbr-shop-data-1.2.0";
+export const SHOP_DATA_VERSION = "mobbr-shop-data-1.4.0";
 export const ITEM_MASTER_VERSION = "mobbr-item-master-1.0.0";
-export const PACK_MASTER_VERSION = "mobbr-pack-master-1.0.0";
+export const PACK_MASTER_VERSION = "mobbr-pack-master-1.1.0";
 export const WEAPON_SKIN_MASTER_VERSION = "mobbr-weapon-skin-master-1.0.0";
 
 function deepFreeze(value) {
@@ -536,12 +536,12 @@ export const CARD_PACKS = deepFreeze([
       "L3",
       "L4",
       "L5",
-      "L11",
-      "L12",
-      "L13",
+      "LN11",
+      "LN12",
+      "LN13",
       "L14",
-      "L15",
-      "L16"
+      "LN15",
+      "LN16"
     ]
   },
   {
@@ -563,10 +563,10 @@ export const CARD_PACKS = deepFreeze([
       "L8",
       "L9",
       "L10",
-      "L17",
-      "L18",
-      "L19",
-      "L20",
+      "LN17",
+      "LN18",
+      "LN19",
+      "LN20",
       "L21",
       "L22",
       "L23"
@@ -598,9 +598,9 @@ export const CARD_PACKS = deepFreeze([
       "N8",
       "N9",
       "N10",
-      "N11",
-      "N12",
-      "N13"
+      "NN11",
+      "NN12",
+      "NN13"
     ]
   },
   {
@@ -625,13 +625,13 @@ export const CARD_PACKS = deepFreeze([
       "N17",
       "N18",
       "N19",
-      "N20",
-      "N21",
+      "NN20",
+      "NN21",
       "N22",
       "N23",
       "N24",
-      "N25",
-      "N26",
+      "NN25",
+      "NN26",
       "N27",
       "N28"
     ]
@@ -691,7 +691,7 @@ export const CARD_PACKS = deepFreeze([
       "W12",
       "W13",
       "W14",
-      "W15"
+      "WN15"
     ]
   },
   {
@@ -719,12 +719,12 @@ export const CARD_PACKS = deepFreeze([
       "W17",
       "W18",
       "W19",
-      "W20",
+      "WN20",
       "W21",
       "W22",
       "W23",
       "W24",
-      "W25",
+      "WN25",
       "W26"
     ]
   },
@@ -744,7 +744,7 @@ export const CARD_PACKS = deepFreeze([
       "maxPlace": 5
     },
     "teamIds": [
-      "W27",
+      "WN27",
       "W28",
       "W29",
       "W30",

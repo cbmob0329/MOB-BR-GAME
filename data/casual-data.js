@@ -3,7 +3,7 @@
  */
 
 export const CASUAL_DATA_VERSION =
-  "mobbr-casual-data-1.0.0";
+  "mobbr-casual-data-1.1.0";
 
 export const CASUAL_CUP_MASTER =
   Object.freeze({
@@ -17,6 +17,8 @@ export const CASUAL_CUP_MASTER =
         "back/denden.png",
       logoImage:
         "icon/brden.png",
+      visible:
+        true,
       trophyImages:
         Object.freeze({
           1: "prize/02.png",
@@ -35,6 +37,8 @@ export const CASUAL_CUP_MASTER =
           "back/tetsu.png",
         logoImage:
           "icon/brtetsu.png",
+        visible:
+          false,
         trophyImages:
           Object.freeze({
             1: "prize/05.png",
@@ -53,6 +57,8 @@ export const CASUAL_CUP_MASTER =
           "back/rokets.png",
         logoImage:
           "icon/rokets.png",
+        visible:
+          false,
         trophyImages:
           Object.freeze({
             1: "prize/08.png",
@@ -71,6 +77,8 @@ export const CASUAL_CUP_MASTER =
           "back/tenpest.png",
         logoImage:
           "icon/tenpest.png",
+        visible:
+          false,
         trophyImages:
           Object.freeze({
             1: "prize/10.png",

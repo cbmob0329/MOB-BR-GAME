@@ -5,8 +5,13 @@
  * A=ATK, B=IGL, C=SUP, D=team logo.
  */
 
-export const COLLECTION_DATA_VERSION = "mobbr-collection-data-1.0.0";
-export const COLLECTION_MASTER_VERSION = "mobbr-collection-master-1.0.0";
+import {
+  getProReplacementTeamByLegacyId,
+  RETIRED_PRO_TEAM_IDS,
+} from "./cpu-roster-47-data.js?v=48";
+
+export const COLLECTION_DATA_VERSION = "mobbr-collection-data-1.2.0";
+export const COLLECTION_MASTER_VERSION = "mobbr-collection-master-1.2.0";
 export const ROOM_MASTER_VERSION = "mobbr-room-master-1.1.0";
 
 function deepFreeze(value) {
@@ -45,7 +50,7 @@ export const COLLECTION_TIER_DEFINITIONS = deepFreeze(
 ]
 );
 
-export const CARD_COLLECTION = deepFreeze(
+const LEGACY_CARD_COLLECTION = deepFreeze(
   [
   {
     "collectionId": "card:L1A",
@@ -4106,7 +4111,7 @@ export const CARD_COLLECTION = deepFreeze(
 ]
 );
 
-export const BADGE_COLLECTION = deepFreeze(
+const LEGACY_BADGE_COLLECTION = deepFreeze(
   [
   {
     "collectionId": "badge:L1D",
@@ -5475,6 +5480,119 @@ export const ROOM_MASTER = deepFreeze(
   }
 ]
 );
+
+function replacementMemberForCard(
+  entry,
+  replacementTeam,
+) {
+  return (
+    replacementTeam.members.find(
+      (member) =>
+        member.role ===
+        entry.role,
+    ) ??
+    replacementTeam.members.find(
+      (member) =>
+        member.id.endsWith(
+          entry.slot,
+        ),
+    ) ??
+    null
+  );
+}
+
+export const CARD_COLLECTION =
+  deepFreeze(
+    LEGACY_CARD_COLLECTION.map(
+      (entry) => {
+        const replacement =
+          getProReplacementTeamByLegacyId(
+            entry.teamId,
+          );
+        if (!replacement) {
+          return entry;
+        }
+        const member =
+          replacementMemberForCard(
+            entry,
+            replacement,
+          );
+        if (!member) {
+          throw new Error(
+            `Replacement card member not found: ${entry.teamId}/${entry.role}`,
+          );
+        }
+        return {
+          ...entry,
+          collectionId:
+            `card:${member.id}`,
+          tier:
+            replacement.league,
+          teamId:
+            replacement.teamId,
+          teamName:
+            replacement.name,
+          slot:
+            member.id.at(-1),
+          role:
+            member.role,
+          name:
+            member.name,
+          image:
+            member.image,
+        };
+      },
+    ),
+  );
+
+export const BADGE_COLLECTION =
+  deepFreeze(
+    LEGACY_BADGE_COLLECTION.map(
+      (entry) => {
+        const replacement =
+          getProReplacementTeamByLegacyId(
+            entry.teamId,
+          );
+        if (!replacement) {
+          return entry;
+        }
+        return {
+          ...entry,
+          collectionId:
+            `badge:${replacement.teamId}D`,
+          tier:
+            replacement.league,
+          teamId:
+            replacement.teamId,
+          teamName:
+            replacement.name,
+          name:
+            `${replacement.name} Badge`,
+          image:
+            replacement.logo,
+        };
+      },
+    ),
+  );
+
+export const RETIRED_CARD_COLLECTION_IDS =
+  deepFreeze(
+    RETIRED_PRO_TEAM_IDS.flatMap(
+      (teamId) => [
+        `card:${teamId}A`,
+        `card:${teamId}B`,
+        `card:${teamId}C`,
+      ],
+    ),
+  );
+
+export const RETIRED_BADGE_COLLECTION_IDS =
+  deepFreeze(
+    RETIRED_PRO_TEAM_IDS.map(
+      (teamId) =>
+        `badge:${teamId}D`,
+    ),
+  );
 
 export const COLLECTION_DUPLICATE_RULES = deepFreeze({
   initialLevel: 0,

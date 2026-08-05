@@ -9,7 +9,7 @@ import {
   STAT_IDS,
   characterValueToRank,
   rankToCharacterValue,
-} from "./game-data.js?v=46";
+} from "./game-data.js?v=48";
 
 export const MOTIVATION_DATA_VERSION = "mobbr-motivation-data-1.0.0";
 

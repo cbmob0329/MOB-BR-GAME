@@ -5,7 +5,7 @@
  * UI state, save data, and tournament runtime state must not be stored here.
  */
 
-export const GAME_DATA_VERSION = "mobbr-game-data-1.5.1";
+export const GAME_DATA_VERSION = "mobbr-game-data-1.6.0";
 
 export const GAME_META = Object.freeze({
   id: "mob-br",
@@ -490,65 +490,38 @@ export const FORMAL_TOURNAMENT_SCHEDULE_TEMPLATE = Object.freeze([
 export const TOURNAMENT_SCHEDULE_TEMPLATE = FORMAL_TOURNAMENT_SCHEDULE_TEMPLATE;
 
 function createCasualEvents(year, month, week) {
-  const casualWeek = CASUAL_WEEK_BY_MONTH[month];
-  if (week !== casualWeek) return [];
-  const choiceGroupId = `${year}-${String(month).padStart(2, "0")}-casual`;
+  const casualWeek =
+    CASUAL_WEEK_BY_MONTH[
+      month
+    ];
+  if (week !== casualWeek) {
+    return [];
+  }
+  const choiceGroupId =
+    `${year}-${String(month).padStart(2, "0")}-casual`;
+
+  // Generation 47 temporarily displays only the Denden Cup.
+  // Other casual cup masters remain available for old result/history data.
   return [
     Object.freeze({
       year,
       month,
       week,
       split: null,
-      tournamentType: "casual_denden",
-      stageId: `casual_denden_${String(month).padStart(2, "0")}`,
-      stageName: "デンデンカップ",
-      seasonId: `${year}-annual-circuit`,
-      tournamentId: `${choiceGroupId}-denden`,
+      tournamentType:
+        "casual_denden",
+      stageId:
+        `casual_denden_${String(month).padStart(2, "0")}`,
+      stageName:
+        "デンデンカップ",
+      seasonId:
+        `${year}-annual-circuit`,
+      tournamentId:
+        `${choiceGroupId}-denden`,
       choiceGroupId,
       optional: true,
-      recordOnlyWhenEntered: true,
-    }),
-    Object.freeze({
-      year,
-      month,
-      week,
-      split: null,
-      tournamentType: "casual_mobutetsu",
-      stageId: `casual_mobutetsu_${String(month).padStart(2, "0")}`,
-      stageName: "モブテツカップ",
-      seasonId: `${year}-annual-circuit`,
-      tournamentId: `${choiceGroupId}-mobutetsu`,
-      choiceGroupId,
-      optional: true,
-      recordOnlyWhenEntered: true,
-    }),
-    Object.freeze({
-      year,
-      month,
-      week,
-      split: null,
-      tournamentType: "casual_rockets",
-      stageId: `casual_rockets_${String(month).padStart(2, "0")}`,
-      stageName: "ジョーダンロケッツカップ",
-      seasonId: `${year}-annual-circuit`,
-      tournamentId: `${choiceGroupId}-rockets`,
-      choiceGroupId,
-      optional: true,
-      recordOnlyWhenEntered: true,
-    }),
-    Object.freeze({
-      year,
-      month,
-      week,
-      split: null,
-      tournamentType: "casual_tempest",
-      stageId: `casual_tempest_${String(month).padStart(2, "0")}`,
-      stageName: "ゴールデンテンペストカップ",
-      seasonId: `${year}-annual-circuit`,
-      tournamentId: `${choiceGroupId}-tempest`,
-      choiceGroupId,
-      optional: true,
-      recordOnlyWhenEntered: true,
+      recordOnlyWhenEntered:
+        true,
     }),
   ];
 }

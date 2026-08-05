@@ -10,13 +10,14 @@ import {
   rankToCharacterValue,
 } from "./game-data.js";
 import {
+  DENDEN_CPU_TEAMS,
   LOCAL_CPU_TEAMS,
   NATIONAL_CPU_TEAMS,
   getCpuLeagueForTeamId,
   getWorldCpuTeamsForYear,
-} from "./cpu-league-registry.js";
+} from "./cpu-league-registry.js?v=48";
 
-export const CIRCUIT_DATA_VERSION = "mobbr-circuit-data-1.4.0";
+export const CIRCUIT_DATA_VERSION = "mobbr-circuit-data-1.5.0";
 
 export const MOB_BR_PRO_LEAGUE_NAME =
   "MOB BR PRO LEAGUE";
@@ -120,8 +121,11 @@ export const CASUAL_TOURNAMENT_RULES = Object.freeze({
     matches: 3,
     companyRankMinimum: "F1",
     playerSlots: 1,
-    localSlots: 14,
-    nationalLowerSlots: 5,
+    dendenSlots: 16,
+    localGuestSlots: 3,
+    fixedHostTeamId: "D20",
+    currentDedicatedPoolSize: 20,
+    targetDedicatedPoolSize: 25,
     recordOnlyWhenEntered: true,
   }),
   casual_mobutetsu: Object.freeze({
@@ -251,8 +255,7 @@ export function getCpuPool(sourcePool, year) {
   if (sourcePool === "local") return LOCAL_CPU_TEAMS;
   if (sourcePool === "national") return NATIONAL_CPU_TEAMS;
   if (sourcePool === "world") return getWorldCpuTeamsForYear(year);
-  // Reserved for the future dedicated Denden roster.
-  if (sourcePool === "denden") return [];
+  if (sourcePool === "denden") return DENDEN_CPU_TEAMS;
   return [];
 }
 
