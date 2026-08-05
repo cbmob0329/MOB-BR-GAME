@@ -15317,3 +15317,208 @@ img.player-portrait,
     font-size: .2rem !important;
   }
 }
+
+
+/* ==========================================================
+   Generation 45: reliable ROOM art, stable two-row SHOP,
+   popup cooking/dining and lightweight HOME tournament action
+   ========================================================== */
+
+/* ROOM uses a real IMG so the shared asset fallback can resolve GitHub paths. */
+.room-canvas { isolation: isolate; background: #101722 !important; }
+.room-canvas__background {
+  position: absolute; z-index: 0; inset: 0;
+  width: 100%; height: 100%; object-fit: cover; object-position: center;
+  pointer-events: none;
+}
+.room-canvas::after {
+  position: absolute; z-index: 1; inset: 0; content: "";
+  pointer-events: none;
+  background: linear-gradient(180deg, rgb(2 8 14 / 5%), rgb(2 8 14 / 17%));
+}
+.room-canvas > .room-placement,
+.room-canvas > .room-canvas__empty { z-index: 2; }
+
+/* SHOP: exactly two rows, horizontal pan only. Higher specificity overrides
+   the old six-column mobile rule. */
+.mobshop-content .shop-item-grid,
+.mobshop-content .shop-category-product-grid,
+.mobshop-content .cooking-shop-grid,
+.mobshop-content .cooking-shop-grid--utensil {
+  display: grid !important;
+  width: 100% !important;
+  height: 348px !important;
+  grid-template-columns: none !important;
+  grid-template-rows: repeat(2, 166px) !important;
+  grid-auto-flow: column !important;
+  grid-auto-columns: 126px !important;
+  align-content: start !important;
+  gap: 8px !important;
+  overflow-x: scroll !important;
+  overflow-y: hidden !important;
+  padding: 7px 10px 9px !important;
+  touch-action: pan-x !important;
+  overscroll-behavior-x: contain !important;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+}
+.mobshop-content .shop-item-tile,
+.mobshop-content .shop-category-product,
+.mobshop-content .cooking-shop-product {
+  box-sizing: border-box !important;
+  width: 126px !important;
+  min-width: 126px !important;
+  height: 166px !important;
+  min-height: 166px !important;
+  max-height: 166px !important;
+  overflow: hidden !important;
+  grid-template-rows: 76px minmax(30px, auto) auto auto !important;
+  align-content: start !important;
+  padding: 7px 5px !important;
+  transform: none !important;
+}
+.mobshop-content .shop-item-tile__image,
+.mobshop-content .shop-item-tile__image img,
+.mobshop-content .shop-category-product img,
+.mobshop-content .cooking-shop-product img {
+  width: 72px !important; height: 72px !important; max-width: 72px !important; max-height: 72px !important;
+}
+.mobshop-content .shop-item-tile > strong,
+.mobshop-content .shop-category-product > strong,
+.mobshop-content .cooking-shop-product > strong {
+  display: -webkit-box !important; min-height: 2.3em !important;
+  overflow: hidden !important; white-space: normal !important;
+  font-size: .38rem !important; line-height: 1.15 !important;
+  -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+}
+.mobshop-content .shop-item-tile > small,
+.mobshop-content .shop-item-tile > em,
+.mobshop-content .shop-category-product > small,
+.mobshop-content .shop-category-product > em,
+.mobshop-content .cooking-shop-product > small,
+.mobshop-content .cooking-shop-product > em { font-size: .29rem !important; }
+.mobshop-content { overflow-x: hidden !important; overflow-y: auto !important; }
+
+/* HOME tournament schedule is a small quick-action only. */
+.home-tournament-notice { display: none !important; }
+.home-quick-actions { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+.home-quick-actions button { min-width: 0 !important; }
+.home-facility-only.has-tournament-notice .home-facility-image,
+.home-facility-image { flex-basis: min(47vw, 180px) !important; min-width: min(47vw, 180px) !important; }
+
+/* Cooking/dining backgrounds remain visible and are loaded as actual images. */
+.cooking-kitchen,
+.cooking-dining-screen { position: relative; isolation: isolate; background: transparent !important; overflow: hidden; }
+.cooking-screen-background {
+  position: absolute !important; z-index: 0 !important; inset: 0;
+  width: 100%; height: 100%; object-fit: cover; object-position: center top;
+  opacity: 1; pointer-events: none;
+}
+.cooking-kitchen::after,
+.cooking-dining-screen::after {
+  position: absolute; z-index: 0; inset: 0; content: ""; pointer-events: none;
+  background: linear-gradient(180deg, rgb(2 8 14 / 10%), rgb(2 8 14 / 34%));
+}
+.cooking-kitchen > :not(.cooking-screen-background),
+.cooking-dining-screen > :not(.cooking-screen-background) { position: relative; z-index: 1; }
+.cooking-utensil-board { background: rgb(9 20 28 / 72%) !important; backdrop-filter: blur(3px); }
+
+/* Tapping a utensil opens the active station as a modal; no long downward trip. */
+.cooking-station-modal { display: none !important; }
+.cooking-station-modal.is-open {
+  position: fixed !important; z-index: 19000 !important; inset: 0 !important;
+  display: grid !important; place-items: center; padding: max(12px, var(--safe-top)) 10px max(12px, var(--safe-bottom)) !important;
+  border: 0 !important; background: transparent !important; overflow: hidden !important;
+}
+.cooking-station-modal__backdrop {
+  position: absolute; inset: 0; width: 100%; height: 100%; border: 0;
+  background: rgb(0 5 12 / 76%); backdrop-filter: blur(5px);
+}
+.cooking-station-modal__panel {
+  position: relative; z-index: 2; display: grid; gap: 8px;
+  width: min(94vw, 620px); max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 24px);
+  overflow-y: auto; border: 3px solid rgb(120 223 247 / 35%); border-radius: 18px;
+  padding: 10px; background: rgb(7 18 29 / 96%); box-shadow: 0 22px 50px rgb(0 0 0 / 55%);
+  -webkit-overflow-scrolling: touch;
+}
+.cooking-station-modal__close { position: sticky; bottom: 0; z-index: 4; }
+.cooking-recipe-guide { display: grid; gap: 5px; border: 1px solid rgb(130 226 246 / 20%); border-radius: 11px; padding: 7px; background: rgb(10 27 38 / 76%); }
+.cooking-recipe-guide > header { display: flex; justify-content: space-between; gap: 8px; }
+.cooking-recipe-guide > header span { color: #8ae6f5; font-size: .38rem; font-weight: 1000; }
+.cooking-recipe-guide > header small { color: rgb(255 255 255 / 55%); font-size: .27rem; }
+.cooking-recipe-guide > div { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.cooking-recipe-guide article { flex: 0 0 112px; display: grid; justify-items: center; gap: 2px; min-height: 128px; border-radius: 9px; padding: 5px; background: rgb(255 255 255 / 7%); text-align: center; }
+.cooking-recipe-guide article > div { position: relative; display: grid; width: 66px; height: 66px; place-items: center; }
+.cooking-recipe-guide img { width: 64px; height: 64px; object-fit: contain; }
+.cooking-recipe-guide .is-unknown img { filter: brightness(0); opacity: .48; }
+.cooking-recipe-guide i { position: absolute; color: #fff; font-size: .55rem; font-style: normal; font-weight: 1000; }
+.cooking-recipe-guide strong { font-size: .31rem; }
+.cooking-recipe-guide small { font-size: .25rem; line-height: 1.25; color: #f0d675; }
+
+/* Dining uses a popup selection and readable, staggered speech. */
+.dining-modal-host:empty { display: none; }
+.dining-modal-host { position: fixed; z-index: 19500; inset: 0; display: grid; place-items: center; padding: max(10px, var(--safe-top)) 8px max(10px, var(--safe-bottom)); }
+.dining-modal-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: rgb(0 5 12 / 78%); backdrop-filter: blur(5px); }
+.dining-modal-host .dining-selection-panel {
+  position: relative; z-index: 2; width: min(94vw, 620px); max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 20px);
+  overflow-y: auto; margin: 0 !important; border: 3px solid rgb(128 224 246 / 36%); border-radius: 18px; padding: 10px;
+  background: rgb(8 20 32 / 97%); box-shadow: 0 22px 55px rgb(0 0 0 / 58%); -webkit-overflow-scrolling: touch;
+}
+.dining-room-stage { background: rgb(5 16 26 / 38%) !important; backdrop-filter: blur(2px); }
+.dining-long-table { min-height: 260px !important; background: rgb(4 16 27 / 55%) !important; }
+.dining-table-seats { min-height: 226px !important; }
+.dining-seat, .dining-seat.is-empty, .dining-seat.is-finished { min-height: 220px !important; }
+.dining-seat__character { height: 205px !important; }
+.dining-seat__character > img {
+  bottom: 35px !important; height: 176px !important; max-width: 170px !important;
+  --portrait-target-height-rate: .90; --portrait-width-limit-rate: 1.18;
+  --portrait-min-scale: .55; --portrait-max-scale: 3.25;
+}
+.dining-hungry-bubble {
+  z-index: 30 !important; top: 2px !important; width: max-content; max-width: 142px !important;
+  min-height: 30px; padding: 6px 9px !important; overflow: visible !important;
+  color: #3c2736 !important; background: #fff2f8 !important; border-color: #e38eb9 !important;
+  font-size: .31rem !important; line-height: 1.35 !important; white-space: normal !important;
+  opacity: 0; animation: dining-bubble-stagger var(--bubble-duration) var(--bubble-delay) ease-in-out infinite;
+}
+.dining-hungry-bubble::after { border-top-color: #fff2f8 !important; }
+@keyframes dining-bubble-stagger { 0%,18% { opacity:0; translate:0 5px; } 28%,72% { opacity:1; translate:0 0; } 84%,100% { opacity:0; translate:0 -3px; } }
+.dining-table-surface { bottom: 24px !important; height: 55px !important; }
+.dining-round-chair { height: 31px !important; }
+
+@media (max-width: 390px) {
+  .mobshop-content .shop-item-grid,
+  .mobshop-content .shop-category-product-grid,
+  .mobshop-content .cooking-shop-grid,
+  .mobshop-content .cooking-shop-grid--utensil { grid-auto-columns: 116px !important; }
+  .mobshop-content .shop-item-tile,
+  .mobshop-content .shop-category-product,
+  .mobshop-content .cooking-shop-product { width: 116px !important; min-width: 116px !important; }
+  .dining-long-table { min-height: 236px !important; }
+  .dining-seat__character > img { height: 155px !important; max-width: 145px !important; }
+  .dining-hungry-bubble { max-width: 112px !important; font-size: .27rem !important; }
+}
+
+
+/* Generation 45 modal stacking and ROOM layer correction. */
+.room-canvas__background { z-index: -1 !important; }
+.room-canvas::after { z-index: 0 !important; }
+.room-canvas > .room-placement { position: absolute; }
+.cooking-kitchen.has-modal-open,
+.cooking-dining-screen.has-modal-open { z-index: 20000 !important; overflow: visible !important; }
+
+
+.mobshop-content .shop-item-tile,
+.mobshop-content .shop-category-product,
+.mobshop-content .cooking-shop-product { touch-action: pan-x !important; }
+
+/* ROOM art must stay above the canvas base and below every placement. */
+.room-canvas__background { z-index: 0 !important; }
+.room-canvas::after { display: none !important; }
+
+/* Generation 45 final ROOM stacking correction: keep the actual room art
+   inside the canvas, above its base color and below placements. */
+.room-canvas__background { z-index: 0 !important; }
+.room-canvas::after { z-index: 1 !important; }
+.room-canvas > .room-placement,
+.room-canvas > .room-canvas__empty { z-index: 2 !important; }
