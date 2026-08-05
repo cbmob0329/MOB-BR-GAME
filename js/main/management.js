@@ -6,16 +6,19 @@
  */
 
 import {
+  assetPath,
+} from "../assets.js";
+import {
   TRAINING_POINT_IDS,
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=44";
+} from "../../data/game-data.js?v=45";
 import {
   isCasualTournamentType,
   resolveCpuTeamMaster,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=44";
+} from "../../data/circuit-data.js?v=45";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
@@ -67,7 +70,7 @@ import {
   purchaseCookingUtensilToDraft,
   serveDiningMealToDraft,
   settleDiningMealsToDraft,
-} from "./state.js?v=44";
+} from "./state.js?v=45";
 import {
   COOKING_RULES,
   COOKING_SCREEN_ASSETS,
@@ -86,19 +89,19 @@ import {
   placeCookingUtensilToDraft,
   removeCookingUtensilFromSlotToDraft,
   startCookingJobToDraft,
-} from "../../data/cooking-data.js?v=44";
+} from "../../data/cooking-data.js?v=45";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=44";
+} from "./tournament-bridge.js?v=45";
 import {
   DINING_EATING_SPEECHES,
   DINING_HUNGRY_SPEECHES,
   DINING_RULES,
   diningWeekKey,
-} from "../../data/dining-data.js?v=44";
+} from "../../data/dining-data.js?v=45";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-2.2.0";
+  "mobbr-management-feature-2.3.0";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -120,6 +123,7 @@ const MANAGEMENT_VIEW_STATE = {
     () => null,
   ),
   cookingIngredientPickerSlot: null,
+  cookingPopupOpen: false,
   cookingView: "kitchen",
   cookingCookbookQuality: "normal",
   cookingCookbookPage: 1,
@@ -201,6 +205,48 @@ function selectedCookingIngredients() {
   return MANAGEMENT_VIEW_STATE
     .cookingIngredientSlots
     .filter(Boolean);
+}
+
+function ingredientCountMap(ids) {
+  return ids.reduce((record, id) => {
+    record[id] = (record[id] ?? 0) + 1;
+    return record;
+  }, {});
+}
+
+function cookingRecipeGuideEntries(snapshot, selectedIngredientIds) {
+  if (selectedIngredientIds.length === 0) return [];
+  const selectedCounts = ingredientCountMap(selectedIngredientIds);
+  return RECIPE_MASTER
+    .map((recipe) => {
+      const recipeCounts = ingredientCountMap(recipe.ingredientIds);
+      for (const [id, count] of Object.entries(selectedCounts)) {
+        if ((recipeCounts[id] ?? 0) < count) return null;
+      }
+      const remaining = [];
+      for (const ingredientId of recipe.ingredientIds) {
+        const used = selectedCounts[ingredientId] ?? 0;
+        if (used > 0) {
+          selectedCounts[ingredientId] = used - 1;
+        } else {
+          remaining.push(ingredientId);
+        }
+      }
+      // restore because selectedCounts is shared across recipes
+      Object.assign(selectedCounts, ingredientCountMap(selectedIngredientIds));
+      if (remaining.length === 0 || remaining.length > 3) return null;
+      return {
+        recipe,
+        remaining,
+        discovered: Boolean(snapshot.cooking.recipeDiscovery?.[recipe.recipeId]),
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) =>
+      left.remaining.length - right.remaining.length ||
+      left.recipe.number - right.recipe.number
+    )
+    .slice(0, 12);
 }
 
 function resetCookingSelection({
@@ -3266,6 +3312,7 @@ function renderDiningSeat(
     <${tagName}
       ${tagName === "button" ? 'type="button"' : ""}
       class="dining-seat has-character is-${escapeAttribute(phase)}"
+      style="--bubble-delay:${(-0.7 * deterministicTextIndex(`${snapshot.dining?.weekKey}-${character.characterId}-bubble`, 9)).toFixed(1)}s;--bubble-duration:${(4.2 + deterministicTextIndex(`${character.characterId}-duration`, 5) * 0.55).toFixed(2)}s"
       ${actionAttributes}
     >
       <div class="dining-seat__character">
@@ -3525,9 +3572,10 @@ export function renderCookingDining(
 
   return `
     <section
-      class="cooking-dining-screen"
-      style="--dining-background:url('${escapeAttribute(COOKING_SCREEN_ASSETS.cafeteriaBackground)}')"
+      class="cooking-dining-screen ${selectedCharacter ? "has-modal-open" : ""}"
+      style="--dining-background:url('${escapeAttribute(assetPath(COOKING_SCREEN_ASSETS.cafeteriaBackground))}')"
     >
+      <img class="cooking-screen-background" src="${escapeAttribute(assetPath(COOKING_SCREEN_ASSETS.cafeteriaBackground))}" alt="">
       <header class="cooking-screen-heading cooking-screen-heading--dining">
         <img src="icon/pink.png" alt="">
         <div>
@@ -3540,10 +3588,16 @@ export function renderCookingDining(
 
       ${cookingNavigationTemplate("dining")}
 
-      ${renderDiningSelectionPanel(
-        snapshot,
-        selectedCharacter,
-      )}
+      <div class="dining-modal-host">
+        ${
+          selectedCharacter
+            ? `
+              <button type="button" class="dining-modal-backdrop" data-action="cancel-dining-selection" aria-label="閉じる"></button>
+              ${renderDiningSelectionPanel(snapshot, selectedCharacter)}
+            `
+            : ""
+        }
+      </div>
 
       <section class="dining-room-stage">
         <div class="dining-table-list">
@@ -3630,6 +3684,11 @@ export function renderCookingManagement(
     ];
   const selectedIngredientIds =
     selectedCookingIngredients();
+  const recipeGuides =
+    cookingRecipeGuideEntries(
+      snapshot,
+      selectedIngredientIds,
+    );
   const recipeCandidates =
     selectedIngredientIds.length > 0 &&
     selectedUtensilId &&
@@ -3708,10 +3767,11 @@ export function renderCookingManagement(
 
   return `
     <section
-      class="cooking-kitchen"
-      style="--kitchen-background:url('${escapeAttribute(COOKING_SCREEN_ASSETS.kitchenBackground)}')"
+      class="cooking-kitchen ${MANAGEMENT_VIEW_STATE.cookingPopupOpen ? "has-modal-open" : ""}"
+      style="--kitchen-background:url('${escapeAttribute(assetPath(COOKING_SCREEN_ASSETS.kitchenBackground))}')"
       data-cooking-kitchen
     >
+      <img class="cooking-screen-background" src="${escapeAttribute(assetPath(COOKING_SCREEN_ASSETS.kitchenBackground))}" alt="">
       <header class="cooking-kitchen__header">
         <div>
           <span>MOB KITCHEN SYSTEM</span>
@@ -3807,7 +3867,9 @@ export function renderCookingManagement(
         </div>
       </section>
 
-      <section class="cooking-workbench" data-cooking-anchor="workbench">
+      <section class="cooking-workbench cooking-station-modal ${MANAGEMENT_VIEW_STATE.cookingPopupOpen ? "is-open" : ""}" data-cooking-anchor="workbench">
+        <button type="button" class="cooking-station-modal__backdrop" data-action="close-cooking-popup" aria-label="調理画面を閉じる"></button>
+        <div class="cooking-station-modal__panel">
         <header>
           <div>
             <span>ACTIVE STATION ${String(selectedSlot + 1).padStart(2, "0")}</span>
@@ -4032,6 +4094,31 @@ export function renderCookingManagement(
                       : ""
                   }
 
+                  ${
+                    recipeGuides.length > 0
+                      ? `
+                        <section class="cooking-recipe-guide">
+                          <header>
+                            <span>あと何を入れる？</span>
+                            <small>近いレシピを最大12件表示</small>
+                          </header>
+                          <div>
+                            ${recipeGuides.map(({ recipe, remaining, discovered }) => `
+                              <article class="${discovered ? "is-known" : "is-unknown"}">
+                                <div>
+                                  <img src="${escapeAttribute(assetPath(recipe.image))}" alt="">
+                                  ${discovered ? "" : "<i>??</i>"}
+                                </div>
+                                <strong>${discovered ? escapeHtml(recipe.name) : "？？？"}</strong>
+                                <small>あと ${remaining.map((id) => escapeHtml(getIngredient(id).name)).join("・")}</small>
+                              </article>
+                            `).join("")}
+                          </div>
+                        </section>
+                      `
+                      : ""
+                  }
+
                   <section class="cooking-recipe-candidates" data-scroll-memory="cooking-recipe-candidates">
                     <header>
                       <span>RECIPE CANDIDATES</span>
@@ -4080,8 +4167,24 @@ export function renderCookingManagement(
                 </section>
               `
         }
+        <button type="button" class="secondary-button cooking-station-modal__close" data-action="close-cooking-popup">閉じる</button>
+        </div>
       </section>
     </section>
+  `;
+}
+
+function roomPlacementControlsTemplate(roomId, placementId) {
+  return `
+    <div class="room-placement__controls">
+      <button type="button" data-repeat-action data-action="room-scale-down" data-room-id="${escapeAttribute(roomId)}" data-placement-id="${escapeAttribute(placementId)}">－</button>
+      <button type="button" data-repeat-action data-action="room-scale-up" data-room-id="${escapeAttribute(roomId)}" data-placement-id="${escapeAttribute(placementId)}">＋</button>
+      <button type="button" data-action="room-flip" data-room-id="${escapeAttribute(roomId)}" data-placement-id="${escapeAttribute(placementId)}">反転</button>
+      <button type="button" data-action="room-front" data-room-id="${escapeAttribute(roomId)}" data-placement-id="${escapeAttribute(placementId)}">前へ</button>
+      <button type="button" data-action="room-back" data-room-id="${escapeAttribute(roomId)}" data-placement-id="${escapeAttribute(placementId)}">後ろへ</button>
+      <button type="button" data-action="room-center" data-room-id="${escapeAttribute(roomId)}" data-placement-id="${escapeAttribute(placementId)}">中央</button>
+      <button type="button" class="is-danger" data-action="room-remove" data-room-id="${escapeAttribute(roomId)}" data-placement-id="${escapeAttribute(placementId)}">収納</button>
+    </div>
   `;
 }
 
@@ -4166,7 +4269,7 @@ export function renderRoomManagement(snapshot) {
             class="room-list-card ${active ? "is-active" : ""} ${owned ? "is-owned" : "is-locked"} ${isHome ? "is-home" : ""}"
           >
             <img
-              src="${escapeAttribute(room.image)}"
+              src="${escapeAttribute(assetPath(room.image))}"
               alt=""
             >
             <div>
@@ -4298,11 +4401,12 @@ export function renderRoomManagement(snapshot) {
 
     <section
       class="room-canvas"
-      style="--room-background:url('${escapeAttribute(activeRoom.image)}')"
+      style="--room-background:url('${escapeAttribute(assetPath(activeRoom.image))}')"
       data-room-canvas
       data-room-id="${escapeAttribute(activeRoom.roomId)}"
       aria-label="${escapeAttribute(activeRoom.name)}の配置画面"
     >
+      <img class="room-canvas__background" src="${escapeAttribute(assetPath(activeRoom.image))}" alt="">
       ${layout
         .slice()
         .sort(
@@ -4333,21 +4437,7 @@ export function renderRoomManagement(snapshot) {
                 alt="${escapeAttribute(placement.name)}"
                 draggable="false"
               >
-              ${
-                selected
-                  ? `
-                    <div class="room-placement__controls">
-                      <button type="button" data-repeat-action data-action="room-scale-down" data-room-id="${escapeAttribute(activeRoom.roomId)}" data-placement-id="${escapeAttribute(placement.placementId)}">－</button>
-                      <button type="button" data-repeat-action data-action="room-scale-up" data-room-id="${escapeAttribute(activeRoom.roomId)}" data-placement-id="${escapeAttribute(placement.placementId)}">＋</button>
-                      <button type="button" data-action="room-flip" data-room-id="${escapeAttribute(activeRoom.roomId)}" data-placement-id="${escapeAttribute(placement.placementId)}">反転</button>
-                      <button type="button" data-action="room-front" data-room-id="${escapeAttribute(activeRoom.roomId)}" data-placement-id="${escapeAttribute(placement.placementId)}">前へ</button>
-                      <button type="button" data-action="room-back" data-room-id="${escapeAttribute(activeRoom.roomId)}" data-placement-id="${escapeAttribute(placement.placementId)}">後ろへ</button>
-                      <button type="button" data-action="room-center" data-room-id="${escapeAttribute(activeRoom.roomId)}" data-placement-id="${escapeAttribute(placement.placementId)}">中央</button>
-                      <button type="button" class="is-danger" data-action="room-remove" data-room-id="${escapeAttribute(activeRoom.roomId)}" data-placement-id="${escapeAttribute(placement.placementId)}">収納</button>
-                    </div>
-                  `
-                  : ""
-              }
+              ${selected ? roomPlacementControlsTemplate(activeRoom.roomId, placement.placementId) : ""}
             </article>
           `;
         })
@@ -4928,6 +5018,22 @@ export function createManagementController({
     return true;
   }
 
+  function updateRoomInPlace() {
+    const current = root.querySelector(".management-app-content--room");
+    if (!current) {
+      renderPreservingScroll();
+      return false;
+    }
+    const page = root.querySelector(".page-content");
+    const top = page?.scrollTop ?? 0;
+    const template = document.createElement("template");
+    template.innerHTML = `<section class="management-app-content management-app-content--room">${renderRoomManagement(stateManager.getSnapshot())}</section>`;
+    current.replaceWith(template.content.firstElementChild);
+    if (page) page.scrollTop = top;
+    afterRender("room");
+    return true;
+  }
+
   function updateShopInPlace() {
     const currentPopup =
       root.querySelector(
@@ -4944,6 +5050,21 @@ export function createManagementController({
       );
     const categoryScroll =
       categoryStrip?.scrollLeft ?? 0;
+    const shelfSelectors = [
+      ".shop-item-grid",
+      ".shop-category-product-grid",
+      ".cooking-shop-grid",
+    ];
+    const shelfScrolls =
+      shelfSelectors.flatMap(
+        (selector) =>
+          [...currentPopup.querySelectorAll(selector)]
+            .map((element, index) => ({
+              selector,
+              index,
+              scrollLeft: element.scrollLeft,
+            })),
+      );
 
     const template =
       document.createElement(
@@ -5007,6 +5128,16 @@ export function createManagementController({
       categoryStrip.scrollLeft =
         categoryScroll;
     }
+    for (const saved of shelfScrolls) {
+      const nextShelf =
+        currentPopup.querySelectorAll(
+          saved.selector,
+        )[saved.index];
+      if (nextShelf) {
+        nextShelf.scrollLeft =
+          saved.scrollLeft;
+      }
+    }
     return true;
   }
 
@@ -5045,7 +5176,7 @@ export function createManagementController({
       anchorSelector ===
         ".dining-room-stage"
         ? [
-            ".dining-selection-panel",
+            ".dining-modal-host",
             ".dining-room-stage",
           ]
         : [
@@ -5726,7 +5857,7 @@ export function createManagementController({
       MANAGEMENT_VIEW_STATE.diningSelectedFoods = [];
       updateCookingInPlace({
         anchorSelector:
-          ".dining-selection-panel",
+          ".dining-modal-host",
       });
       return true;
     }
@@ -5739,7 +5870,7 @@ export function createManagementController({
       MANAGEMENT_VIEW_STATE.diningSelectedFoods = [];
       updateCookingInPlace({
         anchorSelector:
-          ".dining-room-stage",
+          ".dining-modal-host",
       });
       return true;
     }
@@ -5798,7 +5929,7 @@ export function createManagementController({
       }
       updateCookingInPlace({
         anchorSelector:
-          ".dining-selection-panel",
+          ".dining-modal-host",
       });
       return true;
     }
@@ -5941,13 +6072,13 @@ export function createManagementController({
         actionElement.dataset.roomCategory;
       MANAGEMENT_VIEW_STATE.roomSelectedItem =
         null;
-      renderPreservingScroll();
+      updateRoomInPlace();
       return true;
     }
     if (action === "select-room-item") {
       MANAGEMENT_VIEW_STATE.roomSelectedItem =
         actionElement.dataset.roomItem;
-      renderPreservingScroll();
+      updateRoomInPlace();
       return true;
     }
     if (action === "open-collection-file") {
@@ -6116,7 +6247,7 @@ export function createManagementController({
         showToast(
           `${transaction.result.name}を${formatNumber(quantity)}個購入しました`,
         );
-        renderPreservingScroll();
+        updateShopInPlace();
       } catch (error) {
         await showError(
           "食材を購入できません",
@@ -6182,7 +6313,7 @@ export function createManagementController({
         showToast(
           `${transaction.result.name}を${formatNumber(quantity)}個購入しました`,
         );
-        renderPreservingScroll();
+        updateShopInPlace();
       } catch (error) {
         await showError(
           "調理器具を購入できません",
@@ -6217,7 +6348,7 @@ export function createManagementController({
         showToast(
           `${tx.result.name}を${quantity}個購入しました`,
         );
-        renderPreservingScroll();
+        updateShopInPlace();
       } catch (error) {
         await showError("購入できません", error);
       }
@@ -6249,7 +6380,7 @@ export function createManagementController({
         showToast(
           `${tx.result.name}を${quantity}個購入しました`,
         );
-        renderPreservingScroll();
+        updateShopInPlace();
       } catch (error) {
         await showError("購入できません", error);
       }
@@ -6267,7 +6398,7 @@ export function createManagementController({
           purchaseConsumableToDraft(draft, actionElement.dataset.itemId, 1),
         );
         showToast(`${tx.result.name}を購入しました`);
-        renderPreservingScroll();
+        updateShopInPlace();
       } catch (error) { await showError("購入できません", error); }
       return true;
     }
@@ -6283,7 +6414,7 @@ export function createManagementController({
           purchaseCardPackToDraft(draft, actionElement.dataset.packId, 1),
         );
         showToast(`${tx.result.name}を購入しました`);
-        renderPreservingScroll();
+        updateShopInPlace();
       } catch (error) { await showError("購入できません", error); }
       return true;
     }
@@ -6442,11 +6573,18 @@ export function createManagementController({
         }
         MANAGEMENT_VIEW_STATE.cookingSelectedSlot =
           slotIndex;
+        MANAGEMENT_VIEW_STATE.cookingPopupOpen = true;
         updateCookingInPlace({
           anchorSelector:
             ".cooking-workbench",
         });
       }
+      return true;
+    }
+
+    if (action === "close-cooking-popup") {
+      MANAGEMENT_VIEW_STATE.cookingPopupOpen = false;
+      updateCookingInPlace({ anchorSelector: ".cooking-workbench" });
       return true;
     }
 
@@ -6732,6 +6870,7 @@ export function createManagementController({
         resetCookingSelection();
         MANAGEMENT_VIEW_STATE.cookingSelectedSlot =
           slotIndex;
+        MANAGEMENT_VIEW_STATE.cookingPopupOpen = false;
         showToast(
           "調理を開始しました",
         );
@@ -6817,7 +6956,7 @@ export function createManagementController({
           purchaseRoomToDraft(draft, actionElement.dataset.roomId),
         );
         showToast(`${tx.result.name}を購入しました`);
-        renderPreservingScroll();
+        updateRoomInPlace();
       } catch (error) { await showError("ROOMを購入できません", error); }
       return true;
     }
@@ -6829,7 +6968,7 @@ export function createManagementController({
         );
         MANAGEMENT_VIEW_STATE.roomSelectedPlacementId = null;
         MANAGEMENT_VIEW_STATE.roomSelectedItem = null;
-        renderPreservingScroll();
+        updateRoomInPlace();
       } catch (error) { await showError("ROOMへ入室できません", error); }
       return true;
     }
@@ -6853,7 +6992,7 @@ export function createManagementController({
           );
         MANAGEMENT_VIEW_STATE.roomSelectedPlacementId =
           tx.result.placementId;
-        renderPreservingScroll();
+        updateRoomInPlace();
       } catch (error) { await showError("ROOMへ配置できません", error); }
       return true;
     }
@@ -6869,7 +7008,7 @@ export function createManagementController({
             ),
         );
         showToast("HOME背景へ設定しました");
-        renderPreservingScroll();
+        updateRoomInPlace();
       } catch (error) {
         await showError("HOME背景を変更できません", error);
       }
@@ -6916,7 +7055,7 @@ export function createManagementController({
         if (action === "room-remove") {
           MANAGEMENT_VIEW_STATE.roomSelectedPlacementId = null;
         }
-        renderPreservingScroll();
+        updateRoomInPlace();
       } catch (error) { await showError("ROOM配置を変更できません", error); }
       return true;
     }
@@ -7178,12 +7317,21 @@ export function createManagementController({
             );
 
             if (!dragged) {
+              const wasSelected =
+                MANAGEMENT_VIEW_STATE.roomSelectedPlacementId === placementId;
               MANAGEMENT_VIEW_STATE.roomSelectedPlacementId =
-                MANAGEMENT_VIEW_STATE.roomSelectedPlacementId ===
-                placementId
-                  ? null
-                  : placementId;
-              renderPreservingScroll();
+                wasSelected ? null : placementId;
+              for (const entry of canvas.querySelectorAll("[data-room-placement]")) {
+                entry.classList.remove("is-selected");
+                entry.querySelector(".room-placement__controls")?.remove();
+              }
+              if (!wasSelected) {
+                placement.classList.add("is-selected");
+                placement.insertAdjacentHTML(
+                  "beforeend",
+                  roomPlacementControlsTemplate(roomId, placementId),
+                );
+              }
               return;
             }
 

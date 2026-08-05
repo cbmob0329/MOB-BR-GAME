@@ -18,14 +18,14 @@ import {
 } from "../assets.js";
 import {
   fitPortraits,
-} from "../portrait-fit.js?v=44";
+} from "../portrait-fit.js?v=45";
 import {
   SaveError,
   SaveNotFoundError,
   clearPendingEmployeeRankUpsToDraft,
   createGameStateManager,
   grantEmployeeCookingPointsToDraft,
-} from "./state.js?v=44";
+} from "./state.js?v=45";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -47,7 +47,7 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=44";
+} from "./team.js?v=45";
 import {
   getSpecialAbility,
 } from "../../data/ability-data.js";
@@ -57,26 +57,26 @@ import {
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=44";
+} from "../../data/motivation-data.js?v=45";
 import {
   getRoomMaster,
-} from "../../data/collection-data.js?v=44";
+} from "../../data/collection-data.js?v=45";
 import {
   EMPLOYEE_RULES,
   getEmployeeRankData,
   getTotalEmployeeHpBonus,
-} from "../../data/employee-data.js?v=44";
+} from "../../data/employee-data.js?v=45";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=44";
+} from "./management.js?v=45";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=44";
+} from "./tournament-bridge.js?v=45";
 
-export const APP_VERSION = "mobbr-main-app-3.1.0";
+export const APP_VERSION = "mobbr-main-app-3.2.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -945,22 +945,7 @@ function homeRoomPreviewTemplate(
 
 function homeTemplate(snapshot, currentRoute) {
   const tournamentWeek = getTournamentWeekStatus(snapshot);
-  const tournamentNotice = tournamentWeek.hasTournament
-    ? `<section class="home-tournament-notice home-tournament-notice--compact ${tournamentWeek.trainingBlocked ? "is-entry" : "is-observer"}">
-        <img src="${escapeAttribute((() => {
-          const type = tournamentWeek.details[0]?.event.tournamentType ?? "local";
-          if (type === "national") return "icon/national.png";
-          if (type.startsWith("world")) return "icon/world.png";
-          if (type === "championship") return "icon/champ.png";
-          return "icon/local.png";
-        })())}" alt="">
-        <div>
-          <span>${tournamentWeek.trainingBlocked ? "TOURNAMENT WEEK" : "TOURNAMENT NOTICE"} / ${formatNumber(tournamentWeek.details.length)} EVENT</span>
-          <strong title="${escapeAttribute(tournamentWeek.details.map((detail) => detail.event.stageName).join(" / "))}">${escapeHtml(tournamentWeek.details.map((detail) => detail.event.stageName).join(" / "))}</strong>
-        </div>
-        <button type="button" data-action="navigate" data-route="${ROUTES.schedule}">大会予定</button>
-      </section>`
-    : "";
+  const tournamentNotice = "";
 
   return `
     <main
@@ -985,6 +970,12 @@ function homeTemplate(snapshot, currentRoute) {
             <img src="menu/room.png" alt="">
             <span>部屋を見る</span>
           </button>
+          ${tournamentWeek.hasTournament ? `
+            <button type="button" data-action="navigate" data-route="${ROUTES.schedule}">
+              <img src="menu/sc.png" alt="">
+              <span>大会日</span>
+            </button>
+          ` : ""}
         </nav>
         ${tournamentNotice}
         <section class="home-facility-grid" aria-label="施設一覧">
@@ -1676,19 +1667,42 @@ function normaliseRoute(route) {
     : ROUTES.home;
 }
 
-function preloadImages(paths, timeoutMs = 1400) {
+function preloadImages(paths, timeoutMs = 10000) {
   if (typeof Image === "undefined") return Promise.resolve();
   const unique = [...new Set(paths.filter(Boolean))];
   const tasks = unique.map((path) => new Promise((resolve) => {
     const image = new Image();
-    image.onload = resolve;
-    image.onerror = resolve;
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    image.onload = async () => {
+      try { await image.decode?.(); } catch (_error) {}
+      finish();
+    };
+    image.onerror = finish;
     image.src = path;
+    setTimeout(finish, Math.min(timeoutMs, 7000));
   }));
   return Promise.race([
-    Promise.all(tasks),
+    Promise.allSettled(tasks),
     new Promise((resolve) => setTimeout(resolve, timeoutMs)),
   ]);
+}
+
+function snapshotCriticalImagePaths(snapshot) {
+  if (!snapshot) return [];
+  const roomId = snapshot.company.homeRoomId ?? snapshot.company.activeRoomId;
+  const room = getRoomMaster(roomId);
+  return [
+    room?.image,
+    ...(snapshot.collections.roomLayouts?.[roomId] ?? []).map((entry) => entry.image),
+    ...snapshot.playerTeam.members.map((member) => member.image),
+    ...(snapshot.employees ?? []).map((employee) => employee.image),
+    ...FACILITY_DEFINITIONS.map((facility) => facility.homeImage),
+  ].filter(Boolean).map(assetPath);
 }
 
 export function createMainApp({
@@ -4413,6 +4427,7 @@ export function createMainApp({
     } finally {
       const returnHome = globalThis.location?.hash === "#home" && Boolean(stateManager.getSnapshot());
       route = returnHome ? ROUTES.home : ROUTES.title;
+      await preloadImages(snapshotCriticalImagePaths(stateManager.getSnapshot()), 10000);
       if (returnHome && globalThis.history?.replaceState) {
         globalThis.history.replaceState(null, "", globalThis.location.pathname + globalThis.location.search);
       }

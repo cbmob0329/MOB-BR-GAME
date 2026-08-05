@@ -12,15 +12,15 @@ import {
   characterValueToRank,
   weaponValueToRank,
   getCompanyRankData,
-} from "../../data/game-data.js?v=44";
+} from "../../data/game-data.js?v=45";
 import {
   calculateMaxHp,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=44";
+} from "../../data/battle-config.js?v=45";
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=44";
+} from "../../data/motivation-data.js?v=45";
 import {
   WEAPON_SKINS,
   getWeaponSkin,
