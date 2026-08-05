@@ -9,57 +9,59 @@
 import {
   STORAGE_KEYS,
   calculateChecksum,
-} from "../main/state.js?v=45";
+} from "../main/state.js?v=46";
 import {
   TOURNAMENT_BRIDGE_VERSION,
   TOURNAMENT_ENTRY_SCHEMA_VERSION,
   TOURNAMENT_RESUME_SCHEMA_VERSION,
   readTournamentEntryFromStorage,
   validateTournamentEntryData,
-} from "../main/tournament-bridge.js?v=45";
+} from "../main/tournament-bridge.js?v=46";
 import {
   CPU_LOCAL_DATA_VERSION,
   CPU_LOCAL_MASTER_VERSION,
-  LOCAL_CPU_TEAMS,
 } from "../../data/cpu-local-data.js";
 import {
   CPU_NATIONAL_DATA_VERSION,
   CPU_NATIONAL_MASTER_VERSION,
-  NATIONAL_CPU_TEAMS,
 } from "../../data/cpu-national-data.js";
 import {
   CPU_WORLD_DATA_VERSION,
   CPU_WORLD_MASTER_VERSION,
-  getWorldCpuTeamsForYear,
 } from "../../data/cpu-world-data.js";
 import {
+  LOCAL_CPU_TEAMS,
+  NATIONAL_CPU_TEAMS,
+  getWorldCpuTeamsForYear,
+} from "../../data/cpu-league-registry.js?v=46";
+import {
   rankToCharacterValue,
-} from "../../data/game-data.js?v=45";
+} from "../../data/game-data.js?v=46";
 import {
   effectiveCharacterRank,
   selectCpuMotivation,
-} from "../../data/motivation-data.js?v=45";
+} from "../../data/motivation-data.js?v=46";
 import {
   buildCpuBattleStats,
   calculateMaxHp,
   getRoleCommonSkills,
   resolveCpuRankFromRange,
   resolveCpuWeaponProfile,
-} from "../../data/battle-config.js?v=45";
+} from "../../data/battle-config.js?v=46";
 import {
   resolveCpuTeamMaster,
-} from "../../data/circuit-data.js?v=45";
+} from "../../data/circuit-data.js?v=46";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=45";
+} from "./circuit.js?v=46";
 import {
   createCpuFlavorSkills,
   createCpuFlavorWeaponName,
-} from "../../data/cpu-flavor-data.js?v=45";
+} from "../../data/cpu-flavor-data.js?v=46";
 
 export const TOURNAMENT_RUNTIME_VERSION =
-  "mobbr-tournament-runtime-2.3.0";
+  "mobbr-tournament-runtime-2.4.0";
 
 export const TOURNAMENT_PHASES = Object.freeze([
   "IDLE",
@@ -478,13 +480,20 @@ export function createOpeningScenes(entry, teams = null) {
     (strategy) => strategy.unlimited || strategy.tournamentRemaining > 0,
   ).length;
 
-  const featuredCpu =
+  const casualGuests =
+    String(
+      entry.tournament
+        .tournamentType ??
+      "",
+    ).startsWith(
+      "casual_",
+    ) &&
     Array.isArray(teams)
-      ? (
-          teams.find((team) => team.guest === true) ??
-          teams.find((team) => team.isPlayer !== true)
+      ? teams.filter(
+          (team) =>
+            team.guest === true,
         )
-      : null;
+      : [];
 
   const scenes = [
     ...(
@@ -593,25 +602,33 @@ export function createOpeningScenes(entry, teams = null) {
       animationId: "member_lineup",
       canSkip: true,
     },
-    {
-      sceneId: "opening-featured-cpu",
-      type: "FEATURED_CPU",
-      duration: 1700,
-      backgroundImage: theme.backgroundImage,
-      foregroundImages: featuredCpu ? [featuredCpu.teamLogo] : [],
-      text: featuredCpu?.teamName ?? "CPU ROSTER READY",
-      subtext: featuredCpu
-        ? `注目チーム / ${featuredCpu.members.map((member) => member.role).join("・")}`
-        : entry.tournament.cpuPoolId,
-      commentary: featuredCpu
-        ? featuredCpu.guest
-          ? `WORLDゲスト、${featuredCpu.teamName}が特別参戦！世界基準の戦いに注目です！`
-          : `注目は${featuredCpu.teamName}！役割の噛み合った3人が大会を揺らします！`
-        : "CPUチームの正式ロスターを確認しました。",
-      soundId: "cpu_spotlight",
-      animationId: "data_scan",
-      canSkip: true,
-    },
+    ...casualGuests.map(
+      (casualGuest, guestIndex) => ({
+        sceneId:
+          `opening-casual-guest-${guestIndex + 1}`,
+        type:
+          "FEATURED_CPU",
+        duration:
+          1700,
+        backgroundImage:
+          theme.backgroundImage,
+        foregroundImages: [
+          casualGuest.teamLogo,
+        ],
+        text:
+          casualGuest.teamName,
+        subtext:
+          "CASUAL CUP GUEST TEAM",
+        commentary:
+          `ゲストチーム、${casualGuest.teamName}が特別参戦します！`,
+        soundId:
+          "cpu_spotlight",
+        animationId:
+          "data_scan",
+        canSkip:
+          true,
+      }),
+    ),
     {
       sceneId: "opening-coach-strategy",
       type: "COACH_STRATEGY",
@@ -1769,12 +1786,29 @@ export function validateTournamentRuntime(runtime, entry = null) {
       "INVALID_LAST_BATTLE_RESULT",
     );
   }
+  const expectedCasualGuestSceneCount =
+    String(
+      runtime.entryData
+        ?.tournament
+        ?.tournamentType ??
+      "",
+    ).startsWith(
+      "casual_",
+    )
+      ? runtime.teams.filter(
+          (team) =>
+            team.guest === true,
+        ).length
+      : 0;
   const expectedOpeningSceneCount =
-    runtime.entryData?.guide
-      ?.showPinkTournamentIntro ===
-    true
-      ? 11
-      : 10;
+    (
+      runtime.entryData?.guide
+        ?.showPinkTournamentIntro ===
+      true
+        ? 10
+        : 9
+    ) +
+    expectedCasualGuestSceneCount;
   if (
     !Array.isArray(
       runtime.opening?.scenes,

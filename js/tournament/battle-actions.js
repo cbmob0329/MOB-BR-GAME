@@ -25,12 +25,12 @@ import {
   calculateSkillCt,
   isAssistEligible,
   resolveWeaponBattleValue,
-} from "../../data/battle-config.js?v=45";
+} from "../../data/battle-config.js?v=46";
 import {
   STAT_IDS,
   clamp,
   rankToCharacterValue,
-} from "../../data/game-data.js?v=45";
+} from "../../data/game-data.js?v=46";
 import {
   adjustDebuffForSpecialAbility,
   applyNextBattleSpecialEffects,
@@ -52,7 +52,7 @@ import {
 } from "./special-abilities.js";
 
 export const BATTLE_ACTIONS_VERSION =
-  "mobbr-battle-actions-1.9.0";
+  "mobbr-battle-actions-2.0.0";
 
 export const BATTLE_ACTION_BALANCE = Object.freeze({
   criticalDamageMultiplier: 1.5,
@@ -2692,6 +2692,28 @@ export function performSkillAction(
       reason: "no_usable_ready_skill",
     };
   }
+
+  // Every normal skill gets a dedicated cut-in event before its effect.
+  // Earlier generations only emitted this for emergency revive/recovery,
+  // which made most skill cut-ins disappear.
+  appendBattleEvent(
+    battle,
+    "skill_cutin",
+    {
+      actorPlayerId:
+        actor.playerId,
+      actorTeamId:
+        actor.teamId,
+      targetPlayerId:
+        null,
+      targetTeamId:
+        null,
+      skillId:
+        skill.skillId,
+      skillName:
+        skill.name,
+    },
+  );
 
   switch (skill.skillId) {
     case "prison_breaker":

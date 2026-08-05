@@ -8,10 +8,10 @@
 import { assetPath } from "../assets.js";
 import {
   fitPortraits,
-} from "../portrait-fit.js?v=45";
+} from "../portrait-fit.js?v=46";
 import {
   motivationDisplay,
-} from "../../data/motivation-data.js?v=45";
+} from "../../data/motivation-data.js?v=46";
 import {
   COMMENTATOR,
   COMMENTARY_VERSION,
@@ -20,7 +20,7 @@ import {
   createCommentaryDirector,
 } from "./commentary.js";
 
-export const BATTLE_UI_VERSION = "mobbr-battle-ui-2.8.0";
+export const BATTLE_UI_VERSION = "mobbr-battle-ui-2.9.0";
 export const BATTLE_REPLAY_SCHEMA_VERSION =
   "mobbr-battle-replay-1.0.0";
 
@@ -934,10 +934,38 @@ function persistentCutinTemplate(
         : "REVIVE";
   const message =
     transient.effect === "down"
-      ? `${transient.targetName ?? "選手"}がダウン！`
+      ? `${transient.actorName ?? "攻撃側"} → ${transient.targetName ?? "選手"}`
       : transient.effect === "confirmed_kill"
-        ? `${transient.targetName ?? "選手"}を確キル！`
+        ? `${transient.actorName ?? "攻撃側"} → ${transient.targetName ?? "選手"}`
         : `${transient.targetName ?? "選手"}が戦線復帰！`;
+
+  if (
+    transient.effect === "down" ||
+    transient.effect ===
+      "confirmed_kill"
+  ) {
+    return `
+      <article
+        class="battle-persistent-cutin battle-persistent-cutin--duel battle-persistent-cutin--${escapeAttribute(transient.effect)} ${positionClass}"
+        style="--cutin-delay:${delay}ms"
+      >
+        <span>${escapeHtml(label)}</span>
+        <div class="battle-duel-event">
+          <figure>
+            <img src="${escapeAttribute(transient.actorImage ?? "icon/mic.png")}" alt="">
+            <figcaption>${escapeHtml(transient.actorName ?? "攻撃側")}</figcaption>
+          </figure>
+          <b aria-hidden="true">→</b>
+          <figure>
+            <img src="${escapeAttribute(transient.targetImage ?? "icon/mic.png")}" alt="">
+            <figcaption>${escapeHtml(transient.targetName ?? "対象")}</figcaption>
+          </figure>
+        </div>
+        <strong>${escapeHtml(message)}</strong>
+        <small>${escapeHtml(transient.actorTeamName ?? "")} → ${escapeHtml(transient.targetTeamName ?? "")}</small>
+      </article>
+    `;
+  }
 
   return `
     <article
@@ -1300,7 +1328,7 @@ export function createBattlePlaybackController({
           }, 220);
         cutinTimers.add(removeTimer);
         cutinTimers.delete(timerId);
-      }, 1080);
+      }, 1400);
     cutinTimers.add(timerId);
   }
 
