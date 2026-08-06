@@ -8,16 +8,16 @@
 
 import {
   getCompanyRankData,
-} from "./game-data.js?v=49";
+} from "./game-data.js?v=50";
 
 export const COOKING_DATA_VERSION =
-  "mobbr-cooking-data-1.2.0";
+  "mobbr-cooking-data-1.3.0";
 export const INGREDIENT_MASTER_VERSION =
   "mobbr-ingredient-master-1.0.0";
 export const RECIPE_MASTER_VERSION =
   "mobbr-recipe-master-1.0.0";
 export const COOKING_UTENSIL_MASTER_VERSION =
-  "mobbr-cooking-utensil-master-1.1.0";
+  "mobbr-cooking-utensil-master-1.2.0";
 export const COOKING_STATE_SCHEMA_VERSION =
   "mobbr-cooking-state-1.2.0";
 
@@ -608,52 +608,52 @@ export const COOKING_UTENSIL_MASTER =
     {
       utensilId: "frying_pan",
       name: "フライパン",
-      image: null,
+      image: "icon/01.png",
       priceCoin: 0,
       initialUnlocked: true,
       shopAvailable: false,
       unlockLocation: "kitchen",
-      imageStatus: "not_specified_in_source",
+      imageStatus: "specified_generation_50",
     },
     {
       utensilId: "pot",
       name: "鍋",
-      image: null,
+      image: "icon/02.png",
       priceCoin: 10000,
       initialUnlocked: false,
       shopAvailable: false,
       unlockLocation: "kitchen",
-      imageStatus: "not_specified_in_source",
+      imageStatus: "specified_generation_50",
     },
     {
       utensilId: "oven",
       name: "オーブン",
-      image: null,
+      image: "icon/03.png",
       priceCoin: 50000,
       initialUnlocked: false,
       shopAvailable: false,
       unlockLocation: "kitchen",
-      imageStatus: "not_specified_in_source",
+      imageStatus: "specified_generation_50",
     },
     {
       utensilId: "steamer",
       name: "蒸し器",
-      image: null,
+      image: "icon/05.png",
       priceCoin: 100000,
       initialUnlocked: false,
       shopAvailable: false,
       unlockLocation: "kitchen",
-      imageStatus: "not_specified_in_source",
+      imageStatus: "specified_generation_50",
     },
     {
       utensilId: "mixer",
       name: "ミキサー",
-      image: null,
+      image: "icon/04.png",
       priceCoin: 300000,
       initialUnlocked: false,
       shopAvailable: false,
       unlockLocation: "kitchen",
-      imageStatus: "not_specified_in_source",
+      imageStatus: "specified_generation_50",
     },
   ]);
 

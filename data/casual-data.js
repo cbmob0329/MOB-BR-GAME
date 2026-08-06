@@ -3,7 +3,7 @@
  */
 
 export const CASUAL_DATA_VERSION =
-  "mobbr-casual-data-1.1.0";
+  "mobbr-casual-data-1.2.0";
 
 export const CASUAL_CUP_MASTER =
   Object.freeze({
@@ -21,9 +21,9 @@ export const CASUAL_CUP_MASTER =
         true,
       trophyImages:
         Object.freeze({
-          1: "prize/02.png",
-          2: "prize/03.png",
-          3: "prize/04.png",
+          1: "prize/01.png",
+          2: "prize/02.png",
+          3: "prize/03.png",
         }),
     }),
     casual_mobutetsu:

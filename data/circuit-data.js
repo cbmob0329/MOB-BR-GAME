@@ -15,7 +15,7 @@ import {
   NATIONAL_CPU_TEAMS,
   getCpuLeagueForTeamId,
   getWorldCpuTeamsForYear,
-} from "./cpu-league-registry.js?v=49";
+} from "./cpu-league-registry.js?v=50";
 
 export const CIRCUIT_DATA_VERSION = "mobbr-circuit-data-1.5.0";
 
