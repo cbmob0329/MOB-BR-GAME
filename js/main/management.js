@@ -13,12 +13,12 @@ import {
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=50";
+} from "../../data/game-data.js?v=51";
 import {
   isCasualTournamentType,
   resolveCpuTeamMaster,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=50";
+} from "../../data/circuit-data.js?v=51";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
@@ -71,7 +71,7 @@ import {
   unlockCookingUtensilToDraft,
   serveDiningMealToDraft,
   settleDiningMealsToDraft,
-} from "./state.js?v=50";
+} from "./state.js?v=51";
 import {
   COOKING_RULES,
   COOKING_SCREEN_ASSETS,
@@ -88,19 +88,19 @@ import {
   getRecipeCandidates,
   isCookingJobReady,
   startCookingJobToDraft,
-} from "../../data/cooking-data.js?v=50";
+} from "../../data/cooking-data.js?v=51";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=50";
+} from "./tournament-bridge.js?v=51";
 import {
   DINING_EATING_SPEECHES,
   DINING_HUNGRY_SPEECHES,
   DINING_RULES,
   diningWeekKey,
-} from "../../data/dining-data.js?v=50";
+} from "../../data/dining-data.js?v=51";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-2.6.0";
+  "mobbr-management-feature-2.7.0";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -1959,12 +1959,18 @@ export function renderTrainingManagement(snapshot) {
                 <strong>${escapeHtml(player.name)}</strong>
                 <small>P ${pointPool.power} / T ${pointPool.tech} / M ${pointPool.mental} / S ${pointPool.shoot}</small>
               </div>
-              <img
+              <div
                 class="training-player-station__selected"
                 data-training-selected-preview
-                src="${escapeAttribute(selected.image)}"
-                alt="${escapeAttribute(selected.name)}"
               >
+                <span>SELECTED</span>
+                <img
+                  data-training-selected-preview-image
+                  src="${escapeAttribute(selected.image)}"
+                  alt="${escapeAttribute(selected.name)}"
+                >
+                <strong data-training-selected-preview-name>${escapeHtml(selected.name)}</strong>
+              </div>
             </header>
             <input type="hidden" data-training-player="${escapeAttribute(player.playerId)}" value="${escapeAttribute(selected.id)}">
             <div class="training-program-icon-grid" role="radiogroup" aria-label="${escapeAttribute(player.name)}のトレーニング">
@@ -1980,7 +1986,7 @@ export function renderTrainingManagement(snapshot) {
                 >
                   <img src="${escapeAttribute(program.image)}" alt="">
                   <strong>${escapeHtml(program.name)}</strong>
-                  <small>P${program.points.power} T${program.points.tech} M${program.points.mental} S${program.points.shoot}</small>
+                  <small>P ${program.points.power} / T ${program.points.tech} / M ${program.points.mental} / S ${program.points.shoot}</small>
                 </button>
               `).join("")}
             </div>
@@ -4772,12 +4778,23 @@ export function createManagementController({
       input.value = programId;
     }
 
-    const preview = station.querySelector(
-      "[data-training-selected-preview]",
-    );
-    if (preview) {
-      preview.src = program.image;
-      preview.alt = program.name;
+    const previewImage =
+      station.querySelector(
+        "[data-training-selected-preview-image]",
+      );
+    if (previewImage) {
+      previewImage.src =
+        program.image;
+      previewImage.alt =
+        program.name;
+    }
+    const previewName =
+      station.querySelector(
+        "[data-training-selected-preview-name]",
+      );
+    if (previewName) {
+      previewName.textContent =
+        program.name;
     }
 
     for (const button of station.querySelectorAll(

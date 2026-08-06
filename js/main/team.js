@@ -12,15 +12,15 @@ import {
   characterValueToRank,
   weaponValueToRank,
   getCompanyRankData,
-} from "../../data/game-data.js?v=50";
+} from "../../data/game-data.js?v=51";
 import {
   calculateMaxHp,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=50";
+} from "../../data/battle-config.js?v=51";
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=50";
+} from "../../data/motivation-data.js?v=51";
 import {
   WEAPON_SKINS,
   getWeaponSkin,
@@ -34,13 +34,13 @@ import {
   getStatUpgradeCost,
   getWeaponStatDefinition,
   getWeaponUpgradeCost,
-} from "../../data/ability-data.js?v=50";
+} from "../../data/ability-data.js?v=51";
 
 import {
   getSpecialAbilitiesForRole,
   getSpecialAbility,
   getSpecialAbilityStage,
-} from "../../data/special-ability-50-data.js?v=50";
+} from "../../data/special-ability-50-data.js?v=51";
 
 export const TEAM_FEATURE_VERSION = "mobbr-team-feature-1.5.0";
 
