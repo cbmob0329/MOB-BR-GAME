@@ -17361,3 +17361,557 @@ img.player-portrait,
     max-width: 64px !important;
   }
 }
+
+
+/* ==========================================================
+   Generation 50: special abilities, kitchen and compact shop
+   ========================================================== */
+
+/* 54 special abilities: six columns, image-based tiles. */
+.special-color-tabs--generation50 {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+.special-ability-list--generation50 {
+  display: grid !important;
+  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+  gap: 5px !important;
+  overflow: visible !important;
+  padding: 4px 1px 10px !important;
+}
+
+.special-ability-card--generation50 {
+  position: relative;
+  display: grid !important;
+  min-width: 0 !important;
+  min-height: 112px !important;
+  grid-template-rows: 52px 12px auto auto 17px !important;
+  justify-items: center;
+  align-content: start;
+  gap: 1px !important;
+  overflow: hidden;
+  border: 2px solid rgb(112 216 255 / 28%) !important;
+  border-radius: 10px !important;
+  padding: 4px 2px !important;
+  background:
+    linear-gradient(155deg, rgb(21 47 70 / 96%), rgb(6 15 28 / 99%)) !important;
+  color: #fff;
+}
+
+.special-ability-card--generation50.special-ability-card--gold {
+  border-color: rgb(244 210 84 / 48%) !important;
+  background:
+    linear-gradient(155deg, rgb(79 60 15 / 96%), rgb(18 14 5 / 99%)) !important;
+}
+
+.special-ability-card--generation50.is-rainbow {
+  border-color: transparent !important;
+  background:
+    linear-gradient(#09121f, #09121f) padding-box,
+    linear-gradient(
+      120deg,
+      #ff6d7a,
+      #ffd75f,
+      #72efa8,
+      #66d7ff,
+      #af8cff,
+      #ff72c9
+    ) border-box !important;
+  box-shadow:
+    0 0 0 2px rgb(255 255 255 / 7%),
+    0 0 14px rgb(119 210 255 / 23%);
+  animation: special-rainbow-pulse 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes special-rainbow-pulse {
+  from {
+    filter: brightness(.96);
+    box-shadow: 0 0 8px rgb(111 207 255 / 17%);
+  }
+  to {
+    filter: brightness(1.1);
+    box-shadow: 0 0 18px rgb(255 143 225 / 30%);
+  }
+}
+
+.special-ability-card__image {
+  display: grid;
+  width: 50px;
+  height: 50px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 24%);
+}
+
+.special-ability-card__image img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.special-ability-card--generation50 .special-ability-card__id {
+  font-size: .20rem !important;
+}
+
+.special-ability-card--generation50 > strong {
+  width: 100%;
+  overflow: hidden;
+  font-size: .28rem !important;
+  line-height: 1.15 !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.special-ability-card--generation50 > em {
+  width: 100%;
+  overflow: hidden;
+  color: rgb(255 255 255 / 55%);
+  font-size: .18rem !important;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.special-ability-card--generation50 > small {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: #f5d85d;
+  font-size: .19rem !important;
+  white-space: nowrap;
+}
+
+.ability-detail-modal--generation50 {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+}
+
+.ability-detail-modal--generation50 .ability-detail-modal__visual {
+  display: grid;
+  width: 104px;
+  height: 104px;
+  place-items: center;
+  border: 3px solid rgb(113 218 255 / 37%);
+  border-radius: 50%;
+  background: rgb(8 20 35 / 90%);
+}
+
+.ability-detail-modal--generation50.is-rainbow .ability-detail-modal__visual {
+  border-color: transparent;
+  background:
+    linear-gradient(#081423, #081423) padding-box,
+    linear-gradient(120deg, #ff6977, #ffd35e, #68e9ab, #66d5ff, #b287ff, #ff74ca) border-box;
+}
+
+.ability-detail-modal--generation50 .ability-detail-modal__visual img {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+}
+
+.ability-detail-modal--generation50 > b {
+  color: #8fe5ff;
+  font-size: .48rem;
+}
+
+/* SHOP: simple icon, name and price. Details stay in popup. */
+.management-app-content--shop .management-section {
+  grid-template-rows: auto 224px auto !important;
+}
+
+.management-app-content--shop .shop-item-grid,
+.management-app-content--shop .shop-category-product-grid,
+.management-app-content--shop .cooking-shop-grid {
+  display: grid !important;
+  width: 100% !important;
+  height: 224px !important;
+  min-height: 224px !important;
+  max-height: 224px !important;
+  grid-template-rows: repeat(2, 106px) !important;
+  grid-auto-flow: column !important;
+  grid-auto-columns: 92px !important;
+  gap: 6px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  padding: 3px 4px 8px !important;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x !important;
+  scrollbar-width: none;
+}
+
+.management-app-content--shop .shop-item-grid::-webkit-scrollbar,
+.management-app-content--shop .shop-category-product-grid::-webkit-scrollbar,
+.management-app-content--shop .cooking-shop-grid::-webkit-scrollbar {
+  display: none;
+}
+
+.management-app-content--shop .shop-item-tile,
+.management-app-content--shop .shop-category-product,
+.management-app-content--shop .cooking-shop-product {
+  display: grid !important;
+  width: 92px !important;
+  min-width: 92px !important;
+  max-width: 92px !important;
+  height: 106px !important;
+  min-height: 106px !important;
+  max-height: 106px !important;
+  grid-template-rows: 62px 20px 18px !important;
+  align-content: start !important;
+  justify-items: center;
+  gap: 1px !important;
+  overflow: hidden !important;
+  border-radius: 10px !important;
+  padding: 4px 3px !important;
+  scroll-snap-align: start;
+}
+
+.management-app-content--shop .shop-item-tile__image {
+  display: grid;
+  width: 100% !important;
+  height: 62px !important;
+  min-height: 62px !important;
+  place-items: center;
+}
+
+.management-app-content--shop .shop-item-tile img,
+.management-app-content--shop .shop-category-product img,
+.management-app-content--shop .cooking-shop-product img {
+  width: 58px !important;
+  height: 58px !important;
+  max-width: 58px !important;
+  max-height: 58px !important;
+  object-fit: contain !important;
+}
+
+.management-app-content--shop .shop-category-product img[src*="vol" i] {
+  width: 45px !important;
+  height: 60px !important;
+  max-width: 45px !important;
+  max-height: 60px !important;
+}
+
+.management-app-content--shop .shop-item-tile > strong,
+.management-app-content--shop .shop-category-product > strong,
+.management-app-content--shop .cooking-shop-product > strong {
+  display: block;
+  width: 100%;
+  min-height: 0 !important;
+  overflow: hidden;
+  color: #172033 !important;
+  font-size: .28rem !important;
+  line-height: 1.1 !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.management-app-content--shop .shop-item-tile > small,
+.management-app-content--shop .shop-category-product > small,
+.management-app-content--shop .cooking-shop-product > small {
+  display: flex;
+  width: 100%;
+  min-height: 0 !important;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: #9c7210 !important;
+  font-size: .23rem !important;
+  font-weight: 1000;
+  line-height: 1 !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.management-app-content--shop .shop-item-tile > em,
+.management-app-content--shop .shop-category-product > em,
+.management-app-content--shop .cooking-shop-product > em {
+  display: none !important;
+}
+
+.management-app-content--shop .mobshop-content {
+  min-height: 270px !important;
+  overflow: hidden !important;
+}
+
+.shop-item-detail-modal .cost-tags span,
+.cooking-shop-detail .cost-tags span,
+.shop-item-detail-modal > strong {
+  font-size: .48rem !important;
+  white-space: nowrap;
+}
+
+/* Kitchen: five large utensil images in a 3 x 2 layout. */
+.cooking-fixed-stations--generation50 {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  padding: 9px !important;
+}
+
+.cooking-fixed-station--generation50 {
+  min-height: 154px !important;
+}
+
+.cooking-fixed-station--generation50 > button {
+  display: grid !important;
+  min-height: 154px !important;
+  grid-template-rows: 88px 14px auto auto !important;
+  align-content: start;
+  justify-items: center;
+  gap: 2px;
+  padding: 6px 4px !important;
+}
+
+.cooking-fixed-station--generation50 .cooking-utensil-image {
+  width: min(25vw, 96px) !important;
+  height: 86px !important;
+  object-fit: contain !important;
+  filter: drop-shadow(0 9px 8px rgb(0 0 0 / 30%));
+}
+
+.cooking-fixed-station--generation50 .cooking-ready-food {
+  position: absolute;
+  width: 58px !important;
+  height: 58px !important;
+  object-fit: contain;
+}
+
+.cooking-fixed-station--generation50 span {
+  font-size: .23rem !important;
+}
+
+.cooking-fixed-station--generation50 strong {
+  font-size: .42rem !important;
+}
+
+.cooking-fixed-station--generation50 b,
+.cooking-fixed-station--generation50 small {
+  font-size: .28rem !important;
+}
+
+.cooking-station-modal--generation50 .cooking-station-modal__panel {
+  width: min(94vw, 660px) !important;
+  max-height: min(86dvh, 760px) !important;
+  overflow: auto !important;
+  overscroll-behavior: contain;
+}
+
+.cooking-entry-choice {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px 4px;
+}
+
+.cooking-entry-choice > button {
+  display: grid;
+  min-height: 180px;
+  place-content: center;
+  justify-items: center;
+  gap: 7px;
+  border: 3px solid rgb(116 218 255 / 28%);
+  border-radius: 17px;
+  padding: 12px;
+  background:
+    linear-gradient(155deg, rgb(28 67 94 / 96%), rgb(7 20 35 / 99%));
+  color: #fff;
+}
+
+.cooking-entry-choice img {
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+}
+
+.cooking-entry-choice strong {
+  font-size: .72rem;
+}
+
+.cooking-entry-choice small {
+  color: rgb(255 255 255 / 58%);
+  font-size: .34rem;
+}
+
+.cooking-known-recipes {
+  display: grid;
+  gap: 8px;
+}
+
+.cooking-known-recipes > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+}
+
+.cooking-known-recipes > header > div {
+  display: grid;
+}
+
+.cooking-known-recipes > header span {
+  color: #82e3ff;
+  font-size: .31rem;
+  font-weight: 1000;
+}
+
+.cooking-known-recipes > header strong {
+  color: #fff;
+  font-size: .68rem;
+}
+
+.cooking-known-recipes > header button {
+  min-height: 36px;
+  border-radius: 9px;
+  padding: 5px 9px;
+  background: rgb(255 255 255 / 8%);
+  color: #fff;
+  font-size: .32rem;
+}
+
+.cooking-known-recipes > div {
+  display: grid;
+  max-height: 54dvh;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  overflow: auto;
+  padding: 4px;
+}
+
+.cooking-known-recipes > div > button {
+  display: grid;
+  min-height: 140px;
+  justify-items: center;
+  align-content: end;
+  gap: 3px;
+  border: 2px solid rgb(255 255 255 / 13%);
+  border-radius: 11px;
+  padding: 6px;
+  background: rgb(255 255 255 / 5%);
+  color: #fff;
+}
+
+.cooking-known-recipes > div > button.is-missing {
+  opacity: .45;
+}
+
+.cooking-known-recipes img {
+  width: 86px;
+  height: 86px;
+  object-fit: contain;
+}
+
+.cooking-known-recipes strong {
+  font-size: .36rem;
+}
+
+.cooking-known-recipes small {
+  color: #8adfff;
+  font-size: .28rem;
+}
+
+.cooking-ingredient-builder > header > div:last-child {
+  display: flex;
+  gap: 5px;
+}
+
+/* Larger smartphone-readable economy and point values. */
+.team-point-chip strong,
+.cost-tags span,
+.management-section__heading > span,
+.cooking-shop-product small,
+.room-item-strip strong,
+.room-category-strip span,
+.upgrade-node-modal__cost > strong,
+.upgrade-node-modal__cost > span {
+  font-size: clamp(.30rem, 2.6vw, .48rem) !important;
+  line-height: 1.1;
+}
+
+@media (max-width: 430px) {
+  .special-ability-list--generation50 {
+    gap: 3px !important;
+  }
+
+  .special-ability-card--generation50 {
+    min-height: 100px !important;
+    grid-template-rows: 44px 10px auto auto 16px !important;
+    padding-inline: 1px !important;
+  }
+
+  .special-ability-card__image {
+    width: 43px;
+    height: 43px;
+  }
+
+  .special-ability-card__image img {
+    width: 42px;
+    height: 42px;
+  }
+
+  .management-app-content--shop .shop-item-grid,
+  .management-app-content--shop .shop-category-product-grid,
+  .management-app-content--shop .cooking-shop-grid {
+    grid-auto-columns: 86px !important;
+  }
+
+  .management-app-content--shop .shop-item-tile,
+  .management-app-content--shop .shop-category-product,
+  .management-app-content--shop .cooking-shop-product {
+    width: 86px !important;
+    min-width: 86px !important;
+    max-width: 86px !important;
+  }
+
+  .cooking-fixed-station--generation50 .cooking-utensil-image {
+    width: min(26vw, 82px) !important;
+    height: 76px !important;
+  }
+
+  .cooking-entry-choice {
+    grid-template-columns: 1fr;
+  }
+
+  .cooking-known-recipes > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Generation 50: learned special ability images and rainbow level 2. */
+.player-special-chip > i,
+.player-special-detail > i {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.player-special-chip > i img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.player-special-chip > small {
+  font-size: .24rem;
+  font-weight: 1000;
+  white-space: nowrap;
+}
+
+.player-special-chip.is-rainbow,
+.player-special-detail.is-rainbow {
+  border-color: transparent !important;
+  background:
+    linear-gradient(rgb(8 16 29 / 97%), rgb(8 16 29 / 97%)) padding-box,
+    linear-gradient(115deg, #ff5d7b, #ffd75d, #62f0a5, #6edcff, #a67cff, #ff79d2, #ff5d7b) border-box !important;
+  background-size: 100% 100%, 260% 100% !important;
+  animation: special-rainbow-pulse 2.1s ease-in-out infinite !important;
+}
+
+.player-special-detail > i img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
