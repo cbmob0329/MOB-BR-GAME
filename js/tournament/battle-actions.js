@@ -25,12 +25,12 @@ import {
   calculateSkillCt,
   isAssistEligible,
   resolveWeaponBattleValue,
-} from "../../data/battle-config.js?v=49";
+} from "../../data/battle-config.js?v=50";
 import {
   STAT_IDS,
   clamp,
   rankToCharacterValue,
-} from "../../data/game-data.js?v=49";
+} from "../../data/game-data.js?v=50";
 import {
   adjustDebuffForSpecialAbility,
   applyNextBattleSpecialEffects,
@@ -52,7 +52,7 @@ import {
 } from "./special-abilities.js";
 
 export const BATTLE_ACTIONS_VERSION =
-  "mobbr-battle-actions-2.1.0";
+  "mobbr-battle-actions-2.2.0";
 
 export const BATTLE_ACTION_BALANCE = Object.freeze({
   criticalDamageMultiplier: 1.5,
@@ -84,6 +84,12 @@ export const BATTLE_ACTION_BALANCE = Object.freeze({
   }),
   cpuWeaponValueFloor: 0,
   cpuWeaponValueCeiling: 72,
+  luck: Object.freeze({
+    accuracySwing: 0.025,
+    criticalSwing: 0.012,
+    damageMinimum: 0.97,
+    damageMaximum: 1.03,
+  }),
 });
 
 const DISTANCE_INDEX = Object.freeze({
@@ -125,6 +131,57 @@ export function nextBattleRandom(battle) {
   battle.randomState.state = state || 0x9e3779b9;
   battle.randomState.cursor += 1;
   return battle.randomState.state / 0x1_0000_0000;
+}
+
+function battleLuckAccuracy(
+  battle,
+) {
+  return (
+    nextBattleRandom(
+      battle,
+    ) -
+    0.5
+  ) *
+  2 *
+  BATTLE_ACTION_BALANCE
+    .luck
+    .accuracySwing;
+}
+
+function battleLuckCritical(
+  battle,
+) {
+  return (
+    nextBattleRandom(
+      battle,
+    ) -
+    0.5
+  ) *
+  2 *
+  BATTLE_ACTION_BALANCE
+    .luck
+    .criticalSwing;
+}
+
+function battleLuckDamageMultiplier(
+  battle,
+) {
+  const {
+    damageMinimum,
+    damageMaximum,
+  } =
+    BATTLE_ACTION_BALANCE
+      .luck;
+  return (
+    damageMinimum +
+    (
+      damageMaximum -
+      damageMinimum
+    ) *
+    nextBattleRandom(
+      battle,
+    )
+  );
 }
 
 export function appendBattleEvent(
@@ -1365,7 +1422,8 @@ export function performNormalAttack(
                   getTemporaryAccuracyModifier(actor) +
                   (actor.playerMasteryAccuracy ?? 0) +
                   special.accuracyModifier -
-                  recoilPenalty,
+                  recoilPenalty +
+                  battleLuckAccuracy(battle),
               })
         ),
       ),
@@ -1384,6 +1442,9 @@ export function performNormalAttack(
         nextBattleRandom(battle) <
           calculateCriticalChance(
             effectiveStats,
+            battleLuckCritical(
+              battle,
+            ),
           );
       if (critical) {
         actor.stats.criticalHits += 1;
@@ -1403,7 +1464,10 @@ export function performNormalAttack(
         1,
         Math.round(
           attack.damage *
-          bulletDamageScale,
+          bulletDamageScale *
+          battleLuckDamageMultiplier(
+            battle,
+          ),
         ),
       );
       lastResult = applyBattleDamage(
@@ -1950,7 +2014,8 @@ function executeSingleAttackSkill(
           getTemporaryAccuracyModifier(actor) +
           (actor.playerMasteryAccuracy ?? 0) +
           0.03 +
-          special.accuracyModifier,
+          special.accuracyModifier +
+          battleLuckAccuracy(battle),
       });
   const hit =
     unavoidable ||
@@ -1967,6 +2032,9 @@ function executeSingleAttackSkill(
       nextBattleRandom(battle) <
       calculateCriticalChance(
         effectiveStats,
+        battleLuckCritical(
+          battle,
+        ),
       );
     const attack =
       calculateAttackDamage(
@@ -1984,7 +2052,15 @@ function executeSingleAttackSkill(
       battle,
       actor,
       target,
-      attack.damage,
+      Math.max(
+        1,
+        Math.round(
+          attack.damage *
+          battleLuckDamageMultiplier(
+            battle,
+          ),
+        ),
+      ),
       {
         sourceType: "skill",
         sourceId: skill.skillId,
@@ -2085,7 +2161,8 @@ function executeSmokeLauncher(
         temporaryModifier:
           getTemporaryAccuracyModifier(actor) +
           (actor.playerMasteryAccuracy ?? 0) +
-          special.accuracyModifier,
+          special.accuracyModifier +
+          battleLuckAccuracy(battle),
       });
     const hit =
       nextBattleRandom(battle) <
