@@ -18,14 +18,14 @@ import {
 } from "../assets.js";
 import {
   fitPortraits,
-} from "../portrait-fit.js?v=49";
+} from "../portrait-fit.js?v=50";
 import {
   SaveError,
   SaveNotFoundError,
   clearPendingEmployeeRankUpsToDraft,
   createGameStateManager,
   grantEmployeeCookingPointsToDraft,
-} from "./state.js?v=49";
+} from "./state.js?v=50";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -49,36 +49,36 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=49";
+} from "./team.js?v=50";
 import {
   getSpecialAbility,
-} from "../../data/ability-data.js";
+} from "../../data/special-ability-50-data.js?v=50";
 import {
   getCompanyRankData,
 } from "../../data/game-data.js";
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=49";
+} from "../../data/motivation-data.js?v=50";
 import {
   getRoomMaster,
-} from "../../data/collection-data.js?v=49";
+} from "../../data/collection-data.js?v=50";
 import {
   EMPLOYEE_RULES,
   getEmployeeRankData,
   getTotalEmployeeHpBonus,
-} from "../../data/employee-data.js?v=49";
+} from "../../data/employee-data.js?v=50";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=49";
+} from "./management.js?v=50";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=49";
+} from "./tournament-bridge.js?v=50";
 
-export const APP_VERSION = "mobbr-main-app-3.6.0";
+export const APP_VERSION = "mobbr-main-app-3.7.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -3620,12 +3620,15 @@ export function createMainApp({
                         return `
                           <button
                             type="button"
-                            class="player-special-chip player-special-chip--${escapeAttribute(ability.color)}"
+                            class="player-special-chip player-special-chip--${escapeAttribute(ability.color)} ${Number(entry.stage ?? ability.stage ?? 1) >= 2 ? "is-rainbow" : ""}"
                             data-action="modal-inspect-special"
                             data-ability-key="${escapeAttribute(ability.abilityKey)}"
                           >
-                            <i>${escapeHtml(ability.name.slice(0, 1))}</i>
+                            <i>
+                              <img src="${escapeAttribute(ability.image)}" alt="">
+                            </i>
                             <span>${escapeHtml(ability.name)}</span>
+                            <small>LV.${Number(entry.stage ?? ability.stage ?? 1)}</small>
                           </button>
                         `;
                       }).join("")}
@@ -4235,58 +4238,89 @@ export function createMainApp({
       return;
     }
     if (action === "inspect-special-ability") {
-      const playerId = actionElement.dataset.playerId;
-      const abilityKey = actionElement.dataset.abilityKey;
-      const snapshot = stateManager.getSnapshot();
-      const ability = getSpecialAbility(abilityKey);
-      const acquisition = getAbilityAcquisitionState(
-        snapshot,
-        playerId,
-        abilityKey,
-      );
-      const costRows = Object.entries(ability.cost)
-        .filter(([, amount]) => amount > 0)
-        .map(([pointId, amount]) =>
-          `<span>${escapeHtml(pointId.toUpperCase())} ${formatNumber(amount)}</span>`,
+      const playerId =
+        actionElement.dataset.playerId;
+      const abilityKey =
+        actionElement.dataset.abilityKey;
+      const snapshot =
+        stateManager.getSnapshot();
+      const acquisition =
+        getAbilityAcquisitionState(
+          snapshot,
+          playerId,
+          abilityKey,
+        );
+      const ability =
+        acquisition.ability;
+      const family =
+        acquisition.family ??
+        getSpecialAbility(
+          abilityKey,
+        );
+      const costRows =
+        Object.entries(
+          ability.cost,
         )
-        .join("") || "<span>PT 0</span>";
-      const conditionRows = acquisition.conditionState.details
-        .map((detail) => `
-          <li class="${detail.met ? "is-met" : ""}">
-            <span>${escapeHtml(specialConditionText(detail))}</span>
-            <strong>${formatNumber(detail.current)} / ${formatNumber(detail.required)}</strong>
-          </li>
-        `)
-        .join("");
-      const status = acquisition.replaced
-        ? "上位段階へ置換済みです"
-        : acquisition.alreadyLearned
-          ? "習得済みです"
-          : !acquisition.stagePrerequisiteMet
-            ? "第1段階の習得が必要です"
+          .filter(
+            ([, amount]) =>
+              amount > 0,
+          )
+          .map(
+            ([pointId, amount]) =>
+              `<span>${escapeHtml(pointId.toUpperCase())} ${formatNumber(amount)}</span>`,
+          )
+          .join("") ||
+        "<span>PT 0</span>";
+      const conditionRows =
+        acquisition
+          .conditionState
+          .details
+          .map(
+            (detail) => `
+              <li class="${detail.met ? "is-met" : ""}">
+                <span>${escapeHtml(specialConditionText(detail))}</span>
+                <strong>${formatNumber(detail.current)} / ${formatNumber(detail.required)}</strong>
+              </li>
+            `,
+          )
+          .join("");
+      const status =
+        acquisition.maxed
+          ? "LEVEL 2・最大強化済みです"
+          : acquisition.currentLevel === 1
+            ? "LEVEL 2へ強化できます"
             : !acquisition.conditionState.unlocked
               ? "解放条件を満たしていません"
               : !acquisition.affordable
                 ? "トレーニングポイントが不足しています"
-                : "習得できます";
+                : "LEVEL 1を習得できます";
       const body = `
-        <section class="ability-detail-modal ability-detail-modal--${escapeAttribute(ability.color)}">
-          <div class="ability-detail-modal__orb">${escapeHtml(ability.name.slice(0, 1))}</div>
-          <span>${escapeHtml(ability.color.toUpperCase())} / ${escapeHtml(ability.abilityId.toUpperCase())}${ability.color === "blue" ? ` STAGE ${ability.stage}` : ""}</span>
-          <h3>${escapeHtml(ability.name)}</h3>
+        <section
+          class="ability-detail-modal ability-detail-modal--generation50 ability-detail-modal--${escapeAttribute(family.color)} ${acquisition.rainbow ? "is-rainbow" : ""}"
+        >
+          <div class="ability-detail-modal__visual">
+            <img
+              src="${escapeAttribute(family.image)}"
+              alt=""
+            >
+          </div>
+          <span>
+            ${family.color === "gold" ? "GOLD" : "NORMAL"}
+            / No.${escapeHtml(family.abilityId)}
+          </span>
+          <h3>${escapeHtml(family.name)}</h3>
+          <b>現在 LEVEL ${acquisition.currentLevel} / 最大 LEVEL 2</b>
           <p>${escapeHtml(ability.description)}</p>
-          <div class="ability-detail-modal__cost">${costRows}</div>
+          <div class="ability-detail-modal__cost">
+            ${costRows}
+          </div>
           <section class="ability-unlock-detail">
-            <h4>解放条件</h4>
+            <h4>獲得可能役職</h4>
+            <p>${escapeHtml(family.roles.join(" / "))}</p>
             ${
               conditionRows
                 ? `<ul class="ability-detail-modal__conditions">${conditionRows}</ul>`
                 : `<p>大会実績による追加条件はありません。</p>`
-            }
-            ${
-              ability.color === "blue" && ability.stage > 1
-                ? `<p>前段階の特殊能力習得も必要です。</p>`
-                : ""
             }
           </section>
           <strong>${escapeHtml(status)}</strong>
@@ -4300,22 +4334,34 @@ export function createMainApp({
         });
         return;
       }
-      const confirmed = await openConfirm({
-        title: "特殊能力を習得しますか？",
-        body,
-        confirmLabel: "習得する",
-      });
-      if (!confirmed) return;
+      const confirmed =
+        await openConfirm({
+          title:
+            acquisition.currentLevel === 1
+              ? "特殊能力をLEVEL 2へ強化しますか？"
+              : "特殊能力を習得しますか？",
+          body,
+          confirmLabel:
+            acquisition.currentLevel === 1
+              ? "強化する"
+              : "習得する",
+        });
+      if (!confirmed) {
+        return;
+      }
       try {
-        const transaction = stateManager.transact(
-          "special_ability_learned",
-          (draft) =>
-            learnSpecialAbilityToDraft(
-              draft,
-              playerId,
-              abilityKey,
-            ),
-        );
+        const transaction =
+          stateManager.transact(
+            acquisition.currentLevel === 1
+              ? "special_ability_upgraded"
+              : "special_ability_learned",
+            (draft) =>
+              learnSpecialAbilityToDraft(
+                draft,
+                playerId,
+                abilityKey,
+              ),
+          );
         const latest =
           stateManager.getSnapshot();
         const player =
@@ -4326,29 +4372,51 @@ export function createMainApp({
           );
         await playProgressionPresentation({
           kind: "special",
-          label: "SPECIAL ABILITY ACQUIRED",
+          label:
+            transaction.result.stage === 2
+              ? "SPECIAL ABILITY LEVEL 2"
+              : "SPECIAL ABILITY ACQUIRED",
           rankUp: false,
-          title: "特殊能力習得",
+          title:
+            transaction.result.stage === 2
+              ? "特殊能力強化"
+              : "特殊能力習得",
           subject:
             player?.name ?? "",
           entries: [{
             label:
               transaction.result.name,
-            before: "LOCKED",
-            after: "ACTIVE",
+            before:
+              transaction.result.stage === 2
+                ? "LEVEL 1"
+                : "LOCKED",
+            after:
+              `LEVEL ${transaction.result.stage}`,
             note:
-              "大会中は装備不要で常時有効",
+              transaction.result.stage === 2
+                ? "虹色の強化枠へ更新"
+                : "大会中は装備不要で常時有効",
             icon:
+              transaction.result.image ??
               "icon/sp.png",
           }],
         });
-        showToast(`${transaction.result.name}を習得しました`);
-        updateTeamFeatureLiveSection("special");
+        showToast(
+          transaction.result.stage === 2
+            ? `${transaction.result.name}をLEVEL 2へ強化しました`
+            : `${transaction.result.name}を習得しました`,
+        );
+        updateTeamFeatureLiveSection(
+          "special",
+        );
       } catch (error) {
         await openAlert({
-          title: "特殊能力を習得できません",
-          body: `<p>${escapeHtml(error.message)}</p>`,
-          code: getErrorCode(error),
+          title:
+            "特殊能力を習得できません",
+          body:
+            `<p>${escapeHtml(error.message)}</p>`,
+          code:
+            getErrorCode(error),
         });
       }
       return;
@@ -4457,9 +4525,9 @@ export function createMainApp({
         openAlert({
           title: ability.name,
           body: `
-            <section class="player-special-detail player-special-detail--${escapeAttribute(ability.color)}">
-              <i>${escapeHtml(ability.name.slice(0, 1))}</i>
-              <span>${escapeHtml(ability.color.toUpperCase())} / ${escapeHtml(ability.abilityId.toUpperCase())}</span>
+            <section class="player-special-detail player-special-detail--${escapeAttribute(ability.color)} ${Number(ability.stage ?? 1) >= 2 ? "is-rainbow" : ""}">
+              <i><img src="${escapeAttribute(ability.image)}" alt=""></i>
+              <span>${escapeHtml(ability.rarity?.toUpperCase?.() ?? ability.color.toUpperCase())} / No.${escapeHtml(ability.abilityId)} / LEVEL ${Number(ability.stage ?? 1)}</span>
               <h3>${escapeHtml(ability.name)}</h3>
               <p>${escapeHtml(ability.description)}</p>
               <small>習得済み・大会中は装備不要で常時有効です。</small>
@@ -4717,6 +4785,12 @@ export function createMainApp({
       assetPath("back/Load.png"), assetPath("back/main1.png"), assetPath("back/sub.png"), assetPath("back/coh.png"),
       assetPath("back/homecol.png"), assetPath("back/backcol.png"), assetPath("back/backcoh.png"), assetPath("back/backshop.png"),
       assetPath("back/kitmain.png"), assetPath("back/kitroom.png"), assetPath("icon/kitbox.png"),
+      ...Array.from({ length: 54 }, (_, index) =>
+        assetPath(`ability/${String(index + 1).padStart(2, "0")}.png`)
+      ),
+      ...Array.from({ length: 5 }, (_, index) =>
+        assetPath(`icon/${String(index + 1).padStart(2, "0")}.png`)
+      ),
       ...Array.from({ length: 41 }, (_, index) =>
         assetPath(`sk/${String(index + 1).padStart(2, "0")}.png`)
       ),

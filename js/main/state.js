@@ -19,11 +19,11 @@ import {
   getCompanyRankData,
   rankToWeaponValue,
   validateGameDate,
-} from "../../data/game-data.js?v=49";
+} from "../../data/game-data.js?v=50";
 import {
   BATTLE_CONFIG_VERSION,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=49";
+} from "../../data/battle-config.js?v=50";
 import {
   TRAINING_DATA_VERSION,
 } from "../../data/training-data.js";
@@ -43,10 +43,10 @@ import {
   RETIRED_BADGE_COLLECTION_IDS,
   RETIRED_CARD_COLLECTION_IDS,
   ROOM_MASTER_VERSION,
-} from "../../data/collection-data.js?v=49";
+} from "../../data/collection-data.js?v=50";
 import {
   CPU_ROSTER_47_DATA_VERSION,
-} from "../../data/cpu-roster-47-data.js?v=49";
+} from "../../data/cpu-roster-47-data.js?v=50";
 import {
   STRATEGY_DATA_VERSION,
   STRATEGY_MASTER_VERSION,
@@ -61,7 +61,7 @@ import {
   motivationLevelIndex,
   normalizeMotivationRecord,
   shiftMotivation,
-} from "../../data/motivation-data.js?v=49";
+} from "../../data/motivation-data.js?v=50";
 import {
   EMPLOYEE_DATA_VERSION,
   EMPLOYEE_MASTER,
@@ -74,7 +74,7 @@ import {
   getEmployeeRankData,
   getEmployeeWeeklyCoinBonusRate,
   normalizeEmployeeRecord,
-} from "../../data/employee-data.js?v=49";
+} from "../../data/employee-data.js?v=50";
 import {
   COOKING_DATA_VERSION,
   COOKING_STATE_SCHEMA_VERSION,
@@ -89,7 +89,7 @@ import {
   refreshWeeklyIngredientStockToDraft,
   validateCookingState,
   createFoodVariant,
-} from "../../data/cooking-data.js?v=49";
+} from "../../data/cooking-data.js?v=50";
 import {
   DINING_DATA_VERSION,
   DINING_RULES,
@@ -100,9 +100,13 @@ import {
   normalizeDiningState,
   refreshDiningWeekToDraft,
   validateDiningState,
-} from "../../data/dining-data.js?v=49";
+} from "../../data/dining-data.js?v=50";
+import {
+  SPECIAL_ABILITY_50_VERSION,
+  normalizeGeneration50SpecialAbilities,
+} from "../../data/special-ability-50-data.js?v=50";
 
-export const SAVE_SCHEMA_VERSION = "mobbr-save-2.8.0";
+export const SAVE_SCHEMA_VERSION = "mobbr-save-2.9.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
 
 export const STORAGE_KEYS = Object.freeze({
@@ -1292,6 +1296,12 @@ function migrateLegacyPlayer(player) {
       migrated.motivation,
     );
 
+  migrated.specialAbilities =
+    normalizeGeneration50SpecialAbilities(
+      migrated.specialAbilities,
+      migrated.role,
+    );
+
   delete migrated.secondaryWeapon;
   delete migrated.ult;
 
@@ -1429,6 +1439,40 @@ function migrateUnversionedSave(rawState, timestamp) {
     )
       ? migrated.collections.trophies
       : [];
+  migrated.collections.trophies =
+    migrated.collections.trophies.map(
+      (trophy) => {
+        if (
+          trophy?.cupId !== "denden" &&
+          trophy?.tournamentType !==
+            "casual_denden"
+        ) {
+          return trophy;
+        }
+        const place =
+          Math.max(
+            1,
+            Math.min(
+              3,
+              Number(
+                trophy.place ??
+                3,
+              ),
+            ),
+          );
+        return {
+          ...trophy,
+          image:
+            `prize/0${place}.png`,
+          name:
+            place === 1
+              ? "デンデンカップ 優勝トロフィー"
+              : place === 2
+                ? "デンデンカップ 準優勝トロフィー"
+                : "デンデンカップ 3位トロフィー",
+        };
+      },
+    );
   migrated.ui.guideFlags =
     migrated.ui.guideFlags ?? {};
 
@@ -1519,7 +1563,8 @@ export function migrateSaveState(
     rawState.schemaVersion === "mobbr-save-2.4.0" ||
     rawState.schemaVersion === "mobbr-save-2.5.0" ||
     rawState.schemaVersion === "mobbr-save-2.6.0" ||
-    rawState.schemaVersion === "mobbr-save-2.7.0"
+    rawState.schemaVersion === "mobbr-save-2.7.0" ||
+    rawState.schemaVersion === "mobbr-save-2.8.0"
   ) {
     const migrated = migrateUnversionedSave(rawState, timestamp);
     validateSaveState(migrated);

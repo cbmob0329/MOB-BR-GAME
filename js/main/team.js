@@ -12,15 +12,15 @@ import {
   characterValueToRank,
   weaponValueToRank,
   getCompanyRankData,
-} from "../../data/game-data.js?v=49";
+} from "../../data/game-data.js?v=50";
 import {
   calculateMaxHp,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=49";
+} from "../../data/battle-config.js?v=50";
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=49";
+} from "../../data/motivation-data.js?v=50";
 import {
   WEAPON_SKINS,
   getWeaponSkin,
@@ -31,14 +31,18 @@ import {
   canAffordPointCost,
   evaluateUnlockConditions,
   getPlayerStatDefinition,
-  getSpecialAbilitiesForRole,
-  getSpecialAbility,
   getStatUpgradeCost,
   getWeaponStatDefinition,
   getWeaponUpgradeCost,
-} from "../../data/ability-data.js";
+} from "../../data/ability-data.js?v=50";
 
-export const TEAM_FEATURE_VERSION = "mobbr-team-feature-1.4.0";
+import {
+  getSpecialAbilitiesForRole,
+  getSpecialAbility,
+  getSpecialAbilityStage,
+} from "../../data/special-ability-50-data.js?v=50";
+
+export const TEAM_FEATURE_VERSION = "mobbr-team-feature-1.5.0";
 
 const ROLE_ICONS = Object.freeze({
   IGL: "icon/IGL.png",
@@ -644,12 +648,25 @@ export function buildAbilityProgress(snapshot, playerId) {
   };
 }
 
-function getLearnedAbility(player, abilityId, color) {
-  return (player.specialAbilities ?? []).find(
+function getLearnedAbility(player, abilityId) {
+  return (
+    player.specialAbilities ?? []
+  ).find(
     (ability) =>
-      ability.abilityId === abilityId &&
-      ability.color === color,
+      ability.abilityId ===
+      abilityId,
   ) ?? null;
+}
+
+function abilityAppliesToPlayer(
+  ability,
+  player,
+) {
+  return (
+    ability.roles?.includes(
+      player.role,
+    ) === true
+  );
 }
 
 export function getAbilityAcquisitionState(
@@ -657,57 +674,92 @@ export function getAbilityAcquisitionState(
   playerId,
   abilityKey,
 ) {
-  const player = getPlayer(snapshot, playerId);
-  const ability = getSpecialAbility(abilityKey);
-  const applicable =
-    ability.target === "COMMON" || ability.target === player.role;
-  const learned = getLearnedAbility(
-    player,
-    ability.abilityId,
-    ability.color,
-  );
-
-  const conditionState = evaluateUnlockConditions(
-    ability.unlockConditions,
-    buildAbilityProgress(snapshot, playerId),
-  );
-
-  const stagePrerequisiteMet =
-    ability.color !== "blue" ||
-    ability.stage === 1 ||
-    (learned && learned.stage === 1);
-
-  const alreadyLearned =
-    learned &&
-    (
-      ability.color !== "blue" ||
-      learned.stage >= ability.stage
+  const player =
+    getPlayer(
+      snapshot,
+      playerId,
     );
-
-  const replaced =
-    ability.color === "blue" &&
-    ability.stage === 1 &&
-    learned?.stage === 2;
-
-  const affordable = canAffordPointCost(
-    getPlayerTrainingPointPool(snapshot, playerId),
-    ability.cost,
-  );
+  const family =
+    getSpecialAbility(
+      abilityKey,
+    );
+  const learned =
+    getLearnedAbility(
+      player,
+      family.abilityId,
+    );
+  const currentLevel =
+    Math.max(
+      0,
+      Math.min(
+        2,
+        Number(
+          learned?.stage ??
+          0,
+        ),
+      ),
+    );
+  const nextLevel =
+    Math.min(
+      2,
+      currentLevel + 1,
+    );
+  const ability =
+    currentLevel >= 2
+      ? getSpecialAbilityStage(
+          family.abilityId,
+          2,
+        )
+      : getSpecialAbilityStage(
+          family.abilityId,
+          nextLevel,
+        );
+  const applicable =
+    abilityAppliesToPlayer(
+      family,
+      player,
+    );
+  const conditionState =
+    evaluateUnlockConditions(
+      ability.unlockConditions,
+      buildAbilityProgress(
+        snapshot,
+        playerId,
+      ),
+    );
+  const affordable =
+    canAffordPointCost(
+      getPlayerTrainingPointPool(
+        snapshot,
+        playerId,
+      ),
+      ability.cost,
+    );
+  const maxed =
+    currentLevel >= 2;
 
   return {
+    family,
     ability,
     applicable,
     conditionState,
-    stagePrerequisiteMet,
-    alreadyLearned,
-    replaced,
+    stagePrerequisiteMet:
+      currentLevel === 0 ||
+      currentLevel === 1,
+    alreadyLearned:
+      maxed,
+    replaced:
+      false,
     affordable,
+    currentLevel,
+    nextLevel,
+    maxed,
+    rainbow:
+      currentLevel >= 2,
     learnable:
       applicable &&
       conditionState.unlocked &&
-      stagePrerequisiteMet &&
-      !alreadyLearned &&
-      !replaced &&
+      !maxed &&
       affordable,
   };
 }
@@ -716,81 +768,136 @@ export function learnSpecialAbilityToDraft(
   draft,
   playerId,
   abilityKey,
-  learnedAt = new Date().toISOString(),
+  learnedAt =
+    new Date().toISOString(),
 ) {
   assertDraft(draft);
-  const state = getAbilityAcquisitionState(
-    draft,
-    playerId,
-    abilityKey,
-  );
-  const { ability } = state;
+  const state =
+    getAbilityAcquisitionState(
+      draft,
+      playerId,
+      abilityKey,
+    );
+  const {
+    ability,
+  } = state;
 
   if (!state.applicable) {
-    throw new RangeError("この選手の役職では習得できません。");
+    throw new RangeError(
+      "この選手の役職では習得できません。",
+    );
   }
-  if (!state.conditionState.unlocked) {
-    throw new RangeError("解放条件を満たしていません。");
+  if (
+    !state.conditionState.unlocked
+  ) {
+    throw new RangeError(
+      "解放条件を満たしていません。",
+    );
   }
-  if (!state.stagePrerequisiteMet) {
-    throw new RangeError("青特殊能力の第1段階を先に習得してください。");
-  }
-  if (state.alreadyLearned || state.replaced) {
-    throw new RangeError("すでに習得済みです。");
+  if (state.maxed) {
+    throw new RangeError(
+      "この特殊能力は最大まで強化済みです。",
+    );
   }
   if (!state.affordable) {
-    throw new RangeError("トレーニングポイントが不足しています。");
+    throw new RangeError(
+      "トレーニングポイントが不足しています。",
+    );
   }
 
-  const player = getPlayer(draft, playerId);
-  subtractPointCost(ensurePlayerTrainingPointPoolToDraft(draft, playerId), ability.cost);
+  const player =
+    getPlayer(
+      draft,
+      playerId,
+    );
+  subtractPointCost(
+    ensurePlayerTrainingPointPoolToDraft(
+      draft,
+      playerId,
+    ),
+    ability.cost,
+  );
 
   const entry = {
-    abilityKey: ability.abilityKey,
-    abilityId: ability.abilityId,
-    color: ability.color,
-    stage: ability.stage,
-    name: ability.name,
-    description: ability.description,
-    effectType: ability.effect.code ?? "unknown",
-    effectValue: ability.effect,
-    trigger: ability.effect.trigger ?? null,
-    target: ability.target,
+    abilityKey:
+      ability.abilityKey,
+    abilityId:
+      ability.abilityId,
+    color:
+      ability.color,
+    rarity:
+      ability.rarity,
+    stage:
+      ability.stage,
+    name:
+      ability.name,
+    image:
+      ability.image,
+    description:
+      ability.description,
+    effectType:
+      ability.effect.code ??
+      "unknown",
+    effectValue:
+      ability.effect,
+    trigger:
+      ability.effect.trigger ??
+      null,
+    target:
+      ability.target,
+    roles:
+      ability.roles,
     cooldownModifier:
-      ability.effect.baseCtReduction ??
+      ability.effect
+        .baseCtReduction ??
       ability.effect.seconds ??
       null,
-    stackRule: ability.stackRule,
-    priority: ability.priority,
-    visualEffectId: ability.visualEffectId,
-    commentaryTags: ability.commentaryTags,
+    stackRule:
+      ability.stackRule,
+    priority:
+      ability.priority,
+    visualEffectId:
+      ability.visualEffectId,
+    commentaryTags:
+      ability.commentaryTags,
     learnedAt,
   };
 
-  player.specialAbilities = Array.isArray(player.specialAbilities)
-    ? player.specialAbilities
-    : [];
-
-  if (ability.color === "blue") {
-    player.specialAbilities = player.specialAbilities.filter(
-      (learned) =>
-        !(
-          learned.color === "blue" &&
-          learned.abilityId === ability.abilityId
-        ),
-    );
-  }
-  player.specialAbilities.push(entry);
+  player.specialAbilities =
+    Array.isArray(
+      player.specialAbilities,
+    )
+      ? player.specialAbilities.filter(
+          (learnedEntry) =>
+            learnedEntry.abilityId !==
+            ability.abilityId,
+        )
+      : [];
+  player.specialAbilities.push(
+    entry,
+  );
   ensurePlayerSkillsToDraft(draft);
 
   return {
     playerId,
-    abilityKey,
-    abilityId: ability.abilityId,
-    color: ability.color,
-    stage: ability.stage,
-    name: ability.name,
-    cost: ability.cost,
+    abilityKey:
+      ability.abilityKey,
+    abilityId:
+      ability.abilityId,
+    color:
+      ability.color,
+    stage:
+      ability.stage,
+    previousStage:
+      state.currentLevel,
+    name:
+      ability.name,
+    image:
+      ability.image,
+    cost:
+      ability.cost,
+    rainbow:
+      ability.stage === 2,
   };
 }
 
@@ -1810,98 +1917,134 @@ export function renderSpecialAbilitySection(
   snapshot,
   selectedPlayerId,
   color = "blue",
-  { includeSelector = true } = {},
+  {
+    includeSelector = true,
+  } = {},
 ) {
-  const playerId = getSelectedPlayerId(snapshot, selectedPlayerId);
-  const player = getPlayer(snapshot, playerId);
-  const normalizedColor = ["blue", "gold", "red"].includes(color)
-    ? color
-    : "blue";
-  const abilities = getSpecialAbilitiesForRole(
-    player.role,
-    normalizedColor,
-  );
+  const playerId =
+    getSelectedPlayerId(
+      snapshot,
+      selectedPlayerId,
+    );
+  const player =
+    getPlayer(
+      snapshot,
+      playerId,
+    );
+  const normalizedColor =
+    color === "gold"
+      ? "gold"
+      : "blue";
+  const abilities =
+    getSpecialAbilitiesForRole(
+      player.role,
+      normalizedColor,
+    );
 
   return `
-    <div class="team-feature-live-section" data-live-section="special">
-    ${includeSelector ? renderPlayerSelector(snapshot, playerId) : ""}
-    ${pointPoolTemplate(snapshot, playerId)}
+    <div
+      class="team-feature-live-section"
+      data-live-section="special"
+    >
+      ${
+        includeSelector
+          ? renderPlayerSelector(
+              snapshot,
+              playerId,
+            )
+          : ""
+      }
+      ${pointPoolTemplate(snapshot, playerId)}
 
-    <div class="special-color-tabs" role="tablist">
-      ${["blue", "gold", "red"].map((tabColor) => `
+      <div
+        class="special-color-tabs special-color-tabs--generation50"
+        role="tablist"
+      >
         <button
           type="button"
-          class="special-color-tab special-color-tab--${tabColor}"
+          class="special-color-tab special-color-tab--blue"
           data-action="select-ability-color"
-          data-ability-color="${tabColor}"
-          aria-selected="${tabColor === normalizedColor}"
+          data-ability-color="blue"
+          aria-selected="${normalizedColor === "blue"}"
         >
-          ${tabColor.toUpperCase()}
+          NORMAL
         </button>
-      `).join("")}
-    </div>
+        <button
+          type="button"
+          class="special-color-tab special-color-tab--gold"
+          data-action="select-ability-color"
+          data-ability-color="gold"
+          aria-selected="${normalizedColor === "gold"}"
+        >
+          GOLD
+        </button>
+      </div>
 
-    <p class="special-ability-guide">
-      能力アイコンをタップすると、効果・必要ポイント・解放条件を確認できます。
-    </p>
+      <p class="special-ability-guide">
+        1回目で習得、2回目で効果強化。LEVEL 2は枠が虹色に発光します。
+      </p>
 
-    <section class="special-ability-list special-ability-list--powerpro">
-      ${abilities.map((ability) => {
-        const state = getAbilityAcquisitionState(
-          snapshot,
-          playerId,
-          ability.abilityKey,
-        );
-        let statusText = "詳細";
-        if (state.replaced) {
-          statusText = "置換済";
-        } else if (state.alreadyLearned) {
-          statusText = "習得済";
-        } else if (!state.stagePrerequisiteMet) {
-          statusText = "前段階";
-        } else if (!state.conditionState.unlocked) {
-          statusText = "未解放";
-        } else if (!state.affordable) {
-          statusText = "PT不足";
-        } else {
-          statusText = "習得可";
-        }
-
-        const visualState =
-          state.replaced
-            ? "replaced"
-            : state.alreadyLearned
-              ? "learned"
-              : state.learnable
-                ? "learnable"
-                : !state.conditionState.unlocked ||
-                    !state.stagePrerequisiteMet
-                  ? "locked"
-                  : "insufficient";
-        return `
-          <button
-            type="button"
-            class="special-ability-card special-ability-card--tile special-ability-card--${ability.color} is-${visualState}"
-            data-ability-state="${visualState}"
-            data-action="inspect-special-ability"
-            data-player-id="${escapeAttribute(playerId)}"
-            data-ability-key="${escapeAttribute(ability.abilityKey)}"
-            aria-label="${escapeAttribute(ability.name)}の詳細"
-          >
-            <span class="special-ability-orb" aria-hidden="true">
-              ${escapeHtml(ability.name.slice(0, 1))}
-            </span>
-            <span class="special-ability-card__id">
-              ${escapeHtml(ability.abilityId.toUpperCase())}
-              ${ability.color === "blue" ? `-${ability.stage}` : ""}
-            </span>
-            <strong>${escapeHtml(ability.name)}</strong>
-            <em>${escapeHtml(ability.description)}</em>
-            <small><i></i>${escapeHtml(statusText)}</small>
-          </button>
-        `;
-      }).join("")}
-    </section>
+      <section
+        class="special-ability-list special-ability-list--generation50"
+      >
+        ${abilities.map(
+          (family) => {
+            const state =
+              getAbilityAcquisitionState(
+                snapshot,
+                playerId,
+                family.abilityKey,
+              );
+            const visualState =
+              state.rainbow
+                ? "rainbow"
+                : state.currentLevel === 1
+                  ? "learned"
+                  : state.learnable
+                    ? "learnable"
+                    : !state.conditionState.unlocked
+                      ? "locked"
+                      : "insufficient";
+            const statusText =
+              state.rainbow
+                ? "LEVEL 2"
+                : state.currentLevel === 1
+                  ? "LEVEL 1 / 強化可"
+                  : state.learnable
+                    ? "習得可"
+                    : !state.affordable
+                      ? "PT不足"
+                      : "詳細";
+            return `
+              <button
+                type="button"
+                class="special-ability-card special-ability-card--generation50 special-ability-card--${family.color} is-${visualState}"
+                data-ability-state="${visualState}"
+                data-action="inspect-special-ability"
+                data-player-id="${escapeAttribute(playerId)}"
+                data-ability-key="${escapeAttribute(family.abilityKey)}"
+                aria-label="${escapeAttribute(family.name)}の詳細"
+              >
+                <span class="special-ability-card__image">
+                  <img
+                    src="${escapeAttribute(family.image)}"
+                    alt=""
+                  >
+                </span>
+                <span class="special-ability-card__id">
+                  ${escapeHtml(family.abilityId)}
+                </span>
+                <strong>${escapeHtml(family.name)}</strong>
+                <em>${escapeHtml(family.roles.join(" / "))}</em>
+                <small>
+                  <i></i>
+                  ${escapeHtml(statusText)}
+                </small>
+              </button>
+            `;
+          },
+        ).join("")}
+      </section>
     </div>
   `;
 }
