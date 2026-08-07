@@ -9,14 +9,14 @@
 import {
   STORAGE_KEYS,
   calculateChecksum,
-} from "../main/state.js?v=55";
+} from "../main/state.js?v=56";
 import {
   TOURNAMENT_BRIDGE_VERSION,
   TOURNAMENT_ENTRY_SCHEMA_VERSION,
   TOURNAMENT_RESUME_SCHEMA_VERSION,
   readTournamentEntryFromStorage,
   validateTournamentEntryData,
-} from "../main/tournament-bridge.js?v=55";
+} from "../main/tournament-bridge.js?v=56";
 import {
   CPU_LOCAL_DATA_VERSION,
   CPU_LOCAL_MASTER_VERSION,
@@ -33,33 +33,33 @@ import {
   LOCAL_CPU_TEAMS,
   NATIONAL_CPU_TEAMS,
   getWorldCpuTeamsForYear,
-} from "../../data/cpu-league-registry.js?v=55";
+} from "../../data/cpu-league-registry.js?v=56";
 import {
   characterValueToRank,
   rankToCharacterValue,
-} from "../../data/game-data.js?v=55";
+} from "../../data/game-data.js?v=56";
 import {
   effectiveCharacterRank,
   selectCpuMotivation,
-} from "../../data/motivation-data.js?v=55";
+} from "../../data/motivation-data.js?v=56";
 import {
   buildCpuBattleStats,
   calculateMaxHp,
   getRoleCommonSkills,
   resolveCpuRankFromRange,
   resolveCpuWeaponProfile,
-} from "../../data/battle-config.js?v=55";
+} from "../../data/battle-config.js?v=56";
 import {
   resolveCpuTeamMaster,
-} from "../../data/circuit-data.js?v=55";
+} from "../../data/circuit-data.js?v=56";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=55";
+} from "./circuit.js?v=56";
 import {
   createCpuFlavorSkills,
   createCpuFlavorWeaponName,
-} from "../../data/cpu-flavor-data.js?v=55";
+} from "../../data/cpu-flavor-data.js?v=56";
 
 export const TOURNAMENT_RUNTIME_VERSION =
   "mobbr-tournament-runtime-2.5.0";
