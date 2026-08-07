@@ -20433,3 +20433,271 @@ img.player-portrait,
 .restaurant-screen.has-modal-open {
   overflow: visible;
 }
+
+/* ================================================================
+   Generation 54: compact two-line SHOP rows + reliable dining modal
+   ================================================================ */
+
+/* SHOP uses one page-level vertical scroller. Product shelves remain shallow
+   two-row horizontal scrollers so the bottom row is always reachable. */
+.screen--shop > .page-content,
+.screen--shop.app-layout > .page-content {
+  display: block !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: contain !important;
+  touch-action: pan-y !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding-bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + 40px) !important;
+}
+
+.management-app-content--shop,
+.management-app-content--shop .mobshop-popup,
+.management-app-content--shop .mobshop-content,
+.management-app-content--shop .management-section {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.management-app-content--shop .mobshop-popup {
+  display: grid !important;
+  grid-template-rows: auto 7px auto auto !important;
+  touch-action: pan-y !important;
+}
+
+.management-app-content--shop .management-section {
+  display: grid !important;
+  grid-template-rows: auto auto auto !important;
+  gap: 7px !important;
+  padding: 10px 8px 12px !important;
+}
+
+.management-app-content--shop .management-section__heading {
+  min-height: 30px !important;
+  margin: 0 !important;
+}
+
+.management-app-content--shop .management-section__heading h2 {
+  font-size: .90rem !important;
+  line-height: 1.05 !important;
+}
+
+.management-app-content--shop .management-section__heading span {
+  font-size: .55rem !important;
+  line-height: 1.15 !important;
+}
+
+.management-app-content--shop .shop-item-grid,
+.management-app-content--shop .shop-category-product-grid,
+.management-app-content--shop .cooking-shop-grid {
+  display: grid !important;
+  grid-auto-flow: column !important;
+  grid-template-rows: repeat(2, 82px) !important;
+  grid-auto-columns: 184px !important;
+  width: 100% !important;
+  height: 174px !important;
+  min-height: 174px !important;
+  max-height: 174px !important;
+  gap: 8px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  padding: 2px 4px 6px !important;
+  scroll-snap-type: x proximity;
+  touch-action: pan-x pan-y !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+.management-app-content--shop .shop-compact-product,
+.management-app-content--shop .shop-item-tile.shop-compact-product,
+.management-app-content--shop .shop-category-product.shop-compact-product,
+.management-app-content--shop .cooking-shop-product.shop-compact-product {
+  display: grid !important;
+  grid-template-columns: 68px minmax(0, 1fr) !important;
+  grid-template-rows: 1fr !important;
+  align-items: center !important;
+  width: 184px !important;
+  min-width: 184px !important;
+  max-width: 184px !important;
+  height: 82px !important;
+  min-height: 82px !important;
+  max-height: 82px !important;
+  gap: 8px !important;
+  padding: 6px 8px !important;
+  overflow: hidden !important;
+  scroll-snap-align: start;
+  text-align: left !important;
+}
+
+.management-app-content--shop .shop-compact-product__image,
+.management-app-content--shop .shop-item-tile__image.shop-compact-product__image {
+  display: grid !important;
+  width: 64px !important;
+  min-width: 64px !important;
+  max-width: 64px !important;
+  height: 68px !important;
+  min-height: 68px !important;
+  max-height: 68px !important;
+  place-items: center !important;
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  overflow: hidden !important;
+}
+
+.management-app-content--shop .shop-compact-product__image > img,
+.management-app-content--shop .shop-item-tile .shop-compact-product__image > img,
+.management-app-content--shop .shop-category-product .shop-compact-product__image > img,
+.management-app-content--shop .cooking-shop-product .shop-compact-product__image > img {
+  width: 62px !important;
+  height: 62px !important;
+  max-width: 62px !important;
+  max-height: 62px !important;
+  object-fit: contain !important;
+}
+
+/* Card-pack art is portrait-shaped, so preserve that shape instead of forcing
+   it into a tiny square. */
+.management-app-content--shop .shop-category-product .shop-compact-product__image > img[src*="vol" i] {
+  width: 48px !important;
+  height: 66px !important;
+  max-width: 48px !important;
+  max-height: 66px !important;
+}
+
+.management-app-content--shop .shop-compact-product__info {
+  display: grid !important;
+  grid-template-rows: minmax(0, auto) minmax(0, auto) !important;
+  align-content: center !important;
+  min-width: 0 !important;
+  gap: 4px !important;
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+}
+
+.management-app-content--shop .shop-compact-product__info > strong {
+  display: -webkit-box !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  color: inherit !important;
+  font-size: .72rem !important;
+  font-weight: 1000 !important;
+  line-height: 1.08 !important;
+  word-break: keep-all !important;
+  overflow-wrap: anywhere !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
+  overflow: hidden !important;
+}
+
+.management-app-content--shop .shop-compact-product__info > small,
+.management-app-content--shop .shop-compact-product__info > small span {
+  display: block !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  color: #f4bd36 !important;
+  font-size: .65rem !important;
+  font-weight: 1000 !important;
+  line-height: 1.05 !important;
+  white-space: nowrap !important;
+}
+
+.management-app-content--shop .mobshop-gacha-button {
+  margin-top: 2px !important;
+  min-height: 42px !important;
+  font-size: .64rem !important;
+}
+
+/* The dining menu is appended at the application root, outside the restaurant
+   stacking context. This prevents Safari from clipping the fixed modal. */
+.restaurant-modal-host {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 50000 !important;
+  display: grid !important;
+  place-items: center !important;
+  box-sizing: border-box !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  padding: max(12px, var(--safe-top)) 10px max(12px, calc(var(--safe-bottom) + 8px)) !important;
+  pointer-events: auto !important;
+}
+
+.restaurant-modal-backdrop {
+  pointer-events: auto !important;
+}
+
+.restaurant-menu-modal {
+  pointer-events: auto !important;
+}
+
+.restaurant-player-card {
+  position: relative !important;
+  z-index: 2 !important;
+  cursor: pointer !important;
+  touch-action: manipulation !important;
+  pointer-events: auto !important;
+}
+
+.restaurant-player-card > * {
+  pointer-events: none !important;
+}
+
+@media (max-width: 430px) {
+  .management-app-content--shop .shop-item-grid,
+  .management-app-content--shop .shop-category-product-grid,
+  .management-app-content--shop .cooking-shop-grid {
+    grid-template-rows: repeat(2, 78px) !important;
+    grid-auto-columns: 172px !important;
+    height: 166px !important;
+    min-height: 166px !important;
+    max-height: 166px !important;
+  }
+
+  .management-app-content--shop .shop-compact-product,
+  .management-app-content--shop .shop-item-tile.shop-compact-product,
+  .management-app-content--shop .shop-category-product.shop-compact-product,
+  .management-app-content--shop .cooking-shop-product.shop-compact-product {
+    grid-template-columns: 62px minmax(0, 1fr) !important;
+    width: 172px !important;
+    min-width: 172px !important;
+    max-width: 172px !important;
+    height: 78px !important;
+    min-height: 78px !important;
+    max-height: 78px !important;
+    gap: 7px !important;
+    padding: 5px 7px !important;
+  }
+
+  .management-app-content--shop .shop-compact-product__image,
+  .management-app-content--shop .shop-item-tile__image.shop-compact-product__image {
+    width: 58px !important;
+    min-width: 58px !important;
+    max-width: 58px !important;
+    height: 64px !important;
+    min-height: 64px !important;
+    max-height: 64px !important;
+  }
+
+  .management-app-content--shop .shop-compact-product__image > img,
+  .management-app-content--shop .shop-item-tile .shop-compact-product__image > img,
+  .management-app-content--shop .shop-category-product .shop-compact-product__image > img,
+  .management-app-content--shop .cooking-shop-product .shop-compact-product__image > img {
+    width: 57px !important;
+    height: 57px !important;
+    max-width: 57px !important;
+    max-height: 57px !important;
+  }
+
+  .management-app-content--shop .shop-compact-product__info > strong {
+    font-size: .68rem !important;
+  }
+
+  .management-app-content--shop .shop-compact-product__info > small,
+  .management-app-content--shop .shop-compact-product__info > small span {
+    font-size: .61rem !important;
+  }
+}
