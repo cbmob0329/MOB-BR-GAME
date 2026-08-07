@@ -11,10 +11,10 @@ import {
   PRO_LOCAL_CPU_TEAMS as LOCAL_CPU_TEAM_MASTER,
   PRO_NATIONAL_CPU_TEAMS as NATIONAL_CPU_TEAM_MASTER,
   PRO_WORLD_CPU_TEAMS as WORLD_CPU_TEAM_MASTER,
-} from "./cpu-roster-47-data.js?v=54";
+} from "./cpu-roster-47-data.js?v=55";
 import {
   CPU_TEAM_LEAGUE_OVERRIDES,
-} from "./cpu-league-overrides.js?v=54";
+} from "./cpu-league-overrides.js?v=55";
 
 export const CPU_LEAGUE_REGISTRY_VERSION =
   "mobbr-cpu-league-registry-2.0.0";
