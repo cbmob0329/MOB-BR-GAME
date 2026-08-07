@@ -20701,3 +20701,40 @@ img.player-portrait,
     font-size: .61rem !important;
   }
 }
+
+
+/* ================================================================
+   Generation 56: dining purchase flow / weekly unique set meals
+   ================================================================ */
+.restaurant-set-card.is-used,
+.restaurant-set-card:disabled {
+  cursor: default !important;
+  border-color: #8a94a3 !important;
+  background: #eef1f5 !important;
+  color: #4d5866 !important;
+  box-shadow: inset 0 0 0 2px rgb(93 104 119 / 12%) !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+.restaurant-set-card.is-used header::after,
+.restaurant-set-card:disabled header::after {
+  content: "選択済み";
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #5f6977;
+  color: #fff;
+  font-size: .58rem;
+  font-weight: 1000;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.restaurant-set-card.is-used > small,
+.restaurant-set-card:disabled > small {
+  color: #4d5866 !important;
+  font-weight: 1000 !important;
+}
