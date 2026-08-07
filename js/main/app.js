@@ -72,13 +72,13 @@ import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=56";
+} from "./management.js?v=57";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
 } from "./tournament-bridge.js?v=56";
 
-export const APP_VERSION = "mobbr-main-app-4.0.3";
+export const APP_VERSION = "mobbr-main-app-4.0.4";
 
 export const ROUTES = Object.freeze({
   title: "title",

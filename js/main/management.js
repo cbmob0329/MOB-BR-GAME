@@ -633,8 +633,11 @@ export function executeTrainingToDraft(
     calculateBadgeTrainingBonusRate(
       Object.values(draft.collections.badges ?? {}),
     );
-  const totalTrainingBonusRate =
-    badgeBonusRate;
+  // Generation 53 removed the coach-meal training modifier.
+  // Keep a zero-valued field in the transaction result for UI/save compatibility,
+  // but never reference an undeclared legacy variable.
+  const diningCoachBonusRate = 0;
+  const totalTrainingBonusRate = badgeBonusRate;
   const result = calculateWeeklyTraining(
     assignments,
     totalTrainingBonusRate,
@@ -5886,7 +5889,7 @@ export function createManagementController({
                 <span>MENTAL <strong>+${formatNumber(total.mental)}</strong></span>
                 <span>SHOOT <strong>+${formatNumber(total.shoot)}</strong></span>
               </div>
-              <small>バッジ +${(tx.result.badgeBonusRate * 100).toFixed(1)}% / コーチ食事 +${(tx.result.diningCoachBonusRate * 100).toFixed(1)}% / 合計 +${(tx.result.totalTrainingBonusRate * 100).toFixed(1)}%</small>
+              <small>バッジ +${(tx.result.badgeBonusRate * 100).toFixed(1)}% / 合計 +${(tx.result.totalTrainingBonusRate * 100).toFixed(1)}%</small>
             </section>
           `,
           buttonLabel: "新しい週へ",
