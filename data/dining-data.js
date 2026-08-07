@@ -8,10 +8,10 @@
 
 import {
   MOTIVATION_RULES,
-} from "./motivation-data.js?v=55";
+} from "./motivation-data.js?v=56";
 
 export const DINING_DATA_VERSION =
-  "mobbr-dining-data-2.0.0";
+  "mobbr-dining-data-2.1.0";
 export const DINING_STATE_SCHEMA_VERSION =
   "mobbr-dining-state-2.0.0";
 
@@ -29,8 +29,8 @@ export const DINING_RULES = Object.freeze({
   dishesPerSet: 4,
   playerPointGainPerType: 2,
   employeePointGainPerPlayerMeal: 1,
-  minimumSetPriceCoin: 3000,
-  maximumSetPriceCoin: 10000,
+  minimumSetPriceCoin: 1200,
+  maximumSetPriceCoin: 3000,
   oneMealPerPlayerPerWeek: true,
   // Legacy keys kept neutral so Generation 52 saves and dormant code import safely.
   dishesPerMeal: 3,
@@ -66,7 +66,7 @@ export const DINING_MASTER_WELCOME_SPEECHES = Object.freeze([
 
 export const DINING_ALREADY_FED_SPEECHES = Object.freeze([
   "今週はもう食べていますね！ また来週お待ちしています！",
-  "ごちそうさまでした！ 次の定食は来週のお楽しみです！",
+  "今週もご利用ありがとうございました！ 次の定食は来週のお楽しみです！",
   "今週分はばっちりです！ また来週、違うメニューを用意しておきます！",
   "食事済みですね！ 今週はその力で練習と大会を頑張ってください！",
   "今週の食事は完了です！ また来週お腹を空かせて来てください！",
@@ -144,7 +144,7 @@ export function getWeeklyDiningSets(gameDate) {
       foodId(pool.sweet[(offset + week + 2) % pool.sweet.length]),
       foodId(pool.drink[(offset + setIndex * 2 + 3) % pool.drink.length]),
     ];
-    const rawPrice = 4000 + setIndex * 2000 + ((seed + week + setIndex) % 3) * 500;
+    const rawPrice = 1200 + setIndex * 600 + ((seed + week + setIndex) % 3) * 300;
     const priceCoin = Math.max(
       DINING_RULES.minimumSetPriceCoin,
       Math.min(DINING_RULES.maximumSetPriceCoin, rawPrice),
