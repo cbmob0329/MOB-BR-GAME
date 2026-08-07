@@ -8,10 +8,10 @@
 import { assetPath } from "../assets.js";
 import {
   fitPortraits,
-} from "../portrait-fit.js?v=53";
+} from "../portrait-fit.js?v=54";
 import {
   motivationDisplay,
-} from "../../data/motivation-data.js?v=53";
+} from "../../data/motivation-data.js?v=54";
 import {
   COMMENTATOR,
   COMMENTARY_VERSION,
