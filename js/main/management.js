@@ -13,12 +13,12 @@ import {
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=55";
+} from "../../data/game-data.js?v=56";
 import {
   isCasualTournamentType,
   resolveCpuTeamMaster,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=55";
+} from "../../data/circuit-data.js?v=56";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
@@ -72,7 +72,7 @@ import {
   purchaseDiningSetMealToDraft,
   serveDiningMealToDraft,
   settleDiningMealsToDraft,
-} from "./state.js?v=55";
+} from "./state.js?v=56";
 import {
   COOKING_RULES,
   COOKING_SCREEN_ASSETS,
@@ -89,10 +89,10 @@ import {
   getRecipeCandidates,
   isCookingJobReady,
   startCookingJobToDraft,
-} from "../../data/cooking-data.js?v=55";
+} from "../../data/cooking-data.js?v=56";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=55";
+} from "./tournament-bridge.js?v=56";
 import {
   DINING_EATING_SPEECHES,
   DINING_HUNGRY_SPEECHES,
@@ -100,10 +100,10 @@ import {
   diningWeekKey,
   getDiningMasterSpeech,
   getWeeklyDiningSets,
-} from "../../data/dining-data.js?v=55";
+} from "../../data/dining-data.js?v=56";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-3.0.1";
+  "mobbr-management-feature-3.0.2";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -3246,14 +3246,31 @@ function diningSetFoods(setMeal) {
   return setMeal.recipeIds.map((recipeId) => getRecipe(recipeId));
 }
 
-function diningSetCardTemplate(setMeal) {
+function usedDiningSetIds(snapshot) {
+  const weekKey = diningWeekKey(snapshot.gameDate);
+  return new Set(
+    (snapshot.dining?.history ?? [])
+      .filter((entry) => {
+        if (!entry?.setId) return false;
+        if (entry.weekKey === weekKey) return true;
+        return String(entry.mealId ?? "").startsWith(
+          `restaurant:${weekKey}:`,
+        );
+      })
+      .map((entry) => entry.setId),
+  );
+}
+
+function diningSetCardTemplate(setMeal, usedSetIds = new Set()) {
   const foods = diningSetFoods(setMeal);
+  const alreadyChosen = usedSetIds.has(setMeal.setId);
   return `
     <button
       type="button"
-      class="restaurant-set-card"
+      class="restaurant-set-card ${alreadyChosen ? "is-used" : ""}"
       data-action="choose-dining-set"
       data-set-id="${escapeAttribute(setMeal.setId)}"
+      ${alreadyChosen ? "disabled aria-disabled=\"true\"" : ""}
     >
       <header>
         <strong>${escapeHtml(setMeal.label)}</strong>
@@ -3270,7 +3287,7 @@ function diningSetCardTemplate(setMeal) {
           </figure>
         `).join("")}
       </div>
-      <small>タップして内容を確認</small>
+      <small>${alreadyChosen ? "今週は選択済み" : "タップして内容を確認"}</small>
     </button>
   `;
 }
@@ -3315,6 +3332,7 @@ function renderRestaurantMenuModal(
     characterId: selectedPlayer.characterId,
   });
   const menu = getWeeklyDiningSets(snapshot.gameDate);
+  const usedSetIds = usedDiningSetIds(snapshot);
   return `
     <div class="restaurant-modal-host">
       <button type="button" class="restaurant-modal-backdrop" data-action="close-dining-menu" aria-label="閉じる"></button>
@@ -3345,7 +3363,7 @@ function renderRestaurantMenuModal(
             <small>どの定食でも能力ポイント4種を各+${DINING_RULES.playerPointGainPerType}</small>
           </div>
           <div class="restaurant-set-grid">
-            ${menu.map(diningSetCardTemplate).join("")}
+            ${menu.map((setMeal) => diningSetCardTemplate(setMeal, usedSetIds)).join("")}
           </div>
         `}
       </section>
@@ -5472,7 +5490,19 @@ export function createManagementController({
         (entry) => entry.setId === actionElement.dataset.setId,
       );
       if (!player || !setMeal) return true;
+
+      if (usedDiningSetIds(snapshot).has(setMeal.setId)) {
+        showToast("この定食は今週すでに選ばれています");
+        return true;
+      }
+
       const foods = diningSetFoods(setMeal);
+
+      // The menu layer must disappear before the shared confirmation dialog opens.
+      // Keeping both fixed layers alive caused the confirmation to sit behind the
+      // restaurant modal on iPhone Safari.
+      closeRestaurantMenuInPlace();
+
       const confirmed = await openConfirm({
         title: `${setMeal.label}にしますか？`,
         body: `
@@ -5497,7 +5527,12 @@ export function createManagementController({
         confirmLabel: "この定食にする",
         cancelLabel: "戻る",
       });
-      if (!confirmed) return true;
+
+      if (!confirmed) {
+        openRestaurantMenuInPlace(player.characterId);
+        return true;
+      }
+
       try {
         const transaction = stateManager.transact(
           "restaurant_set_meal_purchased",
@@ -5507,11 +5542,15 @@ export function createManagementController({
             purchasedAt: new Date().toISOString(),
           }),
         );
-        closeRestaurantMenuInPlace();
         updateCookingInPlace({ anchorSelector: ".restaurant-screen" });
         await playDiningMealCinematic(transaction.result);
       } catch (error) {
-        await showError("定食を購入できません", error);
+        const cause =
+          error?.cause instanceof Error
+            ? error.cause
+            : error;
+        await showError("定食を購入できません", cause);
+        openRestaurantMenuInPlace(player.characterId);
       }
       return true;
     }
