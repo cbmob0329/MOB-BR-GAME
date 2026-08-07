@@ -12,14 +12,14 @@ import {
 } from "../assets.js";
 import {
   motivationDisplay,
-} from "../../data/motivation-data.js?v=54";
+} from "../../data/motivation-data.js?v=55";
 import {
   TOURNAMENT_PHASES,
   createTournamentRuntimeManager,
-} from "./runtime.js?v=54";
+} from "./runtime.js?v=55";
 import {
   executeCurrentBattleToDraft,
-} from "./battle-core.js?v=54";
+} from "./battle-core.js?v=55";
 import {
   getItem,
 } from "../../data/shop-data.js";
@@ -27,7 +27,7 @@ import {
   balanceTournamentPortraits,
   createBattlePlaybackController,
   renderBattleOutcomeScreen,
-} from "./battle-ui.js?v=54";
+} from "./battle-ui.js?v=55";
 import {
   EXPLORATION_PAGES,
   beginExplorationToDraft,
@@ -49,7 +49,7 @@ import {
   useInventoryItemToDraft,
   useMobSlotToDraft,
   useRespawnTurntableToDraft,
-} from "./exploration.js?v=54";
+} from "./exploration.js?v=55";
 import {
   advanceAwardToDraft,
   finalizeCurrentMatchToDraft,
@@ -65,13 +65,13 @@ import {
   renderReturningResultScreen,
   renderTournamentResultScreen,
   writePreparedResultToStorage,
-} from "./results.js?v=54";
+} from "./results.js?v=55";
 
 import {
   applyMatchPlanToDraft,
   circuitSectionLabel,
   isPlayerMatch,
-} from "./circuit.js?v=54";
+} from "./circuit.js?v=55";
 
 import {
   fastForwardMatchToChampionToDraft,
@@ -81,7 +81,7 @@ import {
   getRoundTarget,
   isPlayerActive,
   resolveRoundEncounterToDraft,
-} from "./round.js?v=54";
+} from "./round.js?v=55";
 
 export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-3.7.0";
 
