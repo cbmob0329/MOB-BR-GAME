@@ -10997,3 +10997,45 @@ img[data-character-portrait][data-portrait-balanced="true"] {
     height: 54px !important;
   }
 }
+
+
+/* ================================================================
+   Generation 58: exploration safe top / three tabs / Japanese line ends
+   ================================================================ */
+
+.tournament-screen p,
+.commentary-panel p,
+.exploration-page-note,
+.round-result-verdict p,
+.encounter-opponent-wear small,
+.battle-item-confirmation p {
+  line-break: strict !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  text-wrap: pretty;
+}
+
+.jp-no-orphan-tail {
+  display: inline !important;
+  white-space: nowrap !important;
+}
+
+/* Move the complete exploration composition down so the mini header never
+   touches/crops under the iPhone safe-area or browser chrome. */
+.tournament-screen--exploration-popup {
+  padding-top: max(calc(var(--safe-top) + 18px), 24px) !important;
+}
+
+/* ALIVE TEAMS page was removed. SEARCH / FACILITY / BAG occupy the full row. */
+.exploration-popup-shell .exploration-page-tabs {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+.exploration-popup-shell .exploration-page-tabs button {
+  min-height: 52px !important;
+}
+
+@media (max-height: 740px) {
+  .tournament-screen--exploration-popup {
+    padding-top: max(calc(var(--safe-top) + 12px), 18px) !important;
+  }
+}
