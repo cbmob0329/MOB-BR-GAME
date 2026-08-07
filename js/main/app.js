@@ -78,7 +78,7 @@ import {
   renderTournamentSchedule,
 } from "./tournament-bridge.js?v=56";
 
-export const APP_VERSION = "mobbr-main-app-4.0.4";
+export const APP_VERSION = "mobbr-main-app-4.0.5";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -393,7 +393,7 @@ const FACILITY_MENUS = Object.freeze({
     { route: ROUTES.cooking, name: "MOB DINING", note: "週替わり定食", icon: "icon/white.png" },
   ]),
   mob_room: Object.freeze([
-    { route: ROUTES.room, name: "ROOM SELECT", note: "部屋を選択・編集", icon: "menu/room.png" },
+    { route: ROUTES.room, action: "open-room-select", name: "ROOM SELECT", note: "部屋を選択・編集", icon: "menu/room.png" },
   ]),
 });
 
@@ -568,11 +568,12 @@ function createInitialWizardData() {
 }
 
 function menuCardTemplate(item, wide = false) {
+  const action = item.action ?? "navigate";
   return `
     <button
       type="button"
       class="menu-card${wide ? " menu-card--wide" : ""}"
-      data-action="navigate"
+      data-action="${escapeAttribute(action)}"
       data-route="${escapeAttribute(item.route)}"
     >
       <img
@@ -3438,6 +3439,10 @@ export function createMainApp({
       navigate(ROUTES.ability);
       return;
     }
+    if (action === "open-room-select") {
+      navigate(ROUTES.room);
+      return;
+    }
     if (action === "navigate") {
       navigate(actionElement.dataset.route);
       return;
@@ -4839,6 +4844,80 @@ export function createMainApp({
   });
 }
 
+const JAPANESE_ORPHAN_GUARD_SELECTOR = [
+  "p",
+  ".management-summary > span",
+  ".menu-card__note",
+  ".facility-entrance-stage p",
+  ".management-section__heading > span",
+  ".mobshop-header-clerk p",
+  ".employee-week-greeting__speech p",
+  ".restaurant-master-stage__speech p",
+  ".restaurant-rule-note",
+  ".restaurant-set-confirm > p",
+  ".placeholder-panel__text"
+].join(",");
+
+function protectJapaneseOrphanTail(element) {
+  if (!(element instanceof HTMLElement)) return;
+  const existingGuard = element.querySelector(":scope > .jp-no-orphan-tail");
+  const currentText = element.textContent?.trim() ?? "";
+  if (
+    element.dataset.jpOrphanSource === currentText &&
+    existingGuard
+  ) {
+    return;
+  }
+  if (
+    element.childElementCount > 0 &&
+    !(element.childElementCount === 1 && existingGuard)
+  ) {
+    return;
+  }
+  if (
+    currentText.length < 8 ||
+    !/[ぁ-んァ-ヶ一-龠々ー]/u.test(currentText)
+  ) {
+    return;
+  }
+
+  const characters = Array.from(currentText);
+  const tailLength = Math.min(5, Math.max(4, characters.length));
+  const head = characters.slice(0, -tailLength).join("");
+  const tail = characters.slice(-tailLength).join("");
+  if (!head || !tail) return;
+
+  element.textContent = head;
+  const guard = document.createElement("span");
+  guard.className = "jp-no-orphan-tail";
+  guard.textContent = tail;
+  element.append(guard);
+  element.dataset.jpOrphanSource = currentText;
+}
+
+function installJapaneseOrphanGuard(root) {
+  if (!root || typeof MutationObserver === "undefined") return null;
+  let scheduled = false;
+  const apply = () => {
+    scheduled = false;
+    root.querySelectorAll(JAPANESE_ORPHAN_GUARD_SELECTOR)
+      .forEach(protectJapaneseOrphanTail);
+  };
+  const schedule = () => {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(apply);
+  };
+  const observer = new MutationObserver(schedule);
+  observer.observe(root, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+  });
+  schedule();
+  return observer;
+}
+
 function bootstrap() {
   const root = document.querySelector("#app");
   const modalRoot = document.querySelector("#modalRoot");
@@ -4855,6 +4934,7 @@ function bootstrap() {
     storage: window.localStorage,
   });
 
+  installJapaneseOrphanGuard(root);
   app.start();
   globalThis.mobBrApp = app;
 }
