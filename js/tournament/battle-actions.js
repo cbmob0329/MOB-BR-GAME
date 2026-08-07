@@ -25,12 +25,12 @@ import {
   calculateSkillCt,
   isAssistEligible,
   resolveWeaponBattleValue,
-} from "../../data/battle-config.js?v=51";
+} from "../../data/battle-config.js?v=53";
 import {
   STAT_IDS,
   clamp,
   rankToCharacterValue,
-} from "../../data/game-data.js?v=51";
+} from "../../data/game-data.js?v=53";
 import {
   adjustDebuffForSpecialAbility,
   applyNextBattleSpecialEffects,
@@ -52,7 +52,7 @@ import {
 } from "./special-abilities.js";
 
 export const BATTLE_ACTIONS_VERSION =
-  "mobbr-battle-actions-2.2.0";
+  "mobbr-battle-actions-2.3.0";
 
 export const BATTLE_ACTION_BALANCE = Object.freeze({
   criticalDamageMultiplier: 1.5,
@@ -1590,11 +1590,20 @@ export function performNormalAttack(
     },
   );
 
+  const decisionReactionReduction =
+    Math.max(
+      0,
+      actor.specialProfile?.aiDecision
+        ?.reactionReduction ?? 0,
+    );
   actor.attackCooldown =
     roundTime(
-      calculateAttackInterval(
-        actor.weapon.values.fireRate,
-        effectiveStats.agility,
+      Math.max(
+        BATTLE_TIMING.tickSeconds,
+        calculateAttackInterval(
+          actor.weapon.values.fireRate,
+          effectiveStats.agility,
+        ) - decisionReactionReduction,
       ),
     );
   maybeStartReload(
@@ -3030,7 +3039,15 @@ function maybeUpdateDistance(
   const changeChance =
     0.35 + clamp(agilityRate, 0, 1) * 0.5;
   participant.distanceCooldown =
-    DISTANCE_RULES.updateIntervalSeconds;
+    Math.max(
+      BATTLE_TIMING.tickSeconds,
+      DISTANCE_RULES.updateIntervalSeconds -
+        Math.max(
+          0,
+          participant.specialProfile?.aiDecision
+            ?.reactionReduction ?? 0,
+        ),
+    );
 
   if (nextBattleRandom(battle) >= changeChance) {
     return false;
