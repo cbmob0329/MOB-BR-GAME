@@ -13,12 +13,12 @@ import {
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=51";
+} from "../../data/game-data.js?v=53";
 import {
   isCasualTournamentType,
   resolveCpuTeamMaster,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=51";
+} from "../../data/circuit-data.js?v=53";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
@@ -69,9 +69,10 @@ import {
   applyResourceDeltaToDraft,
   purchaseCookingIngredientToDraft,
   unlockCookingUtensilToDraft,
+  purchaseDiningSetMealToDraft,
   serveDiningMealToDraft,
   settleDiningMealsToDraft,
-} from "./state.js?v=51";
+} from "./state.js?v=53";
 import {
   COOKING_RULES,
   COOKING_SCREEN_ASSETS,
@@ -88,19 +89,21 @@ import {
   getRecipeCandidates,
   isCookingJobReady,
   startCookingJobToDraft,
-} from "../../data/cooking-data.js?v=51";
+} from "../../data/cooking-data.js?v=53";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=51";
+} from "./tournament-bridge.js?v=53";
 import {
   DINING_EATING_SPEECHES,
   DINING_HUNGRY_SPEECHES,
   DINING_RULES,
   diningWeekKey,
-} from "../../data/dining-data.js?v=51";
+  getDiningMasterSpeech,
+  getWeeklyDiningSets,
+} from "../../data/dining-data.js?v=53";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-2.7.0";
+  "mobbr-management-feature-2.9.0";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -121,6 +124,7 @@ const MANAGEMENT_VIEW_STATE = {
   roomSelectedItem: null,
   roomSelectedPlacementId: null,
   cookingSelectedSlot: 0,
+  cookingSelectedUtensilId: "frying_pan",
   cookingIngredientSlots: Array.from(
     { length: 5 },
     () => null,
@@ -137,6 +141,14 @@ const MANAGEMENT_VIEW_STATE = {
   diningSelectedCharacterType: null,
   diningSelectedFoods: [],
 };
+
+const COOKING_DISPLAY_ORDER = Object.freeze([
+  "frying_pan",
+  "pot",
+  "oven",
+  "mixer",
+  "steamer",
+]);
 
 const ROOM_CATEGORY_DEFINITIONS = Object.freeze([
   Object.freeze({
@@ -173,11 +185,6 @@ const ROOM_CATEGORY_DEFINITIONS = Object.freeze([
     id: "Skin",
     label: "SKIN",
     icon: "icon/skin.png",
-  }),
-  Object.freeze({
-    id: "Food",
-    label: "FOOD",
-    icon: "icon/kitbox.png",
   }),
 ]);
 
@@ -310,7 +317,6 @@ const SHOP_CATEGORY_DEFINITIONS = Object.freeze([
   { id: "card", label: "カード", icon: "icon/card.png", dialogue: "カードパックです。解放済み商品を複数まとめて購入できます。" },
   { id: "skin", label: "スキン", icon: "menu/gacha.png", dialogue: "武器スキンです。未所持スキンだけが抽選対象です。" },
   { id: "good", label: "GOOD", icon: "icon/bagi.png", dialogue: "バッジパックなどの大会記念品です。大会報酬で入手できます。" },
-  { id: "ingredient", label: "食材", icon: "sk/01.png", dialogue: "今週仕入れた20種類の食材です。料理に使う数を購入してください。" },
 ]);
 
 function latestHistory(snapshot, types, year = snapshot.gameDate.year) {
@@ -627,20 +633,8 @@ export function executeTrainingToDraft(
     calculateBadgeTrainingBonusRate(
       Object.values(draft.collections.badges ?? {}),
     );
-  const diningCoachBonusRate =
-    Math.max(
-      0,
-      Math.min(
-        DINING_RULES.maximumCoachTrainingBonusRate,
-        Number(
-          draft.dining?.coachTrainingBonusRate ??
-          0,
-        ),
-      ),
-    );
   const totalTrainingBonusRate =
-    badgeBonusRate +
-    diningCoachBonusRate;
+    badgeBonusRate;
   const result = calculateWeeklyTraining(
     assignments,
     totalTrainingBonusRate,
@@ -1335,24 +1329,7 @@ function getRoomDisplayItem(snapshot, itemRef) {
     };
   }
 
-  if (itemRef.kind === "food") {
-    const record =
-      snapshot.cooking.foodInventory?.[itemRef.id];
-    if (!record || (record.quantity ?? 0) < 1) {
-      return null;
-    }
-    const variant =
-      createFoodVariant(
-        record.recipeId,
-        record.qualityId,
-      );
-    return {
-      itemRef,
-      name: variant.name,
-      image: variant.image,
-      roomType: "Food",
-    };
-  }
+
 
   return null;
 }
@@ -1433,25 +1410,7 @@ export function getRoomAvailableItems(snapshot) {
       });
     }
   }
-  for (const [variantKey, record] of Object.entries(
-    snapshot.cooking.foodInventory ?? {},
-  )) {
-    if ((record.quantity ?? 0) < 1) continue;
-    const variant =
-      createFoodVariant(
-        record.recipeId,
-        record.qualityId,
-      );
-    entries.push({
-      itemRef: {
-        kind: "food",
-        id: variantKey,
-      },
-      name: variant.name,
-      image: variant.image,
-      roomType: "Food",
-    });
-  }
+
   return entries;
 }
 
@@ -1562,7 +1521,6 @@ export function addRoomPlacementToDraft(
       trophy: "トロフィー",
       item: "SHOPアイテム",
       skin: "武器スキン",
-      food: "料理",
     };
     const label =
       labels[itemRef?.kind] ??
@@ -1906,12 +1864,8 @@ export function renderTrainingManagement(snapshot) {
   const badgeBonusRate =
     snapshot.collectionBonuses?.trainingPointRate ??
     0;
-  const diningCoachBonusRate =
-    snapshot.dining?.coachTrainingBonusRate ??
-    0;
   const totalBonusRate =
-    badgeBonusRate +
-    diningCoachBonusRate;
+    badgeBonusRate;
   const tournamentWeek = getTournamentWeekStatus(snapshot);
   const notice = tournamentWeek.hasTournament
     ? `<section class="training-tournament-notice ${tournamentWeek.trainingBlocked ? "is-blocked" : "is-observer"}">
@@ -1936,10 +1890,9 @@ export function renderTrainingManagement(snapshot) {
     <section class="management-summary training-summary">
       <div class="training-bonus-ledger">
         <span>バッジ <strong>+${(badgeBonusRate * 100).toFixed(1)}%</strong></span>
-        <span>コーチ食事 <strong>+${(diningCoachBonusRate * 100).toFixed(1)}%</strong></span>
-        <span class="is-total">合計 <strong>+${(totalBonusRate * 100).toFixed(1)}%</strong></span>
+        <span class="is-total">バッジ補正合計 <strong>+${(totalBonusRate * 100).toFixed(1)}%</strong></span>
       </div>
-      <span>各選手のアイコンから練習を選択。コーチへ料理を提供した週は獲得ポイントが上昇します。</span>
+      <span>各選手のアイコンから練習を選択。食堂の定食は、食べた選手へ能力ポイントを直接加算します。</span>
     </section>
     <form class="training-assignment-form training-stage training-stage--icons" data-form="training">
       ${snapshot.playerTeam.members.map((player, playerIndex) => {
@@ -2650,9 +2603,6 @@ export function renderCollectionManagement(snapshot) {
       <button type="button" data-action="open-collection-file" data-file-type="badge">
         <img src="icon/bagif.png" alt=""><strong>BADGE FILE</strong><span>${badgeCompletion.ownedCount}/${badgeCompletion.totalCount}</span>
       </button>
-      <button type="button" data-action="open-collection-file" data-file-type="food">
-        <img src="icon/kitbox.png" alt=""><strong>FOOD BOOK</strong><span>${Object.values(snapshot.cooking.recipeDiscovery ?? {}).filter((entry) => (entry.qualityIds ?? []).length > 0).length}/${RECIPE_MASTER.length}</span>
-      </button>
     </section>
     <section class="collection-completion-grid">
       <article><img src="icon/card.png" alt=""><strong>CARD ${cardCompletion.ownedCount} / ${cardCompletion.totalCount}</strong><span>週間COIN +${((snapshot.collectionBonuses.weeklyCoinRate ?? 0) * 100).toFixed(1)}%</span></article>
@@ -3253,32 +3203,19 @@ export function renderCookingCookbook(
 
 function diningCharacterRecord(
   entry,
-  type,
-  index,
+  type = "player",
+  index = 0,
 ) {
-  if (!entry) {
-    return null;
-  }
+  if (!entry) return null;
   return {
     characterId:
       entry.playerId ??
       entry.coachId ??
       entry.employeeId ??
       `${type}-${index}`,
-    name:
-      entry.name ??
-      `${type} ${index + 1}`,
-    image:
-      entry.image ??
-      "",
-    role:
-      entry.role ??
-      (
-        type ===
-        "coach"
-          ? "COACH"
-          : "STAFF"
-      ),
+    name: entry.name ?? `${type} ${index + 1}`,
+    image: entry.image ?? "",
+    role: entry.role ?? (type === "player" ? "PLAYER" : "STAFF"),
     type,
   };
 }
@@ -3288,425 +3225,185 @@ function diningCharacterSource(
   type,
   characterId,
 ) {
-  const source =
-    type === "player"
-      ? snapshot.playerTeam.members.find(
-          (entry) =>
-            entry.playerId === characterId,
-        )
-      : type === "coach"
-        ? (snapshot.coaches ?? []).find(
-            (entry) =>
-              entry.coachId === characterId,
-          )
-        : (snapshot.employees ?? []).find(
-            (entry) =>
-              entry.employeeId === characterId,
-          );
-  return source
-    ? diningCharacterRecord(
-        source,
-        type,
-        0,
-      )
-    : null;
+  if (type !== "player") return null;
+  const source = snapshot.playerTeam.members.find(
+    (entry) => entry.playerId === characterId,
+  );
+  return source ? diningCharacterRecord(source, "player", 0) : null;
 }
 
-function diningAvailableFoodEntries(
-  snapshot,
-) {
-  return Object.values(
-    snapshot.cooking.foodInventory ?? {},
-  )
-    .filter(
-      (record) =>
-        Number(record.quantity ?? 0) > 0,
-    )
-    .map(
-      (record) => {
-        const variant =
-          createFoodVariant(
-            record.recipeId,
-            record.qualityId,
-          );
-        return {
-          ...record,
-          ...variant,
-          number:
-            getRecipe(record.recipeId).number,
-        };
-      },
-    )
-    .sort(
-      (left, right) =>
-        (FOOD_RANK_ORDER[right.rank] ?? 0) -
-          (FOOD_RANK_ORDER[left.rank] ?? 0) ||
-        left.number - right.number ||
-        left.name.localeCompare(right.name),
-    );
+function diningSetFoods(setMeal) {
+  return setMeal.recipeIds.map((recipeId) => getRecipe(recipeId));
 }
 
-function diningMealPhase(
-  meal,
-  now = Date.now(),
-) {
-  if (!meal) {
-    return "hungry";
-  }
-  if (
-    now >=
-    new Date(meal.readyAt).getTime()
-  ) {
-    return "finished";
-  }
-  return "eating";
-}
-
-function diningEffectDescription(
-  characterType,
-  foods,
-) {
-  if (characterType === "player") {
-    return "料理ランクごとにやる気上昇を3回判定します。";
-  }
-  if (characterType === "coach") {
-    const rate =
-      foods.reduce(
-        (sum, food) => {
-          const value = {
-            D: 0.05,
-            C: 0.10,
-            B: 0.15,
-            A: 0.20,
-            S: 0.30,
-            SS: 0.50,
-          }[food.rank] ?? 0;
-          return sum + value;
-        },
-        0,
-      ) /
-      Math.max(1, foods.length);
-    return `今週のトレーニング獲得量 +${(rate * 100).toFixed(1)}%。複数コーチ分は加算されます。`;
-  }
-  return "料理ランクに応じた料理ポイントを3品分獲得します。";
-}
-
-function renderDiningSeat(
-  character,
-  seatIndex,
-  snapshot,
-) {
-  if (!character) {
-    return "";
-  }
-
-  const meal =
-    snapshot.dining?.activeMeals?.[
-      character.characterId
-    ] ?? null;
-  const completed =
-    snapshot.dining?.completedCharacterIds?.includes(
-      character.characterId,
-    ) === true;
-  const phase =
-    meal
-      ? diningMealPhase(meal)
-      : completed
-        ? "finished"
-        : "hungry";
-  const speechMaster =
-    phase === "eating"
-      ? DINING_EATING_SPEECHES
-      : DINING_HUNGRY_SPEECHES;
-  const speech =
-    phase === "finished"
-      ? "今週はごちそうさまでした！"
-      : speechMaster[
-          deterministicTextIndex(
-            `${snapshot.dining?.weekKey}-${character.characterId}-${seatIndex}-${phase}`,
-            speechMaster.length,
-          )
-        ];
-  const tagName =
-    completed || meal
-      ? "div"
-      : "button";
-  const actionAttributes =
-    tagName === "button"
-      ? `data-action="inspect-dining-character" data-character-id="${escapeAttribute(character.characterId)}" data-character-type="${escapeAttribute(character.type)}"`
-      : "";
-  const remaining =
-    meal
-      ? Math.max(
-          0,
-          Math.ceil(
-            (
-              new Date(meal.readyAt).getTime() -
-              Date.now()
-            ) /
-            1000,
-          ),
-        )
-      : 0;
-
+function diningSetCardTemplate(setMeal) {
+  const foods = diningSetFoods(setMeal);
   return `
-    <${tagName}
-      ${tagName === "button" ? 'type="button"' : ""}
-      class="dining-character-card is-${escapeAttribute(phase)}"
-      style="
-        --bubble-delay:${(-0.55 * deterministicTextIndex(`${snapshot.dining?.weekKey}-${character.characterId}-bubble`, 11)).toFixed(2)}s;
-        --bubble-duration:${(4.4 + deterministicTextIndex(`${character.characterId}-duration`, 6) * 0.48).toFixed(2)}s;
-      "
-      ${actionAttributes}
+    <button
+      type="button"
+      class="restaurant-set-card"
+      data-action="choose-dining-set"
+      data-set-id="${escapeAttribute(setMeal.setId)}"
     >
-      <span class="dining-character-bubble">${escapeHtml(speech)}</span>
-      <img
-        src="${escapeAttribute(character.image)}"
-        data-character-portrait
-        data-role="${escapeAttribute(character.role)}"
-        alt=""
-      >
-      <strong>${escapeHtml(character.name)}</strong>
-      <small>${escapeHtml(character.role)}</small>
-      ${
-        meal
-          ? `
-            <div class="dining-character-meal">
-              ${meal.foods.map((food) => `
-                <img
-                  src="${escapeAttribute(food.image)}"
-                  alt="${escapeAttribute(food.name)}"
-                >
-              `).join("")}
-              <b
-                data-dining-countdown
-                data-phase="${escapeAttribute(phase)}"
-                data-ready-at="${escapeAttribute(meal.readyAt)}"
-                data-clear-at="${escapeAttribute(meal.clearAt)}"
-              >${phase === "finished" ? "FINISH" : `${remaining}s`}</b>
-            </div>
-          `
-          : completed
-            ? `<em>今週は食事済み</em>`
-            : `<em>タップして料理を選択</em>`
-      }
-    </${tagName}>
+      <header>
+        <strong>${escapeHtml(setMeal.label)}</strong>
+        <b>COIN ${formatNumber(setMeal.priceCoin)}</b>
+      </header>
+      <div class="restaurant-set-card__foods">
+        ${foods.map((food, index) => `
+          <figure>
+            <img src="${escapeAttribute(food.image)}" alt="">
+            <figcaption>
+              <span>${["MAIN", "SUB", "SWEET", "DRINK"][index]}</span>
+              <strong>${escapeHtml(food.name)}</strong>
+            </figcaption>
+          </figure>
+        `).join("")}
+      </div>
+      <small>タップして内容を確認</small>
+    </button>
   `;
 }
 
-function renderDiningSelectionPanel(
+function restaurantPlayerCard(
+  player,
   snapshot,
-  character,
 ) {
-  if (!character) {
-    return `
-      <aside class="dining-selection-panel is-empty">
-        <strong>キャラクターをタップ</strong>
-        <span>今週まだ食事をしていないキャラクターへ、異なる料理を3品選んでください。</span>
-      </aside>
-    `;
-  }
-
-  const foods =
-    diningAvailableFoodEntries(snapshot);
-  const selectedKeys =
-    MANAGEMENT_VIEW_STATE
-      .diningSelectedFoods;
-  const selectedFoods =
-    selectedKeys
-      .map(
-        (key) =>
-          foods.find(
-            (food) =>
-              food.variantKey === key,
-          ),
-      )
-      .filter(Boolean);
-
+  const completed = snapshot.dining?.completedCharacterIds?.includes(player.playerId) === true;
   return `
-    <aside class="dining-selection-panel">
-      <header>
-        <img
-          src="${escapeAttribute(character.image)}"
-          data-character-portrait
-          data-role="${escapeAttribute(character.role)}"
-          alt=""
-        >
-        <div>
-          <span>${escapeHtml(character.type.toUpperCase())}</span>
-          <strong>${escapeHtml(character.name)}</strong>
-          <small>異なる料理を3品選択</small>
+    <button
+      type="button"
+      class="restaurant-player-card ${completed ? "is-completed" : ""}"
+      data-action="open-dining-menu"
+      data-character-id="${escapeAttribute(player.playerId)}"
+      data-character-type="player"
+    >
+      <img
+        src="${escapeAttribute(player.image)}"
+        data-character-portrait
+        data-role="${escapeAttribute(player.role)}"
+        alt=""
+      >
+      <span>${escapeHtml(player.role)}</span>
+      <strong>${escapeHtml(player.name)}</strong>
+      <em>${completed ? "今週は食事済み" : "今週の定食を選ぶ"}</em>
+    </button>
+  `;
+}
+
+function renderRestaurantMenuModal(
+  snapshot,
+  selectedPlayer,
+) {
+  if (!selectedPlayer) return "";
+  const completed = snapshot.dining?.completedCharacterIds?.includes(selectedPlayer.characterId) === true;
+  const speech = getDiningMasterSpeech(snapshot.gameDate, {
+    completed,
+    characterId: selectedPlayer.characterId,
+  });
+  const menu = getWeeklyDiningSets(snapshot.gameDate);
+  return `
+    <div class="restaurant-modal-host">
+      <button type="button" class="restaurant-modal-backdrop" data-action="close-dining-menu" aria-label="閉じる"></button>
+      <section class="restaurant-menu-modal ${completed ? "is-completed" : ""}">
+        <header class="restaurant-menu-modal__header">
+          <div class="restaurant-menu-modal__player">
+            <img src="${escapeAttribute(selectedPlayer.image)}" data-character-portrait data-role="${escapeAttribute(selectedPlayer.role)}" alt="">
+            <div>
+              <span>${escapeHtml(selectedPlayer.role)}</span>
+              <strong>${escapeHtml(selectedPlayer.name)}</strong>
+            </div>
+          </div>
+          <button type="button" data-action="close-dining-menu">閉じる</button>
+        </header>
+        <div class="restaurant-menu-modal__master-line">
+          <img src="icon/white.png" alt="">
+          <p>${escapeHtml(speech).replace(/\n/g, "<br>")}</p>
         </div>
-        <button
-          type="button"
-          data-action="cancel-dining-selection"
-        >閉じる</button>
-      </header>
-
-      <div class="dining-selected-dishes">
-        ${Array.from(
-          { length: DINING_RULES.dishesPerMeal },
-          (_value, index) => {
-            const food =
-              selectedFoods[index];
-            return food
-              ? `
-                <button
-                  type="button"
-                  data-action="toggle-dining-food"
-                  data-variant-key="${escapeAttribute(food.variantKey)}"
-                >
-                  <img src="${escapeAttribute(food.image)}" alt="">
-                  <strong>${escapeHtml(food.name)}</strong>
-                  <small>${escapeHtml(food.rank)} RANK</small>
-                </button>
-              `
-              : `
-                <div class="is-empty">
-                  <b>${index + 1}</b>
-                  <span>料理</span>
-                </div>
-              `;
-          },
-        ).join("")}
-      </div>
-
-      <div
-        class="dining-food-shelf"
-        data-scroll-memory="dining-food-shelf"
-      >
-        ${
-          foods.length > 0
-            ? foods.map((food) => {
-                const selected =
-                  selectedKeys.includes(
-                    food.variantKey,
-                  );
-                const duplicateRecipe =
-                  selectedFoods.some(
-                    (selectedFood) =>
-                      selectedFood.recipeId ===
-                        food.recipeId &&
-                      selectedFood.variantKey !==
-                        food.variantKey,
-                  );
-                return `
-                  <button
-                    type="button"
-                    class="${selected ? "is-selected" : ""}"
-                    data-action="toggle-dining-food"
-                    data-variant-key="${escapeAttribute(food.variantKey)}"
-                    ${duplicateRecipe && !selected ? "disabled" : ""}
-                  >
-                    <img src="${escapeAttribute(food.image)}" alt="">
-                    <span>${escapeHtml(food.qualityLabel)}</span>
-                    <strong>${escapeHtml(food.name)}</strong>
-                    <small>${escapeHtml(food.rank)} / ×${formatNumber(food.quantity)}</small>
-                  </button>
-                `;
-              }).join("")
-            : `
-              <p>保存ボックスに料理がありません。キッチンで料理を作ってください。</p>
-            `
-        }
-      </div>
-
-      <div class="dining-selection-panel__effect">
-        ${escapeHtml(diningEffectDescription(character.type, selectedFoods))}
-      </div>
-      <button
-        type="button"
-        class="primary-button dining-serve-button"
-        data-action="serve-dining-meal"
-        ${selectedFoods.length === DINING_RULES.dishesPerMeal ? "" : "disabled"}
-      >
-        3品を提供する
-      </button>
-    </aside>
+        ${completed ? `
+          <div class="restaurant-menu-completed">
+            <strong>今週の食事は完了しています</strong>
+            <span>料理は来週になると再び選べます。</span>
+          </div>
+        ` : `
+          <div class="restaurant-menu-modal__title">
+            <span>${escapeHtml(`${snapshot.gameDate.year}年 ${snapshot.gameDate.month}月 第${snapshot.gameDate.week}週`)}</span>
+            <strong>今週のセットメニュー</strong>
+            <small>どの定食でも能力ポイント4種を各+${DINING_RULES.playerPointGainPerType}</small>
+          </div>
+          <div class="restaurant-set-grid">
+            ${menu.map(diningSetCardTemplate).join("")}
+          </div>
+        `}
+      </section>
+    </div>
   `;
 }
 
 export function renderCookingDining(
   snapshot,
 ) {
-  const characters = [
-    ...snapshot.playerTeam.members.map(
-      (entry, index) =>
-        diningCharacterRecord(
-          entry,
-          "player",
-          index,
-        ),
-    ),
-    ...(snapshot.coaches ?? []).map(
-      (entry, index) =>
-        diningCharacterRecord(
-          entry,
-          "coach",
-          index,
-        ),
-    ),
-    ...(snapshot.employees ?? []).map(
-      (entry, index) =>
-        diningCharacterRecord(
-          entry,
-          "employee",
-          index,
-        ),
-    ),
-  ].filter(Boolean);
-  const selectedCharacter =
-    diningCharacterSource(
-      snapshot,
-      MANAGEMENT_VIEW_STATE
-        .diningSelectedCharacterType,
-      MANAGEMENT_VIEW_STATE
-        .diningSelectedCharacterId,
-    );
-  const completedCount =
-    snapshot.dining
-      ?.completedCharacterIds
-      ?.length ?? 0;
+  const players = snapshot.playerTeam.members.map(
+    (entry, index) => diningCharacterRecord(entry, "player", index),
+  );
+  const selectedPlayer = diningCharacterSource(
+    snapshot,
+    MANAGEMENT_VIEW_STATE.diningSelectedCharacterType ?? "player",
+    MANAGEMENT_VIEW_STATE.diningSelectedCharacterId,
+  );
+  const completedCount = players.filter((player) =>
+    snapshot.dining?.completedCharacterIds?.includes(player.characterId),
+  ).length;
+  const defaultSpeech = getDiningMasterSpeech(snapshot.gameDate, {
+    completed: completedCount >= players.length && players.length > 0,
+    characterId: "restaurant-master",
+  });
 
   return `
-    <section
-      class="cooking-dining-screen ${selectedCharacter ? "has-modal-open" : ""}"
-      style="--dining-background:url('${escapeAttribute(assetPath(COOKING_SCREEN_ASSETS.cafeteriaBackground))}')"
-    >
-      <header class="cooking-screen-heading cooking-screen-heading--dining">
-        <img src="icon/pink.png" alt="">
-        <div>
-          <span>MOB DINING ROOM</span>
-          <h1>食堂</h1>
-          <p>キャラクターをタップし、1人につき週1回だけ料理を3品提供します。</p>
+    <section class="restaurant-screen ${selectedPlayer ? "has-modal-open" : ""}">
+      <img
+        class="restaurant-screen__background"
+        src="${escapeAttribute(assetPath(COOKING_SCREEN_ASSETS.cafeteriaBackground))}"
+        alt=""
+      >
+      <div class="restaurant-screen__shade" aria-hidden="true"></div>
+
+      <section class="restaurant-master-stage">
+        <div class="restaurant-master-stage__character">
+          <img src="icon/white.png" alt="モブホワイト">
+          <strong>モブホワイト</strong>
+          <span>MASTER</span>
         </div>
-        <strong>${formatNumber(completedCount)} FED</strong>
-      </header>
-
-      ${cookingNavigationTemplate("dining")}
-
-      <div class="dining-modal-host">
-        ${
-          selectedCharacter
-            ? `
-              <button type="button" class="dining-modal-backdrop" data-action="cancel-dining-selection" aria-label="閉じる"></button>
-              ${renderDiningSelectionPanel(snapshot, selectedCharacter)}
-            `
-            : ""
-        }
-      </div>
-
-      <section class="dining-room-stage">
-        <div class="dining-character-roster">
-          ${characters.map((character, index) =>
-            renderDiningSeat(
-              character,
-              index,
-              snapshot,
-            )
-          ).join("")}
+        <div class="restaurant-master-stage__speech">
+          <span>MOB DINING</span>
+          <p>${escapeHtml(defaultSpeech).replace(/\n/g, "<br>")}</p>
+        </div>
+        <div class="restaurant-utensil-display" aria-label="調理器具ディスプレイ">
+          ${[1, 2, 3, 4, 5].map((number) => `
+            <img src="icon/${String(number).padStart(2, "0")}.png" alt="">
+          `).join("")}
         </div>
       </section>
+
+      <section class="restaurant-player-section">
+        <header>
+          <div>
+            <span>WEEKLY MEAL</span>
+            <strong>食事をするプレイヤーを選択</strong>
+          </div>
+          <b>${completedCount} / ${players.length} 食事済み</b>
+        </header>
+        <div class="restaurant-player-grid">
+          ${players.map((player) => restaurantPlayerCard(player, snapshot)).join("")}
+        </div>
+      </section>
+
+      <section class="restaurant-rule-note">
+        <strong>週1回 / 1選手</strong>
+        <span>定食を食べると、その選手のPOWER・TECH・MENTAL・SHOOTが各+${DINING_RULES.playerPointGainPerType}。さらに従業員全員へ従業員PT+${DINING_RULES.employeePointGainPerPlayerMeal}。</span>
+      </section>
+
+      ${renderRestaurantMenuModal(snapshot, selectedPlayer)}
     </section>
   `;
 }
@@ -3714,6 +3411,10 @@ export function renderCookingDining(
 export function renderCookingManagement(
   snapshot,
 ) {
+  MANAGEMENT_VIEW_STATE.cookingView = "dining";
+  return renderCookingDining(snapshot);
+
+  /* Legacy kitchen/storage/cookbook renderer retained below for save compatibility only. */
   const activeView =
     MANAGEMENT_VIEW_STATE
       .cookingView ??
@@ -3732,7 +3433,7 @@ export function renderCookingManagement(
     snapshot.cooking;
   const now =
     new Date();
-  const selectedSlot =
+  let selectedSlot =
     Math.min(
       COOKING_RULES.utensilSlotCount - 1,
       Math.max(
@@ -3743,13 +3444,26 @@ export function renderCookingManagement(
         ) || 0,
       ),
     );
-  MANAGEMENT_VIEW_STATE.cookingSelectedSlot =
-    selectedSlot;
-
+  const requestedUtensilId =
+    MANAGEMENT_VIEW_STATE
+      .cookingSelectedUtensilId;
+  const requestedSlot =
+    COOKING_UTENSIL_MASTER.findIndex(
+      (entry) =>
+        entry.utensilId ===
+        requestedUtensilId,
+    );
+  if (requestedSlot >= 0) {
+    selectedSlot = requestedSlot;
+  }
   const selectedUtensil =
     COOKING_UTENSIL_MASTER[
       selectedSlot
     ];
+  MANAGEMENT_VIEW_STATE.cookingSelectedSlot =
+    selectedSlot;
+  MANAGEMENT_VIEW_STATE.cookingSelectedUtensilId =
+    selectedUtensil.utensilId;
   const selectedUnlocked =
     cooking.unlockedUtensilIds?.includes(
       selectedUtensil.utensilId,
@@ -3831,13 +3545,6 @@ export function renderCookingManagement(
           now,
         ),
     ).length;
-  const displayOrder = [
-    "frying_pan",
-    "pot",
-    "oven",
-    "mixer",
-    "steamer",
-  ];
 
   function hasRecipeIngredients(
     recipe,
@@ -3881,7 +3588,7 @@ export function renderCookingManagement(
       ${cookingNavigationTemplate("kitchen")}
 
       <section class="cooking-fixed-stations cooking-fixed-stations--generation50">
-        ${displayOrder.map((utensilId) => {
+        ${COOKING_DISPLAY_ORDER.map((utensilId) => {
           const slotIndex =
             COOKING_UTENSIL_MASTER.findIndex(
               (entry) =>
@@ -3936,11 +3643,14 @@ export function renderCookingManagement(
                 data-slot-index="${slotIndex}"
                 data-utensil-id="${escapeAttribute(utensil.utensilId)}"
               >
-                <img
-                  class="cooking-utensil-image"
-                  src="${escapeAttribute(utensil.image)}"
-                  alt=""
-                >
+                <span class="cooking-utensil-visual">
+                  <img
+                    class="cooking-utensil-image"
+                    src="${escapeAttribute(utensil.image)}"
+                    alt=""
+                  >
+                  ${job && !ready ? `<span class="cooking-station-steam" aria-hidden="true"><i></i><i></i><i></i></span>` : ""}
+                </span>
                 <span>STATION ${String(slotIndex + 1).padStart(2, "0")}</span>
                 <strong>${escapeHtml(utensil.name)}</strong>
                 ${
@@ -3983,7 +3693,7 @@ export function renderCookingManagement(
           data-action="close-cooking-popup"
           aria-label="調理画面を閉じる"
         ></button>
-        <div class="cooking-station-modal__panel">
+        <div class="cooking-station-modal__panel is-mode-${selectedJob ? "job" : mode ?? "choice"}">
           <header class="cooking-station-modal__header">
             <div>
               <span>ACTIVE STATION ${String(selectedSlot + 1).padStart(2, "0")}</span>
@@ -4047,9 +3757,9 @@ export function renderCookingManagement(
                       data-action="select-cooking-entry-mode"
                       data-cooking-entry-mode="ingredients"
                     >
-                      <img src="icon/01.png" alt="">
+                      <img src="${escapeAttribute(selectedUtensil.image)}" alt="${escapeAttribute(selectedUtensil.name)}">
                       <strong>食材を入れる</strong>
-                      <small>所持食材を最大5つ選ぶ</small>
+                      <small>${escapeHtml(selectedUtensil.name)}で食材を最大5つ選ぶ</small>
                     </button>
                     <button
                       type="button"
@@ -4099,7 +3809,7 @@ export function renderCookingManagement(
                                   </button>
                                 `;
                               }).join("")
-                            : `<p>作ったことがある料理はまだありません。</p>`
+                            : `<p class="cooking-empty-message">作ったことがある料理はまだありません</p>`
                         }
                       </div>
                     </section>
@@ -4153,7 +3863,7 @@ export function renderCookingManagement(
                         }).join("")}
                       </div>
 
-                      <section class="cooking-ingredient-picker ${pickerSlot === null ? "is-idle" : ""}">
+                      <section class="cooking-ingredient-picker ${pickerSlot === null ? "is-idle" : ""} ${ownedIngredients.length === 0 ? "is-empty" : ""}">
                         <header>
                           <strong>${pickerSlot === null ? "空き枠をタップしてください" : `食材枠 ${pickerSlot + 1}`}</strong>
                           <small>所持している食材だけを表示</small>
@@ -4161,7 +3871,7 @@ export function renderCookingManagement(
                         <div data-scroll-memory="cooking-ingredient-picker">
                           ${
                             pickerSlot === null
-                              ? `<p>食材枠をタップすると食材一覧を表示します。</p>`
+                              ? `<p class="cooking-empty-message">食材枠をタップすると食材一覧を表示します</p>`
                               : ownedIngredients.length > 0
                                 ? ownedIngredients.map((ingredient) => {
                                     const owned =
@@ -4186,7 +3896,7 @@ export function renderCookingManagement(
                                       </button>
                                     `;
                                   }).join("")
-                                : `<p>所持食材がありません。</p>`
+                                : `<p class="cooking-empty-message">所持食材がありません</p>`
                           }
                         </div>
                       </section>
@@ -4219,7 +3929,7 @@ export function renderCookingManagement(
                           : ""
                       }
 
-                      <section class="cooking-recipe-candidates">
+                      <section class="cooking-recipe-candidates ${recipeCandidates.length === 0 ? "is-empty" : ""}">
                         <header>
                           <span>RECIPE CANDIDATES</span>
                           <strong>作れる料理</strong>
@@ -4248,7 +3958,7 @@ export function renderCookingManagement(
                                     </button>
                                   `;
                                 }).join("")
-                              : `<p>食材が完全一致すると料理候補が表示されます。</p>`
+                              : `<p class="cooking-empty-message">食材が完全一致すると料理候補が表示されます</p>`
                           }
                         </div>
                       </section>
@@ -5157,6 +4867,24 @@ export function createManagementController({
     );
   }
 
+  async function playDiningMealCinematic(result) {
+    const overlay = document.createElement("section");
+    overlay.className = "restaurant-meal-cutin";
+    overlay.innerHTML = `
+      <div class="restaurant-meal-cutin__card">
+        <span>MOB DINING</span>
+        <strong>${escapeHtml(result.setLabel)}の料理を美味しく食べた！</strong>
+        <small>能力ポイント POWER / TECH / MENTAL / SHOOT 各+${DINING_RULES.playerPointGainPerType}</small>
+      </div>
+    `;
+    root.append(overlay);
+    requestAnimationFrame(() => overlay.classList.add("is-show"));
+    await wait(2000);
+    overlay.classList.add("is-exit");
+    await wait(220);
+    overlay.remove();
+  }
+
   async function playCookingCompletionCinematic(
     result,
   ) {
@@ -5666,6 +5394,77 @@ export function createManagementController({
         buttonLabel:
           "OK",
       });
+      return true;
+    }
+
+    if (action === "open-dining-menu") {
+      MANAGEMENT_VIEW_STATE.diningSelectedCharacterId =
+        actionElement.dataset.characterId;
+      MANAGEMENT_VIEW_STATE.diningSelectedCharacterType = "player";
+      updateCookingInPlace({ anchorSelector: ".restaurant-screen" });
+      return true;
+    }
+
+    if (action === "close-dining-menu") {
+      MANAGEMENT_VIEW_STATE.diningSelectedCharacterId = null;
+      MANAGEMENT_VIEW_STATE.diningSelectedCharacterType = null;
+      updateCookingInPlace({ anchorSelector: ".restaurant-screen" });
+      return true;
+    }
+
+    if (action === "choose-dining-set") {
+      const snapshot = stateManager.getSnapshot();
+      const player = diningCharacterSource(
+        snapshot,
+        "player",
+        MANAGEMENT_VIEW_STATE.diningSelectedCharacterId,
+      );
+      const setMeal = getWeeklyDiningSets(snapshot.gameDate).find(
+        (entry) => entry.setId === actionElement.dataset.setId,
+      );
+      if (!player || !setMeal) return true;
+      const foods = diningSetFoods(setMeal);
+      const confirmed = await openConfirm({
+        title: `${setMeal.label}にしますか？`,
+        body: `
+          <section class="restaurant-set-confirm">
+            <header>
+              <img src="${escapeAttribute(player.image)}" data-character-portrait data-role="${escapeAttribute(player.role)}" alt="">
+              <div><span>${escapeHtml(player.role)}</span><strong>${escapeHtml(player.name)}</strong></div>
+              <b>COIN ${formatNumber(setMeal.priceCoin)}</b>
+            </header>
+            <div class="restaurant-set-confirm__foods">
+              ${foods.map((food, index) => `
+                <article>
+                  <img src="${escapeAttribute(food.image)}" alt="">
+                  <span>${["MAIN", "SUB", "SWEET", "DRINK"][index]}</span>
+                  <strong>${escapeHtml(food.name)}</strong>
+                </article>
+              `).join("")}
+            </div>
+            <p>食事後：能力ポイント4種を各+${DINING_RULES.playerPointGainPerType} / 従業員全員へ従業員PT+${DINING_RULES.employeePointGainPerPlayerMeal}</p>
+          </section>
+        `,
+        confirmLabel: "この定食にする",
+        cancelLabel: "戻る",
+      });
+      if (!confirmed) return true;
+      try {
+        const transaction = stateManager.transact(
+          "restaurant_set_meal_purchased",
+          (draft) => purchaseDiningSetMealToDraft(draft, {
+            playerId: player.characterId,
+            setId: setMeal.setId,
+            purchasedAt: new Date().toISOString(),
+          }),
+        );
+        MANAGEMENT_VIEW_STATE.diningSelectedCharacterId = null;
+        MANAGEMENT_VIEW_STATE.diningSelectedCharacterType = null;
+        updateCookingInPlace({ anchorSelector: ".restaurant-screen" });
+        await playDiningMealCinematic(transaction.result);
+      } catch (error) {
+        await showError("定食を購入できません", error);
+      }
       return true;
     }
 
@@ -6382,6 +6181,10 @@ export function createManagementController({
         }
         MANAGEMENT_VIEW_STATE.cookingSelectedSlot =
           slotIndex;
+        MANAGEMENT_VIEW_STATE.cookingSelectedUtensilId =
+          actionElement.dataset.utensilId ??
+          COOKING_UTENSIL_MASTER[slotIndex]?.utensilId ??
+          "frying_pan";
         MANAGEMENT_VIEW_STATE.cookingIngredientPickerSlot =
           null;
         MANAGEMENT_VIEW_STATE.cookingEntryMode =
@@ -6532,6 +6335,8 @@ export function createManagementController({
         );
         MANAGEMENT_VIEW_STATE.cookingSelectedSlot =
           slotIndex;
+        MANAGEMENT_VIEW_STATE.cookingSelectedUtensilId =
+          utensilId;
         resetCookingSelection();
         MANAGEMENT_VIEW_STATE.cookingIngredientPickerSlot =
           null;
@@ -6933,7 +6738,7 @@ export function createManagementController({
     cookingReadyRefreshScheduled =
       false;
 
-    if (route === "cooking") {
+    if (route === "cooking" && root.querySelector("[data-cooking-countdown], [data-dining-countdown]")) {
       const updateCountdowns = () => {
         let refreshRequired =
           false;

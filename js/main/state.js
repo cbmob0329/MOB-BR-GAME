@@ -19,11 +19,11 @@ import {
   getCompanyRankData,
   rankToWeaponValue,
   validateGameDate,
-} from "../../data/game-data.js?v=51";
+} from "../../data/game-data.js?v=53";
 import {
   BATTLE_CONFIG_VERSION,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=51";
+} from "../../data/battle-config.js?v=53";
 import {
   TRAINING_DATA_VERSION,
 } from "../../data/training-data.js";
@@ -43,10 +43,10 @@ import {
   RETIRED_BADGE_COLLECTION_IDS,
   RETIRED_CARD_COLLECTION_IDS,
   ROOM_MASTER_VERSION,
-} from "../../data/collection-data.js?v=51";
+} from "../../data/collection-data.js?v=53";
 import {
   CPU_ROSTER_47_DATA_VERSION,
-} from "../../data/cpu-roster-47-data.js?v=51";
+} from "../../data/cpu-roster-47-data.js?v=53";
 import {
   STRATEGY_DATA_VERSION,
   STRATEGY_MASTER_VERSION,
@@ -61,7 +61,7 @@ import {
   motivationLevelIndex,
   normalizeMotivationRecord,
   shiftMotivation,
-} from "../../data/motivation-data.js?v=51";
+} from "../../data/motivation-data.js?v=53";
 import {
   EMPLOYEE_DATA_VERSION,
   EMPLOYEE_MASTER,
@@ -74,7 +74,7 @@ import {
   getEmployeeRankData,
   getEmployeeWeeklyCoinBonusRate,
   normalizeEmployeeRecord,
-} from "../../data/employee-data.js?v=51";
+} from "../../data/employee-data.js?v=53";
 import {
   COOKING_DATA_VERSION,
   COOKING_STATE_SCHEMA_VERSION,
@@ -85,28 +85,30 @@ import {
   createInitialCookingState,
   getCookingUtensil,
   getIngredient,
+  getRecipe,
   normalizeCookingState,
   refreshWeeklyIngredientStockToDraft,
   validateCookingState,
   createFoodVariant,
-} from "../../data/cooking-data.js?v=51";
+} from "../../data/cooking-data.js?v=53";
 import {
   DINING_DATA_VERSION,
   DINING_RULES,
   DINING_STATE_SCHEMA_VERSION,
   createInitialDiningState,
   diningWeekKey,
+  getWeeklyDiningSets,
   mealCoachTrainingRate,
   normalizeDiningState,
   refreshDiningWeekToDraft,
   validateDiningState,
-} from "../../data/dining-data.js?v=51";
+} from "../../data/dining-data.js?v=53";
 import {
   SPECIAL_ABILITY_50_VERSION,
   normalizeGeneration50SpecialAbilities,
-} from "../../data/special-ability-50-data.js?v=51";
+} from "../../data/special-ability-50-data.js?v=53";
 
-export const SAVE_SCHEMA_VERSION = "mobbr-save-2.9.0";
+export const SAVE_SCHEMA_VERSION = "mobbr-save-3.0.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
 
 export const STORAGE_KEYS = Object.freeze({
@@ -1439,6 +1441,16 @@ function migrateUnversionedSave(rawState, timestamp) {
     )
       ? migrated.collections.trophies
       : [];
+  // Generation 53 retires user-cooked food and removes legacy food objects
+  // from ROOM layouts. Other collection placements are preserved.
+  migrated.collections.roomLayouts = migrated.collections.roomLayouts ?? {};
+  for (const [roomId, placements] of Object.entries(migrated.collections.roomLayouts)) {
+    if (!Array.isArray(placements)) continue;
+    migrated.collections.roomLayouts[roomId] = placements.filter(
+      (placement) => placement?.itemRef?.kind !== "food",
+    );
+  }
+
   migrated.collections.trophies =
     migrated.collections.trophies.map(
       (trophy) => {
@@ -1564,7 +1576,8 @@ export function migrateSaveState(
     rawState.schemaVersion === "mobbr-save-2.5.0" ||
     rawState.schemaVersion === "mobbr-save-2.6.0" ||
     rawState.schemaVersion === "mobbr-save-2.7.0" ||
-    rawState.schemaVersion === "mobbr-save-2.8.0"
+    rawState.schemaVersion === "mobbr-save-2.8.0" ||
+    rawState.schemaVersion === "mobbr-save-2.9.0"
   ) {
     const migrated = migrateUnversionedSave(rawState, timestamp);
     validateSaveState(migrated);
@@ -2507,6 +2520,106 @@ function recordDiningMotivationEvent(
   draft.system.motivationHistory =
     draft.system.motivationHistory.slice(-300);
   return event;
+}
+
+
+export function purchaseDiningSetMealToDraft(
+  draft,
+  {
+    playerId,
+    setId,
+    purchasedAt = new Date().toISOString(),
+  },
+) {
+  assertPlainObject(draft, "Draft state");
+  refreshDiningWeekToDraft(
+    draft.dining,
+    draft.gameDate,
+    { timestamp: purchasedAt },
+  );
+
+  const player = draft.playerTeam?.members?.find(
+    (entry) => entry.playerId === playerId,
+  );
+  if (!player) {
+    throw new RangeError("食事をするプレイヤーが見つかりません。");
+  }
+  if (draft.dining.completedCharacterIds.includes(playerId)) {
+    throw new RangeError("このプレイヤーは今週すでに食事を終えています。");
+  }
+
+  const menu = getWeeklyDiningSets(draft.gameDate);
+  const setMeal = menu.find((entry) => entry.setId === setId);
+  if (!setMeal) {
+    throw new RangeError("今週の定食が見つかりません。");
+  }
+  if ((draft.resources?.coin ?? 0) < setMeal.priceCoin) {
+    throw new RangeError("COINが不足しています。");
+  }
+
+  applyResourceDeltaToDraft(draft, { coin: -setMeal.priceCoin });
+
+  draft.playerTrainingPoints = draft.playerTrainingPoints ?? {};
+  draft.playerTrainingPoints[playerId] =
+    draft.playerTrainingPoints[playerId] ?? createEmptyTrainingPoints();
+  const gainedTrainingPoints = {};
+  for (const pointId of TRAINING_POINT_IDS) {
+    draft.playerTrainingPoints[playerId][pointId] +=
+      DINING_RULES.playerPointGainPerType;
+    gainedTrainingPoints[pointId] = DINING_RULES.playerPointGainPerType;
+  }
+
+  const employeeEvents = [];
+  for (const employee of draft.employees ?? []) {
+    employeeEvents.push(
+      grantEmployeeCookingPointsToDraft(
+        draft,
+        employee.employeeId,
+        DINING_RULES.employeePointGainPerPlayerMeal,
+        {
+          source: "dining_set_meal",
+          reason: `${player.name}が${setMeal.label}を食べた`,
+          occurredAt: purchasedAt,
+          queuePresentation: true,
+        },
+      ),
+    );
+  }
+
+  const recipes = setMeal.recipeIds.map((recipeId) => {
+    const recipe = getRecipe(recipeId);
+    return {
+      recipeId: recipe.recipeId,
+      name: recipe.name,
+      image: recipe.image,
+      rank: recipe.baseRank,
+    };
+  });
+  const meal = {
+    mealId: `restaurant:${diningWeekKey(draft.gameDate)}:${playerId}:${setMeal.setId}`,
+    characterId: playerId,
+    characterType: "player",
+    characterName: player.name,
+    characterImage: player.image,
+    role: player.role,
+    setId: setMeal.setId,
+    setLabel: setMeal.label,
+    priceCoin: setMeal.priceCoin,
+    foods: deepClone(recipes),
+    gainedTrainingPoints,
+    employeePointGain: DINING_RULES.employeePointGainPerPlayerMeal,
+    purchasedAt,
+  };
+
+  draft.dining.completedCharacterIds.push(playerId);
+  draft.dining.history.push(deepClone(meal));
+  draft.dining.history = draft.dining.history.slice(-500);
+  draft.dining.updatedAt = purchasedAt;
+
+  return deepFreeze(deepClone({
+    ...meal,
+    employeeEvents,
+  }));
 }
 
 export function serveDiningMealToDraft(

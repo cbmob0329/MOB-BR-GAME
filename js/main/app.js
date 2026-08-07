@@ -18,14 +18,14 @@ import {
 } from "../assets.js";
 import {
   fitPortraits,
-} from "../portrait-fit.js?v=51";
+} from "../portrait-fit.js?v=53";
 import {
   SaveError,
   SaveNotFoundError,
   clearPendingEmployeeRankUpsToDraft,
   createGameStateManager,
   grantEmployeeCookingPointsToDraft,
-} from "./state.js?v=51";
+} from "./state.js?v=53";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -49,36 +49,36 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=51";
+} from "./team.js?v=53";
 import {
   getSpecialAbility,
-} from "../../data/special-ability-50-data.js?v=51";
+} from "../../data/special-ability-50-data.js?v=53";
 import {
   getCompanyRankData,
 } from "../../data/game-data.js";
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=51";
+} from "../../data/motivation-data.js?v=53";
 import {
   getRoomMaster,
-} from "../../data/collection-data.js?v=51";
+} from "../../data/collection-data.js?v=53";
 import {
   EMPLOYEE_RULES,
   getEmployeeRankData,
   getTotalEmployeeHpBonus,
-} from "../../data/employee-data.js?v=51";
+} from "../../data/employee-data.js?v=53";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=51";
+} from "./management.js?v=53";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=51";
+} from "./tournament-bridge.js?v=53";
 
-export const APP_VERSION = "mobbr-main-app-3.8.0";
+export const APP_VERSION = "mobbr-main-app-4.0.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -227,9 +227,9 @@ const PINK_GUIDES = Object.freeze({
       "集めたカードやバッジを飾れる企業ルームです。企業ランクが上がると新しい部屋も解放できます。",
   }),
   cooking: Object.freeze({
-    title: "MOB KITCHEN",
+    title: "MOB DINING",
     text:
-      "調理場・保存ボックス・料理図鑑・食堂を切り替えられます。完成した料理は保存ボックスへ入り、通常・高級・伝説を別々に管理します。",
+      "モブホワイトが毎週3種類の定食をご用意します。選手は1人につき週1回食事でき、能力ポイントを獲得できます。",
   }),
   news: Object.freeze({
     title: "NEWS",
@@ -301,10 +301,10 @@ const ROUTE_META = Object.freeze({
     icon: "menu/room.png",
   },
   [ROUTES.cooking]: {
-    title: "KITCHEN",
-    description: "調理器具と食材を組み合わせて料理を作る",
+    title: "MOB DINING",
+    description: "週替わり定食で選手のコンディションを整える",
     backgroundClass: "screen--cooking",
-    icon: "icon/kitbox.png",
+    icon: "icon/white.png",
   },
   [ROUTES.coach]: {
     title: "COACH",
@@ -365,7 +365,7 @@ const ROUTE_META = Object.freeze({
 const FACILITY_DEFINITIONS = Object.freeze([
   { facilityId: "team_lab", name: "TEAM LAB", japaneseName: "チームラボ", note: "チーム育成・装備・コレクション", status: "OPEN", accent: "LAB", homeImage: "back/homelabo.png" },
   { facilityId: "mob_shop", name: "MOB SHOP", japaneseName: "MOB SHOP", note: "ショップ・パック・商品購入", status: "OPEN", accent: "SHOP", homeImage: "back/homeshop.png" },
-  { facilityId: "cooking", name: "COOKING", japaneseName: "料理", note: "調理器具を配置し、食材から料理を作る", status: "OPEN", accent: "KITCHEN", homeImage: "back/homekit.png" },
+  { facilityId: "cooking", name: "MOB DINING", japaneseName: "食堂", note: "モブホワイトの週替わりセットメニュー", status: "OPEN", accent: "DINING", homeImage: "back/homekit.png" },
   { facilityId: "mob_room", name: "MOB ROOM", japaneseName: "モブルーム", note: "部屋を選択してコレクションを配置", status: "OPEN", accent: "ROOM", homeImage: "back/homeroom.png" },
   { facilityId: "collection", name: "COLLECTION", japaneseName: "コレクション", note: "カード・バッジ・パックファイル", status: "OPEN", accent: "ARCHIVE", homeImage: "back/homecol.png" },
 ]);
@@ -390,7 +390,7 @@ const FACILITY_MENUS = Object.freeze({
     { route: ROUTES.shop, name: "MOB SHOP", note: "商品カテゴリを開く", icon: "menu/mobshopt.png" },
   ]),
   cooking: Object.freeze([
-    { route: ROUTES.cooking, name: "KITCHEN", note: "調理・完成・回収", icon: "icon/kitbox.png" },
+    { route: ROUTES.cooking, name: "MOB DINING", note: "週替わり定食", icon: "icon/white.png" },
   ]),
   mob_room: Object.freeze([
     { route: ROUTES.room, name: "ROOM SELECT", note: "部屋を選択・編集", icon: "menu/room.png" },
@@ -1016,7 +1016,7 @@ function homeTemplate(snapshot, currentRoute) {
               </button>
             `).join("")}
           </div>
-          <small>従業員をタップするとランクと料理ポイントを確認できます</small>
+          <small>従業員をタップするとランクと従業員ポイントを確認できます</small>
         </section>
       </div>
       ${bottomNavTemplate(currentRoute)}
@@ -1277,8 +1277,7 @@ function settingsTemplate(snapshot, currentRoute, fromTitle = false) {
                 <button type="button" data-action="test-grant-resources">通貨を補充</button>
                 <button type="button" data-action="test-grant-points">全選手PT補充</button>
                 <button type="button" data-action="test-max-player-build">選手・武器・スキルMAX</button>
-                <button type="button" data-action="test-employee-points">従業員 料理PT+25</button>
-                <button type="button" data-action="test-cooking-supplies">料理素材・器具補充</button>
+                <button type="button" data-action="test-employee-points">従業員 従業員PT+25</button>
                 <button type="button" data-action="test-advance-week" data-weeks="1">+1週</button>
                 <button type="button" data-action="test-advance-week" data-weeks="4">+4週</button>
                 <button type="button" data-action="test-advance-week" data-weeks="12">+12週</button>
@@ -1459,9 +1458,9 @@ function managementFeatureTemplate(snapshot, route, currentRoute) {
       ${topStatusTemplate(snapshot)}
       <div class="page-content">
         <div class="back-row">
-          <button type="button" class="back-button" data-action="show-facility-menu" data-facility-id="${parentFacility}">
-            ← FACILITY
-          </button>
+          ${route === ROUTES.cooking
+            ? `<button type="button" class="back-button" data-action="navigate" data-route="${ROUTES.home}">← HOME</button>`
+            : `<button type="button" class="back-button" data-action="show-facility-menu" data-facility-id="${parentFacility}">← FACILITY</button>`}
         </div>
         ${
           route === ROUTES.shop ||
@@ -3542,7 +3541,7 @@ export function createMainApp({
                 ${
                   rankData.pointsToNext === null
                     ? "MAX RANK"
-                    : `${formatNumber(employee.cookingPoints)} / ${formatNumber(rankData.pointsToNext)} 料理PT`
+                    : `${formatNumber(employee.cookingPoints)} / ${formatNumber(rankData.pointsToNext)} 従業員PT`
                 }
               </strong>
             </div>
@@ -3552,7 +3551,7 @@ export function createMainApp({
               <div><dt>STAFF</dt><dd>${formatNumber(snapshot.employees.length)} / ${formatNumber(EMPLOYEE_RULES.maximumEmployeeCount)}</dd></div>
             </dl>
             <p class="employee-status-modal__note">
-              料理システム導入後、料理ランクに応じたポイントで成長します。
+              食堂でプレイヤーが食事をするたびに従業員PTを獲得して成長します。
             </p>
           </section>
         `,
@@ -3690,7 +3689,7 @@ export function createMainApp({
                 source:
                   "test_mode",
                 reason:
-                  "TEST MODE 料理ポイント",
+                  "TEST MODE 従業員ポイント",
                 occurredAt:
                   new Date().toISOString(),
                 queuePresentation:
@@ -3701,7 +3700,7 @@ export function createMainApp({
         },
       );
       showToast(
-        "TEST MODE：全従業員へ料理PT+25",
+        "TEST MODE：全従業員へ従業員PT+25",
       );
       await showPendingEmployeeRankUpPresentation();
       renderPreservingPageScroll();
@@ -3839,7 +3838,7 @@ export function createMainApp({
       selectedAbilityColor =
         actionElement.dataset.abilityColor;
       if (
-        currentRoute === ROUTES.ability &&
+        route === ROUTES.ability &&
         developmentMode === "special"
       ) {
         renderPreservingPageScroll();
