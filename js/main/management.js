@@ -13,12 +13,12 @@ import {
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=53";
+} from "../../data/game-data.js?v=54";
 import {
   isCasualTournamentType,
   resolveCpuTeamMaster,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=53";
+} from "../../data/circuit-data.js?v=54";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
@@ -72,7 +72,7 @@ import {
   purchaseDiningSetMealToDraft,
   serveDiningMealToDraft,
   settleDiningMealsToDraft,
-} from "./state.js?v=53";
+} from "./state.js?v=54";
 import {
   COOKING_RULES,
   COOKING_SCREEN_ASSETS,
@@ -89,10 +89,10 @@ import {
   getRecipeCandidates,
   isCookingJobReady,
   startCookingJobToDraft,
-} from "../../data/cooking-data.js?v=53";
+} from "../../data/cooking-data.js?v=54";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=53";
+} from "./tournament-bridge.js?v=54";
 import {
   DINING_EATING_SPEECHES,
   DINING_HUNGRY_SPEECHES,
@@ -100,10 +100,10 @@ import {
   diningWeekKey,
   getDiningMasterSpeech,
   getWeeklyDiningSets,
-} from "../../data/dining-data.js?v=53";
+} from "../../data/dining-data.js?v=54";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-2.9.0";
+  "mobbr-management-feature-3.0.0";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -1682,16 +1682,18 @@ function shopItemTile(item, snapshot) {
   return `
     <button
       type="button"
-      class="shop-item-tile"
+      class="shop-item-tile shop-compact-product"
       data-action="inspect-shop-item"
       data-item-id="${escapeAttribute(item.itemId)}"
       aria-label="${escapeAttribute(item.name)}の詳細"
     >
-      <span class="shop-item-tile__image">
+      <span class="shop-item-tile__image shop-compact-product__image">
         <img src="${escapeAttribute(item.image)}" alt="">
       </span>
-      <strong>${escapeHtml(item.name)}</strong>
-      <small>${price || "FREE"}</small>
+      <span class="shop-compact-product__info">
+        <strong>${escapeHtml(item.name)}</strong>
+        <small>${price || "FREE"}</small>
+      </span>
     </button>
   `;
 }
@@ -1996,14 +1998,16 @@ export function renderShopManagement(snapshot) {
           ${unlockedPacks.map((pack) => `
             <button
               type="button"
-              class="shop-category-product"
+              class="shop-category-product shop-compact-product"
               data-action="inspect-shop-pack"
               data-pack-type="card"
               data-pack-id="${escapeAttribute(pack.packId)}"
             >
-              <img src="${escapeAttribute(pack.image)}" alt="">
-              <strong>${escapeHtml(pack.name)}</strong>
-              <small>${currencyPriceTemplate(pack.price)}</small>
+              <span class="shop-compact-product__image"><img src="${escapeAttribute(pack.image)}" alt=""></span>
+              <span class="shop-compact-product__info">
+                <strong>${escapeHtml(pack.name)}</strong>
+                <small>${currencyPriceTemplate(pack.price)}</small>
+              </span>
             </button>
           `).join("")}
         </div>
@@ -2020,13 +2024,15 @@ export function renderShopManagement(snapshot) {
           ${WEAPON_SKINS.map((skin) => `
             <button
               type="button"
-              class="shop-category-product ${snapshot.inventory.weaponSkins?.[skin.skinId] ? "is-owned" : "is-locked"}"
+              class="shop-category-product shop-compact-product ${snapshot.inventory.weaponSkins?.[skin.skinId] ? "is-owned" : "is-locked"}"
               data-action="inspect-shop-skin"
               data-skin-id="${escapeAttribute(skin.skinId)}"
             >
-              <img src="${escapeAttribute(skin.image)}" alt="">
-              <strong>${escapeHtml(skin.name)}</strong>
-              <small>${snapshot.inventory.weaponSkins?.[skin.skinId] ? "OWNED" : skin.source === "initial" ? "INITIAL" : "GACHA"}</small>
+              <span class="shop-compact-product__image"><img src="${escapeAttribute(skin.image)}" alt=""></span>
+              <span class="shop-compact-product__info">
+                <strong>${escapeHtml(skin.name)}</strong>
+                <small>${snapshot.inventory.weaponSkins?.[skin.skinId] ? "OWNED" : skin.source === "initial" ? "INITIAL" : "50 DIAMOND / 3 RUBY"}</small>
+              </span>
             </button>
           `).join("")}
         </div>
@@ -2041,13 +2047,15 @@ export function renderShopManagement(snapshot) {
           ${BADGE_PACKS.map((pack) => `
             <button
               type="button"
-              class="shop-category-product"
+              class="shop-category-product shop-compact-product"
               data-action="inspect-shop-good"
               data-pack-id="${escapeAttribute(pack.packId)}"
             >
-              <img src="${escapeAttribute(pack.image)}" alt="">
-              <strong>${escapeHtml(pack.name)}</strong>
-              <small>大会報酬限定</small>
+              <span class="shop-compact-product__image"><img src="${escapeAttribute(pack.image)}" alt=""></span>
+              <span class="shop-compact-product__info">
+                <strong>${escapeHtml(pack.name)}</strong>
+                <small>大会報酬限定</small>
+              </span>
             </button>
           `).join("")}
         </div>
@@ -2069,13 +2077,15 @@ export function renderShopManagement(snapshot) {
           ${weeklyIngredients.map((ingredient) => `
             <button
               type="button"
-              class="cooking-shop-product"
+              class="cooking-shop-product shop-compact-product"
               data-action="inspect-cooking-ingredient"
               data-ingredient-id="${escapeAttribute(ingredient.ingredientId)}"
             >
-              <img src="${escapeAttribute(ingredient.image)}" alt="">
-              <strong>${escapeHtml(ingredient.name)}</strong>
-              <small>${formatNumber(ingredient.priceCoin)} COIN</small>
+              <span class="shop-compact-product__image"><img src="${escapeAttribute(ingredient.image)}" alt=""></span>
+              <span class="shop-compact-product__info">
+                <strong>${escapeHtml(ingredient.name)}</strong>
+                <small>${formatNumber(ingredient.priceCoin)} COIN</small>
+              </span>
             </button>
           `).join("")}
         </div>
@@ -3227,7 +3237,7 @@ function diningCharacterSource(
 ) {
   if (type !== "player") return null;
   const source = snapshot.playerTeam.members.find(
-    (entry) => entry.playerId === characterId,
+    (entry) => String(entry.playerId) === String(characterId),
   );
   return source ? diningCharacterRecord(source, "player", 0) : null;
 }
@@ -3277,6 +3287,8 @@ function restaurantPlayerCard(
       data-action="open-dining-menu"
       data-character-id="${escapeAttribute(player.playerId)}"
       data-character-type="player"
+      aria-haspopup="dialog"
+      aria-label="${escapeAttribute(player.name)}の今週の定食メニューを開く"
     >
       <img
         src="${escapeAttribute(player.image)}"
@@ -4861,6 +4873,42 @@ export function createManagementController({
     return true;
   }
 
+  function openRestaurantMenuInPlace(characterId) {
+    const snapshot = stateManager.getSnapshot();
+    const player = diningCharacterSource(snapshot, "player", characterId);
+    if (!player) {
+      return false;
+    }
+    MANAGEMENT_VIEW_STATE.diningSelectedCharacterId = player.characterId;
+    MANAGEMENT_VIEW_STATE.diningSelectedCharacterType = "player";
+
+    const screen = root.querySelector(".restaurant-screen");
+    if (!screen) {
+      updateCookingInPlace({ anchorSelector: ".restaurant-screen" });
+      return true;
+    }
+
+    root.querySelector(".restaurant-modal-host")?.remove();
+    const template = document.createElement("template");
+    template.innerHTML = renderRestaurantMenuModal(snapshot, player).trim();
+    const modal = template.content.firstElementChild;
+    if (!modal) {
+      return false;
+    }
+    screen.classList.add("has-modal-open");
+    root.append(modal);
+    return true;
+  }
+
+  function closeRestaurantMenuInPlace() {
+    MANAGEMENT_VIEW_STATE.diningSelectedCharacterId = null;
+    MANAGEMENT_VIEW_STATE.diningSelectedCharacterType = null;
+    const screen = root.querySelector(".restaurant-screen");
+    root.querySelector(".restaurant-modal-host")?.remove();
+    screen?.classList.remove("has-modal-open");
+    return true;
+  }
+
   function wait(milliseconds) {
     return new Promise((resolve) =>
       setTimeout(resolve, milliseconds),
@@ -5398,17 +5446,17 @@ export function createManagementController({
     }
 
     if (action === "open-dining-menu") {
-      MANAGEMENT_VIEW_STATE.diningSelectedCharacterId =
-        actionElement.dataset.characterId;
-      MANAGEMENT_VIEW_STATE.diningSelectedCharacterType = "player";
-      updateCookingInPlace({ anchorSelector: ".restaurant-screen" });
+      const opened = openRestaurantMenuInPlace(
+        actionElement.dataset.characterId,
+      );
+      if (!opened) {
+        showToast("メニューを開けませんでした");
+      }
       return true;
     }
 
     if (action === "close-dining-menu") {
-      MANAGEMENT_VIEW_STATE.diningSelectedCharacterId = null;
-      MANAGEMENT_VIEW_STATE.diningSelectedCharacterType = null;
-      updateCookingInPlace({ anchorSelector: ".restaurant-screen" });
+      closeRestaurantMenuInPlace();
       return true;
     }
 
@@ -5458,8 +5506,7 @@ export function createManagementController({
             purchasedAt: new Date().toISOString(),
           }),
         );
-        MANAGEMENT_VIEW_STATE.diningSelectedCharacterId = null;
-        MANAGEMENT_VIEW_STATE.diningSelectedCharacterType = null;
+        closeRestaurantMenuInPlace();
         updateCookingInPlace({ anchorSelector: ".restaurant-screen" });
         await playDiningMealCinematic(transaction.result);
       } catch (error) {

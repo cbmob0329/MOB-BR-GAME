@@ -18,14 +18,14 @@ import {
 } from "../assets.js";
 import {
   fitPortraits,
-} from "../portrait-fit.js?v=53";
+} from "../portrait-fit.js?v=54";
 import {
   SaveError,
   SaveNotFoundError,
   clearPendingEmployeeRankUpsToDraft,
   createGameStateManager,
   grantEmployeeCookingPointsToDraft,
-} from "./state.js?v=53";
+} from "./state.js?v=54";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -49,36 +49,36 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=53";
+} from "./team.js?v=54";
 import {
   getSpecialAbility,
-} from "../../data/special-ability-50-data.js?v=53";
+} from "../../data/special-ability-50-data.js?v=54";
 import {
   getCompanyRankData,
 } from "../../data/game-data.js";
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=53";
+} from "../../data/motivation-data.js?v=54";
 import {
   getRoomMaster,
-} from "../../data/collection-data.js?v=53";
+} from "../../data/collection-data.js?v=54";
 import {
   EMPLOYEE_RULES,
   getEmployeeRankData,
   getTotalEmployeeHpBonus,
-} from "../../data/employee-data.js?v=53";
+} from "../../data/employee-data.js?v=54";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=53";
+} from "./management.js?v=54";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=53";
+} from "./tournament-bridge.js?v=54";
 
-export const APP_VERSION = "mobbr-main-app-4.0.0";
+export const APP_VERSION = "mobbr-main-app-4.0.1";
 
 export const ROUTES = Object.freeze({
   title: "title",
