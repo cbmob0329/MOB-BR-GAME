@@ -22,13 +22,12 @@ import {
 } from "./round.js?v=56";
 
 export const EXPLORATION_VERSION =
-  "mobbr-tournament-exploration-1.9.0";
+  "mobbr-tournament-exploration-1.9.1";
 
 export const EXPLORATION_PAGES = Object.freeze([
   "SEARCH",
   "FACILITY",
   "BAG",
-  "ALIVE_TEAMS",
 ]);
 
 export const EXPLORATION_RULES = Object.freeze({
@@ -1825,18 +1824,14 @@ export function renderExplorationScreen(runtime) {
       ? searchPageTemplate(runtime, choice)
       : currentPage === "FACILITY"
         ? facilityPageTemplate(runtime)
-        : currentPage === "BAG"
-          ? bagPageTemplate(runtime)
-          : aliveTeamsPageTemplate(runtime);
+        : bagPageTemplate(runtime);
 
   const pageTitle =
     currentPage === "SEARCH"
       ? "探索地点"
       : currentPage === "FACILITY"
         ? "エリア施設"
-        : currentPage === "BAG"
-          ? "バッグ"
-          : "生存チーム";
+        : "バッグ";
 
   return `
     <main

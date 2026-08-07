@@ -49,7 +49,7 @@ import {
   useInventoryItemToDraft,
   useMobSlotToDraft,
   useRespawnTurntableToDraft,
-} from "./exploration.js?v=56";
+} from "./exploration.js?v=58";
 import {
   advanceAwardToDraft,
   finalizeCurrentMatchToDraft,
@@ -2928,6 +2928,69 @@ function preloadTournamentImages(paths, timeoutMs = 10000) {
   ]);
 }
 
+const TOURNAMENT_JAPANESE_ORPHAN_SELECTOR = [
+  "p",
+  ".commentary-panel p",
+  ".exploration-page-note",
+  ".round-result-verdict p",
+  ".encounter-opponent-wear small",
+  ".battle-item-confirmation p"
+].join(",");
+
+function protectTournamentJapaneseOrphanTail(element) {
+  if (!(element instanceof HTMLElement)) return;
+  const existingGuard = element.querySelector(":scope > .jp-no-orphan-tail");
+  const currentText = element.textContent?.trim() ?? "";
+  if (
+    element.dataset.jpOrphanSource === currentText &&
+    existingGuard
+  ) return;
+  if (
+    element.childElementCount > 0 &&
+    !(element.childElementCount === 1 && existingGuard)
+  ) return;
+  if (
+    currentText.length < 8 ||
+    !/[ぁ-んァ-ヶ一-龠々ー]/u.test(currentText)
+  ) return;
+
+  const characters = Array.from(currentText);
+  const tailLength = Math.min(5, Math.max(4, characters.length));
+  const head = characters.slice(0, -tailLength).join("");
+  const tail = characters.slice(-tailLength).join("");
+  if (!head || !tail) return;
+
+  element.textContent = head;
+  const guard = document.createElement("span");
+  guard.className = "jp-no-orphan-tail";
+  guard.textContent = tail;
+  element.append(guard);
+  element.dataset.jpOrphanSource = currentText;
+}
+
+function installTournamentJapaneseOrphanGuard(root) {
+  if (!root || typeof MutationObserver === "undefined") return null;
+  let scheduled = false;
+  const apply = () => {
+    scheduled = false;
+    root.querySelectorAll(TOURNAMENT_JAPANESE_ORPHAN_SELECTOR)
+      .forEach(protectTournamentJapaneseOrphanTail);
+  };
+  const schedule = () => {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(apply);
+  };
+  const observer = new MutationObserver(schedule);
+  observer.observe(root, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+  });
+  schedule();
+  return observer;
+}
+
 async function bootstrap() {
   const root = document.querySelector("#tournamentApp");
   const modalRoot = document.querySelector("#tournamentModalRoot");
@@ -2974,6 +3037,7 @@ async function bootstrap() {
     loadingMessage,
     storage: window.localStorage,
   });
+  installTournamentJapaneseOrphanGuard(root);
   await controller.boot({
     preferResume: true,
   });
