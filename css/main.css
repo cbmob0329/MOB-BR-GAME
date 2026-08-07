@@ -18646,3 +18646,1790 @@ img.player-portrait,
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
+
+/* ==========================================================
+   Generation 52: touch-safe SHOP, balanced kitchen and readable dining
+   ========================================================== */
+
+/* SHOP: a vertical gesture that starts on a product shelf must still be able
+   to move the shop. Horizontal gestures continue to move the shelf itself. */
+.screen--shop.app-layout > .page-content {
+  overflow-y: scroll !important;
+  overscroll-behavior-y: contain !important;
+  touch-action: pan-y !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+.management-app-content--shop,
+.management-app-content--shop .mobshop-popup,
+.management-app-content--shop .mobshop-content,
+.management-app-content--shop .management-section {
+  min-height: 0 !important;
+  overflow: visible !important;
+  touch-action: pan-y !important;
+}
+
+.management-app-content--shop .mobshop-popup {
+  height: auto !important;
+  max-height: calc(
+    100dvh -
+    var(--bottom-nav-height) -
+    var(--safe-bottom) -
+    116px
+  ) !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: contain !important;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+.management-app-content--shop .mobshop-category-grid,
+.management-app-content--shop .shop-item-grid,
+.management-app-content--shop .shop-category-product-grid,
+.management-app-content--shop .cooking-shop-grid {
+  touch-action: pan-x pan-y !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+.management-app-content--shop .management-section {
+  grid-template-rows: auto 258px auto !important;
+  gap: 4px !important;
+  padding: 9px 8px 12px !important;
+}
+
+.management-app-content--shop .management-section__heading {
+  min-height: 34px !important;
+  gap: 6px !important;
+  align-items: center !important;
+}
+
+.management-app-content--shop .management-section__heading h2 {
+  font-size: .88rem !important;
+  line-height: 1 !important;
+}
+
+.management-app-content--shop .management-section__heading span {
+  font-size: .48rem !important;
+  line-height: 1.15 !important;
+}
+
+.management-app-content--shop .shop-item-grid,
+.management-app-content--shop .shop-category-product-grid,
+.management-app-content--shop .cooking-shop-grid {
+  height: 258px !important;
+  min-height: 258px !important;
+  max-height: 258px !important;
+  grid-template-rows: repeat(2, 123px) !important;
+  grid-auto-columns: 116px !important;
+  gap: 7px !important;
+  padding: 3px 5px 9px !important;
+}
+
+.management-app-content--shop .shop-item-tile,
+.management-app-content--shop .shop-category-product,
+.management-app-content--shop .cooking-shop-product {
+  width: 116px !important;
+  min-width: 116px !important;
+  max-width: 116px !important;
+  height: 123px !important;
+  min-height: 123px !important;
+  max-height: 123px !important;
+  grid-template-rows: 76px minmax(22px, auto) 21px !important;
+  align-content: start !important;
+  gap: 1px !important;
+  padding: 4px 4px 3px !important;
+}
+
+.management-app-content--shop .shop-item-tile__image {
+  height: 76px !important;
+  min-height: 76px !important;
+}
+
+.management-app-content--shop .shop-item-tile img,
+.management-app-content--shop .shop-category-product img,
+.management-app-content--shop .cooking-shop-product img {
+  width: 74px !important;
+  height: 74px !important;
+  max-width: 74px !important;
+  max-height: 74px !important;
+  object-fit: contain !important;
+}
+
+.management-app-content--shop .shop-category-product img[src*="vol" i] {
+  width: 58px !important;
+  height: 76px !important;
+  max-width: 58px !important;
+  max-height: 76px !important;
+}
+
+.management-app-content--shop .shop-item-tile > strong,
+.management-app-content--shop .shop-category-product > strong,
+.management-app-content--shop .cooking-shop-product > strong {
+  display: -webkit-box !important;
+  min-height: 20px !important;
+  margin: 0 !important;
+  color: #182236 !important;
+  font-size: .64rem !important;
+  font-weight: 950 !important;
+  line-height: 1.05 !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.management-app-content--shop .shop-item-tile > small,
+.management-app-content--shop .shop-category-product > small,
+.management-app-content--shop .cooking-shop-product > small,
+.management-app-content--shop .shop-item-tile > small span,
+.management-app-content--shop .shop-category-product > small span,
+.management-app-content--shop .cooking-shop-product > small span {
+  display: block !important;
+  min-height: 18px !important;
+  margin: 0 !important;
+  color: #8a6100 !important;
+  font-size: .55rem !important;
+  font-weight: 1000 !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+
+/* DINING: names must remain readable without increasing the gaps between the
+   characters. */
+.dining-character-card > strong {
+  display: -webkit-box !important;
+  width: 100% !important;
+  min-height: 24px !important;
+  overflow: hidden !important;
+  padding-inline: 2px !important;
+  font-size: .60rem !important;
+  font-weight: 1000 !important;
+  line-height: 1.08 !important;
+  text-align: center !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.dining-character-card > small,
+.dining-character-card > em {
+  font-size: .42rem !important;
+  line-height: 1.12 !important;
+  word-break: keep-all !important;
+}
+
+/* GOLD/NORMAL tabs stay above the list and always accept taps. */
+.special-color-tabs--generation50 {
+  position: relative !important;
+  z-index: 25 !important;
+  pointer-events: auto !important;
+}
+
+.special-color-tabs--generation50 .special-color-tab {
+  position: relative !important;
+  z-index: 26 !important;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+}
+
+/* KITCHEN: content-sized choice screen and one restrained scroll region for
+   ingredient/recipe modes. */
+.cooking-station-modal--generation50 .cooking-station-modal__panel {
+  width: min(94vw, 590px) !important;
+  height: auto !important;
+  max-height: calc(
+    100dvh -
+    var(--bottom-nav-height) -
+    var(--safe-bottom) -
+    112px
+  ) !important;
+  grid-template-rows: auto minmax(0, auto) auto !important;
+  align-content: start !important;
+  overflow: hidden !important;
+  padding: 0 8px 8px !important;
+}
+
+.cooking-station-modal--generation50 .cooking-station-modal__panel.is-mode-choice {
+  max-height: min(440px, calc(100dvh - var(--bottom-nav-height) - 126px)) !important;
+}
+
+.cooking-station-modal--generation50 .cooking-station-modal__panel.is-mode-ingredients,
+.cooking-station-modal--generation50 .cooking-station-modal__panel.is-mode-recipes,
+.cooking-station-modal--generation50 .cooking-station-modal__panel.is-mode-job {
+  height: min(66dvh, 590px) !important;
+  grid-template-rows: auto minmax(0, 1fr) auto !important;
+}
+
+.cooking-station-modal__header {
+  min-height: 48px !important;
+  gap: 8px !important;
+  padding: 6px 2px !important;
+}
+
+.cooking-station-modal__header > div {
+  display: flex !important;
+  min-width: 0 !important;
+  align-items: baseline !important;
+  gap: 7px !important;
+}
+
+.cooking-station-modal__header span {
+  flex: none !important;
+  font-size: .46rem !important;
+  white-space: nowrap !important;
+}
+
+.cooking-station-modal__header strong {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  font-size: .78rem !important;
+  line-height: 1 !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.cooking-station-modal__x {
+  flex: none !important;
+  min-width: 72px !important;
+  min-height: 38px !important;
+  padding: 6px 10px !important;
+  font-size: .66rem !important;
+}
+
+.cooking-entry-choice {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  align-content: start !important;
+  gap: 9px !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+  padding: 10px 2px !important;
+}
+
+.cooking-entry-choice > button {
+  display: grid !important;
+  min-height: 144px !important;
+  max-height: 164px !important;
+  grid-template-rows: 82px 28px minmax(22px, auto) !important;
+  align-content: center !important;
+  justify-items: center !important;
+  gap: 2px !important;
+  border-radius: 14px !important;
+  padding: 8px 6px !important;
+}
+
+.cooking-entry-choice img {
+  width: 82px !important;
+  height: 82px !important;
+  object-fit: contain !important;
+}
+
+.cooking-entry-choice strong {
+  font-size: .76rem !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+}
+
+.cooking-entry-choice small {
+  display: block !important;
+  max-width: 100% !important;
+  font-size: .47rem !important;
+  line-height: 1.12 !important;
+  text-align: center !important;
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+}
+
+.cooking-ingredient-builder,
+.cooking-known-recipes,
+.cooking-job-panel {
+  min-height: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: contain !important;
+  padding: 7px 2px 10px !important;
+  touch-action: pan-y !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+.cooking-ingredient-builder {
+  grid-template-rows: auto auto auto auto !important;
+  gap: 7px !important;
+}
+
+.cooking-ingredient-builder > header {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 6px !important;
+  align-items: center !important;
+}
+
+.cooking-ingredient-builder > header strong {
+  font-size: .76rem !important;
+  line-height: 1.06 !important;
+  white-space: nowrap !important;
+}
+
+.cooking-ingredient-builder > header span {
+  font-size: .38rem !important;
+}
+
+.cooking-ingredient-builder > header > div:last-child {
+  display: flex !important;
+  gap: 5px !important;
+}
+
+.cooking-ingredient-builder > header button {
+  min-height: 38px !important;
+  padding: 6px 8px !important;
+  font-size: .48rem !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+
+.cooking-ingredient-slots {
+  display: grid !important;
+  height: 86px !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 5px !important;
+  overflow: visible !important;
+}
+
+.cooking-ingredient-slots > button {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 82px !important;
+  min-height: 82px !important;
+  padding: 3px !important;
+}
+
+.cooking-ingredient-slots > button > img {
+  width: 47px !important;
+  height: 47px !important;
+}
+
+.cooking-ingredient-slots > button > strong {
+  overflow: hidden !important;
+  font-size: .38rem !important;
+  line-height: 1 !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.cooking-ingredient-picker,
+.cooking-recipe-guide,
+.cooking-recipe-candidates {
+  min-height: 142px !important;
+  max-height: 142px !important;
+  overflow: hidden !important;
+  padding: 5px !important;
+}
+
+.cooking-ingredient-picker.is-idle,
+.cooking-ingredient-picker.is-empty,
+.cooking-recipe-candidates.is-empty {
+  min-height: 84px !important;
+  max-height: 84px !important;
+}
+
+.cooking-ingredient-picker > header,
+.cooking-recipe-guide > header,
+.cooking-recipe-candidates > header {
+  min-height: 28px !important;
+  align-items: center !important;
+}
+
+.cooking-ingredient-picker > header strong,
+.cooking-recipe-guide > header span,
+.cooking-recipe-candidates > header strong {
+  font-size: .54rem !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+
+.cooking-ingredient-picker > header small,
+.cooking-recipe-guide > header small,
+.cooking-recipe-candidates > header span {
+  font-size: .35rem !important;
+  white-space: nowrap !important;
+}
+
+.cooking-ingredient-picker > div,
+.cooking-recipe-guide > div,
+.cooking-recipe-candidates > div {
+  height: 102px !important;
+  grid-template-rows: 96px !important;
+  grid-auto-columns: 92px !important;
+  gap: 6px !important;
+  padding: 2px 3px 6px !important;
+  touch-action: pan-x pan-y !important;
+}
+
+.cooking-ingredient-picker.is-idle > div,
+.cooking-ingredient-picker.is-empty > div,
+.cooking-recipe-candidates.is-empty > div {
+  display: flex !important;
+  width: 100% !important;
+  height: 48px !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  overflow: hidden !important;
+  padding: 4px 6px !important;
+}
+
+.cooking-empty-message {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  margin: 0 !important;
+  color: #fff !important;
+  font-size: .63rem !important;
+  font-weight: 900 !important;
+  line-height: 1.15 !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+}
+
+.cooking-ingredient-picker > div > button,
+.cooking-recipe-guide article,
+.cooking-recipe-card {
+  width: 92px !important;
+  min-width: 92px !important;
+  max-width: 92px !important;
+  height: 96px !important;
+  min-height: 96px !important;
+  max-height: 96px !important;
+  padding: 4px 3px !important;
+}
+
+.cooking-ingredient-picker img,
+.cooking-recipe-guide img,
+.cooking-recipe-card img {
+  width: 53px !important;
+  height: 53px !important;
+}
+
+.cooking-ingredient-picker strong,
+.cooking-recipe-guide strong,
+.cooking-recipe-card strong {
+  font-size: .42rem !important;
+  line-height: 1.04 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.cooking-ingredient-picker small,
+.cooking-recipe-guide small,
+.cooking-recipe-card small {
+  font-size: .34rem !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+
+.cooking-known-recipes > header strong {
+  font-size: .76rem !important;
+}
+
+.cooking-known-recipes > header button {
+  min-height: 38px !important;
+  font-size: .50rem !important;
+  white-space: nowrap !important;
+}
+
+.cooking-known-recipes > div {
+  height: 244px !important;
+  max-height: 244px !important;
+  grid-template-rows: repeat(2, 116px) !important;
+  grid-auto-columns: 106px !important;
+  touch-action: pan-x pan-y !important;
+}
+
+.cooking-known-recipes > div > button {
+  width: 106px !important;
+  min-width: 106px !important;
+  height: 116px !important;
+  min-height: 116px !important;
+}
+
+.cooking-known-recipes img {
+  width: 66px !important;
+  height: 66px !important;
+}
+
+.cooking-known-recipes strong {
+  font-size: .48rem !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.cooking-known-recipes small {
+  font-size: .36rem !important;
+  line-height: 1.05 !important;
+}
+
+.cooking-station-modal__close {
+  min-height: 42px !important;
+  margin-top: 5px !important;
+  font-size: .58rem !important;
+}
+
+/* The selected utensil is the visual source of truth. During cooking it emits
+   light steam and uses a restrained wobble rather than a strong screen shake. */
+.cooking-utensil-visual {
+  position: relative !important;
+  display: grid !important;
+  width: 100% !important;
+  height: 76px !important;
+  place-items: center !important;
+}
+
+.cooking-fixed-station--generation50 .cooking-utensil-visual .cooking-utensil-image {
+  grid-area: 1 / 1 !important;
+}
+
+.cooking-fixed-station--generation50.is-working:not(.is-ready) .cooking-utensil-image {
+  animation: cooking-utensil-gentle-wobble 1.2s ease-in-out infinite alternate !important;
+  transform-origin: 50% 82% !important;
+}
+
+.cooking-station-steam {
+  position: absolute !important;
+  z-index: 3 !important;
+  top: 2px !important;
+  left: 50% !important;
+  width: 58px !important;
+  height: 44px !important;
+  translate: -50% 0 !important;
+  pointer-events: none !important;
+}
+
+.cooking-station-steam i {
+  position: absolute !important;
+  bottom: 0 !important;
+  width: 12px !important;
+  height: 18px !important;
+  border-radius: 50% !important;
+  background: rgb(255 255 255 / 55%) !important;
+  filter: blur(3px) !important;
+  opacity: 0 !important;
+  animation: cooking-steam-rise 1.8s ease-out infinite !important;
+}
+
+.cooking-station-steam i:nth-child(1) {
+  left: 8px !important;
+}
+
+.cooking-station-steam i:nth-child(2) {
+  left: 24px !important;
+  animation-delay: .55s !important;
+}
+
+.cooking-station-steam i:nth-child(3) {
+  left: 40px !important;
+  animation-delay: 1.05s !important;
+}
+
+@keyframes cooking-utensil-gentle-wobble {
+  from { transform: translateX(-1.3px) rotate(-.7deg); }
+  to { transform: translateX(1.3px) rotate(.7deg); }
+}
+
+@keyframes cooking-steam-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 5px, 0) scale(.72);
+  }
+  24% { opacity: .72; }
+  100% {
+    opacity: 0;
+    transform: translate3d(3px, -28px, 0) scale(1.35);
+  }
+}
+
+@media (max-width: 430px) {
+  .management-app-content--shop .shop-item-grid,
+  .management-app-content--shop .shop-category-product-grid,
+  .management-app-content--shop .cooking-shop-grid {
+    grid-auto-columns: 108px !important;
+  }
+
+  .management-app-content--shop .shop-item-tile,
+  .management-app-content--shop .shop-category-product,
+  .management-app-content--shop .cooking-shop-product {
+    width: 108px !important;
+    min-width: 108px !important;
+    max-width: 108px !important;
+  }
+
+  .cooking-station-modal--generation50 .cooking-station-modal__panel {
+    width: 96vw !important;
+  }
+
+  .cooking-entry-choice > button {
+    min-height: 136px !important;
+    grid-template-rows: 74px 26px minmax(20px, auto) !important;
+    padding-inline: 4px !important;
+  }
+
+  .cooking-entry-choice img {
+    width: 74px !important;
+    height: 74px !important;
+  }
+
+  .cooking-entry-choice strong {
+    font-size: .68rem !important;
+  }
+
+  .cooking-entry-choice small {
+    font-size: .42rem !important;
+  }
+
+  .cooking-ingredient-builder > header {
+    grid-template-columns: 1fr !important;
+  }
+
+  .cooking-ingredient-builder > header > div:last-child {
+    justify-content: flex-end !important;
+  }
+
+  .dining-character-card > strong {
+    font-size: .55rem !important;
+  }
+}
+
+/* ==========================================================
+   Generation 52 final device corrections from iPhone screenshots
+   ========================================================== */
+
+/* Use one vertical scroller for the whole SHOP. Nested popup scrolling made
+   Safari gestures unreliable and hid the second product row. */
+.screen--shop > .page-content,
+.screen--shop.app-layout > .page-content {
+  display: block !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: scroll !important;
+  touch-action: pan-y !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding-bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + 38px) !important;
+}
+
+.management-app-content--shop,
+.management-app-content--shop .mobshop-popup,
+.management-app-content--shop .mobshop-content,
+.management-app-content--shop .management-section {
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}
+
+.management-app-content--shop .mobshop-popup {
+  display: grid !important;
+  grid-template-rows: auto 7px auto auto !important;
+  overscroll-behavior: auto !important;
+  touch-action: auto !important;
+}
+
+.management-app-content--shop .mobshop-category-grid,
+.management-app-content--shop .shop-item-grid,
+.management-app-content--shop .shop-category-product-grid,
+.management-app-content--shop .cooking-shop-grid {
+  touch-action: auto !important;
+}
+
+.management-app-content--shop .management-section {
+  grid-template-rows: auto 264px auto !important;
+  gap: 3px !important;
+  padding: 9px 8px 11px !important;
+}
+
+.management-app-content--shop .shop-item-grid,
+.management-app-content--shop .shop-category-product-grid,
+.management-app-content--shop .cooking-shop-grid {
+  height: 264px !important;
+  min-height: 264px !important;
+  max-height: 264px !important;
+  grid-template-rows: repeat(2, 127px) !important;
+  grid-auto-columns: 116px !important;
+  gap: 7px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  padding: 3px 5px 7px !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+.management-app-content--shop .shop-item-tile,
+.management-app-content--shop .shop-category-product,
+.management-app-content--shop .cooking-shop-product {
+  width: 116px !important;
+  min-width: 116px !important;
+  max-width: 116px !important;
+  height: 127px !important;
+  min-height: 127px !important;
+  max-height: 127px !important;
+  grid-template-rows: 75px 26px 23px !important;
+  align-content: start !important;
+  gap: 0 !important;
+  padding: 3px 4px !important;
+}
+
+.management-app-content--shop .shop-item-tile__image {
+  height: 75px !important;
+  min-height: 75px !important;
+}
+
+.management-app-content--shop .shop-item-tile img,
+.management-app-content--shop .shop-category-product img,
+.management-app-content--shop .cooking-shop-product img {
+  width: 72px !important;
+  height: 72px !important;
+  max-width: 72px !important;
+  max-height: 72px !important;
+}
+
+.management-app-content--shop .shop-category-product img[src*="vol" i] {
+  width: 60px !important;
+  height: 74px !important;
+  max-width: 60px !important;
+  max-height: 74px !important;
+}
+
+.management-app-content--shop .shop-item-tile > strong,
+.management-app-content--shop .shop-category-product > strong,
+.management-app-content--shop .cooking-shop-product > strong {
+  min-height: 25px !important;
+  max-height: 25px !important;
+  align-self: center !important;
+  margin: 0 !important;
+  font-size: .69rem !important;
+  line-height: 1.02 !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+}
+
+.management-app-content--shop .shop-item-tile > small,
+.management-app-content--shop .shop-category-product > small,
+.management-app-content--shop .cooking-shop-product > small,
+.management-app-content--shop .shop-item-tile > small span,
+.management-app-content--shop .shop-category-product > small span,
+.management-app-content--shop .cooking-shop-product > small span {
+  min-height: 22px !important;
+  align-self: start !important;
+  margin: 0 !important;
+  font-size: .66rem !important;
+  line-height: 1.02 !important;
+  white-space: nowrap !important;
+}
+
+/* Character names are primary tap labels, not secondary metadata. */
+.dining-character-card > strong {
+  min-height: 28px !important;
+  font-size: .72rem !important;
+  line-height: 1.05 !important;
+}
+
+.dining-character-card > small,
+.dining-character-card > em {
+  font-size: .50rem !important;
+}
+
+/* Override the old flex/full-height station panel. Choice mode is deliberately
+   content-sized; ingredient mode owns exactly one vertical scroll region. */
+.cooking-station-modal--generation50 .cooking-station-modal__panel {
+  display: grid !important;
+  width: min(94vw, 560px) !important;
+  height: auto !important;
+  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 26px) !important;
+  grid-template-rows: auto minmax(0, auto) auto !important;
+  align-content: start !important;
+  gap: 5px !important;
+  overflow: hidden !important;
+}
+
+.cooking-station-modal--generation50 .cooking-station-modal__panel.is-mode-choice {
+  height: auto !important;
+  max-height: min(386px, calc(100dvh - var(--safe-top) - var(--safe-bottom) - 34px)) !important;
+}
+
+.cooking-station-modal--generation50 .cooking-station-modal__panel.is-mode-ingredients,
+.cooking-station-modal--generation50 .cooking-station-modal__panel.is-mode-recipes,
+.cooking-station-modal--generation50 .cooking-station-modal__panel.is-mode-job {
+  height: min(70dvh, 610px) !important;
+  grid-template-rows: auto minmax(0, 1fr) auto !important;
+}
+
+.cooking-entry-choice {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+  gap: 8px !important;
+  padding: 8px 2px !important;
+}
+
+.cooking-entry-choice > button {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 154px !important;
+  min-height: 154px !important;
+  max-height: 154px !important;
+  grid-template-rows: 88px 31px 25px !important;
+  align-content: center !important;
+  gap: 1px !important;
+  padding: 5px !important;
+}
+
+.cooking-entry-choice img {
+  width: 88px !important;
+  height: 88px !important;
+}
+
+.cooking-entry-choice strong {
+  font-size: .80rem !important;
+}
+
+.cooking-entry-choice small {
+  font-size: .50rem !important;
+  line-height: 1.08 !important;
+}
+
+.cooking-ingredient-builder,
+.cooking-known-recipes,
+.cooking-job-panel {
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  touch-action: pan-y !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+.cooking-ingredient-builder > header strong,
+.cooking-known-recipes > header strong {
+  font-size: .82rem !important;
+}
+
+.cooking-ingredient-builder > header span,
+.cooking-known-recipes > header span {
+  font-size: .46rem !important;
+}
+
+.cooking-ingredient-builder > header button,
+.cooking-known-recipes > header button {
+  min-height: 38px !important;
+  font-size: .55rem !important;
+}
+
+.cooking-ingredient-slots {
+  height: 92px !important;
+}
+
+.cooking-ingredient-slots > button {
+  height: 88px !important;
+  min-height: 88px !important;
+}
+
+.cooking-ingredient-slots > button > img {
+  width: 51px !important;
+  height: 51px !important;
+}
+
+.cooking-ingredient-slots > button > strong {
+  font-size: .46rem !important;
+}
+
+.cooking-ingredient-picker,
+.cooking-recipe-guide,
+.cooking-recipe-candidates {
+  min-height: 150px !important;
+  max-height: 150px !important;
+}
+
+.cooking-ingredient-picker.is-idle,
+.cooking-ingredient-picker.is-empty,
+.cooking-recipe-candidates.is-empty {
+  min-height: 74px !important;
+  max-height: 74px !important;
+}
+
+.cooking-ingredient-picker.is-idle > div,
+.cooking-ingredient-picker.is-empty > div,
+.cooking-recipe-candidates.is-empty > div {
+  display: flex !important;
+  width: 100% !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  align-items: center !important;
+  overflow: visible !important;
+  padding: 2px 5px !important;
+}
+
+.cooking-empty-message {
+  display: block !important;
+  width: auto !important;
+  min-width: max-content !important;
+  max-width: none !important;
+  font-size: .68rem !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+}
+
+.cooking-ingredient-picker > header strong,
+.cooking-recipe-guide > header span,
+.cooking-recipe-candidates > header strong {
+  font-size: .61rem !important;
+}
+
+.cooking-ingredient-picker > header small,
+.cooking-recipe-guide > header small,
+.cooking-recipe-candidates > header span {
+  font-size: .42rem !important;
+}
+
+.cooking-ingredient-picker strong,
+.cooking-recipe-guide strong,
+.cooking-recipe-card strong {
+  font-size: .49rem !important;
+}
+
+.cooking-ingredient-picker small,
+.cooking-recipe-guide small,
+.cooking-recipe-card small {
+  font-size: .40rem !important;
+}
+
+@media (max-width: 430px) {
+  .management-app-content--shop .shop-item-grid,
+  .management-app-content--shop .shop-category-product-grid,
+  .management-app-content--shop .cooking-shop-grid {
+    grid-auto-columns: 108px !important;
+  }
+
+  .management-app-content--shop .shop-item-tile,
+  .management-app-content--shop .shop-category-product,
+  .management-app-content--shop .cooking-shop-product {
+    width: 108px !important;
+    min-width: 108px !important;
+    max-width: 108px !important;
+  }
+
+  .management-app-content--shop .shop-item-tile > strong,
+  .management-app-content--shop .shop-category-product > strong,
+  .management-app-content--shop .cooking-shop-product > strong {
+    font-size: .64rem !important;
+  }
+
+  .management-app-content--shop .shop-item-tile > small,
+  .management-app-content--shop .shop-category-product > small,
+  .management-app-content--shop .cooking-shop-product > small {
+    font-size: .61rem !important;
+  }
+
+  .dining-character-card > strong {
+    font-size: .66rem !important;
+  }
+
+  .cooking-entry-choice > button {
+    height: 144px !important;
+    min-height: 144px !important;
+    max-height: 144px !important;
+    grid-template-rows: 80px 29px 25px !important;
+  }
+
+  .cooking-entry-choice img {
+    width: 80px !important;
+    height: 80px !important;
+  }
+
+  .cooking-entry-choice strong {
+    font-size: .72rem !important;
+  }
+
+  .cooking-entry-choice small {
+    font-size: .45rem !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cooking-fixed-station--generation50.is-working:not(.is-ready) .cooking-utensil-image,
+  .cooking-station-steam i {
+    animation: none !important;
+  }
+}
+
+/* ================================================================
+   Generation 53: MOB DINING replaces player cooking.
+   Restaurant layout is mobile-first, readable and uses one background only.
+   ================================================================ */
+.management-app-content--cooking {
+  width: 100% !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}
+
+.restaurant-screen {
+  position: relative;
+  isolation: isolate;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: min(690px, calc(100dvh - var(--safe-top) - 118px));
+  overflow: hidden;
+  border: 2px solid rgb(110 214 244 / 68%);
+  border-radius: 22px;
+  padding: 14px 12px calc(var(--safe-bottom) + 84px);
+}
+
+.restaurant-screen__background {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+}
+
+.restaurant-screen__shade {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, rgb(255 255 255 / 12%), rgb(246 251 255 / 20%));
+  pointer-events: none;
+}
+
+.restaurant-master-stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(92px, 118px) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  width: min(100%, 720px);
+  margin: 0 auto 12px;
+  padding: 12px 12px 46px;
+  border: 2px solid rgb(255 255 255 / 80%);
+  border-radius: 20px;
+  background: rgb(255 248 236 / 88%);
+  box-shadow: 0 10px 26px rgb(38 45 64 / 16%);
+}
+
+.restaurant-master-stage__character {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  min-width: 0;
+}
+
+.restaurant-master-stage__character > img {
+  width: 92px;
+  height: 112px;
+  object-fit: contain;
+}
+
+.restaurant-master-stage__character > strong {
+  margin-top: -2px;
+  color: #16263a;
+  font-size: .84rem;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.restaurant-master-stage__character > span {
+  color: #53657a;
+  font-size: .54rem;
+  font-weight: 900;
+}
+
+.restaurant-master-stage__speech {
+  position: relative;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 2px solid #d6af64;
+  border-radius: 15px;
+  background: rgb(255 255 255 / 94%);
+}
+
+.restaurant-master-stage__speech::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 42%;
+  width: 18px;
+  height: 18px;
+  border-left: 2px solid #d6af64;
+  border-bottom: 2px solid #d6af64;
+  background: white;
+  transform: rotate(45deg);
+}
+
+.restaurant-master-stage__speech > span {
+  display: block;
+  margin-bottom: 4px;
+  color: #b5731c;
+  font-size: .58rem;
+  font-weight: 1000;
+  letter-spacing: .09em;
+}
+
+.restaurant-master-stage__speech > p {
+  margin: 0;
+  color: #182334;
+  font-size: .76rem;
+  font-weight: 900;
+  line-height: 1.45;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.restaurant-utensil-display {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 7px;
+  display: flex;
+  justify-content: center;
+  align-items: end;
+  gap: 5px;
+  height: 39px;
+  overflow: hidden;
+}
+
+.restaurant-utensil-display img {
+  width: 45px;
+  height: 38px;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 4px rgb(0 0 0 / 18%));
+  opacity: .9;
+}
+
+.restaurant-player-section,
+.restaurant-rule-note {
+  box-sizing: border-box;
+  width: min(100%, 720px);
+  margin-inline: auto;
+  border: 2px solid rgb(255 255 255 / 78%);
+  border-radius: 18px;
+  background: rgb(247 251 255 / 90%);
+  box-shadow: 0 8px 22px rgb(38 45 64 / 14%);
+}
+
+.restaurant-player-section {
+  padding: 10px;
+}
+
+.restaurant-player-section > header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.restaurant-player-section > header div {
+  min-width: 0;
+}
+
+.restaurant-player-section > header span {
+  display: block;
+  color: #14718f;
+  font-size: .52rem;
+  font-weight: 1000;
+  letter-spacing: .08em;
+}
+
+.restaurant-player-section > header strong {
+  display: block;
+  color: #172438;
+  font-size: .77rem;
+  line-height: 1.15;
+}
+
+.restaurant-player-section > header b {
+  flex: 0 0 auto;
+  color: #8d5a14;
+  font-size: .59rem;
+  white-space: nowrap;
+}
+
+.restaurant-player-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.restaurant-player-card {
+  display: grid;
+  grid-template-rows: 86px auto auto auto;
+  justify-items: center;
+  min-width: 0;
+  min-height: 148px;
+  padding: 6px 5px 8px;
+  border: 2px solid #75c7e0;
+  border-radius: 14px;
+  background: rgb(255 255 255 / 94%);
+  color: #172438;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.restaurant-player-card > img {
+  width: 78px;
+  height: 86px;
+  object-fit: contain;
+}
+
+.restaurant-player-card > span {
+  color: #177f9f;
+  font-size: .52rem;
+  font-weight: 1000;
+}
+
+.restaurant-player-card > strong {
+  display: -webkit-box;
+  min-width: 0;
+  color: #172438;
+  font-size: .72rem;
+  line-height: 1.08;
+  text-align: center;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.restaurant-player-card > em {
+  margin-top: 4px;
+  color: #8d5a14;
+  font-size: .52rem;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1.12;
+  text-align: center;
+}
+
+.restaurant-player-card.is-completed {
+  border-color: #9ba5b2;
+  background: rgb(241 243 246 / 94%);
+}
+
+.restaurant-player-card.is-completed > em {
+  color: #66717f;
+}
+
+.restaurant-rule-note {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 8px;
+  padding: 8px 10px;
+}
+
+.restaurant-rule-note > strong {
+  flex: 0 0 auto;
+  color: #b5731c;
+  font-size: .62rem;
+  white-space: nowrap;
+}
+
+.restaurant-rule-note > span {
+  color: #34445a;
+  font-size: .56rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.restaurant-modal-host {
+  position: fixed;
+  inset: 0;
+  z-index: 24000;
+  display: grid;
+  place-items: center;
+  padding: max(12px, var(--safe-top)) 10px max(12px, calc(var(--safe-bottom) + 8px));
+}
+
+.restaurant-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgb(15 26 42 / 42%);
+}
+
+.restaurant-menu-modal {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  box-sizing: border-box;
+  width: min(94vw, 610px);
+  max-height: min(82dvh, 690px);
+  overflow: hidden;
+  border: 3px solid #d3a14e;
+  border-radius: 20px;
+  background: #fffaf0;
+  box-shadow: 0 18px 50px rgb(0 0 0 / 28%);
+}
+
+.restaurant-menu-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #ead9b9;
+  background: #fff;
+}
+
+.restaurant-menu-modal__player {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 7px;
+}
+
+.restaurant-menu-modal__player > img {
+  width: 50px;
+  height: 58px;
+  object-fit: contain;
+}
+
+.restaurant-menu-modal__player span {
+  display: block;
+  color: #177f9f;
+  font-size: .50rem;
+  font-weight: 1000;
+}
+
+.restaurant-menu-modal__player strong {
+  display: block;
+  color: #172438;
+  font-size: .78rem;
+  white-space: nowrap;
+}
+
+.restaurant-menu-modal__header > button {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 11px;
+  background: #e9edf2;
+  color: #25354b;
+  font-size: .64rem;
+  font-weight: 1000;
+}
+
+.restaurant-menu-modal__master-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #fff5d9;
+}
+
+.restaurant-menu-modal__master-line > img {
+  width: 48px;
+  height: 52px;
+  object-fit: contain;
+}
+
+.restaurant-menu-modal__master-line > p {
+  margin: 0;
+  color: #332817;
+  font-size: .66rem;
+  font-weight: 900;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+.restaurant-menu-modal__title {
+  display: grid;
+  gap: 1px;
+  padding: 8px 10px 6px;
+}
+
+.restaurant-menu-modal__title > span {
+  color: #8d5a14;
+  font-size: .52rem;
+  font-weight: 1000;
+}
+
+.restaurant-menu-modal__title > strong {
+  color: #172438;
+  font-size: .84rem;
+}
+
+.restaurant-menu-modal__title > small {
+  color: #4c5a6c;
+  font-size: .56rem;
+  font-weight: 800;
+}
+
+.restaurant-set-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 2px 10px 11px;
+}
+
+.restaurant-set-card {
+  display: grid;
+  gap: 5px;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 7px;
+  border: 2px solid #ddb76f;
+  border-radius: 14px;
+  background: #fff;
+  color: #172438;
+  text-align: left;
+}
+
+.restaurant-set-card > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.restaurant-set-card > header strong {
+  font-size: .78rem;
+}
+
+.restaurant-set-card > header b {
+  color: #a56811;
+  font-size: .63rem;
+  white-space: nowrap;
+}
+
+.restaurant-set-card__foods {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.restaurant-set-card__foods figure {
+  display: grid;
+  grid-template-rows: 58px auto;
+  min-width: 0;
+  margin: 0;
+  padding: 3px;
+  border-radius: 9px;
+  background: #f5f7fa;
+}
+
+.restaurant-set-card__foods img {
+  width: 100%;
+  height: 58px;
+  object-fit: contain;
+}
+
+.restaurant-set-card__foods figcaption {
+  min-width: 0;
+  text-align: center;
+}
+
+.restaurant-set-card__foods figcaption > span {
+  display: block;
+  color: #1881a0;
+  font-size: .40rem;
+  font-weight: 1000;
+}
+
+.restaurant-set-card__foods figcaption > strong {
+  display: -webkit-box;
+  color: #26354a;
+  font-size: .50rem;
+  line-height: 1.05;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.restaurant-set-card > small {
+  color: #66717f;
+  font-size: .49rem;
+  font-weight: 800;
+  text-align: right;
+}
+
+.restaurant-menu-completed {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  min-height: 150px;
+  padding: 16px;
+  text-align: center;
+}
+
+.restaurant-menu-completed strong {
+  color: #172438;
+  font-size: .86rem;
+}
+
+.restaurant-menu-completed span {
+  color: #5f6b79;
+  font-size: .62rem;
+}
+
+.restaurant-set-confirm {
+  display: grid;
+  gap: 9px;
+}
+
+.restaurant-set-confirm > header {
+  display: grid;
+  grid-template-columns: 55px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+}
+
+.restaurant-set-confirm > header > img {
+  width: 55px;
+  height: 62px;
+  object-fit: contain;
+}
+
+.restaurant-set-confirm > header span {
+  display: block;
+  color: #16809f;
+  font-size: .52rem;
+  font-weight: 1000;
+}
+
+.restaurant-set-confirm > header strong {
+  display: block;
+  color: #172438;
+  font-size: .76rem;
+}
+
+.restaurant-set-confirm > header b {
+  color: #a56811;
+  font-size: .66rem;
+  white-space: nowrap;
+}
+
+.restaurant-set-confirm__foods {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.restaurant-set-confirm__foods article {
+  display: grid;
+  justify-items: center;
+  min-width: 0;
+  gap: 1px;
+  padding: 5px 3px;
+  border-radius: 10px;
+  background: #f4f7fa;
+  text-align: center;
+}
+
+.restaurant-set-confirm__foods img {
+  width: 64px;
+  max-width: 100%;
+  height: 64px;
+  object-fit: contain;
+}
+
+.restaurant-set-confirm__foods span {
+  color: #16809f;
+  font-size: .43rem;
+  font-weight: 1000;
+}
+
+.restaurant-set-confirm__foods strong {
+  color: #25354a;
+  font-size: .54rem;
+  line-height: 1.05;
+  word-break: keep-all;
+}
+
+.restaurant-set-confirm > p {
+  margin: 0;
+  color: #415066;
+  font-size: .58rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.restaurant-meal-cutin {
+  position: fixed;
+  inset: 0;
+  z-index: 30000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.restaurant-meal-cutin::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgb(19 35 52 / 32%);
+}
+
+.restaurant-meal-cutin.is-show {
+  opacity: 1;
+}
+
+.restaurant-meal-cutin.is-exit {
+  opacity: 0;
+}
+
+.restaurant-meal-cutin__card {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  width: min(88vw, 480px);
+  padding: 18px 16px;
+  border: 3px solid #e1b04d;
+  border-radius: 18px;
+  background: rgb(255 250 237 / 97%);
+  box-shadow: 0 16px 45px rgb(0 0 0 / 24%);
+  text-align: center;
+}
+
+.restaurant-meal-cutin__card span {
+  color: #b17317;
+  font-size: .58rem;
+  font-weight: 1000;
+  letter-spacing: .12em;
+}
+
+.restaurant-meal-cutin__card strong {
+  color: #16263a;
+  font-size: .98rem;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+.restaurant-meal-cutin__card small {
+  color: #3f5065;
+  font-size: .62rem;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+@media (max-width: 430px) {
+  .restaurant-screen {
+    padding-inline: 8px;
+    border-radius: 17px;
+  }
+
+  .restaurant-master-stage {
+    grid-template-columns: 82px minmax(0, 1fr);
+    gap: 7px;
+    padding: 9px 8px 43px;
+  }
+
+  .restaurant-master-stage__character > img {
+    width: 76px;
+    height: 96px;
+  }
+
+  .restaurant-master-stage__character > strong {
+    font-size: .72rem;
+  }
+
+  .restaurant-master-stage__speech {
+    padding: 8px 9px;
+  }
+
+  .restaurant-master-stage__speech > p {
+    font-size: .66rem;
+  }
+
+  .restaurant-utensil-display img {
+    width: 39px;
+    height: 34px;
+  }
+
+  .restaurant-player-grid {
+    gap: 5px;
+  }
+
+  .restaurant-player-card {
+    grid-template-rows: 72px auto auto auto;
+    min-height: 134px;
+    padding-inline: 3px;
+  }
+
+  .restaurant-player-card > img {
+    width: 67px;
+    height: 72px;
+  }
+
+  .restaurant-player-card > strong {
+    font-size: .64rem;
+  }
+
+  .restaurant-player-card > em {
+    font-size: .46rem;
+  }
+
+  .restaurant-rule-note {
+    align-items: start;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .restaurant-menu-modal {
+    width: 96vw;
+    max-height: 84dvh;
+  }
+
+  .restaurant-set-card__foods figure {
+    grid-template-rows: 51px auto;
+  }
+
+  .restaurant-set-card__foods img {
+    height: 51px;
+  }
+
+  .restaurant-set-card__foods figcaption > strong {
+    font-size: .45rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .restaurant-meal-cutin {
+    transition: none;
+  }
+}
+
+/* Dining route itself also uses the cafeteria image, so no retired kitchen
+   background is visible around the restaurant panel. */
+.screen--cooking {
+  background: url("../back/kitroom.png") center / cover fixed, #e8edf1 !important;
+}
+
+.restaurant-screen.has-modal-open {
+  overflow: visible;
+}
