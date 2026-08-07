@@ -72,13 +72,13 @@ import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=57";
+} from "./management.js?v=59";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
 } from "./tournament-bridge.js?v=56";
 
-export const APP_VERSION = "mobbr-main-app-4.0.5";
+export const APP_VERSION = "mobbr-main-app-4.0.6";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -3137,6 +3137,10 @@ export function createMainApp({
       }
     }
 
+    // NEW GAME always starts from the title route, even if a previous
+    // CONTINUE attempt failed while restoring another saved screen.
+    route = ROUTES.title;
+    titleSettingsOpen = false;
     wizardStep = 0;
     wizardData = createInitialWizardData();
     wizardError = "";
@@ -3259,6 +3263,13 @@ export function createMainApp({
       );
     } catch (error) {
       hideLoading();
+      // A renderer failure must never leave the internal route pointing at
+      // the failed screen.  Otherwise the still-visible title buttons can
+      // reopen the same broken route and NEW GAME appears unresponsive.
+      route = ROUTES.title;
+      titleSettingsOpen = false;
+      root.dataset.mode = "";
+      render();
       await openAlert({
         title: "CONTINUEできません",
         body: `<p>${escapeHtml(error.message)}</p>`,
@@ -3436,7 +3447,9 @@ export function createMainApp({
       selectedTeamPlayerId =
         actionElement.dataset.playerId;
       developmentMode = "weapon";
-      navigate(ROUTES.ability);
+      // Navigate through the equipment alias so navigate() preserves the
+      // requested WEAPON development tab instead of resetting to PLAYER.
+      navigate(ROUTES.equipment);
       return;
     }
     if (action === "open-room-select") {
@@ -4855,7 +4868,10 @@ const JAPANESE_ORPHAN_GUARD_SELECTOR = [
   ".restaurant-master-stage__speech p",
   ".restaurant-rule-note",
   ".restaurant-set-confirm > p",
-  ".placeholder-panel__text"
+  ".placeholder-panel__text",
+  ".modal-card__title",
+  ".modal-card__body p",
+  ".toast-root p"
 ].join(",");
 
 function protectJapaneseOrphanTail(element) {
@@ -4935,6 +4951,8 @@ function bootstrap() {
   });
 
   installJapaneseOrphanGuard(root);
+  installJapaneseOrphanGuard(modalRoot);
+  installJapaneseOrphanGuard(toastRoot);
   app.start();
   globalThis.mobBrApp = app;
 }

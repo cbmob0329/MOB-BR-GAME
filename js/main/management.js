@@ -103,7 +103,7 @@ import {
 } from "../../data/dining-data.js?v=56";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-3.0.2";
+  "mobbr-management-feature-3.0.3";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -4447,6 +4447,207 @@ export function renderNewsManagement(snapshot) {
     </section>`;
 }
 
+
+const ROOM_INVENTORY_CATEGORIES = Object.freeze([
+  { id: "card", label: "CARD", icon: "menu/COL.png", roomTypes: ["Card"] },
+  { id: "badge", label: "BADGE", icon: "Play/b1.png", roomTypes: ["Badge"] },
+  { id: "pack", label: "PACK", icon: "item/vol1.png", roomTypes: ["Card Pack", "Badge Pack"] },
+  { id: "trophy", label: "TROPHY", icon: "icon/champ.png", roomTypes: ["Trophy", "Medal"] },
+  { id: "item", label: "ITEM", icon: "icon/item.png", roomTypes: ["Item", "Plush", "Poster", "Furniture", "Company Goods"] },
+  { id: "skin", label: "SKIN", icon: "menu/eq.png", roomTypes: ["Skin"] },
+]);
+
+function roomPlacementControlsTemplate(roomId, placementId) {
+  const attrs = `data-room-id="${escapeAttribute(roomId)}" data-placement-id="${escapeAttribute(placementId)}"`;
+  return `
+    <div class="room-placement__controls" aria-label="配置アイテム操作">
+      <button type="button" data-action="room-scale-down" ${attrs}>−</button>
+      <button type="button" data-action="room-scale-up" ${attrs}>＋</button>
+      <button type="button" data-action="room-flip" ${attrs}>反転</button>
+      <button type="button" data-action="room-center" ${attrs}>中央</button>
+      <button type="button" data-action="room-front" ${attrs}>手前</button>
+      <button type="button" data-action="room-back" ${attrs}>奥</button>
+      <button type="button" class="is-danger" data-action="room-remove" ${attrs}>しまう</button>
+    </div>
+  `;
+}
+
+export function renderRoomManagement(snapshot) {
+  const unlocked = new Set(snapshot.company.unlockedRoomIds ?? ["room01"]);
+  let activeRoomId = snapshot.company.activeRoomId ?? "room01";
+  if (!unlocked.has(activeRoomId)) {
+    activeRoomId = unlocked.has("room01") ? "room01" : [...unlocked][0];
+  }
+  const activeRoom = getRoomMaster(activeRoomId);
+  const homeRoomId = snapshot.company.homeRoomId ?? activeRoomId;
+  const layout = Array.isArray(snapshot.collections.roomLayouts?.[activeRoomId])
+    ? snapshot.collections.roomLayouts[activeRoomId]
+    : [];
+
+  const availableItems = getRoomAvailableItems(snapshot);
+  const defaultCategory = ROOM_INVENTORY_CATEGORIES.find((category) =>
+    availableItems.some((item) => category.roomTypes.includes(item.roomType)),
+  )?.id ?? ROOM_INVENTORY_CATEGORIES[0].id;
+  const selectedCategory = ROOM_INVENTORY_CATEGORIES.some(
+    (entry) => entry.id === MANAGEMENT_VIEW_STATE.roomCategory,
+  )
+    ? MANAGEMENT_VIEW_STATE.roomCategory
+    : defaultCategory;
+  MANAGEMENT_VIEW_STATE.roomCategory = selectedCategory;
+  const category = ROOM_INVENTORY_CATEGORIES.find((entry) => entry.id === selectedCategory);
+  const visibleItems = availableItems.filter((item) =>
+    category.roomTypes.includes(item.roomType),
+  );
+
+  if (
+    MANAGEMENT_VIEW_STATE.roomSelectedItem &&
+    !visibleItems.some(
+      (item) => JSON.stringify(item.itemRef) === MANAGEMENT_VIEW_STATE.roomSelectedItem,
+    )
+  ) {
+    MANAGEMENT_VIEW_STATE.roomSelectedItem = null;
+  }
+
+  return `
+    <section class="management-summary room-management-summary">
+      <strong>ROOM SELECT</strong>
+      <span>部屋を選択し、所持コレクションを自由に配置できます。</span>
+    </section>
+
+    <section class="room-list room-list--compact" aria-label="部屋一覧">
+      ${ROOM_MASTER.map((room) => {
+        const isUnlocked = unlocked.has(room.roomId);
+        const rankReady = snapshot.company.rankIndex >= room.unlockRankIndex;
+        const isActive = activeRoomId === room.roomId;
+        const isHome = homeRoomId === room.roomId;
+        let actionMarkup = "";
+        if (isActive) {
+          actionMarkup = `<button type="button" disabled>選択中</button>`;
+        } else if (isUnlocked) {
+          actionMarkup = `<button type="button" data-action="activate-room" data-room-id="${escapeAttribute(room.roomId)}">入室</button>`;
+        } else if (rankReady) {
+          actionMarkup = `<button type="button" data-action="purchase-room" data-room-id="${escapeAttribute(room.roomId)}">${formatNumber(room.priceCoin)} COIN</button>`;
+        } else {
+          actionMarkup = `<button type="button" disabled>RANK ${formatNumber(room.unlockRankIndex)}</button>`;
+        }
+        return `
+          <article class="room-list-card ${isActive ? "is-active" : ""} ${isHome ? "is-home" : ""} ${!isUnlocked && !rankReady ? "is-locked" : ""}">
+            <img src="${escapeAttribute(room.image)}" alt="${escapeAttribute(room.name)}">
+            <div>
+              <span>${isUnlocked ? "OPEN" : rankReady ? "AVAILABLE" : "LOCKED"}</span>
+              <h3>${escapeHtml(room.name)}</h3>
+            </div>
+            ${actionMarkup}
+          </article>
+        `;
+      }).join("")}
+    </section>
+
+    <section class="room-inventory-console">
+      <header>
+        <div>
+          <span>COLLECTION STORAGE</span>
+          <strong>飾るアイテムを選択</strong>
+        </div>
+        <small>${formatNumber(availableItems.length)} ITEMS</small>
+      </header>
+      <nav class="room-category-strip" aria-label="コレクションカテゴリ">
+        ${ROOM_INVENTORY_CATEGORIES.map((entry) => `
+          <button
+            type="button"
+            class="${selectedCategory === entry.id ? "is-active" : ""}"
+            data-action="select-room-category"
+            data-room-category="${escapeAttribute(entry.id)}"
+          >
+            <img src="${escapeAttribute(entry.icon)}" alt="">
+            <span>${escapeHtml(entry.label)}</span>
+          </button>
+        `).join("")}
+      </nav>
+      ${visibleItems.length ? `
+        <div class="room-item-strip" data-scroll-memory="room-item-strip">
+          ${visibleItems.map((item) => {
+            const value = JSON.stringify(item.itemRef);
+            const selected = MANAGEMENT_VIEW_STATE.roomSelectedItem === value;
+            return `
+              <button
+                type="button"
+                class="${selected ? "is-selected" : ""}"
+                data-action="select-room-item"
+                data-room-item="${escapeAttribute(value)}"
+              >
+                <img src="${escapeAttribute(item.image)}" alt="">
+                <strong>${escapeHtml(item.name)}</strong>
+              </button>
+            `;
+          }).join("")}
+        </div>
+      ` : `
+        <div class="room-inventory-empty">
+          <strong>このカテゴリの所持品はありません</strong>
+          <small>コレクションや商品を入手すると表示されます。</small>
+        </div>
+      `}
+      <div class="room-inventory-actions">
+        <button
+          type="button"
+          class="primary-button"
+          data-action="add-room-item"
+          data-room-id="${escapeAttribute(activeRoomId)}"
+          ${MANAGEMENT_VIEW_STATE.roomSelectedItem ? "" : "disabled"}
+        >
+          選択したアイテムを飾る
+        </button>
+        <button
+          type="button"
+          class="secondary-button"
+          data-action="set-home-room"
+          data-room-id="${escapeAttribute(activeRoomId)}"
+          ${homeRoomId === activeRoomId ? "disabled" : ""}
+        >
+          ${homeRoomId === activeRoomId ? "HOME設定中" : "この部屋をHOMEに設定"}
+        </button>
+      </div>
+    </section>
+
+    <section class="room-editor-controls">
+      <div class="management-summary">
+        <strong>${escapeHtml(activeRoom.name)}</strong>
+        <span>配置 ${formatNumber(layout.length)} / ${formatNumber(ROOM_PLACEMENT_RULES.maximumPlacementsPerRoom)}</span>
+      </div>
+      <p class="room-drag-note">アイテムはドラッグで移動できます。タップするとサイズ・前後・反転・収納を変更できます。</p>
+    </section>
+
+    <section
+      class="room-canvas"
+      data-room-canvas
+      data-room-id="${escapeAttribute(activeRoomId)}"
+      aria-label="${escapeAttribute(activeRoom.name)} 配置エリア"
+    >
+      <img class="room-canvas__background" src="${escapeAttribute(activeRoom.image)}" alt="">
+      ${layout.length
+        ? [...layout]
+            .sort((a, b) => Number(a.z ?? 0) - Number(b.z ?? 0))
+            .map((placement) => {
+              const selected = MANAGEMENT_VIEW_STATE.roomSelectedPlacementId === placement.placementId;
+              return `
+                <div
+                  class="room-placement ${selected ? "is-selected" : ""}"
+                  data-room-placement
+                  data-placement-id="${escapeAttribute(placement.placementId)}"
+                  style="left:${Number(placement.x)}%;top:${Number(placement.y)}%;z-index:${Math.max(2, Number(placement.z ?? 1) + 2)};--placement-scale:${Number(placement.scale ?? 1)};--placement-flip:${placement.flipped ? -1 : 1};"
+                >
+                  <img src="${escapeAttribute(placement.image)}" alt="${escapeAttribute(placement.name)}">
+                  ${selected ? roomPlacementControlsTemplate(activeRoomId, placement.placementId) : ""}
+                </div>
+              `;
+            })
+            .join("")
+        : `<p class="room-canvas__empty">上のコレクションからアイテムを選び、「飾る」を押してください。</p>`}
+    </section>
+  `;
+}
+
 export function renderManagementSection(snapshot, route) {
   switch (route) {
     case "train":
@@ -6732,6 +6933,21 @@ export function createManagementController({
       const value =
         MANAGEMENT_VIEW_STATE.roomSelectedItem;
       if (!value) {
+        return true;
+      }
+      const displayItem = getRoomAvailableItems(
+        stateManager.getSnapshot(),
+      ).find(
+        (item) =>
+          JSON.stringify(item.itemRef) ===
+          value,
+      );
+      if (!(await openConfirm({
+        title: `${displayItem?.name ?? "選択したアイテム"}を飾りますか？`,
+        body: "<p>配置後はドラッグで位置を変更できます。</p>",
+        confirmLabel: "飾る",
+        cancelLabel: "いいえ",
+      }))) {
         return true;
       }
       try {
