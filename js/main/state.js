@@ -19,11 +19,11 @@ import {
   getCompanyRankData,
   rankToWeaponValue,
   validateGameDate,
-} from "../../data/game-data.js?v=54";
+} from "../../data/game-data.js?v=55";
 import {
   BATTLE_CONFIG_VERSION,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=54";
+} from "../../data/battle-config.js?v=55";
 import {
   TRAINING_DATA_VERSION,
 } from "../../data/training-data.js";
@@ -43,10 +43,10 @@ import {
   RETIRED_BADGE_COLLECTION_IDS,
   RETIRED_CARD_COLLECTION_IDS,
   ROOM_MASTER_VERSION,
-} from "../../data/collection-data.js?v=54";
+} from "../../data/collection-data.js?v=55";
 import {
   CPU_ROSTER_47_DATA_VERSION,
-} from "../../data/cpu-roster-47-data.js?v=54";
+} from "../../data/cpu-roster-47-data.js?v=55";
 import {
   STRATEGY_DATA_VERSION,
   STRATEGY_MASTER_VERSION,
@@ -61,7 +61,7 @@ import {
   motivationLevelIndex,
   normalizeMotivationRecord,
   shiftMotivation,
-} from "../../data/motivation-data.js?v=54";
+} from "../../data/motivation-data.js?v=55";
 import {
   EMPLOYEE_DATA_VERSION,
   EMPLOYEE_MASTER,
@@ -74,7 +74,7 @@ import {
   getEmployeeRankData,
   getEmployeeWeeklyCoinBonusRate,
   normalizeEmployeeRecord,
-} from "../../data/employee-data.js?v=54";
+} from "../../data/employee-data.js?v=55";
 import {
   COOKING_DATA_VERSION,
   COOKING_STATE_SCHEMA_VERSION,
@@ -90,7 +90,7 @@ import {
   refreshWeeklyIngredientStockToDraft,
   validateCookingState,
   createFoodVariant,
-} from "../../data/cooking-data.js?v=54";
+} from "../../data/cooking-data.js?v=55";
 import {
   DINING_DATA_VERSION,
   DINING_RULES,
@@ -102,11 +102,11 @@ import {
   normalizeDiningState,
   refreshDiningWeekToDraft,
   validateDiningState,
-} from "../../data/dining-data.js?v=54";
+} from "../../data/dining-data.js?v=55";
 import {
   SPECIAL_ABILITY_50_VERSION,
   normalizeGeneration50SpecialAbilities,
-} from "../../data/special-ability-50-data.js?v=54";
+} from "../../data/special-ability-50-data.js?v=55";
 
 export const SAVE_SCHEMA_VERSION = "mobbr-save-3.0.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";

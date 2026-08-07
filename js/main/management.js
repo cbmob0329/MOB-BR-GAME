@@ -13,12 +13,12 @@ import {
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=54";
+} from "../../data/game-data.js?v=55";
 import {
   isCasualTournamentType,
   resolveCpuTeamMaster,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=54";
+} from "../../data/circuit-data.js?v=55";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
@@ -72,7 +72,7 @@ import {
   purchaseDiningSetMealToDraft,
   serveDiningMealToDraft,
   settleDiningMealsToDraft,
-} from "./state.js?v=54";
+} from "./state.js?v=55";
 import {
   COOKING_RULES,
   COOKING_SCREEN_ASSETS,
@@ -89,10 +89,10 @@ import {
   getRecipeCandidates,
   isCookingJobReady,
   startCookingJobToDraft,
-} from "../../data/cooking-data.js?v=54";
+} from "../../data/cooking-data.js?v=55";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=54";
+} from "./tournament-bridge.js?v=55";
 import {
   DINING_EATING_SPEECHES,
   DINING_HUNGRY_SPEECHES,
@@ -100,10 +100,10 @@ import {
   diningWeekKey,
   getDiningMasterSpeech,
   getWeeklyDiningSets,
-} from "../../data/dining-data.js?v=54";
+} from "../../data/dining-data.js?v=55";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-3.0.0";
+  "mobbr-management-feature-3.0.1";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;
@@ -3279,13 +3279,14 @@ function restaurantPlayerCard(
   player,
   snapshot,
 ) {
-  const completed = snapshot.dining?.completedCharacterIds?.includes(player.playerId) === true;
+  const characterId = player.characterId;
+  const completed = snapshot.dining?.completedCharacterIds?.includes(characterId) === true;
   return `
     <button
       type="button"
       class="restaurant-player-card ${completed ? "is-completed" : ""}"
       data-action="open-dining-menu"
-      data-character-id="${escapeAttribute(player.playerId)}"
+      data-character-id="${escapeAttribute(characterId)}"
       data-character-type="player"
       aria-haspopup="dialog"
       aria-label="${escapeAttribute(player.name)}の今週の定食メニューを開く"
