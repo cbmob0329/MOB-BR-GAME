@@ -27,7 +27,7 @@ import {
   createGameStateManager,
   grantEmployeeCookingPointsToDraft,
   resolveWeeklyEventToDraft,
-} from "./state.js?v=60";
+} from "./state.js?v=61";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -73,18 +73,18 @@ import {
 import {
   formatWeeklyEventText,
   getWeeklyEvent,
-} from "../../data/weekly-event-data.js?v=60";
+} from "../../data/weekly-event-data.js?v=61";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=60";
+} from "./management.js?v=61";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=60";
+} from "./tournament-bridge.js?v=61";
 
-export const APP_VERSION = "mobbr-main-app-4.1.0";
+export const APP_VERSION = "mobbr-main-app-4.1.1";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -2693,8 +2693,32 @@ export function createMainApp({
         <button type="button" class="weekly-event-next" data-weekly-event-next>次へ</button>
       </div>
     `;
+    // Generation 61: iOS Safari could composite the backdrop-filter layer
+    // above the actual event stage, leaving only a dark blue screen visible.
+    // Keep the event background on the overlay itself and disable the separate
+    // backdrop node so the dialogue UI can never be hidden behind it.
+    const backdrop = overlay.querySelector(".weekly-event-overlay__backdrop");
+    if (backdrop) {
+      backdrop.hidden = true;
+      backdrop.style.display = "none";
+    }
+    overlay.style.background = speaker.rare
+      ? "radial-gradient(circle at 50% 35%, rgba(255,224,106,.25), transparent 44%), rgba(10,8,12,.97)"
+      : "radial-gradient(circle at 50% 35%, rgba(48,171,255,.20), transparent 42%), rgba(4,8,18,.97)";
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "stretch";
+    overlay.style.justifyContent = "center";
     document.body.append(overlay);
-    requestAnimationFrame(() => overlay.classList.add("is-active"));
+
+    // Activate synchronously.  This also avoids a blank screen if the browser
+    // throttles requestAnimationFrame while a modal has just been dismissed.
+    overlay.classList.add("is-active");
+    const stageElement = overlay.querySelector(".weekly-event-stage");
+    if (stageElement) {
+      stageElement.style.visibility = "visible";
+      stageElement.style.opacity = "1";
+      stageElement.style.zIndex = "5";
+    }
     return { overlay, speaker, context };
   }
 
