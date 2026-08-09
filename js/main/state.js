@@ -115,7 +115,7 @@ import {
   getWeeklyEvent,
   getWeeklyEventsByRarity,
   weightedOutcome,
-} from "../../data/weekly-event-data.js?v=63";
+} from "../../data/weekly-event-data.js?v=64";
 
 export const SAVE_SCHEMA_VERSION = "mobbr-save-3.1.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
@@ -2029,20 +2029,17 @@ function weeklyEventMonthlyTarget(draft) {
 
 function weeklyEventPlannedWeeks(draft, targetCount) {
   const monthKey = weeklyEventMonthKey(draft.gameDate);
-  // Generation 63: every month gets its first event in week 1 or 2 so the
-  // player never spends almost an entire month wondering whether events work.
-  // A two-event month gets the second event in week 3 or 4.  The exact weeks
-  // are still deterministic per save/month, so CONTINUE never re-rolls them.
-  const firstWeek = deterministicEventUnit(
-    `${draft.saveSlotId}:${monthKey}:monthly-first-half`,
-  ) < 0.5 ? 1 : 2;
+  // Generation 64: the first event of every month is always due in week 1.
+  // This makes the feature immediately visible and testable.  If an older
+  // save has already passed week 1 without resolving an event, the quota
+  // recovery in shouldQueueRegularWeeklyEvent fires it at the next week start.
   if (Math.max(1, Math.min(2, targetCount)) === 1) {
-    return [firstWeek];
+    return [1];
   }
   const secondWeek = deterministicEventUnit(
     `${draft.saveSlotId}:${monthKey}:monthly-second-half`,
   ) < 0.5 ? 3 : 4;
-  return [firstWeek, secondWeek];
+  return [1, secondWeek];
 }
 
 function weeklyEventMonthlyResolvedCount(weekly, gameDate) {

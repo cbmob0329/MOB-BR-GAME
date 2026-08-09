@@ -28,7 +28,7 @@ import {
   grantEmployeeCookingPointsToDraft,
   queueWeeklyEventToDraft,
   resolveWeeklyEventToDraft,
-} from "./state.js?v=63";
+} from "./state.js?v=64";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -74,16 +74,16 @@ import {
 import {
   formatWeeklyEventText,
   getWeeklyEvent,
-} from "../../data/weekly-event-data.js?v=63";
+} from "../../data/weekly-event-data.js?v=64";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=63";
+} from "./management.js?v=64";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=63";
+} from "./tournament-bridge.js?v=64";
 
 export const APP_VERSION = "mobbr-main-app-4.1.1";
 
@@ -2656,6 +2656,26 @@ export function createMainApp({
     };
   }
 
+  function openWeeklyEventHost() {
+    // Reuse the already proven modal root instead of attaching event layers
+    // directly to <body>.  iOS Safari has shown compositor/stacking issues
+    // with full-screen body overlays in earlier generations.
+    modalRoot.innerHTML = "";
+    modalRoot.classList.add("is-open", "weekly-event-host");
+    modalRoot.style.zIndex = "70000";
+    modalRoot.style.pointerEvents = "auto";
+  }
+
+  function closeWeeklyEventHost() {
+    modalRoot.innerHTML = "";
+    modalRoot.classList.remove("weekly-event-host");
+    if (!modalResolver) {
+      modalRoot.classList.remove("is-open");
+    }
+    modalRoot.style.zIndex = "";
+    modalRoot.style.pointerEvents = "";
+  }
+
   function createWeeklyEventOverlay(event, snapshot, pending) {
     const speaker = weeklyEventSpeakerMeta(event);
     const context = weeklyEventContext(snapshot, pending);
@@ -2710,7 +2730,8 @@ export function createMainApp({
     overlay.style.display = "flex";
     overlay.style.alignItems = "stretch";
     overlay.style.justifyContent = "center";
-    document.body.append(overlay);
+    openWeeklyEventHost();
+    modalRoot.append(overlay);
 
     // Activate synchronously.  This also avoids a blank screen if the browser
     // throttles requestAnimationFrame while a modal has just been dismissed.
@@ -2869,14 +2890,18 @@ export function createMainApp({
       <div class="weekly-event-result__rows">${weeklyEventRewardRows(reward)}</div>
       <button type="button" data-weekly-event-result-next>NEXT</button>
     `;
-    document.body.append(overlay);
-    requestAnimationFrame(() => overlay.classList.add("is-active"));
+    openWeeklyEventHost();
+    modalRoot.append(overlay);
+    // Activate synchronously. The event result uses the same reliable host as
+    // the dialogue stage and therefore cannot be lost between body layers.
+    overlay.classList.add("is-active");
     await new Promise((resolve) => {
       overlay.querySelector("[data-weekly-event-result-next]")?.addEventListener("click", resolve, { once: true });
     });
     overlay.classList.add("is-exit");
     await waitForUi(220);
     overlay.remove();
+    closeWeeklyEventHost();
     stateManager.transact("weekly_event_reward_presented", (draft) => {
       clearPendingWeeklyEventRewardToDraft(draft);
     });
@@ -2910,8 +2935,9 @@ export function createMainApp({
     }
 
     weeklyEventPresentationOpen = true;
-    const stage = createWeeklyEventOverlay(event, snapshot, pending);
+    let stage = null;
     try {
+      stage = createWeeklyEventOverlay(event, snapshot, pending);
       await showWeeklyEventLines(stage, event.lines ?? []);
       let choiceId = null;
       if (Array.isArray(event.choices) && event.choices.length > 0) {
@@ -2922,11 +2948,16 @@ export function createMainApp({
       );
       await showWeeklyEventLines(stage, tx.result?.resultLines ?? []);
       stage.overlay.classList.add("is-exit");
-      await waitForUi(220);
+      await waitForUi(180);
       stage.overlay.remove();
-      await showPendingWeeklyEventRewardPresentation();
+      stage = null;
+      const rewardShown = await showPendingWeeklyEventRewardPresentation();
+      if (!rewardShown) {
+        closeWeeklyEventHost();
+      }
     } catch (error) {
-      stage.overlay.remove();
+      stage?.overlay?.remove();
+      closeWeeklyEventHost();
       await openAlert({
         title: "イベントを進行できません",
         body: `<p>${escapeHtml(error?.message ?? "イベント処理に失敗しました。")}</p>`,
@@ -3109,6 +3140,15 @@ export function createMainApp({
           draft.ui.pendingMotivationEvents = [];
           draft.ui.lastScreen = ROUTES.home;
           draft.ui.lastSubScreen = null;
+
+          // Generation 64: the weekly event decision is finalized by the
+          // same transaction as the player's 「今週を始める」 confirmation.
+          // This avoids relying on a later render/microtask to create the
+          // event and guarantees that a due event already exists before the
+          // week-start modal is allowed to finish.
+          queueWeeklyEventToDraft(draft, {
+            retryCurrentWeek: true,
+          });
         },
       );
     } finally {
