@@ -115,7 +115,7 @@ import {
   getWeeklyEvent,
   getWeeklyEventsByRarity,
   weightedOutcome,
-} from "../../data/weekly-event-data.js?v=62";
+} from "../../data/weekly-event-data.js?v=63";
 
 export const SAVE_SCHEMA_VERSION = "mobbr-save-3.1.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
@@ -2029,15 +2029,20 @@ function weeklyEventMonthlyTarget(draft) {
 
 function weeklyEventPlannedWeeks(draft, targetCount) {
   const monthKey = weeklyEventMonthKey(draft.gameDate);
-  return [1, 2, 3, 4]
-    .map((week) => ({
-      week,
-      score: deterministicEventUnit(`${draft.saveSlotId}:${monthKey}:monthly-week:${week}`),
-    }))
-    .sort((a, b) => a.score - b.score || a.week - b.week)
-    .slice(0, Math.max(1, Math.min(4, targetCount)))
-    .map((entry) => entry.week)
-    .sort((a, b) => a - b);
+  // Generation 63: every month gets its first event in week 1 or 2 so the
+  // player never spends almost an entire month wondering whether events work.
+  // A two-event month gets the second event in week 3 or 4.  The exact weeks
+  // are still deterministic per save/month, so CONTINUE never re-rolls them.
+  const firstWeek = deterministicEventUnit(
+    `${draft.saveSlotId}:${monthKey}:monthly-first-half`,
+  ) < 0.5 ? 1 : 2;
+  if (Math.max(1, Math.min(2, targetCount)) === 1) {
+    return [firstWeek];
+  }
+  const secondWeek = deterministicEventUnit(
+    `${draft.saveSlotId}:${monthKey}:monthly-second-half`,
+  ) < 0.5 ? 3 : 4;
+  return [firstWeek, secondWeek];
 }
 
 function weeklyEventMonthlyResolvedCount(weekly, gameDate) {
@@ -2060,9 +2065,13 @@ function shouldQueueRegularWeeklyEvent(draft, weekly, force = false) {
   const plannedWeeks = weeklyEventPlannedWeeks(draft, targetCount);
   if (plannedWeeks.includes(currentWeek)) return true;
 
-  // Compatibility/catch-up rule: old saves may already have passed a planned
-  // event week.  If the remaining weeks are just enough to reach this month's
-  // quota, force the event now so every month still receives 1-2 events.
+  // Generation 63 recovery: if a buggy older build passed an event week
+  // without showing/resolving it, fire the missing event on the next available
+  // week instead of waiting until the end of the month.
+  const plannedEventsDue = plannedWeeks.filter((week) => week <= currentWeek).length;
+  if (resolvedCount < plannedEventsDue) return true;
+
+  // Final quota safety net for unusual migrated saves.
   const eventsNeeded = targetCount - resolvedCount;
   const remainingWeeksIncludingCurrent = 5 - currentWeek;
   return eventsNeeded >= remainingWeeksIncludingCurrent;
@@ -2091,13 +2100,23 @@ function selectWeeklyEventFromPool(draft, pool, seed) {
 
 export function queueWeeklyEventToDraft(
   draft,
-  { clock = () => new Date(), force = false } = {},
+  {
+    clock = () => new Date(),
+    force = false,
+    retryCurrentWeek = false,
+  } = {},
 ) {
   assertPlainObject(draft, "Draft state");
   const weekly = ensureWeeklyEventSystemToDraft(draft);
   const currentDateKey = dateKey(draft.gameDate);
   if (!force && weekly.lastScheduledDateKey === currentDateKey) {
-    return deepFreeze({ queued: false, reason: "already_scheduled", dateKey: currentDateKey });
+    // Generation 62 could persist "scheduled / no event" and then fail to
+    // present an event even when the monthly quota required one.  Generation
+    // 63 may safely retry that same game week, but only when this week is
+    // actually part of the monthly plan (or is needed for quota catch-up).
+    if (!retryCurrentWeek || !shouldQueueRegularWeeklyEvent(draft, weekly, false)) {
+      return deepFreeze({ queued: false, reason: "already_scheduled", dateKey: currentDateKey });
+    }
   }
   if (draft.ui.pendingWeeklyEvent) {
     return deepFreeze({ queued: false, reason: "pending_event_exists", dateKey: currentDateKey });

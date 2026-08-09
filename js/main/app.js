@@ -26,8 +26,9 @@ import {
   clearPendingWeeklyEventRewardToDraft,
   createGameStateManager,
   grantEmployeeCookingPointsToDraft,
+  queueWeeklyEventToDraft,
   resolveWeeklyEventToDraft,
-} from "./state.js?v=62";
+} from "./state.js?v=63";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -73,16 +74,16 @@ import {
 import {
   formatWeeklyEventText,
   getWeeklyEvent,
-} from "../../data/weekly-event-data.js?v=62";
+} from "../../data/weekly-event-data.js?v=63";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=62";
+} from "./management.js?v=63";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=62";
+} from "./tournament-bridge.js?v=63";
 
 export const APP_VERSION = "mobbr-main-app-4.1.1";
 
@@ -1745,6 +1746,7 @@ export function createMainApp({
   let weekStartPresentationOpen = false;
   let employeeRankPresentationOpen = false;
   let weeklyEventPresentationOpen = false;
+  let weeklyEventRecoveryDateKey = null;
   let progressionQueue =
     Promise.resolve();
   let toastTimer = null;
@@ -3112,10 +3114,61 @@ export function createMainApp({
     } finally {
       weekStartPresentationOpen = false;
     }
-    queueMicrotask(
-      showPendingWeeklyEventPresentation,
-    );
+
+    // Generation 63: do not leave event presentation to a detached microtask
+    // immediately after the week-start modal closes.  On iOS this could race
+    // with the modal teardown/render pass and the event would appear to never
+    // occur.  Re-check the persisted monthly schedule, repair a missed v62
+    // schedule if necessary, then present the event in the same async chain.
+    try {
+      const afterWeekStart = stateManager.getSnapshot();
+      if (
+        afterWeekStart &&
+        !afterWeekStart.ui?.pendingWeeklyEvent &&
+        !afterWeekStart.ui?.pendingWeeklyEventReward
+      ) {
+        stateManager.transact(
+          "weekly_event_week_start_recovery",
+          (draft) => queueWeeklyEventToDraft(draft, {
+            retryCurrentWeek: true,
+          }),
+        );
+      }
+      await showPendingWeeklyEventPresentation();
+    } catch (error) {
+      console.error("Weekly event recovery failed after week start.", error);
+    }
     return true;
+  }
+
+  async function recoverCurrentWeekWeeklyEventPresentation() {
+    const snapshot = stateManager.getSnapshot();
+    if (!snapshot || snapshot.ui?.pendingWeekStart || homeRoomPreviewOpen) {
+      return false;
+    }
+    const recoveryKey = `${snapshot.gameDate.year}-${snapshot.gameDate.month}-${snapshot.gameDate.week}`;
+    if (weeklyEventRecoveryDateKey === recoveryKey) {
+      return false;
+    }
+    weeklyEventRecoveryDateKey = recoveryKey;
+
+    try {
+      if (
+        !snapshot.ui?.pendingWeeklyEvent &&
+        !snapshot.ui?.pendingWeeklyEventReward
+      ) {
+        stateManager.transact(
+          "weekly_event_current_week_recovery",
+          (draft) => queueWeeklyEventToDraft(draft, {
+            retryCurrentWeek: true,
+          }),
+        );
+      }
+      return await showPendingWeeklyEventPresentation();
+    } catch (error) {
+      console.error("Weekly event current-week recovery failed.", error);
+      return false;
+    }
   }
 
   function getSafeSnapshot() {
@@ -3376,6 +3429,12 @@ export function createMainApp({
       ) {
         queueMicrotask(
           showPendingEmployeeRankUpPresentation,
+        );
+      } else if (!homeRoomPreviewOpen) {
+        // Also repair a missed Generation 62 event when CONTINUE opens a
+        // week that has already passed its week-start modal.
+        queueMicrotask(
+          recoverCurrentWeekWeeklyEventPresentation,
         );
       }
       return;
