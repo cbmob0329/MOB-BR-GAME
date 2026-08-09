@@ -23,9 +23,11 @@ import {
   SaveError,
   SaveNotFoundError,
   clearPendingEmployeeRankUpsToDraft,
+  clearPendingWeeklyEventRewardToDraft,
   createGameStateManager,
   grantEmployeeCookingPointsToDraft,
-} from "./state.js?v=56";
+  resolveWeeklyEventToDraft,
+} from "./state.js?v=60";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -69,16 +71,20 @@ import {
   getTotalEmployeeHpBonus,
 } from "../../data/employee-data.js?v=56";
 import {
+  formatWeeklyEventText,
+  getWeeklyEvent,
+} from "../../data/weekly-event-data.js?v=60";
+import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=59";
+} from "./management.js?v=60";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=56";
+} from "./tournament-bridge.js?v=60";
 
-export const APP_VERSION = "mobbr-main-app-4.0.6";
+export const APP_VERSION = "mobbr-main-app-4.1.0";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -1738,6 +1744,7 @@ export function createMainApp({
   let activeUpgradeNode = null;
   let weekStartPresentationOpen = false;
   let employeeRankPresentationOpen = false;
+  let weeklyEventPresentationOpen = false;
   let progressionQueue =
     Promise.resolve();
   let toastTimer = null;
@@ -2570,6 +2577,7 @@ export function createMainApp({
       !guide ||
       modalResolver ||
       weekStartPresentationOpen ||
+      weeklyEventPresentationOpen ||
       snapshot.ui?.guideFlags?.[
         guideKey
       ] === true
@@ -2621,6 +2629,288 @@ export function createMainApp({
       `route:${targetRoute}`,
       guide,
     );
+  }
+
+
+  function weeklyEventSpeakerMeta(event) {
+    const isRare = event?.speaker === "white" || event?.rarity === "rare";
+    return {
+      name: isRare ? "モブホワイト" : "モブピンク",
+      image: isRare ? "icon/white.png" : "icon/pink.png",
+      rare: isRare,
+    };
+  }
+
+  function weeklyEventContext(snapshot, pending) {
+    const target = snapshot?.playerTeam?.members?.find(
+      (player) => player.playerId === pending?.targetPlayerId,
+    ) ?? null;
+    return {
+      target,
+      playerName: target?.name ?? pending?.targetPlayerName ?? "選手",
+      role: target?.role ?? pending?.targetRole ?? "",
+      companyRank: snapshot?.company?.rank ?? "",
+      companyName: snapshot?.company?.companyName ?? "MOB BR",
+    };
+  }
+
+  function createWeeklyEventOverlay(event, snapshot, pending) {
+    const speaker = weeklyEventSpeakerMeta(event);
+    const context = weeklyEventContext(snapshot, pending);
+    const overlay = document.createElement("section");
+    overlay.className = `weekly-event-overlay ${speaker.rare ? "weekly-event-overlay--rare" : ""}`;
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.innerHTML = `
+      <div class="weekly-event-overlay__backdrop" aria-hidden="true"></div>
+      <div class="weekly-event-stage">
+        <header class="weekly-event-stage__header">
+          <span>${speaker.rare ? "RARE EVENT" : "WEEKLY EVENT"}</span>
+          <h2>${escapeHtml(event.title)}</h2>
+        </header>
+        <div class="weekly-event-stage__scene">
+          <div class="weekly-event-stage__speaker">
+            <div class="weekly-event-stage__speaker-glow" aria-hidden="true"></div>
+            <img src="${escapeAttribute(assetPath(speaker.image))}" alt="${escapeAttribute(speaker.name)}">
+            <strong>${escapeHtml(speaker.name)}</strong>
+          </div>
+          <div class="weekly-event-stage__dialogue">
+            ${context.target ? `
+              <div class="weekly-event-target">
+                <img src="${escapeAttribute(assetPath(context.target.image))}" alt="">
+                <span>${escapeHtml(context.target.role)}</span>
+                <strong>${escapeHtml(context.target.name)}</strong>
+              </div>
+            ` : ""}
+            <div class="weekly-event-speech" data-weekly-event-speech>
+              <span>${escapeHtml(speaker.name)}</span>
+              <p></p>
+            </div>
+            <div class="weekly-event-center-text" data-weekly-event-center hidden></div>
+            <div class="weekly-event-choices" data-weekly-event-choices hidden></div>
+          </div>
+        </div>
+        <button type="button" class="weekly-event-next" data-weekly-event-next>次へ</button>
+      </div>
+    `;
+    document.body.append(overlay);
+    requestAnimationFrame(() => overlay.classList.add("is-active"));
+    return { overlay, speaker, context };
+  }
+
+  function waitForWeeklyEventNext(overlay) {
+    return new Promise((resolve) => {
+      overlay.querySelector("[data-weekly-event-next]")?.addEventListener(
+        "click",
+        resolve,
+        { once: true },
+      );
+    });
+  }
+
+  async function showWeeklyEventLines(stage, lines = []) {
+    const { overlay, speaker, context } = stage;
+    const speechBox = overlay.querySelector("[data-weekly-event-speech]");
+    const speechText = speechBox?.querySelector("p");
+    const centerBox = overlay.querySelector("[data-weekly-event-center]");
+    const choicesBox = overlay.querySelector("[data-weekly-event-choices]");
+    const nextButton = overlay.querySelector("[data-weekly-event-next]");
+    choicesBox.hidden = true;
+    if (nextButton) nextButton.hidden = false;
+
+    for (const line of lines ?? []) {
+      const text = formatWeeklyEventText(line?.text, context);
+      if (line?.type === "center") {
+        if (speechBox) speechBox.hidden = true;
+        if (centerBox) {
+          centerBox.hidden = false;
+          centerBox.textContent = text;
+          protectJapaneseOrphanTail(centerBox);
+          centerBox.classList.remove("is-pop");
+          void centerBox.offsetWidth;
+          centerBox.classList.add("is-pop");
+        }
+      } else {
+        if (centerBox) centerBox.hidden = true;
+        if (speechBox) speechBox.hidden = false;
+        const label = speechBox?.querySelector("span");
+        if (label) label.textContent = speaker.name;
+        if (speechText) {
+          speechText.textContent = text;
+          protectJapaneseOrphanTail(speechText);
+          speechText.classList.remove("is-pop");
+          void speechText.offsetWidth;
+          speechText.classList.add("is-pop");
+        }
+      }
+      await waitForWeeklyEventNext(overlay);
+    }
+  }
+
+  function chooseWeeklyEventOption(stage, choices) {
+    const { overlay } = stage;
+    const speechBox = overlay.querySelector("[data-weekly-event-speech]");
+    const centerBox = overlay.querySelector("[data-weekly-event-center]");
+    const choicesBox = overlay.querySelector("[data-weekly-event-choices]");
+    const nextButton = overlay.querySelector("[data-weekly-event-next]");
+    if (centerBox) centerBox.hidden = true;
+    if (speechBox) speechBox.hidden = false;
+    if (nextButton) nextButton.hidden = true;
+    choicesBox.hidden = false;
+    choicesBox.innerHTML = choices.map((choice) => `
+      <button type="button" data-weekly-event-choice="${escapeAttribute(choice.id)}">
+        ${escapeHtml(choice.label)}
+      </button>
+    `).join("");
+    return new Promise((resolve) => {
+      const handler = (event) => {
+        const button = event.target.closest("[data-weekly-event-choice]");
+        if (!button) return;
+        choicesBox.removeEventListener("click", handler);
+        resolve(button.dataset.weeklyEventChoice);
+      };
+      choicesBox.addEventListener("click", handler);
+    });
+  }
+
+  function weeklyEventRewardRows(reward) {
+    const rows = [];
+    for (const entry of reward?.summary ?? []) {
+      if (entry.type === "points") {
+        const sign = entry.amount >= 0 ? "+" : "";
+        const subject = entry.scope === "all"
+          ? "3選手"
+          : (entry.players?.[0]?.playerName ?? reward.targetPlayerName ?? "選手");
+        rows.push(`
+          <article class="weekly-event-result-row ${entry.amount < 0 ? "is-down" : "is-up"}">
+            <img src="${escapeAttribute(assetPath("icon/ab.png"))}" alt="">
+            <div><span>${escapeHtml(subject)}</span><strong>全能力ポイント ${sign}${formatNumber(entry.amount)}</strong><small>POWER / TECH / MENTAL / SHOOT</small></div>
+          </article>
+        `);
+        continue;
+      }
+      if (entry.type === "motivation") {
+        for (const change of entry.players ?? []) {
+          const before = motivationDisplay(change.before);
+          const after = motivationDisplay(change.after);
+          rows.push(`
+            <article class="weekly-event-result-row ${entry.direction === "down" ? "is-down" : "is-up"}">
+              <div class="weekly-event-result-row__mark">${escapeHtml(after.mark)}</div>
+              <div><span>${escapeHtml(change.playerName)}</span><strong>${escapeHtml(before.name)} → ${escapeHtml(after.name)}</strong><small>やる気 ${entry.direction === "down" ? "DOWN" : "UP"}</small></div>
+            </article>
+          `);
+        }
+        continue;
+      }
+      if (entry.type === "resource") {
+        const icon = entry.resourceId === "coin"
+          ? "icon/coin.png"
+          : entry.resourceId === "diamond"
+            ? "icon/daia.png"
+            : "icon/rubi.png";
+        const label = entry.resourceId === "coin" ? "COIN" : entry.resourceId === "diamond" ? "DIAMOND" : "RUBY";
+        const sign = entry.amount >= 0 ? "+" : "";
+        rows.push(`
+          <article class="weekly-event-result-row ${entry.amount < 0 ? "is-down" : "is-up"}">
+            <img src="${escapeAttribute(assetPath(icon))}" alt="">
+            <div><span>${label}</span><strong>${sign}${formatNumber(entry.amount)}</strong><small>${entry.amount >= 0 ? "獲得" : "消費"}</small></div>
+          </article>
+        `);
+        continue;
+      }
+      if (entry.type === "item") {
+        rows.push(`
+          <article class="weekly-event-result-row is-up">
+            <img src="${escapeAttribute(assetPath(entry.image))}" alt="">
+            <div><span>ITEM GET</span><strong>${escapeHtml(entry.itemName)} ×${formatNumber(entry.quantity)}</strong><small>アイテムを獲得</small></div>
+          </article>
+        `);
+      }
+    }
+    return rows.join("");
+  }
+
+  async function showPendingWeeklyEventRewardPresentation() {
+    const snapshot = stateManager.getSnapshot();
+    const reward = snapshot?.ui?.pendingWeeklyEventReward;
+    if (!reward) return false;
+    const overlay = document.createElement("section");
+    overlay.className = `weekly-event-result ${reward.rarity === "rare" ? "weekly-event-result--rare" : ""}`;
+    overlay.innerHTML = `
+      <div class="weekly-event-result__burst" aria-hidden="true"></div>
+      <span>EVENT RESULT</span>
+      <h2>${escapeHtml(reward.title)}</h2>
+      <div class="weekly-event-result__rows">${weeklyEventRewardRows(reward)}</div>
+      <button type="button" data-weekly-event-result-next>NEXT</button>
+    `;
+    document.body.append(overlay);
+    requestAnimationFrame(() => overlay.classList.add("is-active"));
+    await new Promise((resolve) => {
+      overlay.querySelector("[data-weekly-event-result-next]")?.addEventListener("click", resolve, { once: true });
+    });
+    overlay.classList.add("is-exit");
+    await waitForUi(220);
+    overlay.remove();
+    stateManager.transact("weekly_event_reward_presented", (draft) => {
+      clearPendingWeeklyEventRewardToDraft(draft);
+    });
+    return true;
+  }
+
+  async function showPendingWeeklyEventPresentation() {
+    if (weeklyEventPresentationOpen || modalResolver || weekStartPresentationOpen) {
+      return false;
+    }
+    const snapshot = stateManager.getSnapshot();
+    if (!snapshot) return false;
+    if (!snapshot.ui?.pendingWeeklyEvent) {
+      if (snapshot.ui?.pendingWeeklyEventReward) {
+        weeklyEventPresentationOpen = true;
+        try {
+          await showPendingWeeklyEventRewardPresentation();
+        } finally {
+          weeklyEventPresentationOpen = false;
+        }
+        queueMicrotask(showPendingEmployeeRankUpPresentation);
+        return true;
+      }
+      return false;
+    }
+
+    const pending = snapshot.ui.pendingWeeklyEvent;
+    const event = getWeeklyEvent(pending.eventId);
+    if (!event) {
+      return false;
+    }
+
+    weeklyEventPresentationOpen = true;
+    const stage = createWeeklyEventOverlay(event, snapshot, pending);
+    try {
+      await showWeeklyEventLines(stage, event.lines ?? []);
+      let choiceId = null;
+      if (Array.isArray(event.choices) && event.choices.length > 0) {
+        choiceId = await chooseWeeklyEventOption(stage, event.choices);
+      }
+      const tx = stateManager.transact("weekly_event_resolved", (draft) =>
+        resolveWeeklyEventToDraft(draft, { choiceId }),
+      );
+      await showWeeklyEventLines(stage, tx.result?.resultLines ?? []);
+      stage.overlay.classList.add("is-exit");
+      await waitForUi(220);
+      stage.overlay.remove();
+      await showPendingWeeklyEventRewardPresentation();
+    } catch (error) {
+      stage.overlay.remove();
+      await openAlert({
+        title: "イベントを進行できません",
+        body: `<p>${escapeHtml(error?.message ?? "イベント処理に失敗しました。")}</p>`,
+        code: getErrorCode(error),
+      });
+    } finally {
+      weeklyEventPresentationOpen = false;
+    }
+    queueMicrotask(showPendingEmployeeRankUpPresentation);
+    return true;
   }
 
   async function showPendingEmployeeRankUpPresentation() {
@@ -2799,7 +3089,7 @@ export function createMainApp({
       weekStartPresentationOpen = false;
     }
     queueMicrotask(
-      showPendingEmployeeRankUpPresentation,
+      showPendingWeeklyEventPresentation,
     );
     return true;
   }
@@ -3045,6 +3335,13 @@ export function createMainApp({
           showPendingWeekStartPresentation,
         );
       } else if (
+        !homeRoomPreviewOpen &&
+        (snapshot.ui?.pendingWeeklyEvent || snapshot.ui?.pendingWeeklyEventReward)
+      ) {
+        queueMicrotask(
+          showPendingWeeklyEventPresentation,
+        );
+      } else if (
         Array.isArray(
           snapshot.ui
             ?.pendingEmployeeRankUps,
@@ -3236,6 +3533,7 @@ export function createMainApp({
       await showPinkGuideForRoute(
         ROUTES.home,
       );
+      await showPendingWeeklyEventPresentation();
     } catch (error) {
       hideLoading();
       await openAlert({

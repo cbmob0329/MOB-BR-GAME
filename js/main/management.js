@@ -72,7 +72,7 @@ import {
   purchaseDiningSetMealToDraft,
   serveDiningMealToDraft,
   settleDiningMealsToDraft,
-} from "./state.js?v=56";
+} from "./state.js?v=60";
 import {
   COOKING_RULES,
   COOKING_SCREEN_ASSETS,
@@ -103,7 +103,7 @@ import {
 } from "../../data/dining-data.js?v=56";
 
 export const MANAGEMENT_FEATURE_VERSION =
-  "mobbr-management-feature-3.0.3";
+  "mobbr-management-feature-3.0.4";
 
 const CURRENCY_IDS = Object.freeze(["coin", "diamond", "ruby"]);
 const COLLECTION_HISTORY_LIMIT = 200;

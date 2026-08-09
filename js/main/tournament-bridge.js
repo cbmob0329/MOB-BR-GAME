@@ -58,7 +58,7 @@ import {
   DuplicateTournamentResultError,
   STORAGE_KEYS,
   calculateChecksum,
-} from "./state.js?v=56";
+} from "./state.js?v=60";
 import {
   applyMotivationToStats,
   normalizeMotivationRecord,

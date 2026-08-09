@@ -32,6 +32,7 @@ import {
   ITEM_MASTER_VERSION,
   PACK_MASTER_VERSION,
   WEAPON_SKIN_MASTER_VERSION,
+  getItem,
 } from "../../data/shop-data.js";
 import {
   COACH_DATA_VERSION,
@@ -107,8 +108,16 @@ import {
   SPECIAL_ABILITY_50_VERSION,
   normalizeGeneration50SpecialAbilities,
 } from "../../data/special-ability-50-data.js?v=56";
+import {
+  WEEKLY_EVENT_DATA_VERSION,
+  WEEKLY_EVENT_RULES,
+  deterministicEventUnit,
+  getWeeklyEvent,
+  getWeeklyEventsByRarity,
+  weightedOutcome,
+} from "../../data/weekly-event-data.js?v=60";
 
-export const SAVE_SCHEMA_VERSION = "mobbr-save-3.0.0";
+export const SAVE_SCHEMA_VERSION = "mobbr-save-3.1.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
 
 export const STORAGE_KEYS = Object.freeze({
@@ -521,6 +530,7 @@ function createMasterVersions() {
     cookingStateSchema: COOKING_STATE_SCHEMA_VERSION,
     diningData: DINING_DATA_VERSION,
     diningStateSchema: DINING_STATE_SCHEMA_VERSION,
+    weeklyEventData: WEEKLY_EVENT_DATA_VERSION,
   };
 }
 
@@ -806,6 +816,8 @@ export function createNewGameState(
       pendingWeekStart: null,
       pendingMotivationEvents: [],
       pendingEmployeeRankUps: [],
+      pendingWeeklyEvent: null,
+      pendingWeeklyEventReward: null,
     },
 
     system: {
@@ -819,9 +831,16 @@ export function createNewGameState(
       migrationHistory: [],
       motivationHistory: [],
       employeeHistory: [],
+      weeklyEvents: {
+        history: [],
+        cycleCounts: {},
+        lastScheduledDateKey: null,
+        pendingTriggers: {},
+      },
     },
   };
 
+  queueWeeklyEventToDraft(state, { clock });
   validateSaveState(state);
   return state;
 }
@@ -1202,6 +1221,21 @@ export function validateSaveState(state) {
       { code: "INVALID_EMPLOYEE_PENDING_EVENTS" },
     );
   }
+  if (state.ui.pendingWeeklyEvent !== null && !isPlainObject(state.ui.pendingWeeklyEvent)) {
+    throw new SaveCorruptionError("Pending weekly event must be an object or null.", {
+      code: "INVALID_WEEKLY_EVENT_PENDING",
+    });
+  }
+  if (state.ui.pendingWeeklyEventReward !== null && !isPlainObject(state.ui.pendingWeeklyEventReward)) {
+    throw new SaveCorruptionError("Pending weekly event reward must be an object or null.", {
+      code: "INVALID_WEEKLY_EVENT_REWARD",
+    });
+  }
+  if (!isPlainObject(state.system.weeklyEvents) || !Array.isArray(state.system.weeklyEvents.history)) {
+    throw new SaveCorruptionError("Weekly event history is invalid.", {
+      code: "INVALID_WEEKLY_EVENT_HISTORY",
+    });
+  }
 
   return true;
 }
@@ -1391,6 +1425,14 @@ function migrateUnversionedSave(rawState, timestamp) {
     Array.isArray(migrated.ui.pendingEmployeeRankUps)
       ? migrated.ui.pendingEmployeeRankUps
       : [];
+  migrated.ui.pendingWeeklyEvent =
+    migrated.ui.pendingWeeklyEvent && typeof migrated.ui.pendingWeeklyEvent === "object"
+      ? migrated.ui.pendingWeeklyEvent
+      : null;
+  migrated.ui.pendingWeeklyEventReward =
+    migrated.ui.pendingWeeklyEventReward && typeof migrated.ui.pendingWeeklyEventReward === "object"
+      ? migrated.ui.pendingWeeklyEventReward
+      : null;
   migrated.company.homeRoomId =
     migrated.company.homeRoomId ??
     migrated.company.activeRoomId ??
@@ -1529,6 +1571,26 @@ function migrateUnversionedSave(rawState, timestamp) {
     Array.isArray(migrated.system.employeeHistory)
       ? migrated.system.employeeHistory
       : [];
+  migrated.system.weeklyEvents =
+    migrated.system.weeklyEvents && typeof migrated.system.weeklyEvents === "object"
+      ? migrated.system.weeklyEvents
+      : {};
+  migrated.system.weeklyEvents.history =
+    Array.isArray(migrated.system.weeklyEvents.history)
+      ? migrated.system.weeklyEvents.history
+      : [];
+  migrated.system.weeklyEvents.cycleCounts =
+    migrated.system.weeklyEvents.cycleCounts && typeof migrated.system.weeklyEvents.cycleCounts === "object" && !Array.isArray(migrated.system.weeklyEvents.cycleCounts)
+      ? migrated.system.weeklyEvents.cycleCounts
+      : {};
+  migrated.system.weeklyEvents.lastScheduledDateKey =
+    typeof migrated.system.weeklyEvents.lastScheduledDateKey === "string"
+      ? migrated.system.weeklyEvents.lastScheduledDateKey
+      : null;
+  migrated.system.weeklyEvents.pendingTriggers =
+    migrated.system.weeklyEvents.pendingTriggers && typeof migrated.system.weeklyEvents.pendingTriggers === "object" && !Array.isArray(migrated.system.weeklyEvents.pendingTriggers)
+      ? migrated.system.weeklyEvents.pendingTriggers
+      : {};
   migrated.system.migrationHistory.push({
     from: rawState.schemaVersion ?? "unversioned",
     to: SAVE_SCHEMA_VERSION,
@@ -1577,7 +1639,8 @@ export function migrateSaveState(
     rawState.schemaVersion === "mobbr-save-2.6.0" ||
     rawState.schemaVersion === "mobbr-save-2.7.0" ||
     rawState.schemaVersion === "mobbr-save-2.8.0" ||
-    rawState.schemaVersion === "mobbr-save-2.9.0"
+    rawState.schemaVersion === "mobbr-save-2.9.0" ||
+    rawState.schemaVersion === "mobbr-save-3.0.0"
   ) {
     const migrated = migrateUnversionedSave(rawState, timestamp);
     validateSaveState(migrated);
@@ -1881,6 +1944,387 @@ export function clearPendingEmployeeRankUpsToDraft(draft) {
   return deepFreeze(cleared);
 }
 
+
+function ensureWeeklyEventSystemToDraft(draft) {
+  draft.ui ??= {};
+  draft.ui.pendingWeeklyEvent ??= null;
+  draft.ui.pendingWeeklyEventReward ??= null;
+  draft.system ??= {};
+  draft.system.weeklyEvents ??= {};
+  const weekly = draft.system.weeklyEvents;
+  weekly.history = Array.isArray(weekly.history) ? weekly.history : [];
+  weekly.cycleCounts = isPlainObject(weekly.cycleCounts) ? weekly.cycleCounts : {};
+  weekly.lastScheduledDateKey =
+    typeof weekly.lastScheduledDateKey === "string"
+      ? weekly.lastScheduledDateKey
+      : null;
+  weekly.pendingTriggers = isPlainObject(weekly.pendingTriggers)
+    ? weekly.pendingTriggers
+    : {};
+  return weekly;
+}
+
+function weeklyEventConditionEligible(draft, event) {
+  const condition = event?.condition;
+  if (!condition) return true;
+  const weekly = ensureWeeklyEventSystemToDraft(draft);
+  const players = draft.playerTeam?.members ?? [];
+  if (condition === "company_rank_up_next_week") {
+    return Boolean(weekly.pendingTriggers.companyRankUp);
+  }
+  if (condition === "tournament_win_next_week") {
+    return Boolean(weekly.pendingTriggers.tournamentWin);
+  }
+  if (condition === "low_motivation") {
+    return players.some((player) => motivationLevelIndex(player.motivation?.level) <= 1);
+  }
+  if (condition === "all_positive_motivation") {
+    return players.length === 3 && players.every(
+      (player) => motivationLevelIndex(player.motivation?.level) >= 3,
+    );
+  }
+  if (condition === "local_tournament_week") {
+    return draft.gameDate.week === 1 && (draft.gameDate.month === 4 || draft.gameDate.month === 8);
+  }
+  if (condition === "world_tournament_week") {
+    return (draft.gameDate.month === 6 || draft.gameDate.month === 12) &&
+      draft.gameDate.week >= 1 && draft.gameDate.week <= 3;
+  }
+  if (condition === "championship_week") {
+    return draft.gameDate.month === 12 && draft.gameDate.week === 4 &&
+      draft.gameDate.year >= 1991 && (draft.gameDate.year - 1991) % 3 === 0;
+  }
+  return false;
+}
+
+function weeklyEventTargetPlayer(draft, target, seed) {
+  const players = draft.playerTeam?.members ?? [];
+  if (players.length === 0 || target === "none" || target === "all") return null;
+  if (["IGL", "ATK", "SUP"].includes(target)) {
+    return players.find((player) => player.role === target) ?? players[0];
+  }
+  if (target === "lowest_motivation") {
+    return [...players].sort((a, b) => {
+      const diff = motivationLevelIndex(a.motivation?.level) - motivationLevelIndex(b.motivation?.level);
+      if (diff !== 0) return diff;
+      return String(a.playerId).localeCompare(String(b.playerId));
+    })[0] ?? null;
+  }
+  const unit = deterministicEventUnit(`${seed}:target`);
+  return players[Math.floor(unit * players.length)] ?? players[0] ?? null;
+}
+
+function selectWeeklyEventFromPool(draft, pool, seed) {
+  if (!Array.isArray(pool) || pool.length === 0) return null;
+  const weekly = ensureWeeklyEventSystemToDraft(draft);
+  const eligible = pool.filter((event) =>
+    weeklyEventConditionEligible(draft, event) &&
+    (weekly.cycleCounts[event.id] ?? 0) < WEEKLY_EVENT_RULES.maxDuplicatePerCycle,
+  );
+  let candidates = eligible;
+  if (candidates.length === 0) {
+    for (const event of pool) {
+      if (weeklyEventConditionEligible(draft, event)) {
+        weekly.cycleCounts[event.id] = 0;
+      }
+    }
+    candidates = pool.filter((event) => weeklyEventConditionEligible(draft, event));
+  }
+  if (candidates.length === 0) return null;
+  const unit = deterministicEventUnit(`${seed}:pick`);
+  return candidates[Math.floor(unit * candidates.length)] ?? candidates[0];
+}
+
+export function queueWeeklyEventToDraft(
+  draft,
+  { clock = () => new Date(), force = false } = {},
+) {
+  assertPlainObject(draft, "Draft state");
+  const weekly = ensureWeeklyEventSystemToDraft(draft);
+  const currentDateKey = dateKey(draft.gameDate);
+  if (!force && weekly.lastScheduledDateKey === currentDateKey) {
+    return deepFreeze({ queued: false, reason: "already_scheduled", dateKey: currentDateKey });
+  }
+  if (draft.ui.pendingWeeklyEvent) {
+    return deepFreeze({ queued: false, reason: "pending_event_exists", dateKey: currentDateKey });
+  }
+
+  const seed = `${draft.saveSlotId}:${currentDateKey}:${draft.revision}:${weekly.history.length}`;
+  const forcedRankUp = Boolean(weekly.pendingTriggers.companyRankUp);
+  const forcedWin = !forcedRankUp && Boolean(weekly.pendingTriggers.tournamentWin);
+  let selected = null;
+
+  if (forcedRankUp) {
+    selected = getWeeklyEvent("cond_rank_up_fans");
+  } else if (forcedWin) {
+    selected = getWeeklyEvent("cond_tournament_win");
+  } else {
+    const eventUnit = deterministicEventUnit(`${seed}:occur`);
+    if (force || eventUnit < WEEKLY_EVENT_RULES.eventChance) {
+      const conditionalPool = getWeeklyEventsByRarity("conditional").filter(
+        (event) => !["company_rank_up_next_week", "tournament_win_next_week"].includes(event.condition),
+      );
+      const eligibleConditional = conditionalPool.filter((event) => weeklyEventConditionEligible(draft, event));
+      const typeUnit = deterministicEventUnit(`${seed}:type`);
+      if (
+        eligibleConditional.length > 0 &&
+        typeUnit < WEEKLY_EVENT_RULES.conditionalShareWhenEligible
+      ) {
+        selected = selectWeeklyEventFromPool(draft, eligibleConditional, `${seed}:conditional`);
+      } else {
+        const rareUnit = deterministicEventUnit(`${seed}:rare`);
+        const rarity = rareUnit < WEEKLY_EVENT_RULES.rareShareWhenEventOccurs ? "rare" : "normal";
+        selected = selectWeeklyEventFromPool(
+          draft,
+          getWeeklyEventsByRarity(rarity),
+          `${seed}:${rarity}`,
+        );
+      }
+    }
+  }
+
+  weekly.lastScheduledDateKey = currentDateKey;
+  weekly.pendingTriggers = {};
+
+  if (!selected) {
+    weekly.history.push({
+      dateKey: currentDateKey,
+      eventId: null,
+      title: "イベントなし",
+      rarity: "none",
+      resolvedAt: nowIso(clock),
+    });
+    weekly.history = weekly.history.slice(-WEEKLY_EVENT_RULES.historyLimit);
+    return deepFreeze({ queued: false, reason: "no_event", dateKey: currentDateKey });
+  }
+
+  const targetPlayer = weeklyEventTargetPlayer(draft, selected.target, seed);
+  weekly.cycleCounts[selected.id] = (weekly.cycleCounts[selected.id] ?? 0) + 1;
+  draft.ui.pendingWeeklyEvent = {
+    eventId: selected.id,
+    dateKey: currentDateKey,
+    seed,
+    targetPlayerId: targetPlayer?.playerId ?? null,
+    targetPlayerName: targetPlayer?.name ?? null,
+    targetRole: targetPlayer?.role ?? null,
+    queuedAt: nowIso(clock),
+  };
+
+  return deepFreeze({
+    queued: true,
+    eventId: selected.id,
+    title: selected.title,
+    rarity: selected.rarity,
+    targetPlayerId: targetPlayer?.playerId ?? null,
+  });
+}
+
+function weeklyEventAffectedPlayers(draft, pending, scope) {
+  const players = draft.playerTeam?.members ?? [];
+  if (scope === "all") return players;
+  const target = players.find((player) => player.playerId === pending.targetPlayerId);
+  return target ? [target] : [];
+}
+
+function pushWeeklyEventMotivationHistory(draft, event, player, shifted, occurredAt) {
+  draft.system.motivationHistory ??= [];
+  const record = {
+    eventId: `weekly:${event.id}:${dateKey(draft.gameDate)}:${player.playerId}`,
+    resultId: null,
+    tournamentId: null,
+    tournamentType: null,
+    playerId: player.playerId,
+    playerName: player.name,
+    role: player.role,
+    sourceType: "weekly_event",
+    sourceId: event.id,
+    reason: event.title,
+    before: deepClone(shifted.before),
+    after: deepClone(shifted.after),
+    direction:
+      motivationLevelIndex(shifted.after.level) >= motivationLevelIndex(shifted.before.level)
+        ? "up"
+        : "down",
+    changedAt: occurredAt,
+  };
+  draft.system.motivationHistory.push(record);
+  draft.system.motivationHistory = draft.system.motivationHistory.slice(-300);
+  return record;
+}
+
+function applyWeeklyEventEffectsToDraft(draft, event, pending, effects, occurredAt) {
+  const summary = [];
+  draft.playerTrainingPoints ??= Object.fromEntries(
+    (draft.playerTeam?.members ?? []).map((player) => [player.playerId, createEmptyTrainingPoints()]),
+  );
+
+  for (let effectIndex = 0; effectIndex < effects.length; effectIndex += 1) {
+    const effect = effects[effectIndex];
+    if (!effect || typeof effect !== "object") continue;
+
+    if (effect.type === "points") {
+      const affected = weeklyEventAffectedPlayers(draft, pending, effect.scope);
+      const amount = Math.trunc(Number(effect.amount) || 0);
+      const changedPlayers = [];
+      for (const player of affected) {
+        draft.playerTrainingPoints[player.playerId] ??= createEmptyTrainingPoints();
+        const pool = draft.playerTrainingPoints[player.playerId];
+        const before = deepClone(pool);
+        for (const pointId of TRAINING_POINT_IDS) {
+          pool[pointId] = Math.max(0, pool[pointId] + amount);
+        }
+        changedPlayers.push({
+          playerId: player.playerId,
+          playerName: player.name,
+          role: player.role,
+          before,
+          after: deepClone(pool),
+        });
+      }
+      summary.push({ type: "points", amount, scope: effect.scope, players: changedPlayers });
+      continue;
+    }
+
+    if (effect.type === "motivation") {
+      const affected = weeklyEventAffectedPlayers(draft, pending, effect.scope);
+      const changes = [];
+      for (const player of affected) {
+        const shifted = shiftMotivation(player.motivation, effect.direction, {
+          steps: effect.steps ?? 1,
+          modifierUnit: deterministicEventUnit(`${pending.seed}:mot:${effectIndex}:${player.playerId}:modifier`),
+          awakenedUnit: deterministicEventUnit(`${pending.seed}:mot:${effectIndex}:${player.playerId}:awakened`),
+          reason: `週イベント「${event.title}」`,
+          changedAt: occurredAt,
+        });
+        player.motivation = deepClone(shifted.after);
+        pushWeeklyEventMotivationHistory(draft, event, player, shifted, occurredAt);
+        changes.push({
+          playerId: player.playerId,
+          playerName: player.name,
+          role: player.role,
+          before: deepClone(shifted.before),
+          after: deepClone(shifted.after),
+          changed: shifted.changed,
+          direction: effect.direction,
+        });
+      }
+      summary.push({ type: "motivation", direction: effect.direction, scope: effect.scope, players: changes });
+      continue;
+    }
+
+    if (effect.type === "resource") {
+      const resourceId = effect.resourceId;
+      if (!RESOURCE_IDS.includes(resourceId)) continue;
+      const requested = Math.trunc(Number(effect.amount) || 0);
+      const current = draft.resources[resourceId] ?? 0;
+      const actual = requested < 0 ? Math.max(-current, requested) : requested;
+      if (actual !== 0) {
+        applyResourceDeltaToDraft(draft, { [resourceId]: actual });
+      }
+      summary.push({ type: "resource", resourceId, amount: actual, requestedAmount: requested });
+      continue;
+    }
+
+    if (effect.type === "item") {
+      const quantity = Math.max(1, Math.trunc(Number(effect.quantity) || 1));
+      const master = getItem(effect.itemId);
+      draft.inventory.items[effect.itemId] = (draft.inventory.items[effect.itemId] ?? 0) + quantity;
+      summary.push({
+        type: "item",
+        itemId: effect.itemId,
+        itemName: master.name,
+        image: master.image,
+        quantity,
+      });
+    }
+  }
+  return summary;
+}
+
+export function resolveWeeklyEventToDraft(
+  draft,
+  { choiceId = null, clock = () => new Date() } = {},
+) {
+  assertPlainObject(draft, "Draft state");
+  const weekly = ensureWeeklyEventSystemToDraft(draft);
+  const pending = draft.ui.pendingWeeklyEvent;
+  if (!pending) {
+    throw new RangeError("進行中の週イベントがありません。");
+  }
+  const event = getWeeklyEvent(pending.eventId);
+  if (!event) {
+    throw new RangeError("週イベントデータが見つかりません。");
+  }
+
+  let choice = null;
+  if (Array.isArray(event.choices) && event.choices.length > 0) {
+    choice = event.choices.find((entry) => entry.id === choiceId) ?? null;
+    if (!choice) {
+      throw new RangeError("イベントの選択肢を選んでください。");
+    }
+  }
+
+  const outcomeSource = choice?.outcomes ?? event.outcomes ?? null;
+  const outcome = outcomeSource
+    ? weightedOutcome(outcomeSource, deterministicEventUnit(`${pending.seed}:outcome:${choiceId ?? "auto"}`))
+    : null;
+  const effects = [
+    ...(event.effects ?? []),
+    ...(choice?.effects ?? []),
+    ...(outcome?.effects ?? []),
+  ];
+  const resultLines = [
+    ...(choice?.lines ?? []),
+    ...(outcome?.lines ?? []),
+  ];
+  const occurredAt = nowIso(clock);
+  const summary = applyWeeklyEventEffectsToDraft(draft, event, pending, effects, occurredAt);
+  const historyEntry = {
+    dateKey: pending.dateKey,
+    eventId: event.id,
+    title: event.title,
+    rarity: event.rarity,
+    targetPlayerId: pending.targetPlayerId,
+    targetPlayerName: pending.targetPlayerName,
+    targetRole: pending.targetRole,
+    choiceId: choice?.id ?? null,
+    outcomeIndex: outcomeSource ? outcomeSource.indexOf(outcome) : null,
+    summary: deepClone(summary),
+    resolvedAt: occurredAt,
+  };
+  weekly.history.push(historyEntry);
+  weekly.history = weekly.history.slice(-WEEKLY_EVENT_RULES.historyLimit);
+  draft.ui.pendingWeeklyEvent = null;
+  draft.ui.pendingWeeklyEventReward = summary.length > 0
+    ? {
+        eventId: event.id,
+        title: event.title,
+        rarity: event.rarity,
+        speaker: event.speaker,
+        targetPlayerId: pending.targetPlayerId,
+        targetPlayerName: pending.targetPlayerName,
+        summary: deepClone(summary),
+        createdAt: occurredAt,
+      }
+    : null;
+
+  return deepFreeze({
+    resolved: true,
+    eventId: event.id,
+    title: event.title,
+    resultLines: deepClone(resultLines),
+    summary: deepClone(summary),
+    historyEntry: deepClone(historyEntry),
+  });
+}
+
+export function clearPendingWeeklyEventRewardToDraft(draft) {
+  assertPlainObject(draft, "Draft state");
+  const reward = deepClone(draft.ui?.pendingWeeklyEventReward ?? null);
+  if (draft.ui) draft.ui.pendingWeeklyEventReward = null;
+  return deepFreeze(reward);
+}
+
 export function grantWeeklyBonusToDraft(
   draft,
   {
@@ -1996,6 +2440,7 @@ export function advanceWeeksToDraft(
       monthChanged,
       messageIndex,
       weeklyBonus: null,
+      weeklyEvent: null,
     };
 
     if (grantWeeklyBonus) {
@@ -2025,6 +2470,7 @@ export function advanceWeeksToDraft(
         nowIso(clock),
     };
 
+    entry.weeklyEvent = queueWeeklyEventToDraft(draft, { clock });
     weeks.push(entry);
   }
 
@@ -2072,6 +2518,15 @@ export function addCompanyExpToDraft(
     draft.company.rankIndex >=
     COACH_RULES.scoutUnlockCompanyRankIndex;
   syncCarryBagCapacity(draft);
+
+  if (result.rankUps.length > 0) {
+    const weekly = ensureWeeklyEventSystemToDraft(draft);
+    weekly.pendingTriggers.companyRankUp = {
+      from: result.rankUps[0]?.from ?? null,
+      to: result.rankUps.at(-1)?.to ?? draft.company.rank,
+      count: result.rankUps.length,
+    };
+  }
 
   return deepFreeze({
     ...deepClone(result),
@@ -3270,6 +3725,15 @@ export function applyTournamentResultToDraft(
   draft.tournament.processedEntryIds.push(validation.entryId);
   draft.tournament.activeEntryId = null;
   draft.tournament.resumeData = null;
+
+  if (result.finalPlace === 1 && result.status !== "stage_in_progress") {
+    const weekly = ensureWeeklyEventSystemToDraft(draft);
+    weekly.pendingTriggers.tournamentWin = {
+      tournamentId: result.tournamentId ?? null,
+      tournamentType: result.tournamentType ?? null,
+      resultId: result.resultId ?? null,
+    };
+  }
 
   let weekAdvance = null;
   if (advanceWeekAfterCompletion) {
