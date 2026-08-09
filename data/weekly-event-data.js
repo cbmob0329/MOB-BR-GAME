@@ -6,10 +6,12 @@
  * weighted outcome.
  */
 
-export const WEEKLY_EVENT_DATA_VERSION = "mobbr-weekly-event-data-1.0.0";
+export const WEEKLY_EVENT_DATA_VERSION = "mobbr-weekly-event-data-1.1.0";
 
 export const WEEKLY_EVENT_RULES = Object.freeze({
-  eventChance: 0.82,
+  monthlyMinimumEvents: 1,
+  monthlyMaximumEvents: 2,
+  twoEventMonthChance: 0.60,
   rareShareWhenEventOccurs: 0.07,
   conditionalShareWhenEligible: 0.28,
   maxDuplicatePerCycle: 2,
