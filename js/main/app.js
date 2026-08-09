@@ -28,7 +28,7 @@ import {
   grantEmployeeCookingPointsToDraft,
   queueWeeklyEventToDraft,
   resolveWeeklyEventToDraft,
-} from "./state.js?v=64";
+} from "./state.js?v=65";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -74,18 +74,18 @@ import {
 import {
   formatWeeklyEventText,
   getWeeklyEvent,
-} from "../../data/weekly-event-data.js?v=64";
+} from "../../data/weekly-event-data.js?v=65";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=64";
+} from "./management.js?v=65";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=64";
+} from "./tournament-bridge.js?v=65";
 
-export const APP_VERSION = "mobbr-main-app-4.1.1";
+export const APP_VERSION = "mobbr-main-app-4.1.2";
 
 export const ROUTES = Object.freeze({
   title: "title",
@@ -2634,6 +2634,37 @@ export function createMainApp({
   }
 
 
+  const WEEKLY_EVENT_BACKGROUND_PATHS = Object.freeze(
+    Array.from({ length: 10 }, (_, index) => `back/${String(index + 1).padStart(2, "0")}.png`),
+  );
+
+  function weeklyEventVisualHash(value) {
+    const source = String(value ?? "weekly-event");
+    let hash = 2166136261;
+    for (let index = 0; index < source.length; index += 1) {
+      hash ^= source.charCodeAt(index);
+      hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+  }
+
+  function weeklyEventBackgroundPath(seed, phase = "scene") {
+    const unit = weeklyEventVisualHash(`${seed ?? "weekly-event"}:${phase}`);
+    return WEEKLY_EVENT_BACKGROUND_PATHS[unit % WEEKLY_EVENT_BACKGROUND_PATHS.length];
+  }
+
+  function applyWeeklyEventBackground(element, seed, phase = "scene") {
+    if (!element) return null;
+    const path = weeklyEventBackgroundPath(seed, phase);
+    const resolvedPath = assetPath(path);
+    element.style.setProperty(
+      "--weekly-event-background",
+      `url("${String(resolvedPath).replaceAll('"', '\\"')}")`,
+    );
+    element.dataset.weeklyEventBackground = path;
+    return path;
+  }
+
   function weeklyEventSpeakerMeta(event) {
     const isRare = event?.speaker === "white" || event?.rarity === "rare";
     return {
@@ -2724,9 +2755,10 @@ export function createMainApp({
       backdrop.hidden = true;
       backdrop.style.display = "none";
     }
-    overlay.style.background = speaker.rare
-      ? "radial-gradient(circle at 50% 35%, rgba(255,224,106,.25), transparent 44%), rgba(10,8,12,.97)"
-      : "radial-gradient(circle at 50% 35%, rgba(48,171,255,.20), transparent 42%), rgba(4,8,18,.97)";
+    // Generation 65: use the user's event backgrounds (back/01.png-10.png).
+    // The selection is deterministic for the queued event, so CONTINUE/reload
+    // does not unexpectedly swap the backdrop halfway through a scene.
+    applyWeeklyEventBackground(overlay, pending?.seed ?? `${event?.id}:${pending?.dateKey}`, "scene");
     overlay.style.display = "flex";
     overlay.style.alignItems = "stretch";
     overlay.style.justifyContent = "center";
@@ -2883,8 +2915,12 @@ export function createMainApp({
     if (!reward) return false;
     const overlay = document.createElement("section");
     overlay.className = `weekly-event-result ${reward.rarity === "rare" ? "weekly-event-result--rare" : ""}`;
+    applyWeeklyEventBackground(
+      overlay,
+      `${reward.eventId}:${reward.createdAt}:${reward.targetPlayerId ?? "all"}`,
+      "result",
+    );
     overlay.innerHTML = `
-      <div class="weekly-event-result__burst" aria-hidden="true"></div>
       <span>EVENT RESULT</span>
       <h2>${escapeHtml(reward.title)}</h2>
       <div class="weekly-event-result__rows">${weeklyEventRewardRows(reward)}</div>
@@ -5223,6 +5259,9 @@ export function createMainApp({
       assetPath("back/Load.png"), assetPath("back/main1.png"), assetPath("back/sub.png"), assetPath("back/coh.png"),
       assetPath("back/homecol.png"), assetPath("back/backcol.png"), assetPath("back/backcoh.png"), assetPath("back/backshop.png"),
       assetPath("back/kitmain.png"), assetPath("back/kitroom.png"), assetPath("icon/kitbox.png"),
+      ...Array.from({ length: 10 }, (_, index) =>
+        assetPath(`back/${String(index + 1).padStart(2, "0")}.png`)
+      ),
       ...Array.from({ length: 54 }, (_, index) =>
         assetPath(`ability/${String(index + 1).padStart(2, "0")}.png`)
       ),
