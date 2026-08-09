@@ -21380,3 +21380,17 @@ img.player-portrait,
   position: relative;
   z-index: 6;
 }
+
+/* ================================================================
+   Generation 64: weekly event launch reliability
+   ================================================================ */
+.modal-root.weekly-event-host {
+  z-index: 70000 !important;
+  pointer-events: auto !important;
+  overflow: hidden !important;
+}
+.modal-root.weekly-event-host > .weekly-event-overlay,
+.modal-root.weekly-event-host > .weekly-event-result {
+  z-index: 1 !important;
+  pointer-events: auto !important;
+}
