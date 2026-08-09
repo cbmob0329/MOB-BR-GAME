@@ -28,7 +28,7 @@ import {
   grantEmployeeCookingPointsToDraft,
   queueWeeklyEventToDraft,
   resolveWeeklyEventToDraft,
-} from "./state.js?v=65";
+} from "./state.js?v=66";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -74,16 +74,16 @@ import {
 import {
   formatWeeklyEventText,
   getWeeklyEvent,
-} from "../../data/weekly-event-data.js?v=65";
+} from "../../data/weekly-event-data.js?v=66";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=65";
+} from "./management.js?v=66";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=65";
+} from "./tournament-bridge.js?v=66";
 
 export const APP_VERSION = "mobbr-main-app-4.1.2";
 
@@ -2656,10 +2656,49 @@ export function createMainApp({
   function applyWeeklyEventBackground(element, seed, phase = "scene") {
     if (!element) return null;
     const path = weeklyEventBackgroundPath(seed, phase);
+
+    // Generation 66: render the selected back/01.png-10.png as an actual
+    // image layer. CSS background-image alone does not use our asset fallback
+    // resolver and could therefore silently fall back to the navy color on
+    // some GitHub Pages layouts even when the files existed.
+    element.querySelector(":scope > .weekly-event-background-image")?.remove();
+    const image = document.createElement("img");
+    image.className = "weekly-event-background-image";
+    image.alt = "";
+    image.setAttribute("aria-hidden", "true");
+    image.draggable = false;
+
+    const candidates = [...new Set([
+      assetPath(path),
+      path,
+      `../${path}`,
+      `../../${path}`,
+    ].filter(Boolean))];
+    let candidateIndex = 0;
+    const loadCandidate = () => {
+      image.src = candidates[candidateIndex] ?? path;
+    };
+    image.addEventListener("error", () => {
+      if (candidateIndex + 1 >= candidates.length) {
+        element.dataset.weeklyEventBackgroundStatus = "missing";
+        return;
+      }
+      candidateIndex += 1;
+      loadCandidate();
+    });
+    image.addEventListener("load", () => {
+      element.dataset.weeklyEventBackgroundStatus = "loaded";
+      element.dataset.weeklyEventBackgroundResolved = image.currentSrc || image.src;
+    }, { once: true });
+
+    element.prepend(image);
+    loadCandidate();
+
+    // Secondary CSS fallback. The visible primary layer is the <img> above.
     const resolvedPath = assetPath(path);
     element.style.setProperty(
       "--weekly-event-background",
-      `url("${String(resolvedPath).replaceAll('"', '\\"')}")`,
+      `url("${String(resolvedPath).replaceAll('"', '\"')}")`,
     );
     element.dataset.weeklyEventBackground = path;
     return path;
@@ -2915,17 +2954,18 @@ export function createMainApp({
     if (!reward) return false;
     const overlay = document.createElement("section");
     overlay.className = `weekly-event-result ${reward.rarity === "rare" ? "weekly-event-result--rare" : ""}`;
-    applyWeeklyEventBackground(
-      overlay,
-      `${reward.eventId}:${reward.createdAt}:${reward.targetPlayerId ?? "all"}`,
-      "result",
-    );
     overlay.innerHTML = `
       <span>EVENT RESULT</span>
       <h2>${escapeHtml(reward.title)}</h2>
       <div class="weekly-event-result__rows">${weeklyEventRewardRows(reward)}</div>
       <button type="button" data-weekly-event-result-next>NEXT</button>
     `;
+    // Attach after innerHTML so the real background <img> is not discarded.
+    applyWeeklyEventBackground(
+      overlay,
+      `${reward.eventId}:${reward.createdAt}:${reward.targetPlayerId ?? "all"}`,
+      "result",
+    );
     openWeeklyEventHost();
     modalRoot.append(overlay);
     // Activate synchronously. The event result uses the same reliable host as

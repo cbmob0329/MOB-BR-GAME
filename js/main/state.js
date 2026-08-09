@@ -115,7 +115,7 @@ import {
   getWeeklyEvent,
   getWeeklyEventsByRarity,
   weightedOutcome,
-} from "../../data/weekly-event-data.js?v=65";
+} from "../../data/weekly-event-data.js?v=66";
 
 export const SAVE_SCHEMA_VERSION = "mobbr-save-3.1.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
