@@ -21451,3 +21451,76 @@ img.player-portrait,
   from { opacity: .55; transform: scale(.98); }
   to { opacity: 1; transform: scale(1.03); }
 }
+
+/* ================================================================
+   Generation 66: guaranteed weekly-event background image layer
+   ================================================================ */
+.weekly-event-overlay,
+.weekly-event-result {
+  isolation: isolate !important;
+}
+
+.weekly-event-background-image {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: cover !important;
+  object-position: center center !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  -webkit-user-drag: none !important;
+  transform: none !important;
+  animation: none !important;
+}
+
+/* A light fixed veil sits above the photo, while all event UI stays above it. */
+.weekly-event-overlay::after,
+.weekly-event-result::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(3, 8, 18, .18), rgba(3, 8, 18, .42));
+}
+.weekly-event-overlay--rare::after,
+.weekly-event-result--rare::after {
+  background: linear-gradient(180deg, rgba(18, 12, 4, .14), rgba(8, 7, 11, .40));
+}
+
+.weekly-event-stage {
+  z-index: 5 !important;
+}
+.weekly-event-result > span,
+.weekly-event-result > h2,
+.weekly-event-result__rows,
+.weekly-event-result > button {
+  z-index: 5 !important;
+}
+
+/* Result glow is non-rotating and remains behind the result cards. */
+.weekly-event-result::before {
+  z-index: 2 !important;
+}
+
+/* Keep the custom artwork visibly present behind the event UI. */
+.weekly-event-stage__header {
+  background: linear-gradient(145deg, rgba(13, 31, 55, .66), rgba(15, 20, 35, .74)) !important;
+}
+.weekly-event-stage__scene {
+  background: linear-gradient(160deg, rgba(15, 31, 49, .34), rgba(10, 13, 24, .54)) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.weekly-event-overlay--rare .weekly-event-stage__header {
+  background: linear-gradient(145deg, rgba(64, 47, 12, .60), rgba(21, 17, 18, .74)) !important;
+}
+.weekly-event-overlay--rare .weekly-event-stage__scene {
+  background: linear-gradient(160deg, rgba(52, 42, 18, .30), rgba(13, 12, 20, .54)) !important;
+}
