@@ -21329,3 +21329,54 @@ img.player-portrait,
   .weekly-event-choices button,
   .weekly-event-result button { min-height: 50px; }
 }
+
+
+/* ================================================================
+   Generation 61: weekly event blank-screen / iOS Safari compositor fix
+   ================================================================ */
+.weekly-event-overlay {
+  display: flex !important;
+  align-items: stretch !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  isolation: isolate !important;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(48, 171, 255, .20), transparent 42%),
+    rgba(4, 8, 18, .97) !important;
+}
+
+.weekly-event-overlay--rare {
+  background:
+    radial-gradient(circle at 50% 35%, rgba(255, 224, 106, .25), transparent 44%),
+    rgba(10, 8, 12, .97) !important;
+}
+
+/* backdrop-filter created a separate compositor layer on iOS Safari and could
+   cover the event stage.  The overlay itself now owns the background. */
+.weekly-event-overlay__backdrop {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.weekly-event-stage {
+  position: relative !important;
+  z-index: 5 !important;
+  flex: 1 1 auto !important;
+  width: min(100%, 780px) !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  isolation: isolate !important;
+}
+
+.weekly-event-stage__header,
+.weekly-event-stage__scene,
+.weekly-event-next {
+  position: relative;
+  z-index: 6;
+}
