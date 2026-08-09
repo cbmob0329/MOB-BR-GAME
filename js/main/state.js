@@ -115,7 +115,7 @@ import {
   getWeeklyEvent,
   getWeeklyEventsByRarity,
   weightedOutcome,
-} from "../../data/weekly-event-data.js?v=61";
+} from "../../data/weekly-event-data.js?v=62";
 
 export const SAVE_SCHEMA_VERSION = "mobbr-save-3.1.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
@@ -2014,6 +2014,60 @@ function weeklyEventTargetPlayer(draft, target, seed) {
   return players[Math.floor(unit * players.length)] ?? players[0] ?? null;
 }
 
+function weeklyEventMonthKey(gameDate) {
+  const { year, month } = validateGameDate(gameDate);
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+
+function weeklyEventMonthlyTarget(draft) {
+  const monthKey = weeklyEventMonthKey(draft.gameDate);
+  const unit = deterministicEventUnit(`${draft.saveSlotId}:${monthKey}:monthly-count`);
+  return unit < WEEKLY_EVENT_RULES.twoEventMonthChance
+    ? WEEKLY_EVENT_RULES.monthlyMaximumEvents
+    : WEEKLY_EVENT_RULES.monthlyMinimumEvents;
+}
+
+function weeklyEventPlannedWeeks(draft, targetCount) {
+  const monthKey = weeklyEventMonthKey(draft.gameDate);
+  return [1, 2, 3, 4]
+    .map((week) => ({
+      week,
+      score: deterministicEventUnit(`${draft.saveSlotId}:${monthKey}:monthly-week:${week}`),
+    }))
+    .sort((a, b) => a.score - b.score || a.week - b.week)
+    .slice(0, Math.max(1, Math.min(4, targetCount)))
+    .map((entry) => entry.week)
+    .sort((a, b) => a - b);
+}
+
+function weeklyEventMonthlyResolvedCount(weekly, gameDate) {
+  const prefix = `${weeklyEventMonthKey(gameDate)}-W`;
+  return weekly.history.filter((entry) =>
+    typeof entry?.dateKey === "string" &&
+    entry.dateKey.startsWith(prefix) &&
+    typeof entry?.eventId === "string" &&
+    entry.eventId.length > 0
+  ).length;
+}
+
+function shouldQueueRegularWeeklyEvent(draft, weekly, force = false) {
+  if (force) return true;
+  const targetCount = weeklyEventMonthlyTarget(draft);
+  const resolvedCount = weeklyEventMonthlyResolvedCount(weekly, draft.gameDate);
+  if (resolvedCount >= targetCount) return false;
+
+  const currentWeek = validateGameDate(draft.gameDate).week;
+  const plannedWeeks = weeklyEventPlannedWeeks(draft, targetCount);
+  if (plannedWeeks.includes(currentWeek)) return true;
+
+  // Compatibility/catch-up rule: old saves may already have passed a planned
+  // event week.  If the remaining weeks are just enough to reach this month's
+  // quota, force the event now so every month still receives 1-2 events.
+  const eventsNeeded = targetCount - resolvedCount;
+  const remainingWeeksIncludingCurrent = 5 - currentWeek;
+  return eventsNeeded >= remainingWeeksIncludingCurrent;
+}
+
 function selectWeeklyEventFromPool(draft, pool, seed) {
   if (!Array.isArray(pool) || pool.length === 0) return null;
   const weekly = ensureWeeklyEventSystemToDraft(draft);
@@ -2059,8 +2113,7 @@ export function queueWeeklyEventToDraft(
   } else if (forcedWin) {
     selected = getWeeklyEvent("cond_tournament_win");
   } else {
-    const eventUnit = deterministicEventUnit(`${seed}:occur`);
-    if (force || eventUnit < WEEKLY_EVENT_RULES.eventChance) {
+    if (shouldQueueRegularWeeklyEvent(draft, weekly, force)) {
       const conditionalPool = getWeeklyEventsByRarity("conditional").filter(
         (event) => !["company_rank_up_next_week", "tournament_win_next_week"].includes(event.condition),
       );

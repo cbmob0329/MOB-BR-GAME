@@ -27,7 +27,7 @@ import {
   createGameStateManager,
   grantEmployeeCookingPointsToDraft,
   resolveWeeklyEventToDraft,
-} from "./state.js?v=61";
+} from "./state.js?v=62";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -73,16 +73,16 @@ import {
 import {
   formatWeeklyEventText,
   getWeeklyEvent,
-} from "../../data/weekly-event-data.js?v=61";
+} from "../../data/weekly-event-data.js?v=62";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=61";
+} from "./management.js?v=62";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=61";
+} from "./tournament-bridge.js?v=62";
 
 export const APP_VERSION = "mobbr-main-app-4.1.1";
 
