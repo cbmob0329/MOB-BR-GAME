@@ -21524,3 +21524,95 @@ img.player-portrait,
 .weekly-event-overlay--rare .weekly-event-stage__scene {
   background: linear-gradient(160deg, rgba(52, 42, 18, .30), rgba(13, 12, 20, .54)) !important;
 }
+
+
+/* ================================================================
+   Generation 67: balanced event artwork / centered event layout
+   ================================================================ */
+
+/* The weekly-event host must own the whole device viewport.  This avoids the
+   modal content inheriting a shorter transformed app container on iOS. */
+.modal-root.weekly-event-host {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  max-height: 100dvh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Show the complete user-supplied artwork instead of cropping it with cover.
+   The existing CSS background remains underneath as a full-bleed fill, while
+   this foreground image preserves the entire composition. */
+.weekly-event-background-image {
+  object-fit: contain !important;
+  object-position: center center !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.weekly-event-overlay {
+  align-items: center !important;
+  justify-content: center !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  padding-top: max(16px, env(safe-area-inset-top)) !important;
+  padding-bottom: max(16px, env(safe-area-inset-bottom)) !important;
+}
+
+/* Center the whole event package vertically.  It no longer stretches from the
+   top edge to the bottom edge; it behaves like one large event card. */
+.weekly-event-stage {
+  flex: 0 1 auto !important;
+  width: min(calc(100vw - 24px), 780px) !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: calc(100dvh - 32px) !important;
+  margin: auto !important;
+  grid-template-rows: auto minmax(0, auto) auto !important;
+  align-content: center !important;
+}
+
+.weekly-event-stage__scene {
+  min-height: clamp(300px, 46dvh, 520px) !important;
+  max-height: 58dvh !important;
+}
+
+.weekly-event-stage__speaker img {
+  max-height: min(40dvh, 380px) !important;
+}
+
+/* RESULT was already center-aligned, but force the same full-viewport host and
+   balanced padding so every event-related screen uses the same center axis. */
+.weekly-event-result {
+  justify-content: center !important;
+  align-items: center !important;
+  padding-top: max(20px, env(safe-area-inset-top)) !important;
+  padding-bottom: max(20px, env(safe-area-inset-bottom)) !important;
+}
+
+@media (max-width: 560px) {
+  .weekly-event-stage {
+    width: calc(100vw - 14px) !important;
+    gap: 9px !important;
+  }
+  .weekly-event-stage__scene {
+    min-height: clamp(270px, 44dvh, 430px) !important;
+    max-height: 55dvh !important;
+  }
+  .weekly-event-stage__speaker img {
+    max-height: min(34dvh, 300px) !important;
+  }
+}
+
+@media (max-height: 700px) {
+  .weekly-event-stage__scene {
+    min-height: 250px !important;
+    max-height: 48dvh !important;
+  }
+  .weekly-event-stage__speaker img {
+    max-height: 29dvh !important;
+  }
+}

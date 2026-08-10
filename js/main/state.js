@@ -115,7 +115,7 @@ import {
   getWeeklyEvent,
   getWeeklyEventsByRarity,
   weightedOutcome,
-} from "../../data/weekly-event-data.js?v=66";
+} from "../../data/weekly-event-data.js?v=67";
 
 export const SAVE_SCHEMA_VERSION = "mobbr-save-3.1.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
@@ -2019,6 +2019,14 @@ function weeklyEventMonthKey(gameDate) {
   return `${year}-${String(month).padStart(2, "0")}`;
 }
 
+function isInitialGameWeek(gameDate) {
+  const { year, month, week } = validateGameDate(gameDate);
+  // MOB BR always starts at 1989 / January / Week 1.  Weekly events are
+  // intentionally suppressed for this first playable week so NEW GAME can
+  // settle before the random-event cycle begins.
+  return year === 1989 && month === 1 && week === 1;
+}
+
 function weeklyEventMonthlyTarget(draft) {
   const monthKey = weeklyEventMonthKey(draft.gameDate);
   const unit = deterministicEventUnit(`${draft.saveSlotId}:${monthKey}:monthly-count`);
@@ -2106,6 +2114,29 @@ export function queueWeeklyEventToDraft(
   assertPlainObject(draft, "Draft state");
   const weekly = ensureWeeklyEventSystemToDraft(draft);
   const currentDateKey = dateKey(draft.gameDate);
+
+  // Generation 67: no random event on the very first playable week.  Clear
+  // any pending event that may have been queued by an older build so upgraded
+  // saves at 1989/1/W1 follow the same rule.  The January quota is recovered
+  // from week 2 onward by the existing monthly catch-up logic.
+  if (!force && isInitialGameWeek(draft.gameDate)) {
+    draft.ui.pendingWeeklyEvent = null;
+    weekly.lastScheduledDateKey = currentDateKey;
+    const alreadyRecorded = weekly.history.some((entry) => entry?.dateKey === currentDateKey);
+    if (!alreadyRecorded) {
+      weekly.history.push({
+        dateKey: currentDateKey,
+        eventId: null,
+        title: "イベントなし",
+        rarity: "none",
+        reason: "initial_week",
+        resolvedAt: nowIso(clock),
+      });
+      weekly.history = weekly.history.slice(-WEEKLY_EVENT_RULES.historyLimit);
+    }
+    return deepFreeze({ queued: false, reason: "initial_week", dateKey: currentDateKey });
+  }
+
   if (!force && weekly.lastScheduledDateKey === currentDateKey) {
     // Generation 62 could persist "scheduled / no event" and then fail to
     // present an event even when the monthly quota required one.  Generation

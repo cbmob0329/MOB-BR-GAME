@@ -28,7 +28,7 @@ import {
   grantEmployeeCookingPointsToDraft,
   queueWeeklyEventToDraft,
   resolveWeeklyEventToDraft,
-} from "./state.js?v=66";
+} from "./state.js?v=67";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -74,16 +74,16 @@ import {
 import {
   formatWeeklyEventText,
   getWeeklyEvent,
-} from "../../data/weekly-event-data.js?v=66";
+} from "../../data/weekly-event-data.js?v=67";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=66";
+} from "./management.js?v=67";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=66";
+} from "./tournament-bridge.js?v=67";
 
 export const APP_VERSION = "mobbr-main-app-4.1.2";
 
@@ -2798,8 +2798,11 @@ export function createMainApp({
     // The selection is deterministic for the queued event, so CONTINUE/reload
     // does not unexpectedly swap the backdrop halfway through a scene.
     applyWeeklyEventBackground(overlay, pending?.seed ?? `${event?.id}:${pending?.dateKey}`, "scene");
+    // Generation 67: vertical centering is controlled by CSS so the complete
+    // event block (title, character/dialogue and action button) sits around the
+    // center of the viewport instead of being pinned toward the top.
     overlay.style.display = "flex";
-    overlay.style.alignItems = "stretch";
+    overlay.style.alignItems = "center";
     overlay.style.justifyContent = "center";
     openWeeklyEventHost();
     modalRoot.append(overlay);
