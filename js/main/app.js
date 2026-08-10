@@ -5374,7 +5374,18 @@ const JAPANESE_ORPHAN_GUARD_SELECTOR = [
   ".placeholder-panel__text",
   ".modal-card__title",
   ".modal-card__body p",
-  ".toast-root p"
+  ".toast-root p",
+  ".management-app-content .feature-description",
+  ".management-app-content .skill-upgrade-card__description",
+  ".management-app-content .upgrade-node-modal > p",
+  ".management-app-content .player-status-modal__main > p",
+  ".management-app-content .employee-status-modal__main > p",
+  ".management-app-content .cooking-kitchen__header p",
+  ".management-app-content .cooking-screen-heading p",
+  ".management-app-content .dining-foundation-note p",
+  ".management-app-content .news-newspaper > article p",
+  ".weekly-event-scene__speech p",
+  ".weekly-event-result__note"
 ].join(",");
 
 function protectJapaneseOrphanTail(element) {

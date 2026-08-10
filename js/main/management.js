@@ -1915,7 +1915,12 @@ export function renderTrainingManagement(snapshot) {
               <div>
                 <span>${escapeHtml(player.role)}</span>
                 <strong>${escapeHtml(player.name)}</strong>
-                <small>P ${pointPool.power} / T ${pointPool.tech} / M ${pointPool.mental} / S ${pointPool.shoot}</small>
+                <div class="training-current-points" aria-label="現在の能力ポイント">
+                  <span><b>P</b>${formatNumber(pointPool.power)}</span>
+                  <span><b>T</b>${formatNumber(pointPool.tech)}</span>
+                  <span><b>M</b>${formatNumber(pointPool.mental)}</span>
+                  <span><b>S</b>${formatNumber(pointPool.shoot)}</span>
+                </div>
               </div>
               <div
                 class="training-player-station__selected"
@@ -1944,7 +1949,12 @@ export function renderTrainingManagement(snapshot) {
                 >
                   <img src="${escapeAttribute(program.image)}" alt="">
                   <strong>${escapeHtml(program.name)}</strong>
-                  <small>P ${program.points.power} / T ${program.points.tech} / M ${program.points.mental} / S ${program.points.shoot}</small>
+                  <div class="training-program-points" aria-label="獲得ポイント">
+                    <span><b>P</b>${program.points.power}</span>
+                    <span><b>T</b>${program.points.tech}</span>
+                    <span><b>M</b>${program.points.mental}</span>
+                    <span><b>S</b>${program.points.shoot}</span>
+                  </div>
                 </button>
               `).join("")}
             </div>

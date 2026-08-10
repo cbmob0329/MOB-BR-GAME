@@ -21616,3 +21616,659 @@ img.player-portrait,
     max-height: 29dvh !important;
   }
 }
+
+/* ================================================================
+   Generation 68: content-to-frame rebalance / readable points
+   ================================================================ */
+
+/* Japanese prose: keep punctuation/short tails together and prefer balanced
+   line lengths instead of leaving one or two characters on the final line. */
+.management-app-content p,
+.management-app-content .management-summary > span,
+.management-app-content .management-section__heading > span,
+.management-app-content .menu-card__note,
+.management-app-content .placeholder-panel__text,
+.management-app-content .skill-upgrade-card__description,
+.management-app-content .upgrade-node-modal > p,
+.modal-root .modal-card__title,
+.modal-root .modal-card__body p,
+.toast-root p,
+.weekly-event-scene__speech p,
+.weekly-event-result__note {
+  line-break: strict !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  text-wrap: pretty;
+}
+
+/* Short card names may use two lines, but balance them so a single kana/kanji
+   does not become a visually isolated final line. */
+.training-program-icon strong,
+.shop-item-tile > strong,
+.shop-category-product > strong,
+.cooking-shop-product > strong,
+.collection-card strong,
+.special-ability-card--generation50 > strong,
+.cooking-recipe-card strong,
+.cooking-known-recipes strong,
+.dining-character-card > strong,
+.room-list-card h3 {
+  line-break: strict !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  text-wrap: balance;
+}
+
+/* ---------- TRAINING ----------
+   The point values are primary information, not footnotes. */
+.training-player-station {
+  gap: 9px !important;
+  padding: 9px !important;
+}
+
+.training-player-station > header {
+  grid-template-columns: 76px minmax(0, 1fr) 100px !important;
+  gap: 9px !important;
+}
+
+.training-player-station > header > .player-portrait {
+  width: 76px !important;
+  height: 98px !important;
+}
+
+.training-player-station > header span {
+  font-size: 11px !important;
+  font-weight: 900 !important;
+}
+
+.training-player-station > header strong {
+  font-size: 16px !important;
+  line-height: 1.15 !important;
+}
+
+.training-current-points {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 3px;
+  margin-top: 7px;
+}
+
+.training-current-points > span {
+  display: flex !important;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 25px;
+  border: 1px solid rgb(129 217 255 / 24%);
+  border-radius: 7px;
+  padding: 2px 3px;
+  background: rgb(88 183 226 / 10%);
+  color: #fff !important;
+  font-size: 11px !important;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap !important;
+}
+
+.training-current-points b {
+  color: #8fe5ff;
+  font-size: 9px;
+}
+
+.training-player-station__selected {
+  width: 100px !important;
+  min-width: 100px !important;
+  min-height: 102px !important;
+  grid-template-rows: 16px 64px auto !important;
+  padding: 4px !important;
+}
+
+.training-player-station__selected > span {
+  font-size: 9px !important;
+}
+
+.training-player-station__selected > img {
+  width: 70px !important;
+  height: 64px !important;
+}
+
+.training-player-station__selected > strong {
+  font-size: 11px !important;
+  line-height: 1.1 !important;
+}
+
+.training-program-icon-grid {
+  gap: 7px !important;
+}
+
+.training-program-icon {
+  min-height: 126px !important;
+  grid-template-rows: 68px minmax(28px, auto) auto !important;
+  gap: 4px !important;
+  border-radius: 13px !important;
+  padding: 6px 5px !important;
+}
+
+.training-program-icon img {
+  width: 68px !important;
+  height: 68px !important;
+}
+
+.training-program-icon strong {
+  display: grid !important;
+  width: 100%;
+  min-height: 27px;
+  place-items: center;
+  overflow: visible !important;
+  font-size: 12px !important;
+  font-weight: 1000 !important;
+  line-height: 1.12 !important;
+  white-space: normal !important;
+  -webkit-line-clamp: unset !important;
+}
+
+.training-program-points {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.training-program-points > span {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 20px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 28%);
+  color: #f4f7fb;
+  font-size: 10px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.training-program-points b {
+  color: #f4d55d;
+  font-size: 9px;
+}
+
+.training-start-button {
+  min-height: 72px !important;
+}
+
+.training-start-button span {
+  font-size: 18px !important;
+}
+
+.training-start-button small {
+  font-size: 11px !important;
+}
+
+.training-summary > span {
+  font-size: 12px !important;
+  line-height: 1.55 !important;
+}
+
+.training-bonus-ledger > span {
+  font-size: 10px !important;
+}
+
+.training-bonus-ledger strong {
+  font-size: 12px !important;
+}
+
+/* ---------- Shared management hierarchy ---------- */
+.management-section__heading h2,
+.management-section > h2 {
+  font-size: 18px !important;
+}
+
+.management-section__heading > span {
+  font-size: 11px !important;
+  line-height: 1.35 !important;
+}
+
+.management-summary {
+  padding: 10px !important;
+}
+
+.management-summary > span {
+  font-size: 12px !important;
+}
+
+/* Common list/card screens: increase the content instead of making the frame
+   taller. */
+.shop-product-card,
+.inventory-card,
+.coach-card {
+  grid-template-columns: 70px minmax(0, 1fr) auto !important;
+  gap: 9px !important;
+  padding: 9px !important;
+}
+
+.shop-product-card > img,
+.inventory-card > img,
+.coach-card > img {
+  width: 70px !important;
+  height: 70px !important;
+}
+
+.shop-product-card h3,
+.inventory-card h3,
+.coach-card h3 {
+  font-size: 14px !important;
+}
+
+.shop-product-card p,
+.inventory-card p,
+.coach-card p {
+  font-size: 11px !important;
+}
+
+.shop-product-card small,
+.coach-card small {
+  font-size: 10px !important;
+}
+
+.pack-open-card {
+  grid-template-columns: 70px minmax(0, 1fr) !important;
+  padding: 9px !important;
+}
+
+.pack-open-card img {
+  width: 70px !important;
+  height: 70px !important;
+}
+
+.pack-open-card h3 {
+  font-size: 13px !important;
+}
+
+.pack-open-card p {
+  font-size: 10px !important;
+}
+
+/* ---------- SHOP ---------- */
+.management-app-content--shop .mobshop-category-grid span {
+  font-size: 9px !important;
+  font-weight: 900 !important;
+}
+
+.management-app-content--shop .mobshop-category-grid img {
+  width: 42px !important;
+  height: 42px !important;
+}
+
+.management-app-content--shop .shop-compact-product__image > img,
+.management-app-content--shop .shop-item-tile .shop-compact-product__image > img,
+.management-app-content--shop .shop-category-product .shop-compact-product__image > img,
+.management-app-content--shop .cooking-shop-product .shop-compact-product__image > img {
+  width: 54px !important;
+  height: 54px !important;
+  max-width: 54px !important;
+  max-height: 54px !important;
+}
+
+.management-app-content--shop .shop-item-tile > strong,
+.management-app-content--shop .shop-category-product > strong,
+.management-app-content--shop .cooking-shop-product > strong,
+.management-app-content--shop .shop-compact-product > strong {
+  font-size: 11px !important;
+  line-height: 1.08 !important;
+}
+
+.management-app-content--shop .shop-item-tile > small,
+.management-app-content--shop .shop-item-tile > em,
+.management-app-content--shop .shop-category-product > small,
+.management-app-content--shop .shop-category-product > em,
+.management-app-content--shop .cooking-shop-product > small,
+.management-app-content--shop .cooking-shop-product > em {
+  font-size: 9px !important;
+  line-height: 1.05 !important;
+}
+
+.mobshop-header-clerk span {
+  font-size: 9px !important;
+}
+
+.mobshop-header-clerk p {
+  font-size: 10px !important;
+  line-height: 1.35 !important;
+}
+
+/* ---------- TEAM / PLAYER / WEAPON ---------- */
+.team-portrait-button span {
+  font-size: 10px !important;
+}
+
+.team-portrait-button em,
+.team-portrait-button > small {
+  font-size: 9px !important;
+}
+
+.player-row__tap,
+.team-detail-card__tap {
+  font-size: 10px !important;
+}
+
+.team-menu-deck > header span {
+  font-size: 10px !important;
+}
+
+.team-menu-deck > header small {
+  font-size: 9px !important;
+}
+
+.individual-weapon-profile > header span,
+.individual-weapon-profile > header small {
+  font-size: 10px !important;
+}
+
+.individual-weapon-profile > header strong {
+  font-size: 15px !important;
+}
+
+.individual-weapon-profile__stats small {
+  font-size: 9px !important;
+}
+
+.individual-weapon-profile__stats strong {
+  font-size: 12px !important;
+}
+
+.individual-weapon-profile > button {
+  min-height: 48px !important;
+  font-size: 11px !important;
+}
+
+.player-status-modal__weapon-stats span {
+  font-size: 9px !important;
+}
+
+.player-status-modal__weapon-stats strong {
+  font-size: 12px !important;
+}
+
+/* ---------- ABILITY / SPECIAL ABILITY ---------- */
+.special-ability-card--generation50 {
+  padding: 7px !important;
+}
+
+.special-ability-card--generation50 .special-ability-card__id {
+  font-size: 8px !important;
+}
+
+.special-ability-card--generation50 > strong {
+  font-size: 11px !important;
+  line-height: 1.12 !important;
+}
+
+.special-ability-card--generation50 > em,
+.special-ability-card--generation50 > small {
+  font-size: 9px !important;
+  line-height: 1.15 !important;
+}
+
+.skill-upgrade-card__description {
+  font-size: 11px !important;
+  line-height: 1.5 !important;
+}
+
+.skill-upgrade-card__name small,
+.skill-upgrade-card__metrics span,
+.skill-upgrade-card__next small {
+  font-size: 9px !important;
+}
+
+.skill-upgrade-card > header span,
+.skill-upgrade-card > header strong,
+.skill-upgrade-card__next span,
+.skill-upgrade-card__next strong {
+  font-size: 11px !important;
+}
+
+/* ---------- ROOM / COLLECTION ---------- */
+.room-list-card {
+  padding: 8px !important;
+}
+
+.room-list-card > div span,
+.room-list-card span,
+.room-list-card p {
+  font-size: 10px !important;
+}
+
+.room-list-card > div h3,
+.room-list-card h3 {
+  font-size: 12px !important;
+}
+
+.room-list-card > button {
+  min-height: 42px !important;
+  font-size: 10px !important;
+}
+
+.room-category-strip span {
+  font-size: 9px !important;
+}
+
+.room-item-strip strong {
+  font-size: 10px !important;
+}
+
+.room-placement__controls button {
+  font-size: 9px !important;
+}
+
+.collection-card {
+  gap: 5px !important;
+  padding: 6px !important;
+}
+
+.collection-card strong {
+  font-size: 11px !important;
+  line-height: 1.1 !important;
+  white-space: normal !important;
+}
+
+.collection-card span,
+.collection-card small {
+  font-size: 9px !important;
+}
+
+.collection-file-launchers > button strong {
+  font-size: 10px !important;
+}
+
+.collection-food-file__header span {
+  font-size: 10px !important;
+}
+
+.collection-food-file__header > b {
+  font-size: 12px !important;
+}
+
+/* ---------- COOKING / DINING ---------- */
+.cooking-screen-heading span,
+.cooking-kitchen__header span,
+.cooking-utensil-board > header > span,
+.cooking-workbench > header span,
+.cooking-ingredient-builder > header span,
+.cooking-known-recipes > header span {
+  font-size: 11px !important;
+}
+
+.cooking-screen-heading p,
+.cooking-kitchen__header p,
+.cooking-utensil-picker > p,
+.cooking-job-detail > p,
+.cooking-utensil-compatibility-note {
+  font-size: 10px !important;
+  line-height: 1.45 !important;
+}
+
+.cooking-fixed-station--generation50 span {
+  font-size: 9px !important;
+}
+
+.cooking-fixed-station--generation50 strong {
+  font-size: 12px !important;
+}
+
+.cooking-fixed-station--generation50 b,
+.cooking-fixed-station--generation50 small {
+  font-size: 10px !important;
+}
+
+.cooking-ingredient-slots > button > strong {
+  font-size: 10px !important;
+}
+
+.cooking-ingredient-slots > button > small {
+  font-size: 9px !important;
+}
+
+.cooking-ingredient-picker strong,
+.cooking-recipe-guide strong,
+.cooking-recipe-card strong,
+.cooking-known-recipes strong {
+  font-size: 11px !important;
+}
+
+.cooking-ingredient-picker small,
+.cooking-recipe-guide small,
+.cooking-recipe-card small,
+.cooking-known-recipes small {
+  font-size: 9px !important;
+}
+
+.cooking-storage-slot span,
+.cooking-cookbook-card span,
+.cooking-storage-slot small {
+  font-size: 9px !important;
+}
+
+.dining-character-card > strong {
+  font-size: 11px !important;
+}
+
+.dining-character-card > small,
+.dining-character-card > em,
+.dining-character-bubble,
+.dining-hungry-bubble {
+  font-size: 10px !important;
+  line-height: 1.3 !important;
+}
+
+.dining-food-shelf strong,
+.dining-selected-dishes strong,
+.dining-serve-confirm article strong {
+  font-size: 10px !important;
+}
+
+.dining-food-shelf span,
+.dining-food-shelf small {
+  font-size: 9px !important;
+}
+
+/* ---------- EMPLOYEE / NEWS / SCHEDULE ---------- */
+.employee-status-modal__main > span,
+.employee-status-modal__summary dt,
+.employee-status-modal__note {
+  font-size: 9px !important;
+}
+
+.employee-status-modal__main > p,
+.employee-status-modal__summary dd {
+  font-size: 11px !important;
+}
+
+.news-newspaper summary small,
+.news-newspaper summary em,
+.news-newspaper > article li {
+  font-size: 9px !important;
+}
+
+.news-newspaper > article p {
+  font-size: 10px !important;
+  line-height: 1.45 !important;
+}
+
+.news-mob-pink-comment p {
+  font-size: 11px !important;
+}
+
+.tournament-calendar-event span,
+.tournament-calendar-event small,
+.tournament-calendar-event em {
+  font-size: 8px !important;
+}
+
+.tournament-calendar-event strong {
+  font-size: 9px !important;
+}
+
+/* Buttons in dense management consoles need readable labels even if their
+   original component was designed around a large empty frame. */
+.upgrade-console__visual-actions button,
+.upgrade-console__skin select,
+.upgrade-console__skin button,
+.radial-upgrade-console__weapon-tools select,
+.radial-upgrade-console__weapon-tools button,
+.cooking-station-modal__close,
+.cooking-ingredient-builder > header button {
+  font-size: 10px !important;
+}
+
+@media (max-width: 430px) {
+  .training-player-station > header {
+    grid-template-columns: 68px minmax(0, 1fr) 88px !important;
+  }
+
+  .training-player-station > header > .player-portrait {
+    width: 68px !important;
+    height: 90px !important;
+  }
+
+  .training-player-station__selected {
+    width: 88px !important;
+    min-width: 88px !important;
+    min-height: 94px !important;
+    grid-template-rows: 15px 57px auto !important;
+  }
+
+  .training-player-station__selected > img {
+    width: 62px !important;
+    height: 57px !important;
+  }
+
+  .training-player-station__selected > strong {
+    font-size: 10px !important;
+  }
+
+  .training-current-points {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .training-program-icon {
+    min-height: 124px !important;
+    grid-template-rows: 64px minmax(28px, auto) auto !important;
+  }
+
+  .training-program-icon img {
+    width: 64px !important;
+    height: 64px !important;
+  }
+
+  .training-program-icon strong {
+    font-size: 11px !important;
+  }
+
+  .training-program-points > span {
+    font-size: 9px !important;
+  }
+}
