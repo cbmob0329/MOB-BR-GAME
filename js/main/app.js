@@ -1,4 +1,5 @@
-import { nextTournamentText, weeklyGrowthSummary, lastWeekTraining } from "./training-view.js?v=70";
+import { presentPracticeReport } from "./practice-report.js?v=72";
+import { nextTournamentText, weeklyGrowthSummary, lastWeekTraining } from "./training-view.js?v=72";
 /**
  * MOB BR main-screen application shell.
  *
@@ -16,10 +17,10 @@ import {
   assetPath,
   detectAssetPrefix,
   installAssetFallbacks,
-} from "../assets.js?v=70";
+} from "../assets.js?v=72";
 import {
   fitPortraits,
-} from "../portrait-fit.js?v=70";
+} from "../portrait-fit.js?v=72";
 import {
   SaveError,
   SaveNotFoundError,
@@ -29,7 +30,7 @@ import {
   grantEmployeeCookingPointsToDraft,
   queueWeeklyEventToDraft,
   resolveWeeklyEventToDraft,
-} from "./state.js?v=70";
+} from "./state.js?v=72";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -53,38 +54,38 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=70";
+} from "./team.js?v=72";
 import {
   getSpecialAbility,
-} from "../../data/special-ability-50-data.js?v=70";
+} from "../../data/special-ability-50-data.js?v=72";
 import {
   getCompanyRankData,
-} from "../../data/game-data.js?v=70";
+} from "../../data/game-data.js?v=72";
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=70";
+} from "../../data/motivation-data.js?v=72";
 import {
   getRoomMaster,
-} from "../../data/collection-data.js?v=70";
+} from "../../data/collection-data.js?v=72";
 import {
   EMPLOYEE_RULES,
   getEmployeeRankData,
   getTotalEmployeeHpBonus,
-} from "../../data/employee-data.js?v=70";
+} from "../../data/employee-data.js?v=72";
 import {
   formatWeeklyEventText,
   getWeeklyEvent,
-} from "../../data/weekly-event-data.js?v=70";
+} from "../../data/weekly-event-data.js?v=72";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=70";
+} from "./management.js?v=72";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=70";
+} from "./tournament-bridge.js?v=72";
 
 export const APP_VERSION = "mobbr-main-app-4.1.2";
 
@@ -636,18 +637,18 @@ function individualWeaponProfileTemplate(
   player,
 ) {
   const stats = [
-    ["CLOSE", player.weapon.rangeRanks.close],
-    ["MID", player.weapon.rangeRanks.mid],
-    ["FAR", player.weapon.rangeRanks.far],
-    ["FIRE", player.weapon.fireRateRank],
-    ["RELOAD", player.weapon.reloadRank],
+    ["近距離", player.weapon.rangeRanks.close],
+    ["中距離", player.weapon.rangeRanks.mid],
+    ["遠距離", player.weapon.rangeRanks.far],
+    ["連射", player.weapon.fireRateRank],
+    ["リロード", player.weapon.reloadRank],
   ];
   return `
     <article class="individual-weapon-profile">
       <header>
         <img src="${escapeAttribute(player.weapon.image)}" alt="">
         <div>
-          <span>${escapeHtml(player.role)} / PERSONAL WEAPON</span>
+          <span>${escapeHtml(player.role)} / 専用武器</span>
           <strong>${escapeHtml(player.weapon.weaponName)}</strong>
           <small>${escapeHtml(player.name)}専用能力</small>
         </div>
@@ -792,9 +793,9 @@ function titleTemplate(hasSave, saveSummary = null) {
   return `
     <main class="screen screen--title title-screen">
       <section class="title-card" aria-labelledby="gameTitle">
-        <p class="title-card__eyebrow">MOB BR PROJECT</p>
+        <img class="pw-title-art" src="back/mob-br-graffiti-pixel.png" alt="青いレンガ壁に描かれたMOB BRのドット絵グラフィティ"><p class="title-card__eyebrow">育てた3人で、頂点へ。</p>
         <h1 id="gameTitle" class="title-card__title">MOB BR</h1>
-        <p class="title-card__subtitle">ALL PLAYERS ARE THE STORY</p>
+        <p class="title-card__subtitle">練習で成長。チームを編成。大会で実力を試そう。</p>
 
         <div class="title-actions">
           <button
@@ -909,14 +910,14 @@ function commandCard(item) {
 function homeTemplate(snapshot, currentRoute) {
   const tournament=getTournamentWeekStatus(snapshot);
   return `<main class="screen screen--home app-layout">${topStatusTemplate(snapshot)}
-    <div class="page-content pw-home">
-      <section class="pw-home-banner"><div><span>育成ホーム</span><h1>${escapeHtml(snapshot.playerTeam.teamName)}</h1><p>${tournament.hasTournament ? "今週は大会！ 育てたチームの実力を試そう。" : "練習でポイントを獲得して、選手を強くしよう！"}</p></div><img src="icon/pink.png" alt="モブピンク"></section>
+    <div class="page-content pw-home"><div class="pw-home-masthead"><figure class="pw-graffiti"><img src="back/mob-br-graffiti-pixel.png" alt="MOB BRのドット絵グラフィティ" width="1672" height="941" fetchpriority="high"></figure>
+      <section class="pw-home-banner"><div><span>育成ホーム</span><h1>${escapeHtml(snapshot.playerTeam.teamName)}</h1><p>${tournament.hasTournament ? "今週は大会！ 育てたチームの実力を試そう。" : "練習でポイントを獲得して、選手を強くしよう！"}</p></div><img src="icon/pink.png" alt="モブピンク"></section></div>
       <div class="pw-flow"><span>① 練習でポイント獲得</span><b>›</b><span>② 能力アップ</span><b>›</b><span>③ 大会に挑戦</span></div>
       <section class="pw-command-grid pw-primary-commands" aria-label="育成メニュー">${[
-        {route:"train",icon:"menu/traning.png",note:"練習を選んで1週間を進める"},
-        {route:"ability",icon:"icon/ab.png",note:"ポイントを使って能力を伸ばす"},
-        {route:"schedule",icon:"menu/sc.png",note:tournament.hasTournament ? "今週の大会に出場する" : "次の大会と出場条件を確認"},
-        {route:"team",icon:"menu/team.png",note:"3人の能力・武器を確認"}
+        {route:"train",icon:"menu/traning.png",note:"練習を決めて週を進める"},
+        {route:"ability",icon:"icon/ab.png",note:"ポイントで能力を伸ばす"},
+        {route:"schedule",icon:"menu/sc.png",note:tournament.hasTournament ? "今週の大会に出場" : "次の大会を確認"},
+        {route:"team",icon:"menu/team.png",note:"3人の能力を確認"}
       ].map(commandCard).join("")}</section>
       <section class="pw-home-roster" aria-label="チームの選手">${snapshot.playerTeam.members.map(p=>`<button type="button" data-action="inspect-team-player" data-player-id="${escapeAttribute(p.playerId)}"><img src="${escapeAttribute(p.image)}" alt=""><span><small>${escapeHtml(p.role)}</small><strong>${escapeHtml(p.name)}</strong></span><b class="pw-rank" data-rank="${escapeAttribute(p.characterRank.charAt(0))}">${escapeHtml(p.characterRank)}</b></button>`).join("")}</section>
       <h2 class="pw-section-title">施設・チーム運営</h2>
@@ -960,7 +961,7 @@ function teamTemplate(snapshot, currentRoute) {
           <small>選手をタップすると詳細を表示します / 従業員効果 TEAM HP +${formatNumber(employeeHpBonus(snapshot))}</small>
         </section>
 
-        <section class="pw-command-grid">${TEAM_MENU.map(commandCard).join("")}</section>
+        <section class="pw-command-grid">${TEAM_MENU.filter(item => item.route !== ROUTES.items).map(commandCard).join("")}</section>
 
         <section class="team-portrait-grid">
           ${snapshot.playerTeam.members.map((player) => `
@@ -1021,13 +1022,13 @@ function settingsTemplate(snapshot, currentRoute, fromTitle = false) {
             data-action="${fromTitle ? "return-title" : "navigate"}"
             ${fromTitle ? "" : `data-route="${ROUTES.home}"`}
           >
-            ← ${fromTitle ? "TITLE" : "HOME"}
+            ← ${fromTitle ? "タイトル" : "ホーム"}
           </button>
         </div>
 
         <section class="hero-panel">
-          <p class="hero-panel__label">SYSTEM SETTINGS</p>
-          <h1 class="hero-panel__title">SETTING</h1>
+          <p class="hero-panel__label">ゲーム設定</p>
+          <h1 class="hero-panel__title">設定</h1>
           <p class="placeholder-panel__text">
             設定はセーブデータがある場合だけ保存されます。
           </p>
@@ -1096,7 +1097,7 @@ function settingsTemplate(snapshot, currentRoute, fromTitle = false) {
 
           <section class="test-mode-setting ${settings.testMode ? "is-active" : ""}">
             <div>
-              <strong>TEST MODE</strong>
+              <strong>テストモード</strong>
               <span>${settings.testMode ? "有効：通貨・ポイント・週送りを自由に操作できます" : "認証コードを入力すると有効になります"}</span>
             </div>
             <input type="password" inputmode="numeric" name="testModeCode" maxlength="4" placeholder="認証コード">
@@ -2667,7 +2668,6 @@ export function createMainApp({
         if (centerBox) {
           centerBox.hidden = false;
           centerBox.textContent = text;
-          protectJapaneseOrphanTail(centerBox);
           centerBox.classList.remove("is-pop");
           void centerBox.offsetWidth;
           centerBox.classList.add("is-pop");
@@ -2679,7 +2679,6 @@ export function createMainApp({
         if (label) label.textContent = speaker.name;
         if (speechText) {
           speechText.textContent = text;
-          protectJapaneseOrphanTail(speechText);
           speechText.classList.remove("is-pop");
           void speechText.offsetWidth;
           speechText.classList.add("is-pop");
@@ -2950,7 +2949,11 @@ export function createMainApp({
     const bonus =
       snapshot.weeklyBonus.history.at(-1);
 
+    let trainingDestination = ROUTES.home;
     try {
+      if (lastWeekTraining(snapshot)) {
+        trainingDestination = await presentPracticeReport(snapshot);
+      } else {
       await openAlert({
         title: pending.monthChanged
           ? "新しい月の始まり"
@@ -3032,8 +3035,10 @@ export function createMainApp({
             }
           </section>
         `,
-        buttonLabel: lastWeekTraining(snapshot) ? "イベントを確認して能力アップへ" : "今週を始める",
+        buttonLabel: "今週を始める",
       });
+
+      }
 
       stateManager.transact(
         "week_start_presentation_completed",
@@ -3080,7 +3085,7 @@ export function createMainApp({
     } catch (error) {
       console.error("Weekly event recovery failed after week start.", error);
     }
-    if (lastWeekTraining(snapshot)) navigate(ROUTES.ability);
+    if (lastWeekTraining(snapshot)) navigate(trainingDestination);
     return true;
   }
 
@@ -3234,8 +3239,6 @@ export function createMainApp({
       "img[data-character-portrait]",
       "img.player-portrait",
       ".team-portrait-button img[data-role]",
-      ".training-cinematic__portrait img",
-      ".training-result-member__player",
       ".player-row__image",
       ".dining-seat > img",
     ];
@@ -3285,6 +3288,8 @@ export function createMainApp({
 
   function render() {
     const snapshot = getSafeSnapshot();
+    document.documentElement.dataset.reducedMotion =
+      snapshot?.settings?.reducedMotion ? "true" : "false";
 
     if (route === ROUTES.title) {
       if (titleSettingsOpen) {
@@ -5184,94 +5189,6 @@ export function createMainApp({
   });
 }
 
-const JAPANESE_ORPHAN_GUARD_SELECTOR = [
-  "p",
-  ".management-summary > span",
-  ".menu-card__note",
-  ".facility-entrance-stage p",
-  ".management-section__heading > span",
-  ".mobshop-header-clerk p",
-  ".employee-week-greeting__speech p",
-  ".restaurant-master-stage__speech p",
-  ".restaurant-rule-note",
-  ".restaurant-set-confirm > p",
-  ".placeholder-panel__text",
-  ".modal-card__title",
-  ".modal-card__body p",
-  ".toast-root p",
-  ".management-app-content .feature-description",
-  ".management-app-content .skill-upgrade-card__description",
-  ".management-app-content .upgrade-node-modal > p",
-  ".management-app-content .player-status-modal__main > p",
-  ".management-app-content .employee-status-modal__main > p",
-  ".management-app-content .cooking-kitchen__header p",
-  ".management-app-content .cooking-screen-heading p",
-  ".management-app-content .dining-foundation-note p",
-  ".management-app-content .news-newspaper > article p",
-  ".weekly-event-scene__speech p",
-  ".weekly-event-result__note"
-].join(",");
-
-function protectJapaneseOrphanTail(element) {
-  if (!(element instanceof HTMLElement)) return;
-  const existingGuard = element.querySelector(":scope > .jp-no-orphan-tail");
-  const currentText = element.textContent?.trim() ?? "";
-  if (
-    element.dataset.jpOrphanSource === currentText &&
-    existingGuard
-  ) {
-    return;
-  }
-  if (
-    element.childElementCount > 0 &&
-    !(element.childElementCount === 1 && existingGuard)
-  ) {
-    return;
-  }
-  if (
-    currentText.length < 8 ||
-    !/[ぁ-んァ-ヶ一-龠々ー]/u.test(currentText)
-  ) {
-    return;
-  }
-
-  const characters = Array.from(currentText);
-  const tailLength = Math.min(5, Math.max(4, characters.length));
-  const head = characters.slice(0, -tailLength).join("");
-  const tail = characters.slice(-tailLength).join("");
-  if (!head || !tail) return;
-
-  element.textContent = head;
-  const guard = document.createElement("span");
-  guard.className = "jp-no-orphan-tail";
-  guard.textContent = tail;
-  element.append(guard);
-  element.dataset.jpOrphanSource = currentText;
-}
-
-function installJapaneseOrphanGuard(root) {
-  if (!root || typeof MutationObserver === "undefined") return null;
-  let scheduled = false;
-  const apply = () => {
-    scheduled = false;
-    root.querySelectorAll(JAPANESE_ORPHAN_GUARD_SELECTOR)
-      .forEach(protectJapaneseOrphanTail);
-  };
-  const schedule = () => {
-    if (scheduled) return;
-    scheduled = true;
-    requestAnimationFrame(apply);
-  };
-  const observer = new MutationObserver(schedule);
-  observer.observe(root, {
-    childList: true,
-    subtree: true,
-    characterData: true,
-  });
-  schedule();
-  return observer;
-}
-
 function bootstrap() {
   const root = document.querySelector("#app");
   const modalRoot = document.querySelector("#modalRoot");
@@ -5288,9 +5205,6 @@ function bootstrap() {
     storage: window.localStorage,
   });
 
-  installJapaneseOrphanGuard(root);
-  installJapaneseOrphanGuard(modalRoot);
-  installJapaneseOrphanGuard(toastRoot);
   app.start();
   globalThis.mobBrApp = app;
 }

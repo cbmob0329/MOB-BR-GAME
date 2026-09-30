@@ -1,5 +1,5 @@
-import { TRAINING_PROGRAMS, calculateTrainingGain } from '../../data/training-data.js?v=70';
-import { advanceGameWeek, getTournamentEventsForDate } from '../../data/game-data.js?v=70';
+import { TRAINING_PROGRAMS, calculateTrainingGain } from '../../data/training-data.js?v=72';
+import { advanceGameWeek, getTournamentEventsForDate } from '../../data/game-data.js?v=72';
 
 export const POINT_NAMES = Object.freeze({ power: '筋力', tech: '技術', mental: '精神', shoot: '射撃' });
 const esc = (value) => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
@@ -49,7 +49,7 @@ export function renderTrainingPlan(snapshot, selections, tournamentWeek) {
   return `<section class="training-plan">
     <header class="training-plan__intro"><span class="training-plan__eyebrow">今週の育成</span>
       <h2>練習で貯めて、能力を伸ばす。</h2>
-      <p>① 3人の練習を選ぶ → ② 1週間進める → ③ ポイントで能力を強化</p>
+      <ol class="pw-training-steps"><li>3人の練習を選ぶ</li><li>1週間進めてポイントを獲得</li><li>能力アップで強化する</li></ol>
       <p class="training-plan__schedule">${esc(nextTournamentText(snapshot))}</p>
     </header>
     ${tournamentWeek.trainingBlocked ? '<p class="training-plan__notice">今週は出場予定の大会があります。大会を終えてから次の練習へ進みましょう。</p><button class="secondary-button" data-action="navigate" data-route="schedule">大会予定へ</button>' : ''}

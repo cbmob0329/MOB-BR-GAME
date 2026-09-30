@@ -1,0 +1,207 @@
+/*
+ * Authoritative palette boundary for the main game's legacy components.
+ * Old rules may still control geometry, but cannot combine a dark surface
+ * from one revision with a foreground from another. Keep both together here.
+ * The tournament and the standalone practice report use their own palettes.
+ */
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card, .restaurant-menu-modal, .cooking-station-modal__panel) {
+  --ui-ink: #183d59;
+  --ui-muted: #466278;
+  --ui-paper: #fff;
+  --ui-soft: #edf4fa;
+  --ui-blue: #0863a5;
+  color: var(--ui-ink) !important;
+  -webkit-text-fill-color: currentColor;
+  color-scheme: light;
+  font-size: 14px;
+}
+
+/* Clear old text colors and nested gradient panels, including inline colors.
+   Actual pictures, canvases, input controls, and SVG artwork are untouched. */
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card, .restaurant-menu-modal, .cooking-station-modal__panel)
+  :where(div,section,article,header,footer,nav,aside,form,fieldset,button,summary,
+    span,strong,b,small,em,i,label,p,li,ul,ol,dl,dt,dd,table,td,th,h1,h2,h3,h4,output) {
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  text-shadow: none !important;
+  border-color: #b9cede !important;
+}
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card, .restaurant-menu-modal, .cooking-station-modal__panel)
+  :where(p,span,strong,small,b,em,label,dt,dd,li,td,th,output) {
+  font-size: max(13px, 1em) !important;
+  line-height: 1.65 !important;
+}
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card, .restaurant-menu-modal, .cooking-station-modal__panel)
+  :where(p,li,dd,.feature-description,.setting-row__note) {
+  word-break: normal !important;
+  line-break: strict !important;
+  overflow-wrap: anywhere !important;
+  white-space: normal !important;
+  text-wrap: pretty;
+  letter-spacing: normal !important;
+}
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card, .restaurant-menu-modal, .cooking-station-modal__panel)
+  :where(h1,h2,h3,h4) {
+  color: var(--ui-ink) !important;
+  line-height: 1.5 !important;
+  overflow-wrap: anywhere !important;
+  white-space: normal !important;
+  text-wrap: balance;
+}
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card, .restaurant-menu-modal, .cooking-station-modal__panel) :where(h1) { font-size: 24px !important; }
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card, .restaurant-menu-modal, .cooking-station-modal__panel) :where(h2) { font-size: 20px !important; }
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card, .restaurant-menu-modal, .cooking-station-modal__panel) :where(h3) { font-size: 17px !important; }
+
+/* Main surfaces. Light panels stay opaque over scenery. */
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card, .restaurant-menu-modal, .cooking-station-modal__panel)
+  :is(section,article,fieldset,.content-panel,.hero-panel,.pw-home-banner,
+    .team-player-tab,.team-portrait-button,.pw-command,.training-plan__member,
+    .room-list-card,.room-canvas__empty,.mob-pink-guide__speech,
+    .employee-week-greeting__speech,.restaurant-master-stage__speech,
+    .restaurant-master-stage__character,.weekly-event-scene__speech,
+    .cooking-job-panel,.shop-compact-product,.collection-trophy-empty) {
+  background: var(--ui-paper) !important;
+  color: var(--ui-ink) !important;
+}
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card, .restaurant-menu-modal, .cooking-station-modal__panel)
+  :is(.feature-command-header,.management-command-bar,.pw-upgrade-console__header,
+    .pw-upgrade-console__footer,.individual-weapon-profile__stats > span,
+    .player-status-modal__stats > div,.player-status-modal__points > span,
+    .player-status-modal__weapon-stats > span,.cost-tags > span,
+    .team-point-chip,.skill-upgrade-card__base-effect,.skill-upgrade-card__metrics,
+    .skill-upgrade-card__next,.training-plan__choices > summary,
+    .tournament-year-calendar__header,.tournament-month-card > header,
+    .strategy-probabilities > span,.strategy-rank-modal__list > article,
+    .weekly-bonus-inline,.week-focus,.research-progress,
+    .collection-file__page > header,.restaurant-menu-modal__master-line) {
+  background: var(--ui-soft) !important;
+  color: var(--ui-ink) !important;
+}
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card, .restaurant-menu-modal, .cooking-station-modal__panel)
+  :is(.management-app-content,.management-live-section,.development-workspace,
+    .development-body,.team-feature-live-section,.training-plan,
+    .pw-command-grid,.pw-home-roster,.team-portrait-grid,.special-ability-list,
+    .room-list,.room-canvas,.pw-staff,.facility-menu-grid,
+    .restaurant-screen,.restaurant-player-section,.collection-file-view) {
+  background: transparent !important;
+}
+
+/* Controls: readable even when unavailable; selection is not color alone. */
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card, .restaurant-menu-modal, .cooking-station-modal__panel)
+  :is(button,summary) {
+  color: #174e77 !important;
+  background: #f4f9ff !important;
+  border-color: #a1c1d9 !important;
+  font-size: max(14px, 1em) !important;
+}
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card, .restaurant-menu-modal, .cooking-station-modal__panel)
+  button:disabled { opacity: .7 !important; filter: none !important; }
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card, .restaurant-menu-modal, .cooking-station-modal__panel)
+  :is(.primary-button,.pw-stepper button:last-child) {
+  background: #ffda62 !important;
+  color: #493500 !important;
+  border-color: #c89623 !important;
+}
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card, .restaurant-menu-modal, .cooking-station-modal__panel)
+  :is(.development-tabs,.room-category-strip,.mobshop-category-grid,.cooking-subnav,.special-color-tabs)
+  button.is-active {
+  background: var(--ui-blue) !important;
+  color: #fff !important;
+  border-color: #064b80 !important;
+  box-shadow: inset 0 -3px #ffda62 !important;
+}
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card, .restaurant-menu-modal, .cooking-station-modal__panel)
+  :is(.team-player-tab[aria-selected=true],.training-plan__programs button.is-selected,
+    .room-list-card.is-active,.tournament-week-cell.is-current,.pw-stat-row.is-planned) {
+  background: #fff5ce !important;
+  color: var(--ui-ink) !important;
+  border-color: #c59b30 !important;
+}
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card, .restaurant-menu-modal, .cooking-station-modal__panel)
+  :is(.pw-command,.pw-primary-commands .pw-command) { background: #fff !important; color: #193d59 !important; }
+body.pw-ui #app .page-content .pw-primary-commands .pw-command:nth-child(1) { background: #e0f1ff !important; }
+body.pw-ui #app .page-content .pw-primary-commands .pw-command:nth-child(2) { background: #e9f6e1 !important; }
+body.pw-ui #app .page-content .pw-primary-commands .pw-command:nth-child(3) { background: #fff4cc !important; }
+
+/* Numerical information has a stable size and contrast. */
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card, .restaurant-menu-modal, .cooking-station-modal__panel)
+  :is(.upgrade-console__resources > span,.training-plan__pool > span,.pw-stat-cost > span) {
+  background: #edf4fa !important; color: #294e6b !important;
+}
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card, .restaurant-menu-modal, .cooking-station-modal__panel)
+  :is(.upgrade-console__resources strong,.training-plan__pool b,.record-summary-grid strong) { font-size: 24px !important; color: #193d59 !important; }
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card, .restaurant-menu-modal, .cooking-station-modal__panel)
+  :is(.pw-stat-name strong,.team-player-tab strong,.individual-weapon-profile header strong) { font-size: 17px !important; }
+body.pw-ui #app .page-content .pw-stat-value > b { font-size: 15px !important; }
+body.pw-ui #app .page-content .pw-rank { background: #e5ebf0 !important; color: #39516a !important; font-size: 22px !important; }
+body.pw-ui #app .page-content .pw-rank[data-rank=F] { background: #d4ddff !important; color: #405294 !important; }
+body.pw-ui #app .page-content .pw-rank[data-rank=E] { background: #c3ecff !important; color: #086589 !important; }
+body.pw-ui #app .page-content .pw-rank[data-rank=D] { background: #cbf0bb !important; color: #326922 !important; }
+body.pw-ui #app .page-content .pw-rank[data-rank=C] { background: #ffedaa !important; color: #775b0a !important; }
+body.pw-ui #app .page-content .pw-rank[data-rank=B] { background: #ffdcb7 !important; color: #8c4b04 !important; }
+body.pw-ui #app .page-content .pw-rank[data-rank=A] { background: #ffd5da !important; color: #a72842 !important; }
+body.pw-ui #app .page-content .pw-rank:is([data-rank=S],[data-rank=M]) { background: #fff0b7 !important; color: #805500 !important; }
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card) .collection-file-card__number { background: #213d59 !important; color: #fff !important; }
+
+/* Do not overlay stale dark pseudo-elements on the new light surfaces. */
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card, .restaurant-menu-modal)
+  :is(.content-panel,.hero-panel,.team-player-tab,.team-portrait-button,
+    .shop-compact-product,.skill-lab-overview,.strategy-meeting-panel,
+    .special-ability-card,.room-list-card,.restaurant-player-card)::before,
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card, .restaurant-menu-modal)
+  :is(.content-panel,.hero-panel,.team-player-tab,.team-portrait-button,
+    .shop-compact-product,.skill-lab-overview,.strategy-meeting-panel,
+    .special-ability-card,.room-list-card,.restaurant-player-card)::after { display: none !important; }
+
+/* Progress fills and toggles need their own visible surface after the reset. */
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card) .employee-status-modal__gauge i { background: #d7e5f0 !important; }
+body.pw-ui :is(#app .page-content, #modalRoot .modal-card) .employee-status-modal__gauge i > span { background: #0967a9 !important; }
+body.pw-ui #app .page-content .toggle > span { background: #6c8295 !important; }
+body.pw-ui #app .page-content .toggle input:checked + span { background: #0967a9 !important; }
+body.pw-ui #app .page-content .toggle > span::after { background: #fff !important; }
+body.pw-ui #app .page-content .pw-graffiti { background: #146aca !important; }
+body.pw-ui #app .page-content .restaurant-screen__shade { background: #eff6ffbb !important; }
+body.pw-ui #app .page-content .room-placement__controls { background: #fff !important; color: #193d59 !important; }
+body.pw-ui #modalRoot :is(.weekly-event-next,.weekly-event-result > button) { background: #ffda62 !important; color: #493500 !important; font-size: 16px !important; }
+body.pw-ui #modalRoot :is(.weekly-event-speech p,.weekly-event-center-text) { line-break: strict; word-break: normal; overflow-wrap: anywhere; text-wrap: pretty; }
+
+/* Keep the controls near the actual data on laptop-height screens. */
+body.pw-ui #app .page-content .hero-panel { gap: 6px !important; padding: 14px 18px !important; }
+body.pw-ui #app .page-content .hero-panel > p { width: auto !important; max-width: none !important; margin: 0 !important; justify-self: stretch !important; }
+body.pw-ui #app .page-content .feature-command-header { padding: 8px 14px !important; }
+body.pw-ui #app .page-content .feature-command-header h1 { font-size: 20px !important; }
+body.pw-ui #app .page-content .feature-command-header p { font-size: 13px !important; margin: 0 !important; }
+body.pw-ui #app .page-content .team-player-tab { min-height: 80px !important; padding: 6px 10px !important; gap: 0 8px !important; }
+body.pw-ui #app .page-content .team-player-tab :is(span,strong,em) { line-height: 1.35 !important; }
+body.pw-ui #app .page-content .development-tabs { margin-bottom: 8px !important; }
+body.pw-ui #app .page-content .development-tabs button { min-height: 44px !important; padding: 5px 8px !important; }
+body.pw-ui #app .page-content .upgrade-console__resources { margin-bottom: 8px !important; }
+body.pw-ui #app .page-content .upgrade-console__resources > span { padding: 5px 10px !important; }
+body.pw-ui #app .page-content .pw-upgrade-console__header { padding: 10px 14px !important; }
+
+@media(min-width:761px) {
+  body.pw-ui #app .page-content:has(.development-workspace) .feature-command-header p { display: none !important; }
+  body.pw-ui #app .page-content .team-player-tab { grid-template-columns: 46px minmax(0,1fr) auto !important; grid-template-rows: auto auto !important; min-height: 64px !important; }
+  body.pw-ui #app .page-content .team-player-tab img { width: 42px !important; height: 50px !important; grid-row: 1 / 3 !important; }
+  body.pw-ui #app .page-content .team-player-tab > span { grid-column: 2 !important; grid-row: 1 !important; text-align: left; }
+  body.pw-ui #app .page-content .team-player-tab > strong { grid-column: 2 !important; grid-row: 2 !important; text-align: left; }
+  body.pw-ui #app .page-content .team-player-tab > .motivation-badge { grid-column: 3 !important; grid-row: 1 / 3 !important; }
+  body.pw-ui #app .page-content .pw-upgrade-console__header > div { display: flex; gap: 12px; align-items: center; }
+}
+
+@media(max-width:760px) {
+  body.pw-ui #app .page-content .team-player-tab { grid-template-columns: 32px minmax(0,1fr) !important; grid-template-rows: 32px auto auto !important; padding: 6px !important; gap: 3px !important; }
+  body.pw-ui #app .page-content .team-player-tab img { width: 30px !important; height: 32px !important; grid-row: 1 !important; }
+  body.pw-ui #app .page-content .team-player-tab > span { grid-column: 2 !important; grid-row: 1 !important; }
+  body.pw-ui #app .page-content .team-player-tab > strong { grid-column: 1 / -1 !important; grid-row: 2 !important; white-space: normal !important; overflow-wrap: anywhere; text-overflow: clip !important; max-width: 100% !important; }
+  body.pw-ui #app .page-content .team-player-tab > .motivation-badge { grid-column: 1 / -1 !important; grid-row: 3 !important; justify-self: center; }
+  body.pw-ui #app .page-content .pw-stat-name strong { font-size: 16px !important; }
+  body.pw-ui #app .page-content .pw-stat-value > b { font-size: 12px !important; }
+  body.pw-ui #app .page-content .pw-rank { font-size: 18px !important; }
+  body.pw-ui #app .page-content .development-tabs strong { font-size: 12px !important; }
+  body.pw-ui #app .page-content .team-player-tab strong { font-size: 13px !important; }
+  body.pw-ui #app .page-content .pw-command strong { font-size: 15px !important; }
+  body.pw-ui #app .page-content .pw-command small { font-size: 12px !important; }
+}

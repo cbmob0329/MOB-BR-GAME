@@ -9,7 +9,7 @@ import {
   ROLE_IDS,
   normalizeLegacyRank,
   rankToCharacterValue,
-} from "./game-data.js?v=70";
+} from "./game-data.js?v=72";
 
 export const CPU_WORLD_DATA_VERSION = "mobbr-cpu-world-data-1.0.0";
 export const CPU_WORLD_MASTER_VERSION = "mobbr-cpu-world-master-1.0.0";

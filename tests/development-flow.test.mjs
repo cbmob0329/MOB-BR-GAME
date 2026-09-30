@@ -1,15 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createNewGameState, serializeSaveState, deserializeSaveState, validateSaveState } from '../js/main/state.js?v=70';
-import { executeTrainingToDraft, performStrategyMeetingToDraft, purchaseConsumableToDraft, getTournamentWeekStatus, renderTrainingManagement } from '../js/main/management.js?v=70';
-import { advanceGameWeek, getTournamentEventsForDate } from '../data/game-data.js?v=70';
-import { createTournamentEntryData } from '../js/main/tournament-bridge.js?v=70';
-import { createTournamentRuntime } from '../js/tournament/runtime.js?v=70';
-import { beginExplorationToDraft, renderExplorationScreen, completeExplorationToDraft, useInventoryItemToDraft, selectSearchCandidateToDraft, useRespawnTurntableToDraft } from '../js/tournament/exploration.js?v=70';
-import { trainingGainText, nextTournamentText, weeklyGrowthSummary, lastWeekTraining } from '../js/main/training-view.js?v=70';
-import { WEEKLY_EVENTS } from '../data/weekly-event-data.js?v=70';
-import { createBattleFromTournamentRuntime, runBattleToCompletion, applyBattleResultToTournamentRuntime } from '../js/tournament/battle-core.js?v=70';
-import { createBattleReplayModel, applyBattleReplayEvent, renderBattleReplayScreen, battlePresentationHold } from '../js/tournament/battle-ui.js?v=70';
+import { createNewGameState, serializeSaveState, deserializeSaveState, validateSaveState } from '../js/main/state.js?v=72';
+import { executeTrainingToDraft, performStrategyMeetingToDraft, purchaseConsumableToDraft, getTournamentWeekStatus, renderTrainingManagement } from '../js/main/management.js?v=72';
+import { advanceGameWeek, getTournamentEventsForDate } from '../data/game-data.js?v=72';
+import { createTournamentEntryData } from '../js/main/tournament-bridge.js?v=72';
+import { createTournamentRuntime } from '../js/tournament/runtime.js?v=72';
+import { beginExplorationToDraft, renderExplorationScreen, completeExplorationToDraft, useInventoryItemToDraft, selectSearchCandidateToDraft, useRespawnTurntableToDraft } from '../js/tournament/exploration.js?v=72';
+import { trainingGainText, nextTournamentText, weeklyGrowthSummary, lastWeekTraining } from '../js/main/training-view.js?v=72';
+import { WEEKLY_EVENTS } from '../data/weekly-event-data.js?v=72';
+import { createBattleFromTournamentRuntime, runBattleToCompletion, applyBattleResultToTournamentRuntime } from '../js/tournament/battle-core.js?v=72';
+import { createBattleReplayModel, applyBattleReplayEvent, renderBattleReplayScreen, battlePresentationHold } from '../js/tournament/battle-ui.js?v=72';
 import { writeFileSync } from 'node:fs';
 
 function fresh() {

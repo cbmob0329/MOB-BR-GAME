@@ -1,4 +1,4 @@
-import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=70";
+import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=72";
 /**
  * MOB BR tournament exploration, bag, facilities, and strategy selection.
  *
@@ -7,20 +7,20 @@ import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=70";
  * runtime transaction draft; the main save is never touched directly.
  */
 
-import { assetPath } from "../assets.js?v=70";
+import { assetPath } from "../assets.js?v=72";
 import {
   CONSUMABLE_ITEMS,
   ITEM_MASTER_VERSION,
   getItem,
-} from "../../data/shop-data.js?v=70";
+} from "../../data/shop-data.js?v=72";
 import {
   STRATEGIES,
   STRATEGY_RANKS,
   STRATEGY_RULES,
-} from "../../data/strategy-data.js?v=70";
+} from "../../data/strategy-data.js?v=72";
 import {
   getPlayableRoundCount,
-} from "./round.js?v=70";
+} from "./round.js?v=72";
 
 export const EXPLORATION_VERSION =
   "mobbr-tournament-exploration-1.9.1";

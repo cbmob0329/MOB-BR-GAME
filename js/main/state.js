@@ -1,4 +1,4 @@
-import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=70";
+import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=72";
 /**
  * MOB BR main save-state module.
  *
@@ -20,41 +20,41 @@ import {
   getCompanyRankData,
   rankToWeaponValue,
   validateGameDate,
-} from "../../data/game-data.js?v=70";
+} from "../../data/game-data.js?v=72";
 import {
   BATTLE_CONFIG_VERSION,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=70";
+} from "../../data/battle-config.js?v=72";
 import {
   TRAINING_DATA_VERSION,
-} from "../../data/training-data.js?v=70";
+} from "../../data/training-data.js?v=72";
 import {
   SHOP_DATA_VERSION,
   ITEM_MASTER_VERSION,
   PACK_MASTER_VERSION,
   WEAPON_SKIN_MASTER_VERSION,
   getItem,
-} from "../../data/shop-data.js?v=70";
+} from "../../data/shop-data.js?v=72";
 import {
   COACH_DATA_VERSION,
   COACH_RULES,
-} from "../../data/coach-data.js?v=70";
+} from "../../data/coach-data.js?v=72";
 import {
   COLLECTION_DATA_VERSION,
   COLLECTION_MASTER_VERSION,
   RETIRED_BADGE_COLLECTION_IDS,
   RETIRED_CARD_COLLECTION_IDS,
   ROOM_MASTER_VERSION,
-} from "../../data/collection-data.js?v=70";
+} from "../../data/collection-data.js?v=72";
 import {
   CPU_ROSTER_47_DATA_VERSION,
-} from "../../data/cpu-roster-47-data.js?v=70";
+} from "../../data/cpu-roster-47-data.js?v=72";
 import {
   STRATEGY_DATA_VERSION,
   STRATEGY_MASTER_VERSION,
   STRATEGY_RULES,
   getStrategy,
-} from "../../data/strategy-data.js?v=70";
+} from "../../data/strategy-data.js?v=72";
 import {
   MOTIVATION_DATA_VERSION,
   MOTIVATION_RULES,
@@ -63,7 +63,7 @@ import {
   motivationLevelIndex,
   normalizeMotivationRecord,
   shiftMotivation,
-} from "../../data/motivation-data.js?v=70";
+} from "../../data/motivation-data.js?v=72";
 import {
   EMPLOYEE_DATA_VERSION,
   EMPLOYEE_MASTER,
@@ -76,7 +76,7 @@ import {
   getEmployeeRankData,
   getEmployeeWeeklyCoinBonusRate,
   normalizeEmployeeRecord,
-} from "../../data/employee-data.js?v=70";
+} from "../../data/employee-data.js?v=72";
 import {
   COOKING_DATA_VERSION,
   COOKING_STATE_SCHEMA_VERSION,
@@ -92,7 +92,7 @@ import {
   refreshWeeklyIngredientStockToDraft,
   validateCookingState,
   createFoodVariant,
-} from "../../data/cooking-data.js?v=70";
+} from "../../data/cooking-data.js?v=72";
 import {
   DINING_DATA_VERSION,
   DINING_RULES,
@@ -104,11 +104,11 @@ import {
   normalizeDiningState,
   refreshDiningWeekToDraft,
   validateDiningState,
-} from "../../data/dining-data.js?v=70";
+} from "../../data/dining-data.js?v=72";
 import {
   SPECIAL_ABILITY_50_VERSION,
   normalizeGeneration50SpecialAbilities,
-} from "../../data/special-ability-50-data.js?v=70";
+} from "../../data/special-ability-50-data.js?v=72";
 import {
   WEEKLY_EVENT_DATA_VERSION,
   WEEKLY_EVENT_RULES,
@@ -116,7 +116,7 @@ import {
   getWeeklyEvent,
   getWeeklyEventsByRarity,
   weightedOutcome,
-} from "../../data/weekly-event-data.js?v=70";
+} from "../../data/weekly-event-data.js?v=72";
 
 export const SAVE_SCHEMA_VERSION = "mobbr-save-3.1.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";

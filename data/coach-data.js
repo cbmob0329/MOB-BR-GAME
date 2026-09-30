@@ -9,7 +9,7 @@ import {
   COMPANY_RANK_TABLE,
   getCompanyRankByIndex,
   getCompanyRankData,
-} from "./game-data.js?v=70";
+} from "./game-data.js?v=72";
 
 export const COACH_DATA_VERSION = "mobbr-coach-data-1.0.0";
 

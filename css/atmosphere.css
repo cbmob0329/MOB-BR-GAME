@@ -1,0 +1,271 @@
+/* MOB clubhouse: background art, paired surface/text colors, and readable copy. */
+body.pw-ui {
+  --ink: #193c58;
+  --ink-muted: #47647b;
+  --surface: #ffffff;
+  --surface-soft: #edf5fc;
+  --action-blue: #0869b0;
+  background: linear-gradient(#08244888, #082448bb), url('../back/mob-br-graffiti-pixel.png') center / cover fixed;
+  color: var(--ink);
+}
+
+/* The art is deliberately separate from copy and numeric tables. */
+.pw-ui .app-layout { border-inline: 1px solid #9dc6e6; }
+.pw-ui .page-content {
+  background: radial-gradient(circle at 1px 1px, #b5d6ef55 1px, transparent 1.5px) 0 0 / 12px 12px, #edf5fc !important;
+}
+.pw-ui .pw-graffiti {
+  margin: 0;
+  overflow: hidden;
+  border: 3px solid #183e6c;
+  border-radius: 18px;
+  background: #146aca;
+  box-shadow: 0 5px 0 #183e6c;
+}
+.pw-home-masthead { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; align-items: stretch; }
+.pw-graffiti img { display: block; width: 100%; height: 220px; object-fit: cover; object-position: center 25%; image-rendering: pixelated; }
+.pw-ui .pw-home-banner {
+  min-height: 0;
+  margin-top: 0;
+  padding: 16px 20px;
+  background: #fff !important;
+  border-left: 7px solid #ec4cb6;
+  border-radius: 12px;
+}
+.pw-ui .pw-home-banner h1 { font-size: clamp(21px, 3vw, 28px); line-height: 1.4; overflow-wrap: anywhere; }
+.pw-ui .pw-home-banner p { margin: 5px 0 0; font-size: 14px; line-height: 1.75; }
+.pw-ui .pw-home-banner > img { width: 65px; height: 76px; }
+.pw-ui .pw-section-title { background: #fff; border-radius: 4px 10px 10px 4px; padding: 10px 14px; line-height: 1.5; }
+.pw-ui .pw-flow { flex-wrap: wrap; gap: 8px 16px; padding: 16px 4px 5px; }
+.pw-flow span { white-space: nowrap; }
+.pw-ui .pw-command { box-shadow: 0 4px 0 #a7c5dc; border-color: #b3cee3; }
+.pw-ui .pw-command > b { color: #176498; }
+.pw-ui .pw-command:active { transform: translateY(3px); box-shadow: 0 1px 0 #a7c5dc; }
+
+/* Title: illustration above a solid action panel, never lettering on busy art. */
+.pw-ui .title-screen {
+  display: grid !important;
+  place-items: center;
+  width: 100%; max-width: none !important;
+  min-height: 100dvh;
+  padding: 24px !important;
+  background: linear-gradient(#08244855, #082448cc), url('../back/mob-br-graffiti-pixel.png') center / cover !important;
+  overflow: auto !important;
+}
+.pw-ui .title-card {
+  width: min(760px, 100%); max-width: 760px !important;
+  padding: 0 !important; overflow: hidden;
+  background: #f7fbff !important; border: 3px solid #9dd8ff !important;
+  border-radius: 22px; box-shadow: 0 18px 80px #031a49aa;
+}
+.pw-title-art { display: block; width: 100%; height: min(36vh, 310px); object-fit: cover; object-position: center 38%; image-rendering: pixelated; }
+.pw-ui .title-card__eyebrow { color: #20587e !important; margin: 18px 20px 0; font-size: 13px; }
+.pw-ui .title-card__title { color: #173f61 !important; margin: 5px 20px; font-size: 30px !important; text-shadow: none !important; }
+.pw-ui .title-card__subtitle { color: #355e7c !important; margin: 0 20px; font-size: 14px; line-height: 1.7; }
+.pw-ui .title-actions { padding: 20px; margin: 0 !important; gap: 10px; }
+.pw-ui .title-card__save-status { color: #47647b !important; margin: 0; padding: 0 20px 20px; font-size: 13px; line-height: 1.7; }
+
+/* Light surfaces and all text inside them use a matched palette. These groups
+   cover legacy components that used literal white / translucent white text. */
+.pw-ui :is(.content-panel, .hero-panel, .individual-weapon-profile,
+  .team-personal-weapons, .annual-circuit-overview, .tournament-year-calendar,
+  .tournament-year-calendar__header, .tournament-current-events,
+  .modal-card, .restaurant-menu-modal, .cooking-station-modal__panel,
+  .collection-detail-card, .collection-food-file, .room-list-card,
+  .room-inventory-console, .room-editor-controls, .skill-upgrade-overview,
+  .special-ability-guide, .research-progress, .weekly-growth) {
+  background: var(--surface) !important;
+  color: var(--ink) !important;
+  border-color: #b6cee1 !important;
+  text-shadow: none !important;
+}
+.pw-ui :is(.content-panel, .hero-panel, .individual-weapon-profile,
+  .team-personal-weapons, .annual-circuit-overview, .tournament-year-calendar,
+  .modal-card, .restaurant-menu-modal, .cooking-station-modal__panel,
+  .collection-detail-card, .collection-food-file, .room-list-card,
+  .room-inventory-console, .room-editor-controls, .skill-upgrade-overview,
+  .special-ability-guide, .research-progress, .weekly-growth)
+  :is(h1,h2,h3,h4,p,span,strong,small,b,em,i,label,li,dt,dd,td,th,output) {
+  color: var(--ink) !important;
+  text-shadow: none !important;
+}
+.pw-ui :is(.individual-weapon-profile__stats > span, .player-status-modal__stats > div,
+  .player-status-modal__points > span, .player-status-modal__weapon-stats > span,
+  .player-status-modal__specials, .strategy-probabilities > div,
+  .strategy-probabilities > span, .strategy-meeting-panel__footer,
+  .strategy-rank-launchers > button, .strategy-rank-modal__list article,
+  .strategy-meeting-show__board, .record-summary-grid > div,
+  .record-summary-grid > article, .test-mode-setting, .setting-row,
+  .annual-circuit-overview > div > b, .tournament-month-card > header,
+  .tournament-week-cell__label, .tournament-calendar-legend > span,
+  .tournament-calendar-event, .upgrade-node-modal__current,
+  .upgrade-node-modal__cost, .ability-detail-modal__cost > span,
+  .ability-detail-modal__conditions li, .cost-tags > span,
+  .card-pack-collection-stats, .room-inventory-empty,
+  .employee-status-modal__main, .employee-status-modal__gauge,
+  .weekly-growth, .collection-completion-grid > div) {
+  background: var(--surface-soft) !important;
+  color: var(--ink) !important;
+  border-color: #bdd4e7 !important;
+}
+.pw-ui :is(.individual-weapon-profile > button, .strategy-rank-launchers > button,
+  .room-list-card button, .room-inventory-actions button, .test-mode-actions button) {
+  background: #e7f3ff !important;
+  color: #164e78 !important;
+  border: 1px solid #8eb5d2 !important;
+  border-radius: 8px; min-height: 44px; padding: 9px 12px;
+  font-size: 14px !important;
+}
+.pw-ui .individual-weapon-profile { padding: 16px !important; }
+.pw-ui .individual-weapon-profile header strong { font-size: 18px !important; line-height: 1.5; }
+.pw-ui .individual-weapon-profile small { font-size: 12px !important; }
+.pw-ui .individual-weapon-profile__stats { gap: 7px !important; }
+.pw-ui .individual-weapon-profile__stats strong { color: #43529a !important; font-size: 20px !important; }
+.pw-ui .hero-panel { border: 1px solid #b6cee1; border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+.pw-ui .hero-panel__label { color: #315d7c !important; }
+.pw-ui .setting-row__note { color: var(--ink-muted) !important; font-size: 13px; line-height: 1.7; }
+.pw-ui .setting-row__label { color: var(--ink) !important; font-size: 16px; }
+.pw-ui .setting-row { padding: 14px 0; background: transparent !important; }
+.pw-ui .tournament-year-calendar__header { padding: 16px; }
+.pw-ui .tournament-calendar-legend > span { color: #284f6b !important; }
+.pw-ui .annual-circuit-overview { border: 2px solid #b9d6e9; padding: 18px; border-radius: 14px; }
+.pw-ui .annual-circuit-overview > div { flex-wrap: wrap; gap: 7px; }
+
+/* Actual modal component is modal-card, rather than the old unused .modal. */
+.pw-ui .modal-card {
+  border: 3px solid #72b8e6 !important; border-radius: 18px;
+  max-height: calc(100dvh - 32px); overflow-y: auto;
+  box-shadow: 0 20px 80px #061c4d66;
+}
+.pw-ui .modal-card__eyebrow { color: #376380 !important; font-size: 12px !important; letter-spacing: .08em; }
+.pw-ui .modal-card__title { font-size: clamp(20px, 4vw, 26px) !important; line-height: 1.5 !important; margin-bottom: 16px; }
+.pw-ui .modal-card__body { color: var(--ink); font-size: 14px !important; line-height: 1.8 !important; }
+.pw-ui .modal-card__body p + p { margin-top: 1em !important; }
+.pw-ui .modal-card__actions { gap: 12px; margin-top: 20px; }
+.pw-ui :is(.mob-pink-guide__speech, .employee-week-greeting__speech, .pink-guide-dialogue) {
+  background: #fff4fc !important; color: #543454 !important;
+  border: 1px solid #dab5d6; border-radius: 12px; padding: 14px;
+}
+.pw-ui :is(.week-focus, .weekly-event-result__note) { background: #edf6ff !important; color: #193c58 !important; border-color: #a9c9e2 !important; }
+.pw-ui .week-focus :is(span,strong,p) { color: #193c58 !important; }
+
+/* Forms, buttons, and selected states remain distinguishable without pale text. */
+.pw-ui .company-rank-mini-progress small { color: #fff !important; }
+.pw-ui .top-status { background: #0e68b5 !important; }
+.pw-ui .development-tabs button.is-active,
+.pw-ui .pw-stepper button:last-child { background: #0869b0 !important; border-color: #0869b0 !important; }
+.pw-ui .pw-upgrade-console__header span { color: #235c83; }
+.pw-ui .pw-rank[data-rank=E] { color: #086589; }
+.pw-ui .pw-rank[data-rank=D] { color: #326922; }
+.pw-ui .pw-rank[data-rank=F] { color: #405294; }
+.pw-ui .pw-rank[data-rank=C] { color: #775b0a; }
+.pw-ui .pw-rank[data-rank=B] { color: #8c4b04; }
+.pw-ui .pw-rank[data-rank=A] { color: #a72842; }
+.pw-ui .pw-rank[data-rank=S], .pw-ui .pw-rank[data-rank=M] { color: #805500; }
+.pw-ui .primary-button, .pw-ui .primary-button :is(span,strong,b) { color: #503a00 !important; }
+.pw-ui .secondary-button, .pw-ui .secondary-button :is(span,strong,b) { color: #225d86 !important; }
+.pw-ui .training-plan__pool b, .pw-ui .training-plan__gain strong { color: #245c38 !important; }
+.pw-ui .training-plan__programs button span { color: #375b76 !important; }
+
+/* Collection pages, shop prices and skill headings had separate legacy colors. */
+.pw-ui :is(.collection-trophy-case, .collection-trophy-empty, .skill-lab-overview) {
+  background: #fff !important; color: #193c58 !important;
+  border: 1px solid #b6cee1 !important; border-radius: 12px; padding: 16px;
+}
+.pw-ui :is(.collection-trophy-case, .collection-trophy-empty, .collection-file-launchers,
+  .collection-completion-grid, .skill-lab-overview) :is(span,strong,small,b,p,h2) {
+  color: #254f6d !important; text-shadow: none !important;
+}
+.pw-ui .collection-file__page > header { background: #fff6df !important; border-radius: 6px; padding: 8px !important; }
+.pw-ui .collection-file__page > header :is(strong,span) { color: #514227 !important; font-size: 13px !important; }
+.pw-ui .collection-file-card__number { background: #213d59 !important; color: #fff !important; opacity: 1 !important; padding: 3px 5px !important; font-size: 11px !important; }
+.pw-ui .collection-file-card.is-locked { opacity: 1 !important; }
+.pw-ui .shop-compact-product__info :is(span,small,b,strong) { color: #284f6e !important; }
+.pw-ui .shop-compact-product__info > small { color: #415d73 !important; }
+.pw-ui .shop-compact-product__info > div { background: #fff3c4; border-radius: 6px; padding: 5px; }
+.pw-ui :is(.room-category-strip,.mobshop-category-grid,.cooking-subnav,.special-color-tabs) button.is-active {
+  background: #0869b0 !important; color: #fff !important;
+}
+.pw-ui :is(.room-category-strip,.mobshop-category-grid,.cooking-subnav,.special-color-tabs) button.is-active :is(span,strong) { color: #fff !important; }
+
+/* Readable floors for legacy micro-labels; prose is always at least 14 px. */
+.pw-ui :is(.management-app-content,.team-personal-weapons,.modal-card,.restaurant-menu-modal)
+  :is(small,em,label) { font-size: max(12px, .8rem) !important; line-height: 1.6 !important; }
+.pw-ui :is(.management-section__heading,.record-summary-grid,.strategy-probabilities,
+  .restaurant-menu-modal__title,.restaurant-set-card,.collection-completion-grid,
+  .room-inventory-console,.tournament-year-calendar__header) span { font-size: 12px !important; line-height: 1.6; }
+.pw-ui :is(.restaurant-set-card,.restaurant-menu-modal__player,.restaurant-menu-modal__title) strong { font-size: 15px !important; line-height: 1.6 !important; }
+.pw-ui .restaurant-set-card__foods { gap: 8px !important; }
+.pw-ui .restaurant-set-card__foods strong { font-size: 12px !important; line-height: 1.55 !important; white-space: normal !important; overflow-wrap: anywhere; }
+.pw-ui :is(.restaurant-menu-modal__master-line,.modal-card__body,.management-app-content) p { font-size: 14px !important; }
+.pw-ui .restaurant-menu-modal__title { padding-block: 12px; }
+.pw-ui .restaurant-menu-modal__master-line { padding: 12px; }
+.pw-ui .restaurant-set-card { padding: 12px !important; }
+.pw-ui .room-canvas__empty { background: #ffffffed !important; color: #294e6a !important; padding: 12px; border-radius: 10px; }
+.pw-ui .skill-upgrade-card__base-effect > span { background: #dcebf7 !important; color: #254d6b !important; }
+.pw-ui .skill-upgrade-card :is(header span, header strong, small) { font-size: 12px !important; }
+.pw-ui .skill-upgrade-card__name h3 { font-size: 18px !important; line-height: 1.6 !important; }
+.pw-ui .skill-lab-overview p { font-size: 14px !important; line-height: 1.8 !important; }
+.pw-ui .special-color-tabs button { min-height: 44px; font-size: 14px; }
+.pw-ui .restaurant-rule-note { display: grid !important; gap: 8px; padding: 14px !important; }
+.pw-ui .restaurant-rule-note span { font-size: 14px !important; line-height: 1.8 !important; }
+.pw-ui .feature-command-header h1, .pw-ui .management-command-bar h1 { white-space: normal !important; overflow: visible !important; }
+
+/* Japanese prose uses normal punctuation-aware wrapping, not arbitrary groups
+   of the last five characters. Short labels and numeric pairs remain intact. */
+.pw-ui :is(p,li,dd,.feature-description,.setting-row__note,.pw-stat-name small,
+  .pw-command small,.modal-card__body,.restaurant-rule-note) {
+  line-height: 1.8 !important;
+  line-break: strict !important;
+  word-break: normal !important;
+  overflow-wrap: anywhere !important;
+  white-space: normal !important;
+  text-wrap: pretty;
+  letter-spacing: .015em;
+}
+.pw-ui :is(h1,h2,h3,h4) { line-height: 1.45; word-break: normal; overflow-wrap: anywhere; text-wrap: balance; }
+.pw-ui :is(.pw-command strong,.pw-stepper output,.pw-stat-cost span,.resource-chip__value) { white-space: nowrap; }
+.pw-ui .jp-no-orphan-tail { color: inherit !important; font: inherit !important; white-space: normal !important; }
+.pw-ui .training-plan__intro p { max-width: 65ch; }
+.pw-ui .pw-training-steps { display: flex; flex-wrap: wrap; gap: 6px 20px; padding-left: 24px; margin: 12px 0; color: #315775; }
+.pw-ui .pw-training-steps li { padding-left: 2px; }
+.pw-ui .pw-training-steps li::marker { font-weight: 800; color: #12659e; }
+.pw-ui .pw-stat-values { gap: 5px; }
+.pw-ui .pw-stat-value { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.pw-ui .pw-stat-value > b { font-size: 15px; font-style: normal; }
+.pw-ui .pw-upgrade-console__footer { box-shadow: 0 -3px 12px #123c6010; }
+
+/* Brief, finite feedback. Respect both OS preference and the in-game toggle. */
+@keyframes clubhouse-enter { from { opacity: .4; transform: translateY(7px); } to { opacity: 1; transform: none; } }
+@keyframes upgrade-select { from { background-color: #ffe594; } to { background-color: #fff9e7; } }
+.pw-ui .page-content > :is(.pw-graffiti,.pw-home-banner,.hero-panel,.feature-command-header,.management-command-bar) { animation: clubhouse-enter 240ms ease-out both; }
+.pw-ui .modal-card { animation: clubhouse-enter 180ms ease-out both; }
+.pw-ui .pw-stat-row.is-planned { animation: upgrade-select 350ms ease-out; }
+.pw-ui .pw-command, .pw-ui .team-player-tab { transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease; }
+html[data-reduced-motion=true] .pw-ui *, html[data-reduced-motion=true] .pw-ui *::before, html[data-reduced-motion=true] .pw-ui *::after { animation: none !important; transition: none !important; }
+@media (prefers-reduced-motion: reduce) { .pw-ui *, .pw-ui *::before, .pw-ui *::after { animation: none !important; transition: none !important; } }
+@media (max-width: 760px) {
+  .pw-home-masthead { grid-template-columns: 1fr; gap: 14px; }
+  .pw-graffiti img { height: auto; aspect-ratio: 16 / 9; object-fit: cover; }
+  .pw-ui .pw-home-banner { padding: 12px; gap: 10px; }
+  .pw-ui .pw-home-banner > img { width: 46px; height: 62px; }
+  .pw-ui .pw-home-banner p { font-size: 13px; }
+  .pw-ui .pw-flow { font-size: 12px; gap: 6px 9px; }
+  .pw-ui .title-screen { padding: 12px !important; }
+  .pw-ui .title-card { border-radius: 15px; }
+  .pw-ui .title-actions { padding: 16px; }
+  .pw-ui .pw-training-steps { display: grid; gap: 4px; }
+  .pw-ui .pw-stat-values { justify-content: flex-end; }
+  .pw-ui .pw-stat-value .pw-rank { font-size: 19px; min-width: 31px; }
+  .pw-ui .pw-stat-value > b { font-size: 12px; }
+  .pw-ui .modal-card { padding: 18px !important; }
+}
+@media (max-width: 380px) {
+  .pw-ui .pw-command { gap: 6px; padding: 10px; }
+  .pw-ui .pw-command > b { display: none; }
+  .pw-ui .pw-command img { width: 28px; height: 32px; }
+  .pw-ui .pw-command strong { font-size: 14px; }
+  .pw-ui .pw-command small { font-size: 12px; }
+  .pw-ui .pw-primary-commands .pw-command span { min-width: 65px; }
+  .pw-ui .pw-flow { justify-content: flex-start; }
+}

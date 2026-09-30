@@ -12,19 +12,19 @@ import {
   characterValueToRank,
   weaponValueToRank,
   getCompanyRankData,
-} from "../../data/game-data.js?v=70";
+} from "../../data/game-data.js?v=72";
 import {
   calculateMaxHp,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=70";
+} from "../../data/battle-config.js?v=72";
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=70";
+} from "../../data/motivation-data.js?v=72";
 import {
   WEAPON_SKINS,
   getWeaponSkin,
-} from "../../data/shop-data.js?v=70";
+} from "../../data/shop-data.js?v=72";
 import {
   PLAYER_STAT_DEFINITIONS,
   WEAPON_STAT_DEFINITIONS,
@@ -34,13 +34,13 @@ import {
   getStatUpgradeCost,
   getWeaponStatDefinition,
   getWeaponUpgradeCost,
-} from "../../data/ability-data.js?v=70";
+} from "../../data/ability-data.js?v=72";
 
 import {
   getSpecialAbilitiesForRole,
   getSpecialAbility,
   getSpecialAbilityStage,
-} from "../../data/special-ability-50-data.js?v=70";
+} from "../../data/special-ability-50-data.js?v=72";
 
 export const TEAM_FEATURE_VERSION = "mobbr-team-feature-1.5.0";
 
@@ -1149,7 +1149,7 @@ function upgradeTableTemplate({kind, playerId, rows, plan}) {
       const attr=weapon ? "data-weapon-stat-id" : "data-stat-id";
       return `<article class="pw-stat-row ${row.increment ? "is-planned" : ""}">
         <div class="pw-stat-name"><strong>${escapeHtml(name)}</strong><small>${escapeHtml((weapon ? WEAPON_STAT_DESCRIPTIONS : PLAYER_STAT_DESCRIPTIONS)[id] ?? "")}</small></div>
-        <div class="pw-stat-values"><span class="pw-rank" data-rank="${escapeAttribute(current.charAt(0))}">${escapeHtml(current)}</span><span>${row.currentValue}</span>${row.increment ? `<span>→</span><strong class="pw-rank" data-rank="${escapeAttribute(next.charAt(0))}">${escapeHtml(next)}</strong><b>${row.projectedValue}</b>` : ""}</div>
+        <div class="pw-stat-values"><span class="pw-stat-value"><span class="pw-rank" data-rank="${escapeAttribute(current.charAt(0))}">${escapeHtml(current)}</span><b>${row.currentValue}</b></span>${row.increment ? `<span aria-hidden="true">→</span><span class="pw-stat-value"><strong class="pw-rank" data-rank="${escapeAttribute(next.charAt(0))}">${escapeHtml(next)}</strong><b>${row.projectedValue}</b></span>` : ""}</div>
         <div class="pw-stat-cost">${costText}</div>
         <div class="pw-stepper"><button type="button" data-repeat-action data-action="${kind}-plan-minus" data-player-id="${escapeAttribute(playerId)}" ${attr}="${escapeAttribute(id)}" aria-label="${escapeAttribute(name)}の強化を減らす" ${row.increment ? "" : "disabled"}>−</button><output>+${row.increment}</output><button type="button" data-repeat-action data-action="${kind}-plan-plus" data-player-id="${escapeAttribute(playerId)}" ${attr}="${escapeAttribute(id)}" aria-label="${escapeAttribute(name)}を強化" ${canAdd ? "" : "disabled"}>＋</button></div>
       </article>`;
@@ -1849,7 +1849,7 @@ export function renderSpecialAbilitySection(
           data-ability-color="gold"
           aria-selected="${normalizedColor === "gold"}"
         >
-          GOLD
+          上位能力
         </button>
       </div>
 

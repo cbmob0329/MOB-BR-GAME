@@ -1,5 +1,5 @@
-import { CONSUMABLES_ENABLED, strategyResearchPoints } from "../../data/feature-policy.js?v=70";
-import { renderTrainingPlan, trainingGainText } from "./training-view.js?v=70";
+import { CONSUMABLES_ENABLED, strategyResearchPoints } from "../../data/feature-policy.js?v=72";
+import { renderTrainingPlan, trainingGainText } from "./training-view.js?v=72";
 /**
  * MOB BR company-management feature.
  *
@@ -9,23 +9,23 @@ import { renderTrainingPlan, trainingGainText } from "./training-view.js?v=70";
 
 import {
   assetPath,
-} from "../assets.js?v=70";
+} from "../assets.js?v=72";
 import {
   TRAINING_POINT_IDS,
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=70";
+} from "../../data/game-data.js?v=72";
 import {
   isCasualTournamentType,
   resolveCpuTeamMaster,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=70";
+} from "../../data/circuit-data.js?v=72";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
   calculateWeeklyTraining,
-} from "../../data/training-data.js?v=70";
+} from "../../data/training-data.js?v=72";
 import {
   BADGE_PACKS,
   CARD_PACKS,
@@ -37,17 +37,17 @@ import {
   getItem,
   getWeaponSkin,
   isCardPackUnlocked,
-} from "../../data/shop-data.js?v=70";
+} from "../../data/shop-data.js?v=72";
 import {
   STRATEGY_MEETING_RULES,
   getStrategyMeetingProbabilities,
-} from "../../data/coach-data.js?v=70";
+} from "../../data/coach-data.js?v=72";
 import {
   STRATEGIES,
   STRATEGY_RANKS,
   getStrategiesByRank,
   getStrategy,
-} from "../../data/strategy-data.js?v=70";
+} from "../../data/strategy-data.js?v=72";
 import {
   BADGE_COLLECTION,
   CARD_COLLECTION,
@@ -61,7 +61,7 @@ import {
   getCollectionCompletion,
   getCollectionEntry,
   getRoomMaster,
-} from "../../data/collection-data.js?v=70";
+} from "../../data/collection-data.js?v=72";
 import {
   advanceWeeksToDraft,
   applyResourceDeltaToDraft,
@@ -70,7 +70,7 @@ import {
   purchaseDiningSetMealToDraft,
   serveDiningMealToDraft,
   settleDiningMealsToDraft,
-} from "./state.js?v=70";
+} from "./state.js?v=72";
 import {
   COOKING_RULES,
   COOKING_SCREEN_ASSETS,
@@ -87,10 +87,10 @@ import {
   getRecipeCandidates,
   isCookingJobReady,
   startCookingJobToDraft,
-} from "../../data/cooking-data.js?v=70";
+} from "../../data/cooking-data.js?v=72";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=70";
+} from "./tournament-bridge.js?v=72";
 import {
   DINING_EATING_SPEECHES,
   DINING_HUNGRY_SPEECHES,
@@ -98,7 +98,7 @@ import {
   diningWeekKey,
   getDiningMasterSpeech,
   getWeeklyDiningSets,
-} from "../../data/dining-data.js?v=70";
+} from "../../data/dining-data.js?v=72";
 
 export const MANAGEMENT_FEATURE_VERSION =
   "mobbr-management-feature-3.0.4";
@@ -648,7 +648,14 @@ export function executeTrainingToDraft(
     }
   }
   draft.records.trainingCompleted += 1;
-  draft.records.lastTraining = { gameDate: deepClone(draft.gameDate), members: deepClone(result.memberResults) };
+  draft.records.lastTraining = {
+    gameDate: deepClone(draft.gameDate),
+    members: result.memberResults.map(member => ({
+      ...deepClone(member),
+      pointsBefore: Object.fromEntries(TRAINING_POINT_IDS.map(id => [id, playerPointPools[member.playerId][id] - member.gain[id]])),
+      pointsAfter: deepClone(playerPointPools[member.playerId]),
+    })),
+  };
 
   for (const detail of tournamentWeek.details) {
     const event = detail.event;
@@ -1853,7 +1860,7 @@ export function renderShopManagement(snapshot) {
     categoryContent = `
       <section class="management-section">
         <div class="management-section__heading">
-          <h2>CARD PACK</h2>
+          <h2>カードパック</h2>
           <span>解放済みパックのみ表示</span>
         </div>
         <div class="shop-category-product-grid">
@@ -2300,7 +2307,7 @@ export function collectionFoodBookTemplate(snapshot) {
           class="back-button"
           data-action="close-collection-file"
         >
-          ← COLLECTION
+          ← 図鑑
         </button>
         <div>
           <img src="icon/kitbox.png" alt="">
@@ -2408,7 +2415,7 @@ export function renderCollectionManagement(snapshot) {
       <div class="management-live-section" data-live-section="collection">
       <section class="collection-file-view">
         <header>
-          <button type="button" class="back-button" data-action="close-collection-file">← COLLECTION</button>
+          <button type="button" class="back-button" data-action="close-collection-file">← 図鑑</button>
           <div><img src="${fileType === "card" ? "icon/cardf.png" : "icon/bagif.png"}" alt=""><strong>${fileType === "card" ? "CARD FILE" : "BADGE FILE"}</strong></div>
         </header>
         ${collectionFilePages(fileType === "card" ? allCards : allBadges, fileType)}
@@ -2428,10 +2435,10 @@ export function renderCollectionManagement(snapshot) {
     <div class="management-live-section" data-live-section="collection">
     <section class="collection-file-launchers">
       <button type="button" data-action="open-collection-file" data-file-type="card">
-        <img src="icon/cardf.png" alt=""><strong>CARD FILE</strong><span>${cardCompletion.ownedCount}/${cardCompletion.totalCount}</span>
+        <img src="icon/cardf.png" alt=""><strong>カード図鑑</strong><span>${cardCompletion.ownedCount}/${cardCompletion.totalCount}</span>
       </button>
       <button type="button" data-action="open-collection-file" data-file-type="badge">
-        <img src="icon/bagif.png" alt=""><strong>BADGE FILE</strong><span>${badgeCompletion.ownedCount}/${badgeCompletion.totalCount}</span>
+        <img src="icon/bagif.png" alt=""><strong>バッジ図鑑</strong><span>${badgeCompletion.ownedCount}/${badgeCompletion.totalCount}</span>
       </button>
     </section>
     <section class="collection-completion-grid">
@@ -2442,8 +2449,8 @@ export function renderCollectionManagement(snapshot) {
       <header>
         <img src="prize/01.png" alt="">
         <div>
-          <span>CASUAL CUP COLLECTION</span>
-          <strong>TROPHY CASE</strong>
+          <span>大会コレクション</span>
+          <strong>トロフィー</strong>
           <small>Top 3入賞で獲得した大会トロフィー</small>
         </div>
         <b>${trophies.length}</b>
@@ -3239,7 +3246,7 @@ export function renderCookingDining(
       <section class="restaurant-player-section">
         <header>
           <div>
-            <span>WEEKLY MEAL</span>
+            <span>今週の食事</span>
             <strong>食事をするプレイヤーを選択</strong>
           </div>
           <b>${completedCount} / ${players.length} 食事済み</b>
@@ -3833,10 +3840,10 @@ export function renderRecordManagement(snapshot) {
     <section class="record-summary-grid">
       <article><span>大会出場</span><strong>${formatNumber(snapshot.records.tournamentsEntered)}</strong></article>
       <article><span>大会優勝</span><strong>${formatNumber(snapshot.records.tournamentWins)}</strong></article>
-      <article><span>TRAINING</span><strong>${formatNumber(snapshot.records.trainingCompleted ?? 0)}</strong></article>
+      <article><span>練習回数</span><strong>${formatNumber(snapshot.records.trainingCompleted ?? 0)}</strong></article>
       <article><span>作戦研究</span><strong>${formatNumber(snapshot.records.strategyMeetings ?? 0)}</strong></article>
-      <article><span>総KILL</span><strong>${formatNumber(snapshot.records.totalKills)}</strong></article>
-      <article><span>総DAMAGE</span><strong>${formatNumber(snapshot.records.totalDamage)}</strong></article>
+      <article><span>総キル数</span><strong>${formatNumber(snapshot.records.totalKills)}</strong></article>
+      <article><span>総ダメージ</span><strong>${formatNumber(snapshot.records.totalDamage)}</strong></article>
     </section>
     <section class="content-panel record-player-list">
       ${snapshot.playerTeam.members.map((player) => {
@@ -4306,7 +4313,7 @@ export function renderRoomManagement(snapshot) {
 
   return `
     <section class="management-summary room-management-summary">
-      <strong>ROOM SELECT</strong>
+      <strong>部屋を選ぶ</strong>
       <span>部屋を選択し、所持コレクションを自由に配置できます。</span>
     </section>
 
@@ -4993,86 +5000,6 @@ export function createManagementController({
     overlay.remove();
   }
 
-  async function playTrainingCinematic(
-    snapshot,
-    assignments,
-    memberResults,
-  ) {
-    if (snapshot.settings?.reducedMotion) return;
-    const overlay =
-      document.createElement("section");
-    overlay.className =
-      "training-cinematic";
-    overlay.innerHTML = `
-      <div class="training-cinematic__scan" aria-hidden="true"></div>
-      <span>TRAINING START</span>
-      <h2>WEEKLY PROGRAM</h2>
-      <div class="training-cinematic__members">
-        ${assignments.map((assignment, index) => {
-          const player =
-            snapshot.playerTeam.members.find(
-              (member) =>
-                member.playerId ===
-                assignment.playerId,
-            );
-          const program =
-            TRAINING_PROGRAMS.find(
-              (entry) =>
-                entry.id ===
-                assignment.programId,
-            );
-          const result =
-            memberResults.find(
-              (entry) =>
-                entry.playerId ===
-                assignment.playerId,
-            );
-          return `
-            <article style="--cinematic-index:${index}">
-              <div class="training-cinematic__portrait">
-                <img
-                  class="player-portrait"
-                  data-character-portrait
-                  data-role="${escapeAttribute(player.role)}"
-                  src="${escapeAttribute(player.image)}"
-                  alt=""
-                >
-                <i aria-hidden="true"></i>
-              </div>
-              <img
-                class="training-cinematic__program"
-                src="${escapeAttribute(program.image)}"
-                alt=""
-              >
-              <strong>${escapeHtml(player.name)}</strong>
-              <span>${escapeHtml(program.name)}</span>
-              <small>
-                筋力 +${result.gain.power}
-                技術 +${result.gain.tech}
-                精神 +${result.gain.mental}
-                射撃 +${result.gain.shoot}
-              </small>
-            </article>
-          `;
-        }).join("")}
-      </div>
-      <div class="training-cinematic__phase">
-        <b>READY</b>
-        <strong>POINT UP!</strong>
-      </div>
-    `;
-    root.append(overlay);
-    requestAnimationFrame(() =>
-      overlay.classList.add("is-running"),
-    );
-    await wait(720);
-    overlay.classList.add("is-point-up");
-    await wait(920);
-    overlay.classList.add("is-exit");
-    await wait(280);
-    overlay.remove();
-  }
-
   async function playSkinGachaCinematic(result) {
     const overlay =
       document.createElement("section");
@@ -5695,9 +5622,6 @@ export function createManagementController({
     }
 
     if (action === "execute-training") {
-      const beforeTrainingDate = deepClone(
-        stateManager.getSnapshot().gameDate,
-      );
       const assignments = [...root.querySelectorAll("[data-training-player]")]
         .map((select) => ({
           playerId: select.dataset.trainingPlayer,
@@ -5709,50 +5633,11 @@ export function createManagementController({
         confirmLabel: "実行する",
       }))) return true;
       try {
-        const tx = stateManager.transact("weekly_training_completed", (draft) =>
+        stateManager.transact("weekly_training_completed", draft =>
           executeTrainingToDraft(draft, assignments),
         );
-        const total = tx.result.total;
-        const latest = stateManager.getSnapshot();
-        await playTrainingCinematic(
-          latest,
-          assignments,
-          tx.result.memberResults,
-        );
-        const bonusRecord = tx.result.weekAdvance.weeks[0]?.weeklyBonus?.record;
-        const memberRows = tx.result.memberResults.map((memberResult, index) => {
-          const player = latest.playerTeam.members.find((entry) => entry.playerId === memberResult.playerId);
-          const program = TRAINING_PROGRAMS.find((entry) => entry.id === memberResult.programId);
-          return `
-            <article class="training-result-member" style="--result-index:${index}">
-              <img class="training-result-member__player player-portrait" data-character-portrait data-role="${escapeAttribute(player.role)}" src="${escapeAttribute(player.image)}" alt="">
-              <img class="training-result-member__program" src="${escapeAttribute(program.image)}" alt="">
-              <strong>${escapeHtml(player.name)}</strong>
-              <span>${escapeHtml(program.name)}</span>
-              <small>筋力 +${memberResult.gain.power} / 技術 +${memberResult.gain.tech} / 精神 +${memberResult.gain.mental} / 射撃 +${memberResult.gain.shoot}</small>
-            </article>`;
-        }).join("");
-
-        await openAlert({
-          title: "今週の練習成果",
-          body: `
-            <section class="training-result-show training-result-show--complete">
-              <span>能力ポイントを獲得</span><p>貯めたポイントは「能力アップ」で振り分けると、試合の能力値に反映されます。</p>
-              <h3>${escapeHtml(formatManagementGameDate(beforeTrainingDate))}</h3>
-              <div class="training-result-members">${memberRows}</div>
-              <div class="training-result-total">
-                <span>筋力 <strong>+${formatNumber(total.power)}</strong></span>
-                <span>技術 <strong>+${formatNumber(total.tech)}</strong></span>
-                <span>精神 <strong>+${formatNumber(total.mental)}</strong></span>
-                <span>射撃 <strong>+${formatNumber(total.shoot)}</strong></span>
-              </div>
-              <small>バッジ +${(tx.result.badgeBonusRate * 100).toFixed(1)}% / 合計 +${(tx.result.totalTrainingBonusRate * 100).toFixed(1)}%</small>
-            </section>
-          `,
-          buttonLabel: "新しい週へ",
-        });
-
-        // 共通の従業員週開始画面をHOMEで表示します。
+        // The durable pending week opens one result screen in app.js. No timed
+        // cinematic or duplicate result alert is shown here.
         renderPreservingScroll();
       } catch (error) { await showError("トレーニングできません", error); }
       return true;
