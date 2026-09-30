@@ -1,5 +1,5 @@
-import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=72";
-import { AUTO_PHASE_ACTIONS, BATTLE_ORDERS, renderTournamentDirector } from './match-experience.js?v=72';
+import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=73";
+import { AUTO_PHASE_ACTIONS, BATTLE_ORDERS, renderTournamentDirector } from './match-experience.js?v=73';
 /**
  * MOB BR tournament presentation flow.
  *
@@ -11,25 +11,25 @@ import {
   assetPath,
   detectAssetPrefix,
   installAssetFallbacks,
-} from "../assets.js?v=72";
+} from "../assets.js?v=73";
 import {
   motivationDisplay,
-} from "../../data/motivation-data.js?v=72";
+} from "../../data/motivation-data.js?v=73";
 import {
   TOURNAMENT_PHASES,
   createTournamentRuntimeManager,
-} from "./runtime.js?v=72";
+} from "./runtime.js?v=73";
 import {
   executeCurrentBattleToDraft,
-} from "./battle-core.js?v=72";
+} from "./battle-core.js?v=73";
 import {
   getItem,
-} from "../../data/shop-data.js?v=72";
+} from "../../data/shop-data.js?v=73";
 import {
   balanceTournamentPortraits,
   createBattlePlaybackController,
   renderBattleOutcomeScreen,
-} from "./battle-ui.js?v=72";
+} from "./battle-ui.js?v=73";
 import {
   EXPLORATION_PAGES,
   beginExplorationToDraft,
@@ -51,7 +51,7 @@ import {
   useInventoryItemToDraft,
   useMobSlotToDraft,
   useRespawnTurntableToDraft,
-} from "./exploration.js?v=72";
+} from "./exploration.js?v=73";
 import {
   advanceAwardToDraft,
   finalizeCurrentMatchToDraft,
@@ -67,13 +67,13 @@ import {
   renderReturningResultScreen,
   renderTournamentResultScreen,
   writePreparedResultToStorage,
-} from "./results.js?v=72";
+} from "./results.js?v=73";
 
 import {
   applyMatchPlanToDraft,
   circuitSectionLabel,
   isPlayerMatch,
-} from "./circuit.js?v=72";
+} from "./circuit.js?v=73";
 
 import {
   fastForwardMatchToChampionToDraft,
@@ -83,7 +83,7 @@ import {
   getRoundTarget,
   isPlayerActive,
   resolveRoundEncounterToDraft,
-} from "./round.js?v=72";
+} from "./round.js?v=73";
 
 export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-3.7.0";
 
@@ -270,7 +270,7 @@ function commentaryTemplate(text, label = "モブマイク") {
       </div>
       <div>
         <strong>${escapeHtml(label)}</strong>
-        <p>${escapeHtml(text)}</p>
+        <p>${escapeHtml(text).replaceAll('\n','<br>')}</p>
         <i class="commentary-wave" aria-hidden="true">
           <b></b><b></b><b></b><b></b><b></b>
         </i>
@@ -594,7 +594,7 @@ function matchStartTemplate(runtime) {
     eyebrow: "MATCH START",
     title: `MATCH ${runtime.match}`,
     description:
-      "初動探索結果、バッグ、MATCH限定能力補正、正式CPUロスターを確認しました。",
+      "準備完了。生き残る順位と撃破ポイントを、3人で積み重ねましょう。",
     commentary: `${runtime.entryData.playerTeam.teamName}、MATCH ${runtime.match}へ入ります！`,
     primaryAction: "match-start-next",
     primaryLabel: "ROUND 1",
@@ -1896,6 +1896,10 @@ export function createTournamentFlowController({
               }
             },
             onError: handleRuntimeError,
+            onPlaybackRateChange: rate => runtimeManager.update('watch_speed_changed', draft => {
+              draft.matchExperience ??= {};
+              draft.matchExperience.watchRate = rate;
+            }),
             onRequestItemUse:
               useBattleItem,
           });
@@ -2022,7 +2026,8 @@ export function createTournamentFlowController({
       root.querySelector('main')?.insertAdjacentHTML('afterbegin', renderTournamentDirector(runtime));
       if (runtime.matchExperience?.autoAdvance) {
         scheduleAction(() => {
-          const next = root.querySelector(`[data-action="${AUTO_PHASE_ACTIONS[runtime.phase]}"]`);
+          const next = root.querySelector(`[data-action="${AUTO_PHASE_ACTIONS[runtime.phase]}"]`) ??
+            (runtime.phase === 'MATCH_RESULT' ? root.querySelector('[data-action="match-result-total"]') : null);
           if (next && !next.disabled) next.click();
           else if (runtime.phase.includes('EXPLORATION')) root.querySelector('[data-action="facility-respawn"]:not(:disabled)')?.click();
         }, runtime.phase === 'STRATEGY_SELECT' ? 6500 : 4000);

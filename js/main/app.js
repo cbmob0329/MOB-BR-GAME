@@ -1,5 +1,6 @@
-import { presentPracticeReport } from "./practice-report.js?v=72";
-import { nextTournamentText, weeklyGrowthSummary, lastWeekTraining } from "./training-view.js?v=72";
+import { presentTeamDebut } from './team-debut.js?v=73';
+import { presentPracticeReport } from "./practice-report.js?v=73";
+import { nextTournamentText, weeklyGrowthSummary, lastWeekTraining } from "./training-view.js?v=73";
 /**
  * MOB BR main-screen application shell.
  *
@@ -17,10 +18,10 @@ import {
   assetPath,
   detectAssetPrefix,
   installAssetFallbacks,
-} from "../assets.js?v=72";
+} from "../assets.js?v=73";
 import {
   fitPortraits,
-} from "../portrait-fit.js?v=72";
+} from "../portrait-fit.js?v=73";
 import {
   SaveError,
   SaveNotFoundError,
@@ -30,7 +31,7 @@ import {
   grantEmployeeCookingPointsToDraft,
   queueWeeklyEventToDraft,
   resolveWeeklyEventToDraft,
-} from "./state.js?v=72";
+} from "./state.js?v=73";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -54,38 +55,38 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=72";
+} from "./team.js?v=73";
 import {
   getSpecialAbility,
-} from "../../data/special-ability-50-data.js?v=72";
+} from "../../data/special-ability-50-data.js?v=73";
 import {
   getCompanyRankData,
-} from "../../data/game-data.js?v=72";
+} from "../../data/game-data.js?v=73";
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=72";
+} from "../../data/motivation-data.js?v=73";
 import {
   getRoomMaster,
-} from "../../data/collection-data.js?v=72";
+} from "../../data/collection-data.js?v=73";
 import {
   EMPLOYEE_RULES,
   getEmployeeRankData,
   getTotalEmployeeHpBonus,
-} from "../../data/employee-data.js?v=72";
+} from "../../data/employee-data.js?v=73";
 import {
   formatWeeklyEventText,
   getWeeklyEvent,
-} from "../../data/weekly-event-data.js?v=72";
+} from "../../data/weekly-event-data.js?v=73";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=72";
+} from "./management.js?v=73";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=72";
+} from "./tournament-bridge.js?v=73";
 
 export const APP_VERSION = "mobbr-main-app-4.1.2";
 
@@ -1473,14 +1474,14 @@ function wizardTemplate(stepIndex, data, errorMessage = "") {
             class="secondary-button"
             data-action="${stepIndex === 0 ? "cancel-new-game" : "wizard-back"}"
           >
-            ${stepIndex === 0 ? "CANCEL" : "BACK"}
+            ${stepIndex === 0 ? "タイトルへ" : "戻る"}
           </button>
           <button
             type="button"
             class="primary-button"
             data-action="${isComplete ? "finish-new-game" : "wizard-next"}"
           >
-            ${isComplete ? "START" : "NEXT"}
+            ${isComplete ? "このチームで始める" : "次へ"}
           </button>
         </div>
       </section>
@@ -3524,46 +3525,10 @@ export function createMainApp({
       hideLoading();
 
       const snapshot = stateManager.getSnapshot();
-      const firstBonus = snapshot.weeklyBonus.history[0];
-
-      await openAlert({
-        title: "週間企業ボーナス",
-        body: `
-          <section class="weekly-bonus-show">
-            <div class="weekly-bonus-show__burst" aria-hidden="true"></div>
-            <img src="${escapeAttribute(snapshot.company.badgeImage)}" alt="">
-            <span>WEEK START BONUS</span>
-            <h3>${escapeHtml(formatGameDate(firstBonus.gameDate))}</h3>
-            <div class="weekly-bonus-show__rewards">
-              <strong><img src="icon/coin.png" alt="">${formatNumber(firstBonus.granted.coin)}</strong>
-              <strong><img src="icon/daia.png" alt="">${formatNumber(firstBonus.granted.diamond)}</strong>
-              <strong><img src="icon/rubi.png" alt="">${formatNumber(firstBonus.granted.ruby)}</strong>
-            </div>
-          </section>
-        `,
-        buttonLabel: "HOMEへ",
-      });
-      await showPinkGuide(
-        "new-game:pro-league-entry",
-        {
-          title:
-            "プロリーグ参戦",
-          text:
-            `${snapshot.playerTeam.teamName}としてプロリーグ参戦であります！まずは練習で力をつけるであります！`,
-        },
-      );
-      await showPinkGuide(
-        "new-game:denden-cup",
-        {
-          title:
-            "デンデンカップ",
-          text:
-            "デンデンカップは腕試しの大会であります！育てた3人の力を試すであります！",
-        },
-      );
-      await showPinkGuideForRoute(
-        ROUTES.home,
-      );
+      stateManager.transact('team_debut_pending', draft => { draft.ui.pendingTeamDebut = true; });
+      const destination = await presentTeamDebut(snapshot);
+      stateManager.transact('team_debut_completed', draft => { draft.ui.pendingTeamDebut = false; });
+      navigate(destination);
       await showPendingWeeklyEventPresentation();
     } catch (error) {
       hideLoading();
@@ -3590,6 +3555,11 @@ export function createMainApp({
       queueMicrotask(() =>
         tournamentBridgeController.importPendingResultIfAvailable(),
       );
+      if (stateManager.getSnapshot().ui?.pendingTeamDebut) {
+        const destination = await presentTeamDebut(stateManager.getSnapshot());
+        stateManager.transact('team_debut_completed', draft => { draft.ui.pendingTeamDebut = false; });
+        navigate(destination);
+      }
     } catch (error) {
       hideLoading();
       // A renderer failure must never leave the internal route pointing at

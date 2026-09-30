@@ -9,57 +9,57 @@
 import {
   STORAGE_KEYS,
   calculateChecksum,
-} from "../main/state.js?v=72";
+} from "../main/state.js?v=73";
 import {
   TOURNAMENT_BRIDGE_VERSION,
   TOURNAMENT_ENTRY_SCHEMA_VERSION,
   TOURNAMENT_RESUME_SCHEMA_VERSION,
   readTournamentEntryFromStorage,
   validateTournamentEntryData,
-} from "../main/tournament-bridge.js?v=72";
+} from "../main/tournament-bridge.js?v=73";
 import {
   CPU_LOCAL_DATA_VERSION,
   CPU_LOCAL_MASTER_VERSION,
-} from "../../data/cpu-local-data.js?v=72";
+} from "../../data/cpu-local-data.js?v=73";
 import {
   CPU_NATIONAL_DATA_VERSION,
   CPU_NATIONAL_MASTER_VERSION,
-} from "../../data/cpu-national-data.js?v=72";
+} from "../../data/cpu-national-data.js?v=73";
 import {
   CPU_WORLD_DATA_VERSION,
   CPU_WORLD_MASTER_VERSION,
-} from "../../data/cpu-world-data.js?v=72";
+} from "../../data/cpu-world-data.js?v=73";
 import {
   LOCAL_CPU_TEAMS,
   NATIONAL_CPU_TEAMS,
   getWorldCpuTeamsForYear,
-} from "../../data/cpu-league-registry.js?v=72";
+} from "../../data/cpu-league-registry.js?v=73";
 import {
   characterValueToRank,
   rankToCharacterValue,
-} from "../../data/game-data.js?v=72";
+} from "../../data/game-data.js?v=73";
 import {
   effectiveCharacterRank,
   selectCpuMotivation,
-} from "../../data/motivation-data.js?v=72";
+} from "../../data/motivation-data.js?v=73";
 import {
   buildCpuBattleStats,
   calculateMaxHp,
   getRoleCommonSkills,
   resolveCpuRankFromRange,
   resolveCpuWeaponProfile,
-} from "../../data/battle-config.js?v=72";
+} from "../../data/battle-config.js?v=73";
 import {
   resolveCpuTeamMaster,
-} from "../../data/circuit-data.js?v=72";
+} from "../../data/circuit-data.js?v=73";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=72";
+} from "./circuit.js?v=73";
 import {
   createCpuFlavorSkills,
   createCpuFlavorWeaponName,
-} from "../../data/cpu-flavor-data.js?v=72";
+} from "../../data/cpu-flavor-data.js?v=73";
 
 export const TOURNAMENT_RUNTIME_VERSION =
   "mobbr-tournament-runtime-2.5.0";
@@ -689,10 +689,28 @@ export function createOpeningScenes(entry, teams = null) {
     },
   ];
 
+  const openingChapters = scenes.filter(scene =>
+    ['TOURNAMENT_TITLE','STAGE_INTRO','PLAYER_MEMBERS','FEATURED_CPU','MATCH_START'].includes(scene.type));
+  for (const scene of openingChapters) {
+    scene.canSkip = true;
+    scene.duration = 5500;
+    if (scene.type === 'TOURNAMENT_TITLE') scene.subtext = `全${entry.tournament.totalTeams}チーム / 全${entry.tournament.matches}試合`;
+    if (scene.type === 'STAGE_INTRO') scene.subtext = `${entry.gameDate.year}年 / 今大会の舞台`;
+    if (scene.type === 'PLAYER_MEMBERS') {
+      scene.text = 'この3人で、勝負する。';
+      scene.subtext = entry.playerTeam.teamName;
+      scene.commentary = `${members[0].name}が指揮し、${members[1].name}が攻める。\n${members[2].name}の支援で、チームをつなぎます！`;
+    }
+    if (scene.type === 'MATCH_START') {
+      scene.text = 'さあ、戦場へ。';
+      scene.subtext = 'オートで見守る。自分で指揮する。';
+      scene.commentary = '交戦前の指示が、3人の戦い方を変えます。\nオート観戦への切り替えは、出撃画面から選べます！';
+    }
+  }
   return deepFreeze(
-    scenes.map((scene, index) => ({
+    openingChapters.map((scene, index) => ({
       ...scene,
-      nextSceneId: scenes[index + 1]?.sceneId ?? null,
+      nextSceneId: openingChapters[index + 1]?.sceneId ?? null,
     })),
   );
 }
@@ -1940,11 +1958,10 @@ export function validateTournamentRuntime(runtime, entry = null) {
     !Array.isArray(
       runtime.opening?.scenes,
     ) ||
-    runtime.opening.scenes.length !==
-      expectedOpeningSceneCount
+    ![expectedOpeningSceneCount, 4 + expectedCasualGuestSceneCount].includes(runtime.opening.scenes.length)
   ) {
     throw new TournamentRuntimeValidationError(
-      `Opening runtime must contain ${expectedOpeningSceneCount} independent scenes.`,
+      "Opening runtime has an unsupported chapter count.",
       "INVALID_OPENING_SCENES",
     );
   }

@@ -7,34 +7,34 @@
  * validates the signed TournamentResultData.
  */
 
-import { assetPath } from "../assets.js?v=72";
-import { renderTournamentEpilogue } from './match-experience.js?v=72';
+import { assetPath } from "../assets.js?v=73";
+import { renderTournamentEpilogue } from './match-experience.js?v=73';
 import {
   getChampionshipPoints,
   getPlacementPoints,
-} from "../../data/game-data.js?v=72";
+} from "../../data/game-data.js?v=73";
 import {
   STRATEGY_RULES,
-} from "../../data/strategy-data.js?v=72";
+} from "../../data/strategy-data.js?v=73";
 import {
   FORMAL_CIRCUIT_RULES,
   isCasualTournamentType,
-} from "../../data/circuit-data.js?v=72";
+} from "../../data/circuit-data.js?v=73";
 import {
   createCasualTrophy,
-} from "../../data/casual-data.js?v=72";
+} from "../../data/casual-data.js?v=73";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=72";
+} from "./circuit.js?v=73";
 import {
   getPlayableRoundCount,
-} from "./round.js?v=72";
+} from "./round.js?v=73";
 import {
   finalizeTournamentResultData,
   resolvePlacementRewards,
   writeTournamentResultToStorage,
-} from "../main/tournament-bridge.js?v=72";
+} from "../main/tournament-bridge.js?v=73";
 
 export const RESULTS_VERSION =
   "mobbr-tournament-results-2.7.0";
@@ -2287,8 +2287,8 @@ export function renderNextMatchWaitScreen(runtime) {
         <p>${escapeHtml(runtime.map.name)} / ${nextPlan?.participantTeamIds?.length ?? runtime.teams.length} TEAMS</p>
         ${nextPlan?.sectionName && nextPlan.sectionId !== "ALL" ? `<strong class="next-match-stage__section">${escapeHtml(nextPlan.sectionName)} / SECTION MATCH ${nextPlan.sectionMatch}</strong>` : ""}
         <div class="next-match-stage__rules">
-          <strong>HP・CT・MATCH効果を初期化</strong>
-          <small>大会バッグ・作戦残回数・累計ポイントは保持します</small>
+          <strong>HPとスキルを整えて、次の試合へ</strong>
+          <small>これまでのポイントと、作戦の残り回数は引き継ぎます。</small>
         </div>
         <button type="button" class="tournament-button tournament-button--primary" data-action="next-match-start">
           MATCH ${nextPlan?.circuitMatch ?? nextMatch} START
@@ -2558,15 +2558,16 @@ export function renderTournamentResultScreen(runtime) {
   return `
     <main class="tournament-screen tournament-screen--total-result">
       <header class="total-result-hero">
-        <span>${escapeHtml(result.status.toUpperCase())}</span>
+        <span>${result.status === 'stage_in_progress' ? '今週の大会結果' : '大会結果'}</span>
         <h1>${escapeHtml(runtime.entryData.tournament.tournamentName)}</h1>
-        <strong>${result.finalPlace} PLACE</strong>
+        <strong>${result.finalPlace}位</strong>
         <p>
-          TOTAL ${playerRanking.sumTotal} /
-          PP ${playerRanking.sumPlacementPoint} /
-          KP ${playerRanking.sumKp}
+          合計 ${playerRanking.sumTotal} PT /
+          順位 ${playerRanking.sumPlacementPoint} PT /
+          撃破 ${playerRanking.sumKp} PT
         </p>
       </header>
+      ${renderTournamentEpilogue(runtime,result)}
       <section class="tournament-qualification-verdict ${
         qualification.qualified
           ? "is-qualified"
@@ -2596,7 +2597,6 @@ export function renderTournamentResultScreen(runtime) {
       </section>
       ${circuitAdvancementTemplate(runtime, result)}
       <section class="total-result-scroll">
-        ${renderTournamentEpilogue(runtime,result)}
         <article class="total-result-section">
           <h2>FINAL RANKING</h2>
           <div class="final-ranking-list">

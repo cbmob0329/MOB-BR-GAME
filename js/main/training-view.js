@@ -1,5 +1,5 @@
-import { TRAINING_PROGRAMS, calculateTrainingGain } from '../../data/training-data.js?v=72';
-import { advanceGameWeek, getTournamentEventsForDate } from '../../data/game-data.js?v=72';
+import { TRAINING_PROGRAMS, calculateTrainingGain } from '../../data/training-data.js?v=73';
+import { advanceGameWeek, getTournamentEventsForDate } from '../../data/game-data.js?v=73';
 
 export const POINT_NAMES = Object.freeze({ power: '筋力', tech: '技術', mental: '精神', shoot: '射撃' });
 const esc = (value) => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');

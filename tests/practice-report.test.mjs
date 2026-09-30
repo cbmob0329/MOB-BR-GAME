@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createNewGameState, serializeSaveState, deserializeSaveState } from '../js/main/state.js?v=72';
-import { executeTrainingToDraft } from '../js/main/management.js?v=72';
-import { advanceGameWeek } from '../data/game-data.js?v=72';
-import { practiceReportModel, renderPracticeReport } from '../js/main/practice-report.js?v=72';
+import { createNewGameState, serializeSaveState, deserializeSaveState } from '../js/main/state.js?v=73';
+import { executeTrainingToDraft } from '../js/main/management.js?v=73';
+import { advanceGameWeek } from '../data/game-data.js?v=73';
+import { practiceReportModel, renderPracticeReport } from '../js/main/practice-report.js?v=73';
 
 function trained() {
   const state = structuredClone(createNewGameState({companyBaseName:'検証',playerNames:{IGL:'指揮',ATK:'攻撃',SUP:'支援'}}));

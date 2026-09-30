@@ -1,5 +1,5 @@
-import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=72";
-import { renderBattleStory } from './match-experience.js?v=72';
+import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=73";
+import { renderBattleStory } from './match-experience.js?v=73';
 /**
  * MOB BR battle presentation and event playback.
  *
@@ -7,20 +7,20 @@ import { renderBattleStory } from './match-experience.js?v=72';
  * the serialized event stream without changing combat calculations.
  */
 
-import { assetPath } from "../assets.js?v=72";
+import { assetPath } from "../assets.js?v=73";
 import {
   fitPortraits,
-} from "../portrait-fit.js?v=72";
+} from "../portrait-fit.js?v=73";
 import {
   motivationDisplay,
-} from "../../data/motivation-data.js?v=72";
+} from "../../data/motivation-data.js?v=73";
 import {
   COMMENTATOR,
   COMMENTARY_VERSION,
   createBattleOutcomeCommentary,
   createCommentaryContext,
   createCommentaryDirector,
-} from "./commentary.js?v=72";
+} from "./commentary.js?v=73";
 
 export const BATTLE_UI_VERSION = "mobbr-battle-ui-2.9.0";
 export const BATTLE_REPLAY_SCHEMA_VERSION =
@@ -130,6 +130,7 @@ function initialStatesFromRuntime(runtime) {
       {
         playerId,
         teamId: state.teamId,
+        isPlayerTeam: state.teamId === runtime.playerTeamId,
         name: state.name,
         role: state.role,
         image: state.image,
@@ -1118,13 +1119,13 @@ export function renderBattleOutcomeScreen(runtime) {
   return `
     <main class="tournament-screen tournament-screen--battle-outcome-full">
       <section class="battle-outcome-cut battle-outcome-cut--${label.toLowerCase()}">
-        <span>${label}</span>
+        <span>${result.draw ? '引き分け' : playerWon ? '交戦に勝利' : '交戦に敗北'}</span>
         <h1>${escapeHtml(winner?.teamName ?? "両チーム")}</h1>
         <p>
-          ${result.elapsedSeconds.toFixed(1)}秒 /
-          ${escapeHtml(result.endReason)} /
-          ${escapeHtml(result.tieBreaker ?? "判定なし")}
+          交戦時間 ${result.elapsedSeconds.toFixed(1)}秒。
+          ${result.endReason === 'time_limit' ? `時間切れのため、${({aliveCount:'生存人数',teamHpRate:'チームの残りHP割合',damageDealt:'与えたダメージ',downsGiven:'ダウン数',confirmedKills:'撃破数',battlePower:'戦力',stableRandom:'最終判定'})[result.tieBreaker] ?? '総合判定'}で決着。` : result.endReason === 'squad_wipe' ? 'チームが戦闘不能になり決着。' : '両チームが交戦を終了。'}
         </p>
+        <p>今回の指示：${escapeHtml(runtime.lastBattleCommand?.name ?? 'バランス')}。${escapeHtml(runtime.lastBattleCommand?.automatic ? runtime.lastBattleCommand.reason : 'あなたの指示で戦いました。')}</p>
       </section>
       <section class="battle-survivor-grid">
         ${members.map((member) => `
@@ -1141,7 +1142,7 @@ export function renderBattleOutcomeScreen(runtime) {
               alt=""
             >
             <strong>${escapeHtml(member.role)} ${escapeHtml(member.name)}</strong>
-            <span>${escapeHtml(member.combatState.toUpperCase())}</span>
+            <span>${({alive:'戦闘可能',down:'ダウン',dead:'戦闘不能'})[member.combatState] ?? '戦闘終了'}</span>
             <small>
               HP ${member.hp}/${member.maxHp}<br>
               DMG ${formatNumber(member.stats.damage)} /
@@ -1160,7 +1161,7 @@ export function renderBattleOutcomeScreen(runtime) {
           class="tournament-button tournament-button--primary"
           data-action="battle-outcome-next"
         >
-          ROUND RESULT
+          ラウンド結果へ
         </button>
       </div>
     </main>
@@ -1173,8 +1174,9 @@ export function createBattlePlaybackController({
   onComplete,
   onError = (error) => console.error(error),
   onRequestItemUse = null,
+  onPlaybackRateChange = () => {},
   playbackRate =
-    Number(runtime?.entryData?.settings?.commentarySpeed) || 1,
+    runtime?.matchExperience?.watchRate ?? (Number(runtime?.entryData?.settings?.commentarySpeed) || 1),
   reducedMotion =
     runtime?.entryData?.settings?.reducedMotion === true,
   timer = globalThis,
@@ -1705,6 +1707,7 @@ export function createBattlePlaybackController({
     }
     if (action === 'battle-watch-speed') {
       safeRate = safeRate < 1.5 ? 2 : safeRate < 3 ? 4 : 1;
+      onPlaybackRateChange(safeRate);
       clearTimer();
       render();
       if (!paused) scheduleNext();
