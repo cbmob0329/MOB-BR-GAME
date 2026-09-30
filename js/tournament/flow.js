@@ -3037,6 +3037,11 @@ function installTournamentJapaneseOrphanGuard(root) {
 }
 
 async function bootstrap() {
+  // Keep the saved tournament checkpoint; CONTINUE can resume it from home.
+  if (globalThis.performance?.getEntriesByType?.("navigation")[0]?.type === "reload") {
+    globalThis.location.replace("./index.html");
+    return;
+  }
   const root = document.querySelector("#tournamentApp");
   const modalRoot = document.querySelector("#tournamentModalRoot");
   const toastRoot = document.querySelector("#tournamentToastRoot");

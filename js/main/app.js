@@ -5132,19 +5132,22 @@ export function createMainApp({
         console.error(error);
       }
     } finally {
-      const returnHome = globalThis.location?.hash === "#home" && Boolean(stateManager.getSnapshot());
+      const reloaded = globalThis.performance?.getEntriesByType?.("navigation")[0]?.type === "reload";
+      const returnHome = !reloaded && globalThis.location?.hash === "#home" && Boolean(stateManager.getSnapshot());
       route = returnHome ? ROUTES.home : ROUTES.title;
       await preloadImages(snapshotCriticalImagePaths(stateManager.getSnapshot()), 10000);
-      if (returnHome && globalThis.history?.replaceState) {
+      if ((returnHome || reloaded) && globalThis.history?.replaceState) {
         globalThis.history.replaceState(null, "", globalThis.location.pathname + globalThis.location.search);
       }
       titleSettingsOpen = false;
       root.dataset.mode = "";
       render();
       hideLoading();
-      queueMicrotask(() =>
-        tournamentBridgeController.importPendingResultIfAvailable(),
-      );
+      if (returnHome) {
+        queueMicrotask(() =>
+          tournamentBridgeController.importPendingResultIfAvailable(),
+        );
+      }
     }
   }
 
