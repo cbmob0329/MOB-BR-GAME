@@ -5,7 +5,7 @@
  * the result. This file does not mutate save data.
  */
 
-import { TRAINING_POINT_IDS } from "./game-data.js?v=69";
+import { TRAINING_POINT_IDS } from "./game-data.js?v=70";
 
 export const TRAINING_DATA_VERSION = "mobbr-training-data-1.0.0";
 

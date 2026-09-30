@@ -1,4 +1,4 @@
-import { nextTournamentText, weeklyGrowthSummary, lastWeekTraining } from "./training-view.js?v=69";
+import { nextTournamentText, weeklyGrowthSummary, lastWeekTraining } from "./training-view.js?v=70";
 /**
  * MOB BR main-screen application shell.
  *
@@ -16,10 +16,10 @@ import {
   assetPath,
   detectAssetPrefix,
   installAssetFallbacks,
-} from "../assets.js?v=69";
+} from "../assets.js?v=70";
 import {
   fitPortraits,
-} from "../portrait-fit.js?v=69";
+} from "../portrait-fit.js?v=70";
 import {
   SaveError,
   SaveNotFoundError,
@@ -29,7 +29,7 @@ import {
   grantEmployeeCookingPointsToDraft,
   queueWeeklyEventToDraft,
   resolveWeeklyEventToDraft,
-} from "./state.js?v=69";
+} from "./state.js?v=70";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -53,38 +53,38 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=69";
+} from "./team.js?v=70";
 import {
   getSpecialAbility,
-} from "../../data/special-ability-50-data.js?v=69";
+} from "../../data/special-ability-50-data.js?v=70";
 import {
   getCompanyRankData,
-} from "../../data/game-data.js?v=69";
+} from "../../data/game-data.js?v=70";
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=69";
+} from "../../data/motivation-data.js?v=70";
 import {
   getRoomMaster,
-} from "../../data/collection-data.js?v=69";
+} from "../../data/collection-data.js?v=70";
 import {
   EMPLOYEE_RULES,
   getEmployeeRankData,
   getTotalEmployeeHpBonus,
-} from "../../data/employee-data.js?v=69";
+} from "../../data/employee-data.js?v=70";
 import {
   formatWeeklyEventText,
   getWeeklyEvent,
-} from "../../data/weekly-event-data.js?v=69";
+} from "../../data/weekly-event-data.js?v=70";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=69";
+} from "./management.js?v=70";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=69";
+} from "./tournament-bridge.js?v=70";
 
 export const APP_VERSION = "mobbr-main-app-4.1.2";
 
@@ -191,12 +191,12 @@ const PINK_GUIDES = Object.freeze({
       "集めたカードやバッジを飾れる企業ルームであります！",
   }),
   cooking: Object.freeze({
-    title: "MOB DINING",
+    title: "食堂",
     text:
       "モブホワイトの定食で能力ポイントを獲得できるであります！選手1人につき週1回であります！",
   }),
   news: Object.freeze({
-    title: "NEWS",
+    title: "新聞",
     text:
       "大会の結果を振り返るであります！活躍した選手と次の課題を探すであります！",
   }),
@@ -217,55 +217,55 @@ const MANAGEMENT_ROUTES = Object.freeze([
 
 const ROUTE_META = Object.freeze({
   [ROUTES.home]: {
-    title: "HOME",
+    title: "ホーム",
     description: "企業とチームの現在状況",
     backgroundClass: "screen--home",
     icon: assetPath("menu/home.png"),
   },
   [ROUTES.facility]: {
-    title: "FACILITY",
+    title: "施設メニュー",
     description: "施設を選択して機能を利用",
     backgroundClass: "screen--sub",
     icon: assetPath("menu/team.png"),
   },
   [ROUTES.team]: {
-    title: "TEAM",
+    title: "選手一覧",
     description: "チーム管理ハブ",
     backgroundClass: "screen--team",
     icon: "menu/team.png",
   },
   [ROUTES.train]: {
-    title: "TRAINING",
+    title: "練習",
     description: "3選手の1週間トレーニング",
     backgroundClass: "screen--team",
     icon: assetPath("menu/traning.png"),
   },
   [ROUTES.collection]: {
-    title: "COLLECTION",
+    title: "図鑑",
     description: "カード・バッジ・その他コレクション",
     backgroundClass: "screen--collection",
     icon: assetPath("menu/COL.png"),
   },
   [ROUTES.shop]: {
-    title: "SHOP",
+    title: "ショップ",
     description: "カードパック・武器スキン",
     backgroundClass: "screen--shop",
     icon: "menu/mobshopt.png",
   },
   [ROUTES.settings]: {
-    title: "SETTING",
+    title: "設定",
     description: "音量・演出・表示設定",
     backgroundClass: "screen--coh",
     icon: "menu/setting.png",
   },
   [ROUTES.room]: {
-    title: "ROOM",
+    title: "モブルーム",
     description: "コレクションを飾る企業ルーム",
     backgroundClass: "screen--sub",
     icon: "menu/room.png",
   },
   [ROUTES.cooking]: {
-    title: "MOB DINING",
+    title: "食堂",
     description: "週替わり定食で選手のコンディションを整える",
     backgroundClass: "screen--cooking",
     icon: "icon/white.png",
@@ -283,25 +283,25 @@ const ROUTE_META = Object.freeze({
     icon: "menu/scout.png",
   },
   [ROUTES.schedule]: {
-    title: "SCHEDULE",
+    title: "大会日程",
     description: "年間大会スケジュール",
     backgroundClass: "screen--sub",
     icon: "menu/sc.png",
   },
   [ROUTES.equipment]: {
-    title: "EQUIPMENT",
+    title: "武器強化",
     description: "武器・スキン",
     backgroundClass: "screen--team",
-    icon: "menu/eq.png",
+    icon: "icon/weponup.png",
   },
   [ROUTES.record]: {
-    title: "RECORD",
+    title: "戦績",
     description: "大会・個人・企業の通算記録",
     backgroundClass: "screen--sub",
     icon: "menu/record.png",
   },
   [ROUTES.news]: {
-    title: "NEWS",
+    title: "新聞",
     description: "大会結果と企業ニュース",
     backgroundClass: "screen--sub",
     icon: "icon/news.png",
@@ -313,13 +313,13 @@ const ROUTE_META = Object.freeze({
     icon: "menu/item.png",
   },
   [ROUTES.ability]: {
-    title: "PLAYER DEVELOPMENT",
+    title: "選手育成",
     description: "選手能力と武器をひとつの画面で強化",
     backgroundClass: "screen--team",
     icon: "icon/ab.png",
   },
   [ROUTES.specialAbility]: {
-    title: "SPECIAL ABILITY",
+    title: "特殊能力",
     description: "青・金・赤の特殊能力",
     backgroundClass: "screen--team",
     icon: "icon/sp.png",
@@ -336,8 +336,8 @@ const FACILITY_DEFINITIONS = Object.freeze([
 
 const FACILITY_MENUS = Object.freeze({
   team_lab: Object.freeze([
-    { route: ROUTES.team, name: "TEAM", note: "選手ステータス", icon: "menu/team.png" },
-    { route: ROUTES.train, name: "TRAINING", note: "週間育成", icon: "menu/traning.png" },
+    { route: ROUTES.team, name: "選手", note: "選手ステータス", icon: "menu/team.png" },
+    { route: ROUTES.train, name: "練習", note: "週間育成", icon: "menu/traning.png" },
     { route: ROUTES.ability, name: "ABILITY", note: "選手能力を強化", icon: "icon/ab.png" },
     { route: ROUTES.equipment, name: "WEAPON", note: "武器能力を強化", icon: "icon/weponup.png" },
     { route: ROUTES.ability, name: "SKILL", note: "スキルを強化", icon: "icon/skillup.png" },
@@ -346,7 +346,7 @@ const FACILITY_MENUS = Object.freeze({
     { route: ROUTES.coach, name: "作戦研究", note: "練習の経験を作戦に", icon: "icon/sak.png" },
     { route: ROUTES.record, name: "RECORD", note: "通算記録", icon: "menu/record.png" },
     { route: ROUTES.news, name: "NEWS", note: "大会新聞", icon: "icon/news.png" },
-    { route: ROUTES.schedule, name: "SCHEDULE", note: "大会予定", icon: "menu/sc.png" },
+    { route: ROUTES.schedule, name: "大会", note: "大会予定", icon: "menu/sc.png" },
   ]),
   mob_shop: Object.freeze([
     { route: ROUTES.shop, name: "MOB SHOP", note: "商品カテゴリを開く", icon: "menu/mobshopt.png" },
@@ -405,11 +405,11 @@ const TEAM_MENU = Object.freeze([
 ]);
 
 const BOTTOM_NAV = Object.freeze([
-  { route: ROUTES.home, name: "HOME", icon: "menu/home.png" },
-  { route: ROUTES.train, name: "TRAINING", icon: "menu/traning.png" },
-  { route: ROUTES.schedule, name: "SCHEDULE", icon: "menu/sc.png" },
-  { route: ROUTES.team, name: "TEAM", icon: "menu/team.png" },
-  { route: ROUTES.settings, name: "SET", icon: "menu/setting.png" },
+  { route: ROUTES.home, name: "ホーム", icon: "menu/home.png" },
+  { route: ROUTES.train, name: "練習", icon: "menu/traning.png" },
+  { route: ROUTES.schedule, name: "大会", icon: "menu/sc.png" },
+  { route: ROUTES.team, name: "選手", icon: "menu/team.png" },
+  { route: ROUTES.settings, name: "設定", icon: "menu/setting.png" },
 ]);
 
 const NEW_GAME_STEPS = Object.freeze([
@@ -710,7 +710,7 @@ function topStatusTemplate(snapshot) {
               <div>
                 <span>${escapeHtml(snapshot.company.companyName)}</span>
                 <b>
-                  <img src="icon/kigyo.png" alt="">
+
                   ${escapeHtml(snapshot.company.rank)}
                 </b>
               </div>
@@ -801,24 +801,18 @@ function titleTemplate(hasSave, saveSummary = null) {
             type="button"
             class="primary-button"
             data-action="new-game"
-          >
-            NEW GAME
-          </button>
+          >はじめから</button>
           <button
             type="button"
             class="secondary-button"
             data-action="continue"
             ${hasSave ? "" : "disabled"}
-          >
-            CONTINUE
-          </button>
+          >つづきから</button>
           <button
             type="button"
             class="secondary-button"
             data-action="open-settings"
-          >
-            SETTINGS
-          </button>
+          >設定</button>
         </div>
 
         <p class="title-card__save-status">${escapeHtml(saveStatus)}</p>
@@ -908,149 +902,40 @@ function homeRoomPreviewTemplate(
   `;
 }
 
-function homeTemplate(snapshot, currentRoute) {
-  const tournamentWeek = getTournamentWeekStatus(snapshot);
-  const tournamentNotice = "";
-
-  return `
-    <main
-      class="screen screen--home app-layout has-home-room"
-    >
-      ${homeRoomStageTemplate(snapshot)}
-      ${topStatusTemplate(snapshot)}
-      <div class="page-content home-facility-only ${tournamentWeek.hasTournament ? "has-tournament-notice" : ""}">
-        <nav class="home-quick-actions" aria-label="HOMEショートカット">
-          <button type="button" data-action="navigate" data-route="ability"><img src="icon/ab.png" alt=""><span>能力アップ</span></button>
-          <button
-            type="button"
-            data-action="navigate"
-            data-route="${ROUTES.news}"
-          >
-            <img src="icon/news.png" alt="">
-            <span>新聞</span>
-          </button>
-          <button
-            type="button"
-            data-action="open-home-room-preview"
-          >
-            <img src="menu/room.png" alt="">
-            <span>部屋を見る</span>
-          </button>
-          ${tournamentWeek.hasTournament ? `
-            <button type="button" data-action="navigate" data-route="${ROUTES.schedule}">
-              <img src="menu/sc.png" alt="">
-              <span>大会日</span>
-            </button>
-          ` : ""}
-        </nav>
-        ${tournamentNotice}
-        <section class="home-facility-grid" aria-label="施設一覧">
-          ${FACILITY_DEFINITIONS.map((facility) => `
-            <button
-              type="button"
-              class="home-facility-image ${facility.status === "LOCKED" ? "is-locked" : ""}"
-              data-action="open-facility"
-              data-facility-id="${escapeAttribute(facility.facilityId)}"
-              ${facility.status === "LOCKED" ? "disabled" : ""}
-            >
-              <img src="${escapeAttribute(facility.homeImage)}" alt="">
-              <span>${escapeHtml(facility.japaneseName)}</span>
-              ${facility.status === "LOCKED" ? "<em>LOCKED</em>" : ""}
-            </button>
-          `).join("")}
-        </section>
-
-        <section class="home-employee-zone" aria-label="従業員">
-          <header>
-            <span>MOB STAFF</span>
-            <strong>TEAM HP +${formatNumber(employeeHpBonus(snapshot))}</strong>
-          </header>
-          <div class="home-employee-zone__stage">
-            ${(snapshot.employees ?? []).map((employee, index) => `
-              <button
-                type="button"
-                class="home-employee home-employee--${index % 2 === 0 ? "forward" : "reverse"}"
-                style="--employee-delay:${index * -2.7}s"
-                data-action="inspect-employee"
-                data-employee-id="${escapeAttribute(employee.employeeId)}"
-                aria-label="${escapeAttribute(employee.name)} ${escapeAttribute(employee.rank)}"
-              >
-                <img src="${escapeAttribute(employee.image)}" alt="">
-                <span>${escapeHtml(employee.rank)}</span>
-              </button>
-            `).join("")}
-          </div>
-          <small>従業員をタップするとランクと従業員ポイントを確認できます</small>
-        </section>
-      </div>
-      ${bottomNavTemplate(currentRoute)}
-    </main>
-  `;
+const PW_LABELS = {home:"ホーム",team:"選手一覧",train:"練習",ability:"能力アップ",equipment:"武器強化",specialAbility:"特殊能力",collection:"図鑑",shop:"ショップ",room:"モブルーム",cooking:"食堂",coach:"作戦研究",record:"戦績",news:"新聞",schedule:"大会日程",settings:"設定"};
+function commandCard(item) {
+  return `<button type="button" class="pw-command" data-action="${item.action ?? "navigate"}" data-route="${escapeAttribute(item.route ?? "home")}" ${item.facilityId ? `data-facility-id="${item.facilityId}"` : ""}><img src="${escapeAttribute(item.icon ?? "menu/team.png")}" alt=""><span><strong>${escapeHtml(item.label ?? PW_LABELS[item.route] ?? item.name)}</strong><small>${escapeHtml(item.note ?? "")}</small></span><b aria-hidden="true">›</b></button>`;
 }
-
-function facilityTemplate(
-  snapshot,
-  currentRoute,
-  selectedFacilityId,
-) {
-  const selected =
-    FACILITY_DEFINITIONS.find(
-      (facility) =>
-        facility.facilityId === selectedFacilityId,
-    ) ?? FACILITY_DEFINITIONS[0];
-  const menu =
-    FACILITY_MENUS[selected.facilityId] ?? [];
-
-  return `
-    <main class="screen screen--sub app-layout">
-      ${topStatusTemplate(snapshot)}
-      <div class="page-content facility-menu-page facility-menu-page--${escapeAttribute(selected.facilityId)}">
-        <section class="facility-entrance-stage">
-          <div class="facility-entrance-stage__lights" aria-hidden="true">
-            <i></i><i></i><i></i>
-          </div>
-          <span>${escapeHtml(selected.accent)} FACILITY</span>
-          <h1>${escapeHtml(selected.japaneseName)}</h1>
-          <p>${escapeHtml(selected.note)}</p>
-          <div class="facility-entrance-stage__status">
-            <b>${selected.status === "LOCKED" ? "OFFLINE" : "SYSTEM ONLINE"}</b>
-            <em>${escapeHtml(selected.name)}</em>
-          </div>
-        </section>
-        ${
-          selected.status === "LOCKED"
-            ? `<section class="facility-locked-panel"><strong>LOCKED</strong><p>食材・料理・調理器具の基盤を準備しました。調理場の操作機能は次の更新で解放します。</p></section>`
-            : selected.facilityId === "team_lab"
-              ? `
-                <section class="team-lab-orbit" aria-label="チームラボ機能">
-                  <div class="team-lab-orbit__rings" aria-hidden="true"><i></i><i></i><i></i></div>
-                  <div class="team-lab-orbit__core">
-                    <img src="menu/team.png" alt="">
-                    <span>TEAM LAB</span>
-                    <strong>SELECT APP</strong>
-                  </div>
-                  <div class="team-lab-orbit__apps" style="--app-count:${menu.length}">
-                    ${menu.map((item, index) => `
-                      <button
-                        type="button"
-                        class="team-lab-orbit__app"
-                        style="--app-index:${index}"
-                        data-action="navigate"
-                        data-route="${escapeAttribute(item.route)}"
-                      >
-                        <img src="${escapeAttribute(item.icon)}" alt="">
-                        <span>${escapeHtml(item.name)}</span>
-                      </button>
-                    `).join("")}
-                  </div>
-                </section>
-              `
-              : `<section class="facility-menu-grid">${menu.map((item) => menuCardTemplate(item)).join("")}</section>`
-        }
-      </div>
-      ${bottomNavTemplate(currentRoute)}
-    </main>
-  `;
+function homeTemplate(snapshot, currentRoute) {
+  const tournament=getTournamentWeekStatus(snapshot);
+  return `<main class="screen screen--home app-layout">${topStatusTemplate(snapshot)}
+    <div class="page-content pw-home">
+      <section class="pw-home-banner"><div><span>育成ホーム</span><h1>${escapeHtml(snapshot.playerTeam.teamName)}</h1><p>${tournament.hasTournament ? "今週は大会！ 育てたチームの実力を試そう。" : "練習でポイントを獲得して、選手を強くしよう！"}</p></div><img src="icon/pink.png" alt="モブピンク"></section>
+      <div class="pw-flow"><span>① 練習でポイント獲得</span><b>›</b><span>② 能力アップ</span><b>›</b><span>③ 大会に挑戦</span></div>
+      <section class="pw-command-grid pw-primary-commands" aria-label="育成メニュー">${[
+        {route:"train",icon:"menu/traning.png",note:"練習を選んで1週間を進める"},
+        {route:"ability",icon:"icon/ab.png",note:"ポイントを使って能力を伸ばす"},
+        {route:"schedule",icon:"menu/sc.png",note:tournament.hasTournament ? "今週の大会に出場する" : "次の大会と出場条件を確認"},
+        {route:"team",icon:"menu/team.png",note:"3人の能力・武器を確認"}
+      ].map(commandCard).join("")}</section>
+      <section class="pw-home-roster" aria-label="チームの選手">${snapshot.playerTeam.members.map(p=>`<button type="button" data-action="inspect-team-player" data-player-id="${escapeAttribute(p.playerId)}"><img src="${escapeAttribute(p.image)}" alt=""><span><small>${escapeHtml(p.role)}</small><strong>${escapeHtml(p.name)}</strong></span><b class="pw-rank" data-rank="${escapeAttribute(p.characterRank.charAt(0))}">${escapeHtml(p.characterRank)}</b></button>`).join("")}</section>
+      <h2 class="pw-section-title">施設・チーム運営</h2>
+      <section class="pw-command-grid" aria-label="施設・チーム運営">${[
+        {route:"equipment",icon:"icon/weponup.png",note:"専用武器を強化"},
+        {route:"coach",icon:"menu/team.png",note:"練習の積み重ねを力に"},
+        {route:"shop",icon:"back/homeshop.png",note:"スキンや家具を購入"},
+        {route:"cooking",icon:"back/homekit.png",note:"料理でチームを応援"},
+        {route:"room",icon:"menu/room.png",note:"家具を飾って自分の部屋に"},
+        {route:"collection",icon:"back/homecol.png",note:"集めたコレクションを見る"},
+        {route:"news",icon:"icon/news.png",note:"チームの最新ニュース"},
+        {route:"record",icon:"menu/sc.png",note:"これまでの成績を見る"}
+      ].map(commandCard).join("")}</section>
+      <section class="pw-staff"><h2 class="pw-section-title">従業員 <small>チームHP +${formatNumber(employeeHpBonus(snapshot))}</small></h2><div>${(snapshot.employees ?? []).map(e=>`<button type="button" data-action="inspect-employee" data-employee-id="${escapeAttribute(e.employeeId)}"><img src="${escapeAttribute(e.image)}" alt=""><span>${escapeHtml(e.name ?? e.rank)}</span></button>`).join("")}</div></section>
+    </div>${bottomNavTemplate(currentRoute)}</main>`;
+}
+function facilityTemplate(snapshot,currentRoute,selectedFacilityId) {
+  const selected=FACILITY_DEFINITIONS.find(f=>f.facilityId===selectedFacilityId) ?? FACILITY_DEFINITIONS[0];
+  return `<main class="screen screen--sub app-layout">${topStatusTemplate(snapshot)}<div class="page-content"><h1 class="pw-section-title">${escapeHtml(selected.japaneseName)}</h1><section class="pw-command-grid">${(FACILITY_MENUS[selected.facilityId] ?? []).map(commandCard).join("")}</section></div>${bottomNavTemplate(currentRoute)}</main>`;
 }
 
 function teamTemplate(snapshot, currentRoute) {
@@ -1065,38 +950,17 @@ function teamTemplate(snapshot, currentRoute) {
             data-action="navigate"
             data-route="${ROUTES.home}"
           >
-            ← HOME
+            ← ホーム
           </button>
         </div>
 
         <section class="team-compact-heading">
-          <span>TEAM MEMBERS</span>
+          <span>選手一覧</span>
           <strong>${escapeHtml(snapshot.playerTeam.teamName)}</strong>
           <small>選手をタップすると詳細を表示します / 従業員効果 TEAM HP +${formatNumber(employeeHpBonus(snapshot))}</small>
         </section>
 
-        <section class="team-menu-deck" aria-label="TEAM MENU">
-          <header>
-            <span>TEAM MENU</span>
-            <small>左右へスワイプ</small>
-          </header>
-          <nav class="team-menu-deck__track">
-            ${TEAM_MENU.map((item, index) => `
-              <button
-                type="button"
-                class="team-menu-deck__item"
-                style="--team-menu-index:${index}"
-                data-action="navigate"
-                data-route="${escapeAttribute(item.route)}"
-                aria-label="${escapeAttribute(item.name)}"
-                title="${escapeAttribute(item.name)}"
-              >
-                <i aria-hidden="true"></i>
-                <img src="${escapeAttribute(item.icon)}" alt="">
-              </button>
-            `).join("")}
-          </nav>
-        </section>
+        <section class="pw-command-grid">${TEAM_MENU.map(commandCard).join("")}</section>
 
         <section class="team-portrait-grid">
           ${snapshot.playerTeam.members.map((player) => `
@@ -1115,14 +979,14 @@ function teamTemplate(snapshot, currentRoute) {
               <strong>${escapeHtml(player.name)}</strong>
               ${motivationBadgeTemplate(player.motivation, "motivation-badge--team")}
               <small>${escapeHtml(player.characterRank)} → ${escapeHtml(playerEffectiveRank(player))}</small>
-              <em>TAP</em>
+              <em>詳しく見る</em>
             </button>
           `).join("")}
         </section>
 
         <section class="team-personal-weapons">
           <header>
-            <span>PERSONAL WEAPON STATUS</span>
+            <span>専用武器の能力</span>
             <strong>3人の武器能力は個別管理</strong>
           </header>
           <div>
@@ -1311,7 +1175,7 @@ function teamFeatureTemplate(
             data-action="select-development-tab"
             data-development-tab="weapon"
           >
-            <img src="menu/eq.png" alt="">
+            <img src="icon/weponup.png" alt="">
             <span>WEAPON</span>
             <strong>武器強化</strong>
           </button>
@@ -1387,14 +1251,14 @@ function teamFeatureTemplate(
             data-action="navigate"
             data-route="${ROUTES.team}"
           >
-            ← TEAM
+            ← 選手一覧
           </button>
         </div>
 
         <section class="feature-command-header">
           <img src="${escapeAttribute(meta.icon)}" alt="">
           <div>
-            <span>TEAM LAB / PLAYER SYSTEM</span>
+            <span>チーム育成</span>
             <h1>${escapeHtml(meta.title)}</h1>
             <p>${escapeHtml(meta.description)}</p>
           </div>
@@ -1423,8 +1287,8 @@ function managementFeatureTemplate(snapshot, route, currentRoute) {
       <div class="page-content">
         <div class="back-row">
           ${route === ROUTES.cooking
-            ? `<button type="button" class="back-button" data-action="navigate" data-route="${ROUTES.home}">← HOME</button>`
-            : `<button type="button" class="back-button" data-action="show-facility-menu" data-facility-id="${parentFacility}">← FACILITY</button>`}
+            ? `<button type="button" class="back-button" data-action="navigate" data-route="${ROUTES.home}">← ホーム</button>`
+            : `<button type="button" class="back-button" data-action="show-facility-menu" data-facility-id="${parentFacility}">← 施設メニュー</button>`}
         </div>
         ${
           route === ROUTES.shop ||
@@ -1468,7 +1332,7 @@ function tournamentScheduleTemplate(
             data-action="navigate"
             data-route="${ROUTES.team}"
           >
-            ← TEAM
+            ← 選手一覧
           </button>
         </div>
         <section class="hero-panel">
@@ -1818,9 +1682,9 @@ export function createMainApp({
         .firstElementChild;
     const top =
       page?.scrollTop ?? 0;
-    oldSection.replaceWith(
-      replacement,
-    );
+    const focused = oldSection.contains(document.activeElement) ? document.activeElement.getAttribute("aria-label") : null;
+    oldSection.replaceWith(replacement);
+    if (focused) [...replacement.querySelectorAll("button[aria-label]")].find(button => button.getAttribute("aria-label") === focused)?.focus({preventScroll:true});
     if (page) {
       page.scrollTop = top;
     }
@@ -4487,7 +4351,7 @@ export function createMainApp({
                 after:
                   result.currentRank,
                 icon:
-                  "menu/eq.png",
+                  "icon/weponup.png",
               }),
             ),
         });
@@ -4552,7 +4416,7 @@ export function createMainApp({
             after:
               transaction.result.currentRank,
             icon:
-              "menu/eq.png",
+              "icon/weponup.png",
           }],
         });
         showToast(

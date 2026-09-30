@@ -12,19 +12,19 @@ import {
   characterValueToRank,
   weaponValueToRank,
   getCompanyRankData,
-} from "../../data/game-data.js?v=69";
+} from "../../data/game-data.js?v=70";
 import {
   calculateMaxHp,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=69";
+} from "../../data/battle-config.js?v=70";
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=69";
+} from "../../data/motivation-data.js?v=70";
 import {
   WEAPON_SKINS,
   getWeaponSkin,
-} from "../../data/shop-data.js?v=69";
+} from "../../data/shop-data.js?v=70";
 import {
   PLAYER_STAT_DEFINITIONS,
   WEAPON_STAT_DEFINITIONS,
@@ -34,13 +34,13 @@ import {
   getStatUpgradeCost,
   getWeaponStatDefinition,
   getWeaponUpgradeCost,
-} from "../../data/ability-data.js?v=69";
+} from "../../data/ability-data.js?v=70";
 
 import {
   getSpecialAbilitiesForRole,
   getSpecialAbility,
   getSpecialAbilityStage,
-} from "../../data/special-ability-50-data.js?v=69";
+} from "../../data/special-ability-50-data.js?v=70";
 
 export const TEAM_FEATURE_VERSION = "mobbr-team-feature-1.5.0";
 
@@ -1134,155 +1134,26 @@ const WEAPON_STAT_ICONS = Object.freeze({
   reload: "icon/mind.png",
 });
 
-function radialNodePositions(
-  count,
-  {
-    radius = 41,
-    startAngle = -90,
-  } = {},
-) {
-  return Array.from(
-    { length: count },
-    (_value, index) => {
-      const angle =
-        (
-          startAngle +
-          (
-            360 /
-            Math.max(
-              1,
-              count,
-            )
-          ) *
-          index
-        ) *
-        (
-          Math.PI /
-          180
-        );
-      return {
-        x:
-          50 +
-          Math.cos(angle) *
-          radius,
-        y:
-          50 +
-          Math.sin(angle) *
-          radius,
-      };
-    },
-  );
-}
-
-function radialUpgradeMapTemplate({
-  kind,
-  playerId,
-  centerImage,
-  centerLabel,
-  centerSubLabel,
-  rows,
-}) {
-  const positions =
-    radialNodePositions(
-      rows.length,
-      {
-        radius:
-          rows.length >=
-          7
-            ? 42
-            : 40,
-      },
-    );
-
-  return `
-    <section
-      class="upgrade-radial-map upgrade-radial-map--${escapeAttribute(kind)}"
-      aria-label="${escapeAttribute(centerLabel)}の強化項目"
-    >
-      <svg
-        class="upgrade-radial-map__lines"
-        viewBox="0 0 100 100"
-        preserveAspectRatio="none"
-        aria-hidden="true"
-      >
-        ${positions.map(
-          (position) => `
-            <line
-              x1="50"
-              y1="50"
-              x2="${position.x.toFixed(3)}"
-              y2="${position.y.toFixed(3)}"
-            ></line>
-          `,
-        ).join("")}
-      </svg>
-
-      <div class="upgrade-radial-map__center">
-        <div>
-          <img
-            src="${escapeAttribute(centerImage)}"
-            alt=""
-            ${
-              kind === "ability"
-                ? 'class="player-portrait"'
-                : ""
-            }
-          >
-        </div>
-        <strong>${escapeHtml(centerLabel)}</strong>
-        <small>${escapeHtml(centerSubLabel)}</small>
-      </div>
-
-      ${rows.map((row, index) => {
-        const position =
-          positions[index];
-        const statId =
-          row.definition.id;
-        const rank =
-          kind ===
-          "ability"
-            ? characterValueToRank(
-                row.projectedValue,
-              )
-            : row.projectedRank;
-        const icon =
-          kind ===
-          "ability"
-            ? row.definition.icon
-            : WEAPON_STAT_ICONS[
-                statId
-              ] ??
-              "menu/eq.png";
-        return `
-          <button
-            type="button"
-            class="upgrade-radial-node ${row.increment > 0 ? "is-planned" : ""}"
-            style="
-              --node-x:${position.x.toFixed(3)}%;
-              --node-y:${position.y.toFixed(3)}%;
-            "
-            data-action="open-upgrade-node"
-            data-upgrade-kind="${escapeAttribute(kind)}"
-            data-player-id="${escapeAttribute(playerId)}"
-            data-stat-id="${escapeAttribute(statId)}"
-            aria-label="${escapeAttribute(row.definition.displayName ?? row.definition.name)}の強化詳細"
-          >
-            <img
-              src="${escapeAttribute(icon)}"
-              alt=""
-            >
-            <span>${escapeHtml(row.definition.displayName ?? row.definition.name)}</span>
-            <strong>${escapeHtml(rank)}</strong>
-            ${
-              row.increment > 0
-                ? `<b>+${row.increment}</b>`
-                : ""
-            }
-          </button>
-        `;
-      }).join("")}
-    </section>
-  `;
+function upgradeTableTemplate({kind, playerId, rows, plan}) {
+  const weapon = kind === "weapon";
+  return `<div class="pw-stat-table" aria-label="能力の比較と強化">
+    <div class="pw-table-heading"><span>能力 / 効果</span><span>現在 → 変更後</span><span>次の強化に必要</span><span>強化する</span></div>
+    ${rows.map(row => {
+      const id=row.definition.id;
+      const name=row.definition.displayName ?? row.definition.name;
+      const current=weapon ? row.currentRank : characterValueToRank(row.currentValue);
+      const next=weapon ? row.projectedRank : characterValueToRank(row.projectedValue);
+      const cost=row.nextCost;
+      const canAdd=!!cost && !row.atMaximum && (weapon ? plan.remainingCoin >= cost.coin && plan.remainingRuby >= cost.ruby : TRAINING_POINT_IDS.every(key=>plan.remainingPoints[key] >= (cost[key] ?? 0)));
+      const costText=!cost || row.atMaximum ? "最大まで成長" : Object.entries(cost).filter(([key,value])=>value>0 && (weapon ? ["coin","ruby"].includes(key) : TRAINING_POINT_IDS.includes(key))).map(([key,value])=>`<span>${POINT_LABELS[key] ?? ({coin:"コイン",ruby:"ルビー"})[key]} <b>${value}</b></span>`).join("");
+      const attr=weapon ? "data-weapon-stat-id" : "data-stat-id";
+      return `<article class="pw-stat-row ${row.increment ? "is-planned" : ""}">
+        <div class="pw-stat-name"><strong>${escapeHtml(name)}</strong><small>${escapeHtml((weapon ? WEAPON_STAT_DESCRIPTIONS : PLAYER_STAT_DESCRIPTIONS)[id] ?? "")}</small></div>
+        <div class="pw-stat-values"><span class="pw-rank" data-rank="${escapeAttribute(current.charAt(0))}">${escapeHtml(current)}</span><span>${row.currentValue}</span>${row.increment ? `<span>→</span><strong class="pw-rank" data-rank="${escapeAttribute(next.charAt(0))}">${escapeHtml(next)}</strong><b>${row.projectedValue}</b>` : ""}</div>
+        <div class="pw-stat-cost">${costText}</div>
+        <div class="pw-stepper"><button type="button" data-repeat-action data-action="${kind}-plan-minus" data-player-id="${escapeAttribute(playerId)}" ${attr}="${escapeAttribute(id)}" aria-label="${escapeAttribute(name)}の強化を減らす" ${row.increment ? "" : "disabled"}>−</button><output>+${row.increment}</output><button type="button" data-repeat-action data-action="${kind}-plan-plus" data-player-id="${escapeAttribute(playerId)}" ${attr}="${escapeAttribute(id)}" aria-label="${escapeAttribute(name)}を強化" ${canAdd ? "" : "disabled"}>＋</button></div>
+      </article>`;
+    }).join("")}</div>`;
 }
 
 function upgradeModalStepperTemplate({
@@ -1381,18 +1252,18 @@ export function renderAbilityUpgradeNodeModal(
         <span>
           現在
           <strong>${escapeHtml(characterValueToRank(row.currentValue))}</strong>
-          <small>内部値 ${row.currentValue}</small>
+          <small>能力値 ${row.currentValue}</small>
         </span>
         <b>→</b>
         <span>
           強化後
           <strong>${escapeHtml(projectedRank)}</strong>
-          <small>内部値 ${row.projectedValue}</small>
+          <small>能力値 ${row.projectedValue}</small>
         </span>
       </div>
 
       <section class="upgrade-node-modal__cost">
-        <span>NEXT COST</span>
+        <span>次の強化に必要</span>
         ${
           row.atMaximum
             ? `<strong>MAX</strong>`
@@ -1462,7 +1333,7 @@ export function renderWeaponUpgradeNodeModal(
     <section class="upgrade-node-modal upgrade-node-modal--weapon">
       <header>
         <img
-          src="${escapeAttribute(WEAPON_STAT_ICONS[statId] ?? "menu/eq.png")}"
+          src="${escapeAttribute(WEAPON_STAT_ICONS[statId] ?? "icon/weponup.png")}"
           alt=""
         >
         <div>
@@ -1478,18 +1349,18 @@ export function renderWeaponUpgradeNodeModal(
         <span>
           現在
           <strong>${escapeHtml(row.currentRank)}</strong>
-          <small>内部値 ${row.currentValue}</small>
+          <small>能力値 ${row.currentValue}</small>
         </span>
         <b>→</b>
         <span>
           強化後
           <strong>${escapeHtml(row.projectedRank)}</strong>
-          <small>内部値 ${row.projectedValue}</small>
+          <small>能力値 ${row.projectedValue}</small>
         </span>
       </div>
 
       <section class="upgrade-node-modal__cost">
-        <span>NEXT COST</span>
+        <span>次の強化に必要</span>
         ${
           row.nextCost
             ? `
@@ -1612,18 +1483,19 @@ export function renderAbilityUpSection(
         ),
       )}
 
-      <section class="radial-upgrade-console radial-upgrade-console--ability">
-        <header class="radial-upgrade-console__header">
+      <section class="pw-upgrade-console pw-upgrade-console--ability">
+        <header class="pw-upgrade-console__header">
           <div>
-            <span>PLAYER ABILITY</span>
-            <strong>能力ノードをタップして強化</strong>
+            <span>選手育成</span>
+            <strong>ポイントを使って能力アップ</strong>
           </div>
           <small>
-            選択時に画面位置は動きません
+            ＋で選択 → 内容を確認 → 確定
           </small>
         </header>
 
-        ${radialUpgradeMapTemplate({
+        ${upgradeTableTemplate({
+          plan,
           kind: "ability",
           playerId,
           centerImage:
@@ -1636,7 +1508,7 @@ export function renderAbilityUpSection(
             plan.rows,
         })}
 
-        <footer class="radial-upgrade-console__footer">
+        <footer class="pw-upgrade-console__footer">
           <div>
             <span>予定強化</span>
             <strong>${totalUpgrades}段階</strong>
@@ -1711,7 +1583,7 @@ export function renderEquipmentSection(
 
       ${upgradeResourceStripTemplate([
         {
-          label: "COIN",
+          label: "コイン",
           before:
             formatNumber(
               snapshot.resources.coin,
@@ -1724,7 +1596,7 @@ export function renderEquipmentSection(
             plan.remainingCoin < 0,
         },
         {
-          label: "RUBY",
+          label: "ルビー",
           before:
             formatNumber(
               snapshot.resources.ruby,
@@ -1738,18 +1610,19 @@ export function renderEquipmentSection(
         },
       ])}
 
-      <section class="radial-upgrade-console radial-upgrade-console--weapon">
-        <header class="radial-upgrade-console__header">
+      <section class="pw-upgrade-console pw-upgrade-console--weapon">
+        <header class="pw-upgrade-console__header">
           <div>
-            <span>PERSONAL WEAPON</span>
-            <strong>武器能力ノードをタップして強化</strong>
+            <span>専用武器</span>
+            <strong>コインとルビーで武器を強化</strong>
           </div>
           <small>
-            選択時に画面位置は動きません
+            ＋で選択 → 内容を確認 → 確定
           </small>
         </header>
 
-        ${radialUpgradeMapTemplate({
+        ${upgradeTableTemplate({
+          plan,
           kind: "weapon",
           playerId,
           centerImage:
@@ -1762,7 +1635,7 @@ export function renderEquipmentSection(
             plan.rows,
         })}
 
-        <section class="radial-upgrade-console__weapon-tools">
+        <section class="pw-upgrade-console__weapon-tools">
           <button
             type="button"
             class="secondary-button"
@@ -1797,7 +1670,7 @@ export function renderEquipmentSection(
           </button>
         </section>
 
-        <footer class="radial-upgrade-console__footer">
+        <footer class="pw-upgrade-console__footer">
           <div>
             <span>予定強化</span>
             <strong>${totalUpgrades}段階</strong>
@@ -1866,8 +1739,8 @@ export function renderSkillUpgradeSection(
       ${includeSelector ? renderPlayerSelector(snapshot, playerId) : ""}
       <section class="skill-lab-overview">
         <div>
-          <span>PLAYER SKILL LAB</span>
-          <h2>${escapeHtml(player.role)} SKILL CUSTOMIZE</h2>
+          <span>選手スキル</span>
+          <h2>${escapeHtml(player.role)} のスキル</h2>
           <p>最大LV5。通常攻撃と武器の価値を残しながら、CTと効果を少しずつ強化します。</p>
         </div>
         <strong>COIN ${formatNumber(snapshot.resources.coin)}</strong>
@@ -1878,7 +1751,7 @@ export function renderSkillUpgradeSection(
             <header><span>SKILL ${index + 1}</span><strong>LV ${skill.level}</strong></header>
             <div class="skill-upgrade-card__name">
               <img src="icon/sp.png" alt="">
-              <div><h3>${escapeHtml(skill.displayName)}</h3><small>DEFAULT ${escapeHtml(skill.name ?? skill.master.name)}</small></div>
+              <div><h3>${escapeHtml(skill.displayName)}</h3><small>初期名 ${escapeHtml(skill.name ?? skill.master.name)}</small></div>
             </div>
             <p class="skill-upgrade-card__description">${escapeHtml(skill.master.description ?? "戦闘中に条件を満たすと自動発動します。")}</p>
             <div class="skill-upgrade-card__base-effect">
@@ -1892,7 +1765,7 @@ export function renderSkillUpgradeSection(
             </div>
             ${skill.nextCost !== null ? `
               <div class="skill-upgrade-card__next">
-                <span>NEXT LV ${skill.level + 1}</span>
+                <span>次のレベル ${skill.level + 1}</span>
                 <small>
                   実CT ${(Number(skill.master.baseCt ?? 0) * (1 - skill.profile.cooldownReductionPercent / 100)).toFixed(2)}秒
                   → ${(Number(skill.master.baseCt ?? 0) * (1 - skill.nextProfile.cooldownReductionPercent / 100)).toFixed(2)}秒<br>
@@ -1901,7 +1774,7 @@ export function renderSkillUpgradeSection(
                 </small>
                 <strong>COIN ${formatNumber(skill.nextCost)}</strong>
               </div>
-            ` : `<div class="skill-upgrade-card__next is-max"><strong>MAX LEVEL</strong></div>`}
+            ` : `<div class="skill-upgrade-card__next is-max"><strong>最大レベル</strong></div>`}
             <div class="skill-upgrade-card__actions">
               <button type="button" class="secondary-button" data-action="rename-player-skill" data-player-id="${escapeAttribute(playerId)}" data-skill-id="${escapeAttribute(skill.skillId)}">名称変更</button>
               <button type="button" class="primary-button" data-action="upgrade-player-skill" data-player-id="${escapeAttribute(playerId)}" data-skill-id="${escapeAttribute(skill.skillId)}" ${skill.nextCost !== null && snapshot.resources.coin >= skill.nextCost ? "" : "disabled"}>${skill.nextCost === null ? "MAX" : "スキル強化"}</button>
@@ -1967,7 +1840,7 @@ export function renderSpecialAbilitySection(
           data-ability-color="blue"
           aria-selected="${normalizedColor === "blue"}"
         >
-          NORMAL
+          通常能力
         </button>
         <button
           type="button"

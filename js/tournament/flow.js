@@ -1,4 +1,4 @@
-import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=69";
+import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=70";
 /**
  * MOB BR tournament presentation flow.
  *
@@ -10,25 +10,25 @@ import {
   assetPath,
   detectAssetPrefix,
   installAssetFallbacks,
-} from "../assets.js?v=69";
+} from "../assets.js?v=70";
 import {
   motivationDisplay,
-} from "../../data/motivation-data.js?v=69";
+} from "../../data/motivation-data.js?v=70";
 import {
   TOURNAMENT_PHASES,
   createTournamentRuntimeManager,
-} from "./runtime.js?v=69";
+} from "./runtime.js?v=70";
 import {
   executeCurrentBattleToDraft,
-} from "./battle-core.js?v=69";
+} from "./battle-core.js?v=70";
 import {
   getItem,
-} from "../../data/shop-data.js?v=69";
+} from "../../data/shop-data.js?v=70";
 import {
   balanceTournamentPortraits,
   createBattlePlaybackController,
   renderBattleOutcomeScreen,
-} from "./battle-ui.js?v=69";
+} from "./battle-ui.js?v=70";
 import {
   EXPLORATION_PAGES,
   beginExplorationToDraft,
@@ -50,7 +50,7 @@ import {
   useInventoryItemToDraft,
   useMobSlotToDraft,
   useRespawnTurntableToDraft,
-} from "./exploration.js?v=69";
+} from "./exploration.js?v=70";
 import {
   advanceAwardToDraft,
   finalizeCurrentMatchToDraft,
@@ -66,13 +66,13 @@ import {
   renderReturningResultScreen,
   renderTournamentResultScreen,
   writePreparedResultToStorage,
-} from "./results.js?v=69";
+} from "./results.js?v=70";
 
 import {
   applyMatchPlanToDraft,
   circuitSectionLabel,
   isPlayerMatch,
-} from "./circuit.js?v=69";
+} from "./circuit.js?v=70";
 
 import {
   fastForwardMatchToChampionToDraft,
@@ -82,7 +82,7 @@ import {
   getRoundTarget,
   isPlayerActive,
   resolveRoundEncounterToDraft,
-} from "./round.js?v=69";
+} from "./round.js?v=70";
 
 export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-3.7.0";
 

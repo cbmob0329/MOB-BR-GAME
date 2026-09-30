@@ -13,7 +13,7 @@ import {
   normalizeLegacyRank,
   rankToCharacterValue,
   rankToWeaponValue,
-} from "./game-data.js?v=69";
+} from "./game-data.js?v=70";
 
 export const BATTLE_CONFIG_VERSION = "mobbr-battle-config-1.8.0";
 export const BATTLE_BALANCE_VERSION = "mobbr-battle-balance-0.5.0";

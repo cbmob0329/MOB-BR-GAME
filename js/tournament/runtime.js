@@ -9,57 +9,57 @@
 import {
   STORAGE_KEYS,
   calculateChecksum,
-} from "../main/state.js?v=69";
+} from "../main/state.js?v=70";
 import {
   TOURNAMENT_BRIDGE_VERSION,
   TOURNAMENT_ENTRY_SCHEMA_VERSION,
   TOURNAMENT_RESUME_SCHEMA_VERSION,
   readTournamentEntryFromStorage,
   validateTournamentEntryData,
-} from "../main/tournament-bridge.js?v=69";
+} from "../main/tournament-bridge.js?v=70";
 import {
   CPU_LOCAL_DATA_VERSION,
   CPU_LOCAL_MASTER_VERSION,
-} from "../../data/cpu-local-data.js?v=69";
+} from "../../data/cpu-local-data.js?v=70";
 import {
   CPU_NATIONAL_DATA_VERSION,
   CPU_NATIONAL_MASTER_VERSION,
-} from "../../data/cpu-national-data.js?v=69";
+} from "../../data/cpu-national-data.js?v=70";
 import {
   CPU_WORLD_DATA_VERSION,
   CPU_WORLD_MASTER_VERSION,
-} from "../../data/cpu-world-data.js?v=69";
+} from "../../data/cpu-world-data.js?v=70";
 import {
   LOCAL_CPU_TEAMS,
   NATIONAL_CPU_TEAMS,
   getWorldCpuTeamsForYear,
-} from "../../data/cpu-league-registry.js?v=69";
+} from "../../data/cpu-league-registry.js?v=70";
 import {
   characterValueToRank,
   rankToCharacterValue,
-} from "../../data/game-data.js?v=69";
+} from "../../data/game-data.js?v=70";
 import {
   effectiveCharacterRank,
   selectCpuMotivation,
-} from "../../data/motivation-data.js?v=69";
+} from "../../data/motivation-data.js?v=70";
 import {
   buildCpuBattleStats,
   calculateMaxHp,
   getRoleCommonSkills,
   resolveCpuRankFromRange,
   resolveCpuWeaponProfile,
-} from "../../data/battle-config.js?v=69";
+} from "../../data/battle-config.js?v=70";
 import {
   resolveCpuTeamMaster,
-} from "../../data/circuit-data.js?v=69";
+} from "../../data/circuit-data.js?v=70";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=69";
+} from "./circuit.js?v=70";
 import {
   createCpuFlavorSkills,
   createCpuFlavorWeaponName,
-} from "../../data/cpu-flavor-data.js?v=69";
+} from "../../data/cpu-flavor-data.js?v=70";
 
 export const TOURNAMENT_RUNTIME_VERSION =
   "mobbr-tournament-runtime-2.5.0";

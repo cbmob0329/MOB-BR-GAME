@@ -9,13 +9,13 @@
 
 import {
   LOCAL_CPU_TEAMS as LEGACY_LOCAL_CPU_TEAMS,
-} from "./cpu-local-data.js?v=69";
+} from "./cpu-local-data.js?v=70";
 import {
   NATIONAL_CPU_TEAMS as LEGACY_NATIONAL_CPU_TEAMS,
-} from "./cpu-national-data.js?v=69";
+} from "./cpu-national-data.js?v=70";
 import {
   WORLD_CPU_ALL_TEAMS as LEGACY_WORLD_CPU_TEAMS,
-} from "./cpu-world-data.js?v=69";
+} from "./cpu-world-data.js?v=70";
 
 export const CPU_ROSTER_47_DATA_VERSION =
   "mobbr-cpu-roster-47-1.0.0";
