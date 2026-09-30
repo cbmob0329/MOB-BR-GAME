@@ -873,7 +873,8 @@ export function selectAttackTarget(
             ) +
           chooseRoleTargetWeight(actor, target) +
           markedPriority +
-          followPriority,
+          followPriority +
+          (actor.teamId === battle.leftTeamId && battle.command?.focus === target.role ? 3 : 0),
       };
     }),
   );

@@ -1,4 +1,5 @@
 import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=72";
+import { renderBattleStory } from './match-experience.js?v=72';
 /**
  * MOB BR battle presentation and event playback.
  *
@@ -1062,6 +1063,7 @@ export function renderBattleReplayScreen(runtime, model) {
     <main class="tournament-screen tournament-screen--battle-replay ${model.status === "paused" ? "is-tactical-paused" : ""}" style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
       <img class="tournament-stage-background" src="${escapeAttribute(assetPath(runtime.map.image))}" alt="">
       ${statusHeaderTemplate(runtime, model)}
+      ${renderBattleStory(runtime,model)}
       ${battleFocusTemplate(model.focusTransient ?? model.transient)}
       <section class="battle-arena">
         ${ambientCrossfireTemplate(model)}
@@ -1082,6 +1084,7 @@ export function renderBattleReplayScreen(runtime, model) {
       </section>
       <div class="battle-bottom-area">
         ${commentaryPanelTemplate(model.commentary, model.commentaryHistory)}
+        <nav class="battle-watch-controls" aria-label="観戦操作"><button type="button" data-action="battle-watch-pause">${model.status === 'paused'?'再生する':'一時停止'}</button><button type="button" data-action="battle-watch-speed">観戦速度 ${model.watchRate ?? 1}倍</button><span>交戦前の指示に沿って戦っています</span></nav>
         <button
           type="button"
           class="tournament-button tournament-button--ghost battle-skip-button"
@@ -1225,7 +1228,7 @@ export function createBattlePlaybackController({
   }
   let pauseRequestPending = false;
 
-  const safeRate =
+  let safeRate =
     Number.isFinite(playbackRate) && playbackRate > 0
       ? playbackRate
       : 1;
@@ -1234,6 +1237,7 @@ export function createBattlePlaybackController({
     if (destroyed) {
       return;
     }
+    model.watchRate = safeRate;
     root.innerHTML =
       renderBattleReplayScreen(
         runtime,
@@ -1695,6 +1699,17 @@ export function createBattlePlaybackController({
       event.target
         ?.closest?.("[data-action]")
         ?.dataset?.action;
+    if (action === 'battle-watch-pause') {
+      if (paused) resume(); else pause();
+      return;
+    }
+    if (action === 'battle-watch-speed') {
+      safeRate = safeRate < 1.5 ? 2 : safeRate < 3 ? 4 : 1;
+      clearTimer();
+      render();
+      if (!paused) scheduleNext();
+      return;
+    }
     if (
       action ===
       "battle-playback-skip"

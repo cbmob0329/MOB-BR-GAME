@@ -6,6 +6,7 @@
  * finished result into the tournament runtime through one transaction draft.
  */
 
+import { resolveBattleOrder } from './match-experience.js?v=72';
 import {
   BATTLE_END_TIE_BREAKERS,
   BATTLE_TIMING,
@@ -384,6 +385,17 @@ export function createBattleFromTournamentRuntime(
   initializeBattleSpecialAbilities(
     battle,
   );
+
+  battle.command = resolveBattleOrder(runtime, Object.values(battle.participants));
+  for (const participant of getTeamParticipants(battle, leftTeamId)) {
+    addOrRefreshEffect(participant, {
+      code: 'team_battle_order', sourcePlayerId: participant.playerId,
+      remainingSeconds: battle.durationSeconds,
+      damageMultiplier: battle.command.damage,
+      accuracyModifier: battle.command.accuracy,
+      damageReduction: battle.command.reduction,
+    });
+  }
 
   const leftPower = teamBattlePower(battle, leftTeamId);
   const rightPower = teamBattlePower(battle, rightTeamId);
@@ -1203,6 +1215,7 @@ export function executeCurrentBattleToDraft(
     deepClone(created);
   const completed =
     runBattleToCompletion(created);
+  draft.lastBattleCommand = deepClone(created.command);
   const application =
     applyBattleResultToTournamentRuntime(
       draft,

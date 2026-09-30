@@ -8,6 +8,7 @@
  */
 
 import { assetPath } from "../assets.js?v=72";
+import { renderTournamentEpilogue } from './match-experience.js?v=72';
 import {
   getChampionshipPoints,
   getPlacementPoints,
@@ -2595,6 +2596,7 @@ export function renderTournamentResultScreen(runtime) {
       </section>
       ${circuitAdvancementTemplate(runtime, result)}
       <section class="total-result-scroll">
+        ${renderTournamentEpilogue(runtime,result)}
         <article class="total-result-section">
           <h2>FINAL RANKING</h2>
           <div class="final-ranking-list">
@@ -2632,8 +2634,7 @@ export function renderTournamentResultScreen(runtime) {
             `).join("")}
           </div>
           <p>
-            報酬はメインシステムが結果署名を検証した後、
-            一度だけ付与します。
+            ホームに戻ると、大会報酬を受け取れます。
           </p>
         </article>
         <article class="total-result-section">
@@ -2671,7 +2672,7 @@ export function renderTournamentResultScreen(runtime) {
           class="tournament-button tournament-button--primary"
           data-action="return-result"
         >
-          メインへ結果を返す
+          報酬を受け取ってホームへ
         </button>
       </div>
     </main>

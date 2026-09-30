@@ -1,4 +1,5 @@
 import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=72";
+import { renderOrderPanel } from './match-experience.js?v=72';
 /**
  * MOB BR tournament exploration, bag, facilities, and strategy selection.
  *
@@ -2055,8 +2056,9 @@ export function renderStrategySelectionScreen(runtime) {
         </div>
       </section>
       <div class="tournament-bottom-area">
+        ${renderOrderPanel(runtime)}
         ${commentaryTemplate(
-          `${selectedRuntime.name}を確認中！所持している作戦だけを表示しています。`,
+          `${selectedRuntime.name}を確認中！指示を決めたら交戦開始です。`,
         )}
         <div class="tournament-actions">
           <button

@@ -1,4 +1,5 @@
 import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=72";
+import { AUTO_PHASE_ACTIONS, BATTLE_ORDERS, renderTournamentDirector } from './match-experience.js?v=72';
 /**
  * MOB BR tournament presentation flow.
  *
@@ -352,16 +353,17 @@ function openingTemplate(runtime) {
         <div class="opening-stage__accent" aria-hidden="true"></div>
         ${sceneForegroundTemplate(scene)}
         <div class="opening-stage__copy">
-          <span>${escapeHtml(runtime.entryData.tournament.stageName)} / SCENE ${sceneNumber}</span>
+          <span>${escapeHtml(runtime.entryData.tournament.stageName)} · 開幕 ${sceneNumber} / ${runtime.opening.scenes.length}</span>
           <h1>${escapeHtml(scene.text)}</h1>
           <p>${escapeHtml(scene.subtext ?? "")}</p>
+          <div class="opening-mission"><strong>${escapeHtml(runtime.entryData.playerTeam.teamName)}</strong><p>育てた3人で、ひとつでも上へ。<br>生き残った順位と撃破ポイントの合計で競います。</p><div class="opening-mission__progress" role="progressbar" aria-label="開幕演出" aria-valuemin="0" aria-valuemax="${runtime.opening.scenes.length}" aria-valuenow="${sceneNumber}"><i style="width:${sceneNumber/runtime.opening.scenes.length*100}%"></i></div></div>
         </div>
       </section>
       <div class="tournament-bottom-area tournament-bottom-area--opening">
         ${commentaryTemplate(scene.commentary)}
         <div class="tournament-actions tournament-actions--opening">
-          <button type="button" class="tournament-button tournament-button--ghost" data-action="opening-skip" ${scene.canSkip ? "" : "disabled"}>SKIP</button>
-          <button type="button" class="tournament-button tournament-button--primary" data-action="opening-next">${isLast ? "MATCH DEPLOYMENT" : "NEXT"}</button>
+          <button type="button" class="tournament-button tournament-button--ghost" data-action="opening-skip" ${scene.canSkip ? "" : "disabled"}>開幕演出をスキップ</button>
+          <button type="button" class="tournament-button tournament-button--primary" data-action="opening-next">${isLast ? "3人で出撃する" : "次へ"}</button>
         </div>
       </div>
     </main>
@@ -2016,6 +2018,16 @@ export function createTournamentFlowController({
         break;
     }
 
+    if (AUTO_PHASE_ACTIONS[runtime.phase]) {
+      root.querySelector('main')?.insertAdjacentHTML('afterbegin', renderTournamentDirector(runtime));
+      if (runtime.matchExperience?.autoAdvance) {
+        scheduleAction(() => {
+          const next = root.querySelector(`[data-action="${AUTO_PHASE_ACTIONS[runtime.phase]}"]`);
+          if (next && !next.disabled) next.click();
+          else if (runtime.phase.includes('EXPLORATION')) root.querySelector('[data-action="facility-respawn"]:not(:disabled)')?.click();
+        }, runtime.phase === 'STRATEGY_SELECT' ? 6500 : 4000);
+      }
+    }
     queueMicrotask(() =>
       balanceTournamentPortraits(
         root,
@@ -2192,6 +2204,31 @@ export function createTournamentFlowController({
 
     withUiLock(() => {
       try {
+        if (action === 'toggle-match-auto') {
+          runtimeManager.update('match_mode_changed', draft => {
+            draft.matchExperience ??= {};
+            draft.matchExperience.autoAdvance = !draft.matchExperience.autoAdvance;
+            if (draft.matchExperience.autoAdvance) {
+              draft.matchExperience.order = 'auto';
+              draft.matchExperience.focus = 'auto';
+              if (draft.phase === 'STRATEGY_SELECT') draft.strategyUi.selectedId = 'D-01';
+            }
+          });
+          render();
+          return;
+        }
+        if (action === 'battle-order' || action === 'battle-focus-role') {
+          if (runtimeManager.getSnapshot().phase !== 'STRATEGY_SELECT') return;
+          const value = action === 'battle-order' ? actionElement.dataset.order : actionElement.dataset.focus;
+          if (action === 'battle-order' ? !(value === 'auto' || BATTLE_ORDERS[value]) : !['auto','IGL','ATK','SUP'].includes(value)) return;
+          runtimeManager.update('battle_order_selected', draft => {
+            draft.matchExperience ??= {};
+            draft.matchExperience.autoAdvance = false;
+            draft.matchExperience[action === 'battle-order' ? 'order' : 'focus'] = value;
+          });
+          render();
+          return;
+        }
         if (action === "opening-next") {
           advanceOpening();
           return;
@@ -2342,6 +2379,7 @@ export function createTournamentFlowController({
                   ? currentId
                   : "D-01";
               draft.strategyUi.confirmedId = null;
+              if (draft.matchExperience?.autoAdvance) draft.strategyUi.selectedId = 'D-01';
             },
           );
           runtimeManager.transition("STRATEGY_SELECT", {
