@@ -9,57 +9,57 @@
 import {
   STORAGE_KEYS,
   calculateChecksum,
-} from "../main/state.js?v=56";
+} from "../main/state.js?v=69";
 import {
   TOURNAMENT_BRIDGE_VERSION,
   TOURNAMENT_ENTRY_SCHEMA_VERSION,
   TOURNAMENT_RESUME_SCHEMA_VERSION,
   readTournamentEntryFromStorage,
   validateTournamentEntryData,
-} from "../main/tournament-bridge.js?v=56";
+} from "../main/tournament-bridge.js?v=69";
 import {
   CPU_LOCAL_DATA_VERSION,
   CPU_LOCAL_MASTER_VERSION,
-} from "../../data/cpu-local-data.js";
+} from "../../data/cpu-local-data.js?v=69";
 import {
   CPU_NATIONAL_DATA_VERSION,
   CPU_NATIONAL_MASTER_VERSION,
-} from "../../data/cpu-national-data.js";
+} from "../../data/cpu-national-data.js?v=69";
 import {
   CPU_WORLD_DATA_VERSION,
   CPU_WORLD_MASTER_VERSION,
-} from "../../data/cpu-world-data.js";
+} from "../../data/cpu-world-data.js?v=69";
 import {
   LOCAL_CPU_TEAMS,
   NATIONAL_CPU_TEAMS,
   getWorldCpuTeamsForYear,
-} from "../../data/cpu-league-registry.js?v=56";
+} from "../../data/cpu-league-registry.js?v=69";
 import {
   characterValueToRank,
   rankToCharacterValue,
-} from "../../data/game-data.js?v=56";
+} from "../../data/game-data.js?v=69";
 import {
   effectiveCharacterRank,
   selectCpuMotivation,
-} from "../../data/motivation-data.js?v=56";
+} from "../../data/motivation-data.js?v=69";
 import {
   buildCpuBattleStats,
   calculateMaxHp,
   getRoleCommonSkills,
   resolveCpuRankFromRange,
   resolveCpuWeaponProfile,
-} from "../../data/battle-config.js?v=56";
+} from "../../data/battle-config.js?v=69";
 import {
   resolveCpuTeamMaster,
-} from "../../data/circuit-data.js?v=56";
+} from "../../data/circuit-data.js?v=69";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=56";
+} from "./circuit.js?v=69";
 import {
   createCpuFlavorSkills,
   createCpuFlavorWeaponName,
-} from "../../data/cpu-flavor-data.js?v=56";
+} from "../../data/cpu-flavor-data.js?v=69";
 
 export const TOURNAMENT_RUNTIME_VERSION =
   "mobbr-tournament-runtime-2.5.0";
@@ -650,8 +650,8 @@ export function createOpeningScenes(entry, teams = null) {
       backgroundImage: map.image,
       foregroundImages: [],
       text: "INITIAL EXPLORATION",
-      subtext: `${entry.carryItems.filter(Boolean).length} CARRY ITEMS`,
-      commentary: "初動探索へ！バッグ、施設、接敵情報をそろえて最初のROUNDに備えます！",
+      subtext: "施設でチームを整えよう",
+      commentary: "初動準備へ！施設を確認して最初のROUNDに備えます！",
       soundId: "exploration",
       animationId: "radar_scan",
       canSkip: true,

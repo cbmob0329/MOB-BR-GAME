@@ -1,3 +1,4 @@
+import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=69";
 /**
  * MOB BR main save-state module.
  *
@@ -19,41 +20,41 @@ import {
   getCompanyRankData,
   rankToWeaponValue,
   validateGameDate,
-} from "../../data/game-data.js?v=56";
+} from "../../data/game-data.js?v=69";
 import {
   BATTLE_CONFIG_VERSION,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=56";
+} from "../../data/battle-config.js?v=69";
 import {
   TRAINING_DATA_VERSION,
-} from "../../data/training-data.js";
+} from "../../data/training-data.js?v=69";
 import {
   SHOP_DATA_VERSION,
   ITEM_MASTER_VERSION,
   PACK_MASTER_VERSION,
   WEAPON_SKIN_MASTER_VERSION,
   getItem,
-} from "../../data/shop-data.js";
+} from "../../data/shop-data.js?v=69";
 import {
   COACH_DATA_VERSION,
   COACH_RULES,
-} from "../../data/coach-data.js";
+} from "../../data/coach-data.js?v=69";
 import {
   COLLECTION_DATA_VERSION,
   COLLECTION_MASTER_VERSION,
   RETIRED_BADGE_COLLECTION_IDS,
   RETIRED_CARD_COLLECTION_IDS,
   ROOM_MASTER_VERSION,
-} from "../../data/collection-data.js?v=56";
+} from "../../data/collection-data.js?v=69";
 import {
   CPU_ROSTER_47_DATA_VERSION,
-} from "../../data/cpu-roster-47-data.js?v=56";
+} from "../../data/cpu-roster-47-data.js?v=69";
 import {
   STRATEGY_DATA_VERSION,
   STRATEGY_MASTER_VERSION,
   STRATEGY_RULES,
   getStrategy,
-} from "../../data/strategy-data.js";
+} from "../../data/strategy-data.js?v=69";
 import {
   MOTIVATION_DATA_VERSION,
   MOTIVATION_RULES,
@@ -62,7 +63,7 @@ import {
   motivationLevelIndex,
   normalizeMotivationRecord,
   shiftMotivation,
-} from "../../data/motivation-data.js?v=56";
+} from "../../data/motivation-data.js?v=69";
 import {
   EMPLOYEE_DATA_VERSION,
   EMPLOYEE_MASTER,
@@ -75,7 +76,7 @@ import {
   getEmployeeRankData,
   getEmployeeWeeklyCoinBonusRate,
   normalizeEmployeeRecord,
-} from "../../data/employee-data.js?v=56";
+} from "../../data/employee-data.js?v=69";
 import {
   COOKING_DATA_VERSION,
   COOKING_STATE_SCHEMA_VERSION,
@@ -91,7 +92,7 @@ import {
   refreshWeeklyIngredientStockToDraft,
   validateCookingState,
   createFoodVariant,
-} from "../../data/cooking-data.js?v=56";
+} from "../../data/cooking-data.js?v=69";
 import {
   DINING_DATA_VERSION,
   DINING_RULES,
@@ -103,11 +104,11 @@ import {
   normalizeDiningState,
   refreshDiningWeekToDraft,
   validateDiningState,
-} from "../../data/dining-data.js?v=56";
+} from "../../data/dining-data.js?v=69";
 import {
   SPECIAL_ABILITY_50_VERSION,
   normalizeGeneration50SpecialAbilities,
-} from "../../data/special-ability-50-data.js?v=56";
+} from "../../data/special-ability-50-data.js?v=69";
 import {
   WEEKLY_EVENT_DATA_VERSION,
   WEEKLY_EVENT_RULES,
@@ -115,7 +116,7 @@ import {
   getWeeklyEvent,
   getWeeklyEventsByRarity,
   weightedOutcome,
-} from "../../data/weekly-event-data.js?v=67";
+} from "../../data/weekly-event-data.js?v=69";
 
 export const SAVE_SCHEMA_VERSION = "mobbr-save-3.1.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
@@ -713,15 +714,7 @@ export function createNewGameState(
       ),
     },
 
-    coaches: [
-      {
-        coachId: COACH_RULES.initialCoach.coachId,
-        name: COACH_RULES.initialCoach.name,
-        image: COACH_RULES.initialCoach.image,
-        rank: COACH_RULES.initialCoach.rank,
-        source: COACH_RULES.initialCoach.source,
-      },
-    ],
+    coaches: [], // Previous saves may retain inactive coach records.
 
     employees: createInitialEmployeeRecords(timestamp),
 
@@ -1136,10 +1129,9 @@ export function validateSaveState(state) {
 
   if (
     !Array.isArray(state.coaches) ||
-    state.coaches.length < 1 ||
     state.coaches.length > COACH_RULES.maximumCoachCount
   ) {
-    throw new SaveCorruptionError("Coach count must be from 1 to 4.", {
+    throw new SaveCorruptionError("Coach count must be from 0 to 4.", {
       code: "INVALID_COACH_COUNT",
     });
   }
@@ -2327,6 +2319,12 @@ function applyWeeklyEventEffectsToDraft(draft, event, pending, effects, occurred
 
     if (effect.type === "item") {
       const quantity = Math.max(1, Math.trunc(Number(effect.quantity) || 1));
+      if (!CONSUMABLES_ENABLED) {
+        const amount = quantity * 1000;
+        applyResourceDeltaToDraft(draft, { coin: amount });
+        summary.push({ type: "resource", resourceId: "coin", amount, requestedAmount: amount });
+        continue;
+      }
       const master = getItem(effect.itemId);
       draft.inventory.items[effect.itemId] = (draft.inventory.items[effect.itemId] ?? 0) + quantity;
       summary.push({
@@ -2614,9 +2612,7 @@ export function addCompanyExpToDraft(
     applyResourceDeltaToDraft(draft, rankUpRewardTotal);
   }
 
-  draft.unlockFlags.coachScout =
-    draft.company.rankIndex >=
-    COACH_RULES.scoutUnlockCompanyRankIndex;
+  draft.unlockFlags.coachScout = false;
   syncCarryBagCapacity(draft);
 
   if (result.rankUps.length > 0) {

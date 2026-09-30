@@ -1,0 +1,59 @@
+/* Current development flow. Scoped selectors avoid historical screen overrides. */
+.training-plan { color:#f2f5fb; padding:8px 4px 100px; font-size:14px; line-height:1.65; }
+.training-plan__intro { padding:20px; background:linear-gradient(130deg,#153f50,#172437); border:1px solid #527485; border-radius:18px; }
+.training-plan__eyebrow { color:#f3d770; font-weight:800; letter-spacing:.12em; }
+.training-plan h2 { font-size:clamp(20px,4vw,28px); margin:8px 0; }
+.training-plan p { margin:8px 0; font-size:14px; }
+.training-plan__schedule { color:#f4d77c; }
+.training-plan__toolbar { display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; padding:16px 2px; }
+.training-plan__toolbar .secondary-button { min-height:44px; font-size:14px; padding:8px 14px; }
+.training-plan__members { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.training-plan__member { padding:16px; border:1px solid #516070; border-radius:16px; background:#121e2bee; min-width:0; }
+.training-plan__member > header { display:flex; gap:12px; align-items:center; }
+.training-plan__member > header img { width:60px; height:72px; object-fit:contain; }
+.training-plan h3 { font-size:20px; margin:0; overflow-wrap:anywhere; }
+.training-plan__member small { font-size:12px; color:#b9cdd9; }
+.training-plan__pool { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px; margin:12px 0; }
+.training-plan__pool span { text-align:center; background:#233244; border-radius:8px; font-size:12px; padding:5px 0; }
+.training-plan__pool b { display:block; font-size:18px; color:#fff; }
+.training-plan__choices summary { cursor:pointer; display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; padding:12px; background:#233e4d; border:1px solid #6e9b9f; border-radius:10px; min-height:48px; }
+.training-plan__choices summary > span { font-size:12px; }
+.training-plan__choices summary strong { font-size:16px; }
+.training-plan__choices summary small { margin-left:auto; }
+.training-plan__programs { display:grid; gap:8px; margin-top:10px; }
+.training-plan__programs button { display:grid; gap:3px; text-align:left; padding:12px; background:#172638; color:#fff; border:1px solid #546475; border-radius:10px; min-height:64px; }
+.training-plan__programs button strong { font-size:16px; }
+.training-plan__programs button span { font-size:12px; color:#bde2df; }
+.training-plan__programs button.is-selected { border:2px solid #f4d472; background:#33433e; }
+.training-plan__gain > span { display:block; font-size:12px; color:#b7cbd1; }
+.training-plan__gain strong { font-size:14px; color:#a9edcf; }
+.training-plan__footer { grid-column:1/-1; padding:14px 0; }
+.training-plan__footer .primary-button { width:100%; min-height:56px; font-size:17px; }
+.training-plan__notice { padding:12px; background:#4d3327; border-radius:10px; }
+.week-focus { margin:12px 0; padding:16px; border:1px solid #bba85b; border-radius:14px; background:linear-gradient(120deg,#183449,#24293a); color:#fff; animation:week-focus-in .35s ease-out; }
+.week-focus > span { font-size:12px; color:#ebcf70; }
+.week-focus > strong { display:block; font-size:20px; margin:5px 0; }
+.week-focus > p { font-size:14px !important; line-height:1.7; }
+.employee-week-greeting__speech p, .pink-guide-dialogue p { font-size:14px; line-height:1.75; }
+.research-progress { padding:18px; background:#142c3c; border:1px solid #537186; border-radius:14px; margin-bottom:16px; }
+.research-progress strong { display:block; font-size:22px; color:#f5d97e; }
+.research-progress p { font-size:14px; line-height:1.7; }
+.weekly-growth { padding:14px; background:#182731; border-radius:12px; margin:12px 0; }
+.weekly-growth > span { color:#9be2c0; font-size:13px; }
+.weekly-growth p { display:flex; flex-wrap:wrap; gap:6px 12px; margin:8px 0; font-size:14px !important; }
+.weekly-growth p span { color:#d7e4ed; }
+.weekly-growth small { font-size:12px; color:#b9c9d4; }
+.management-app-content--shop .mobshop-popup { width:100% !important; min-width:0 !important; max-width:100% !important; grid-template-columns:minmax(0,1fr); box-sizing:border-box; }
+.management-app-content--shop .mobshop-popup > *, .management-app-content--shop .mobshop-content { min-width:0 !important; max-width:100%; box-sizing:border-box; }
+.management-app-content--shop .mobshop-category-grid span { font-size:12px !important; }
+.management-app-content--shop .shop-compact-product__info strong { font-size:14px !important; }
+.management-app-content--shop .shop-compact-product__info small { font-size:12px !important; }
+@media(max-width:600px) {
+  .management-app-content--shop .mobshop-neon-header { display:grid !important; grid-template-columns:minmax(0,1fr) !important; gap:8px; }
+  .management-app-content--shop .mobshop-header-clerk { width:100% !important; grid-template-columns:44px minmax(0,1fr); }
+  .management-app-content--shop .mobshop-header-clerk p { font-size:12px !important; line-height:1.6; }
+  .management-app-content--shop .mobshop-header-clerk > img { width:44px; height:54px; }
+}
+@keyframes week-focus-in { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+@media(max-width:760px) { .training-plan__members { grid-template-columns:1fr; } .training-plan__intro { padding:16px; } }
+@media(prefers-reduced-motion:reduce) { .week-focus { animation:none; } }

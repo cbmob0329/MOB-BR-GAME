@@ -25,12 +25,12 @@ import {
   calculateSkillCt,
   isAssistEligible,
   resolveWeaponBattleValue,
-} from "../../data/battle-config.js?v=56";
+} from "../../data/battle-config.js?v=69";
 import {
   STAT_IDS,
   clamp,
   rankToCharacterValue,
-} from "../../data/game-data.js?v=56";
+} from "../../data/game-data.js?v=69";
 import {
   adjustDebuffForSpecialAbility,
   applyNextBattleSpecialEffects,
@@ -49,7 +49,7 @@ import {
   normalizeUniqueSkill,
   recordSpecialAttackOutcome,
   refreshSpecialDynamicEffects,
-} from "./special-abilities.js";
+} from "./special-abilities.js?v=69";
 
 export const BATTLE_ACTIONS_VERSION =
   "mobbr-battle-actions-2.3.0";

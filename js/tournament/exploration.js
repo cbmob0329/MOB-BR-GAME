@@ -1,3 +1,4 @@
+import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=69";
 /**
  * MOB BR tournament exploration, bag, facilities, and strategy selection.
  *
@@ -6,20 +7,20 @@
  * runtime transaction draft; the main save is never touched directly.
  */
 
-import { assetPath } from "../assets.js";
+import { assetPath } from "../assets.js?v=69";
 import {
   CONSUMABLE_ITEMS,
   ITEM_MASTER_VERSION,
   getItem,
-} from "../../data/shop-data.js";
+} from "../../data/shop-data.js?v=69";
 import {
   STRATEGIES,
   STRATEGY_RANKS,
   STRATEGY_RULES,
-} from "../../data/strategy-data.js";
+} from "../../data/strategy-data.js?v=69";
 import {
   getPlayableRoundCount,
-} from "./round.js?v=56";
+} from "./round.js?v=69";
 
 export const EXPLORATION_VERSION =
   "mobbr-tournament-exploration-1.9.1";
@@ -721,6 +722,7 @@ function currentChoice(draft) {
 }
 
 export function selectSearchCandidateToDraft(draft, candidateId) {
+  if (!CONSUMABLES_ENABLED) throw new RangeError("消耗品の探索は休止中です。");
   assertRuntimeDraft(draft);
   const choice = currentChoice(draft);
   if (choice.searchResolved) {
@@ -965,6 +967,7 @@ export function getUsableItemTargets(runtime, itemId) {
 
 export function openItemUseToDraft(draft, slotIndex) {
   assertRuntimeDraft(draft);
+  if (!CONSUMABLES_ENABLED) throw new RangeError("消耗品の使用は休止中です。");
   const slot = findInventorySlot(draft, slotIndex);
   if (!slot || slot.quantity < 1) {
     throw new RangeError("The selected bag slot is empty.");
@@ -997,6 +1000,7 @@ export function useInventoryItemToDraft(
   },
 ) {
   assertRuntimeDraft(draft);
+  if (!CONSUMABLES_ENABLED) throw new RangeError("消耗品の使用は休止中です。");
   const slot = findInventorySlot(draft, slotIndex);
   if (!slot || slot.quantity < 1) {
     throw new RangeError("The selected bag slot is empty.");
@@ -1248,6 +1252,11 @@ export function completeExplorationToDraft(draft) {
       );
     }
     choice.emergencyRespawnRequired = false;
+  }
+  if (!CONSUMABLES_ENABLED) {
+    choice.searchResolved = true;
+    draft.explorationRuntime.pendingExploreItem = null;
+    draft.explorationRuntime.pendingItemUse = null;
   }
   if (!choice.searchResolved) {
     draft.explorationRuntime.currentPage =
@@ -1809,11 +1818,11 @@ export function renderExplorationScreen(runtime) {
   const requestedPage =
     runtime.explorationRuntime.currentPage;
   const currentPage =
-    EXPLORATION_PAGES.includes(requestedPage)
+    !CONSUMABLES_ENABLED ? "FACILITY" : EXPLORATION_PAGES.includes(requestedPage)
       ? requestedPage
       : "SEARCH";
   const canComplete =
-    choice.searchResolved &&
+    !CONSUMABLES_ENABLED || choice.searchResolved &&
     !runtime.explorationRuntime
       .pendingExploreItem &&
     !runtime.explorationRuntime
@@ -1859,10 +1868,10 @@ export function renderExplorationScreen(runtime) {
             <span>EXPLORE MENU</span>
             <strong>${escapeHtml(pageTitle)}</strong>
           </div>
-          <small>下のアイコンで切り替え</small>
+          <small>施設を利用して、次の戦いに備えよう</small>
         </header>
 
-        ${pageTabsTemplate(currentPage)}
+        ${CONSUMABLES_ENABLED ? pageTabsTemplate(currentPage) : ""}
 
         <div
           class="exploration-popup-shell__body"
@@ -1874,7 +1883,7 @@ export function renderExplorationScreen(runtime) {
 
       <div class="tournament-bottom-area exploration-bottom-area">
         ${commentaryTemplate(
-          choice.searchResolved
+          !CONSUMABLES_ENABLED ? "施設でチームを立て直そう。準備ができたら次の戦いへ！" : choice.searchResolved
             ? `${choice.resultItemId ? getItem(choice.resultItemId).name : "アイテム"}を確保！必要な項目だけポップアップ内で切り替えられます！`
             : `${choice.areaName}を探索中！探索地点・バッグ・施設をアイコンで切り替えましょう！`,
         )}
@@ -1896,7 +1905,7 @@ export function renderExplorationScreen(runtime) {
           </button>
         </div>
       </div>
-      ${backpackFullTemplate(runtime)}
+      ${CONSUMABLES_ENABLED ? backpackFullTemplate(runtime) : ""}
     </main>
   `;
 }

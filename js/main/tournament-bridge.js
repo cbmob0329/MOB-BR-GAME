@@ -1,3 +1,4 @@
+import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=69";
 /**
  * MOB BR main/tournament transfer contract.
  *
@@ -18,7 +19,7 @@ import {
   getPlacementPoints,
   getTournamentEventsForDate,
   isChampionshipYear,
-} from "../../data/game-data.js?v=56";
+} from "../../data/game-data.js?v=69";
 import {
   CASUAL_TOURNAMENT_RULES,
   FORMAL_CIRCUIT_RULES,
@@ -32,41 +33,41 @@ import {
   selectTeamIds,
   sourcePoolForTeamId,
   teamSeed,
-} from "../../data/circuit-data.js?v=56";
+} from "../../data/circuit-data.js?v=69";
 import {
   DENDEN_CPU_TEAMS,
   LOCAL_CPU_TEAMS,
   NATIONAL_CPU_TEAMS,
   getWorldCpuTeamsForYear,
-} from "../../data/cpu-league-registry.js?v=56";
+} from "../../data/cpu-league-registry.js?v=69";
 import {
   BATTLE_CONFIG_VERSION,
-} from "../../data/battle-config.js?v=56";
+} from "../../data/battle-config.js?v=69";
 import {
   CONSUMABLE_ITEMS,
   ITEM_MASTER_VERSION,
   getItem,
-} from "../../data/shop-data.js";
+} from "../../data/shop-data.js?v=69";
 import {
   getCasualCup,
-} from "../../data/casual-data.js?v=56";
+} from "../../data/casual-data.js?v=69";
 import {
   STRATEGIES,
   STRATEGY_MASTER_VERSION,
-} from "../../data/strategy-data.js";
+} from "../../data/strategy-data.js?v=69";
 import {
   DuplicateTournamentResultError,
   STORAGE_KEYS,
   calculateChecksum,
-} from "./state.js?v=60";
+} from "./state.js?v=69";
 import {
   applyMotivationToStats,
   normalizeMotivationRecord,
-} from "../../data/motivation-data.js?v=56";
+} from "../../data/motivation-data.js?v=69";
 import {
   EMPLOYEE_DATA_VERSION,
   getTotalEmployeeHpBonus,
-} from "../../data/employee-data.js?v=56";
+} from "../../data/employee-data.js?v=69";
 
 export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-2.7.0";
 export const TOURNAMENT_ENTRY_SCHEMA_VERSION =
@@ -1189,6 +1190,7 @@ function createStrategyInventory(snapshot) {
 
 function createCarryItems(snapshot) {
   const slots = snapshot.inventory.carryBag.slots;
+  if (!CONSUMABLES_ENABLED) return slots.map(() => null);
   return slots.map((itemId, slotIndex) => {
     if (!itemId) {
       return null;

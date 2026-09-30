@@ -1,3 +1,4 @@
+import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=69";
 /**
  * MOB BR battle presentation and event playback.
  *
@@ -5,20 +6,20 @@
  * the serialized event stream without changing combat calculations.
  */
 
-import { assetPath } from "../assets.js";
+import { assetPath } from "../assets.js?v=69";
 import {
   fitPortraits,
-} from "../portrait-fit.js?v=56";
+} from "../portrait-fit.js?v=69";
 import {
   motivationDisplay,
-} from "../../data/motivation-data.js?v=56";
+} from "../../data/motivation-data.js?v=69";
 import {
   COMMENTATOR,
   COMMENTARY_VERSION,
   createBattleOutcomeCommentary,
   createCommentaryContext,
   createCommentaryDirector,
-} from "./commentary.js";
+} from "./commentary.js?v=69";
 
 export const BATTLE_UI_VERSION = "mobbr-battle-ui-2.9.0";
 export const BATTLE_REPLAY_SCHEMA_VERSION =
@@ -375,6 +376,9 @@ export function applyBattleReplayEvent(model, event) {
   next.elapsedSeconds = event.time;
   next.eventIndex += 1;
   next.transient = transientForEvent(event, next);
+  if (['damage', 'down', 'confirmed_kill', 'revive', 'heal', 'skill_cutin', 'squad_wipe', 'range_shift'].includes(next.transient?.effect)) {
+    next.focusTransient = next.transient;
+  }
 
   const actor = next.participants[event.actorPlayerId];
   const target = next.participants[event.targetPlayerId];
@@ -603,6 +607,7 @@ function skillCtTemplate(participant) {
 function participantTemplate(
   participant,
   side,
+  focus = null,
 ) {
   const motivation =
     motivationDisplay(
@@ -623,6 +628,7 @@ function participantTemplate(
     <article
       class="battle-fighter battle-fighter--${side} battle-fighter--${escapeAttribute(participant.actionState)}"
       data-player-id="${escapeAttribute(participant.playerId)}"
+      data-focus="${focus?.targetPlayerId === participant.playerId ? 'target' : focus?.actorPlayerId === participant.playerId ? 'actor' : ''}"
       data-state="${escapeAttribute(participant.combatState)}"
       data-distance="${escapeAttribute(participant.distance)}"
       data-motivation="${escapeAttribute(motivation.id)}"
@@ -661,10 +667,10 @@ function participantTemplate(
         </div>
         ${skillCtTemplate(participant)}
       </div>
-      <span class="battle-fighter__tap-command" aria-hidden="true">
+      ${CONSUMABLES_ENABLED ? `<span class="battle-fighter__tap-command" aria-hidden="true">
         <img src="icon/back.png" alt="">
         TAP ITEM
-      </span>
+      </span>` : ""}
     </article>
   `;
 }
@@ -680,7 +686,7 @@ function teamColumnTemplate(model, teamId, side) {
       </header>
       <div class="battle-team-column__members">
         ${team.members.map((playerId) =>
-          participantTemplate(model.participants[playerId], side)
+          participantTemplate(model.participants[playerId], side, model.focusTransient)
         ).join("")}
       </div>
     </section>
@@ -1033,11 +1039,30 @@ function resultCutTemplate(model) {
   `;
 }
 
+export function battlePresentationHold(event) {
+  if (!event) return 0;
+  return ({ down: 420, confirmed_kill: 520, revive: 420, squad_wipe: 650,
+    skill_cutin: 460, post_revive_recovery: 360, mutual_disengage: 450,
+    damage: 80, heal: 100, normal_attack_hit: 40, skill_attack_hit: 60,
+    distance_changed: 90, underdog_momentum: 220 })[event.type] ?? 0;
+}
+
+function battleFocusTemplate(transient) {
+  if (!transient) return '<div class="battle-focus"><span>交戦開始</span><strong>3人の連携で勝利をつかめ</strong></div>';
+  const labels = { damage: '命中', down: 'ダウン', confirmed_kill: '撃破', revive: '戦線復帰', heal: '回復', skill_cutin: 'スキル発動', squad_wipe: '部隊壊滅', range_shift: '距離変更' };
+  const label = labels[transient.effect];
+  if (!label) return '<div class="battle-focus"><span>交戦中</span><strong>射線と残りHPに注目</strong></div>';
+  const names = [transient.actorName, transient.targetName].filter(Boolean).join(' → ');
+  const detail = transient.effect === 'damage' ? ` −${formatNumber(transient.damage)} HP` : transient.effect === 'heal' ? ` +${formatNumber(transient.healing)} HP` : transient.skillName ?? '';
+  return `<div class="battle-focus" data-effect="${escapeAttribute(transient.effect)}"><span>${label}</span><strong>${escapeHtml(names)}</strong><b>${escapeHtml(detail)}</b></div>`;
+}
+
 export function renderBattleReplayScreen(runtime, model) {
   return `
     <main class="tournament-screen tournament-screen--battle-replay ${model.status === "paused" ? "is-tactical-paused" : ""}" style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
       <img class="tournament-stage-background" src="${escapeAttribute(assetPath(runtime.map.image))}" alt="">
       ${statusHeaderTemplate(runtime, model)}
+      ${battleFocusTemplate(model.focusTransient ?? model.transient)}
       <section class="battle-arena">
         ${ambientCrossfireTemplate(model)}
         <div class="battle-combat-haze" aria-hidden="true"><i></i><i></i><i></i></div>
@@ -1183,10 +1208,7 @@ export function createBattlePlaybackController({
       "battle-persistent-cutin-layer";
   }
 
-  const chillPortalButton =
-    globalThis.document?.createElement?.(
-      "button",
-    ) ?? null;
+  const chillPortalButton = CONSUMABLES_ENABLED ? globalThis.document?.createElement?.("button") ?? null : null;
   if (chillPortalButton) {
     chillPortalButton.type =
       "button";
@@ -1242,7 +1264,7 @@ export function createBattlePlaybackController({
       );
     if (guide) {
       guide.textContent =
-        "CHARACTER SWIPE / TAP ITEM";
+        "選手をスワイプして戦況を確認";
     }
 
     if (persistentCutinLayer) {
@@ -1467,6 +1489,7 @@ export function createBattlePlaybackController({
   async function requestBattleItem(
     playerId,
   ) {
+    if (!CONSUMABLES_ENABLED) return;
     if (
       typeof onRequestItemUse !==
         "function" ||
@@ -1590,26 +1613,12 @@ export function createBattlePlaybackController({
         : model.events[eventIndex - 1].time;
     const eventDelay = Math.max(0, event.time - previousTime) * 1000;
     const previousEvent = eventIndex > 0 ? model.events[eventIndex - 1] : null;
-    const previousPresentationHold =
-      !reducedMotion &&
-      previousEvent
-        ? isPersistentCutinEvent(
-            previousEvent,
-          )
-          ? 135
-          : previousEvent.type ===
-              "distance_changed"
-            ? 90
-            : previousEvent.type ===
-                "underdog_momentum"
-              ? 220
-              : 0
-        : 0;
+    const previousPresentationHold = reducedMotion ? 0 : battlePresentationHold(previousEvent);
     const delay = reducedMotion
       ? Math.min(25, eventDelay / safeRate)
       : Math.max(
           6,
-          eventDelay * 0.56 / safeRate +
+          eventDelay * 0.56 / safeRate,
           previousPresentationHold / safeRate,
         );
     const token = generation;

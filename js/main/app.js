@@ -1,3 +1,4 @@
+import { nextTournamentText, weeklyGrowthSummary, lastWeekTraining } from "./training-view.js?v=69";
 /**
  * MOB BR main-screen application shell.
  *
@@ -15,10 +16,10 @@ import {
   assetPath,
   detectAssetPrefix,
   installAssetFallbacks,
-} from "../assets.js";
+} from "../assets.js?v=69";
 import {
   fitPortraits,
-} from "../portrait-fit.js?v=56";
+} from "../portrait-fit.js?v=69";
 import {
   SaveError,
   SaveNotFoundError,
@@ -28,7 +29,7 @@ import {
   grantEmployeeCookingPointsToDraft,
   queueWeeklyEventToDraft,
   resolveWeeklyEventToDraft,
-} from "./state.js?v=67";
+} from "./state.js?v=69";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -52,38 +53,38 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=56";
+} from "./team.js?v=69";
 import {
   getSpecialAbility,
-} from "../../data/special-ability-50-data.js?v=56";
+} from "../../data/special-ability-50-data.js?v=69";
 import {
   getCompanyRankData,
-} from "../../data/game-data.js";
+} from "../../data/game-data.js?v=69";
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=56";
+} from "../../data/motivation-data.js?v=69";
 import {
   getRoomMaster,
-} from "../../data/collection-data.js?v=56";
+} from "../../data/collection-data.js?v=69";
 import {
   EMPLOYEE_RULES,
   getEmployeeRankData,
   getTotalEmployeeHpBonus,
-} from "../../data/employee-data.js?v=56";
+} from "../../data/employee-data.js?v=69";
 import {
   formatWeeklyEventText,
   getWeeklyEvent,
-} from "../../data/weekly-event-data.js?v=67";
+} from "../../data/weekly-event-data.js?v=69";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=67";
+} from "./management.js?v=69";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=67";
+} from "./tournament-bridge.js?v=69";
 
 export const APP_VERSION = "mobbr-main-app-4.1.2";
 
@@ -125,123 +126,79 @@ const GROWTH_STAT_LABELS = Object.freeze({
 });
 
 const WEEKLY_EMPLOYEE_MESSAGES = Object.freeze([
-  '今週も頑張りましょう！',
-  'ショップも見に来てください🎵',
-  'エイム、バッチリですか？応援しています！',
-  '今週の目標をひとつ決めて進みましょう！',
-  'トレーニングの積み重ねが勝利につながります！',
-  'バッグのアイテム確認も忘れずに！',
-  '武器の調整、今週も丁寧に進めましょう！',
-  '選手のみなさん、今日もいい表情です！',
-  '焦らず一週間ずつ強くなりましょう！',
-  '大会予定を確認して準備しておきましょう！',
-  '作戦会議で新しい戦い方を試してみませんか？',
-  '今週も企業をしっかり支えていきます！',
-  '休むところは休んで、勝負どころで集中です！',
-  'コインの使い道は計画的にいきましょう！',
-  '特殊能力の解放条件も確認してみてください！',
-  'チームの成長、こちらでも実感しています！',
-  '今週はどの選手を伸ばしますか？',
-  'ショップに新しい発見があるかもしれません！',
-  '遠距離・中距離・近距離、全部確認しましょう！',
-  '大会では通過ラインの確認を忘れずに！',
-  '今週も一緒に会社を大きくしましょう！',
-  'パックがあれば開封して戦力を確認しましょう！',
-  'モブルームの模様替えも気分転換になりますよ！',
-  '今日の一歩がWorldにつながっています！',
-  '選手のHPと武器を忘れずに確認してください！',
-  'カジュアル大会で調子を見るのもおすすめです！',
-  '今週のチームもいい雰囲気です！',
-  '能力ポイント、たまっていませんか？',
-  '新しい作戦を試す絶好の週かもしれません！',
-  '大会前はバッグ編成を見直しましょう！',
-  '一戦一戦、経験を積み上げていきましょう！',
-  '今週も全力でサポートします！',
-  '選手の得意距離を伸ばしてみましょう！',
-  '武器強化はCOIN残高と相談してくださいね！',
-  'コーチの成長もチーム力につながります！',
-  'スカウト情報も時々確認してみてください！',
-  'ニュースにライバルの結果が出ているかもしれません！',
-  '今週は安定重視でいきますか？攻めますか？',
-  '小さな強化でも大会では大きな差になります！',
-  'チームラボをいつでも利用してください！',
-  '今週の大会も最後まで応援しています！',
-  '勝っても負けても、次へつながる一週間です！',
-  'アイテムは使うタイミングが大切です！',
-  '選手の特殊能力、少し強くなっていますよ！',
-  '今週の企業ボーナスを受け取りました！',
-  '月間予定も確認しておきましょう！',
-  'いい準備が、いい試合を作ります！',
-  '今週もモブマイクが大会を盛り上げます！',
-  'チームのみなさんへ、今週もよろしくお願いします！',
-  '準備完了です。新しい一週間を始めましょう！',
+  '今週も育成開始であります！練習を選び、貯めたポイントで能力を伸ばすであります！',
+  '次の大会に向けて、3人の得意分野を育てるであります！',
+  '練習の成果は能力アップで発揮するであります！振り分け忘れにご注意であります！',
+  '今週は誰のどの能力を伸ばすか、目標を決めるであります！',
+  '大会結果には次の育成のヒントがあるであります！',
+  '積み重ねた練習は作戦研究にも役立つであります！'
 ]);
 
 const PINK_GUIDES = Object.freeze({
   home: Object.freeze({
     title: "MOB BRへようこそ",
     text:
-      "こちらが企業のHOMEです。育成、ショップ、コレクション、大会予定をここから確認できます。少しずつチームを強くしていきましょう。",
+      "ここがチームの拠点であります！まずは練習でポイントを貯め、能力アップで選手を強化するであります！",
   }),
   facility: Object.freeze({
     title: "施設メニュー",
     text:
-      "施設ごとに使える機能がまとまっています。迷った時はTEAM LABから選手育成を確認してみてください。",
+      "育成、作戦研究、ショップを利用できるであります！次の大会を目標に準備するであります！",
   }),
   team: Object.freeze({
     title: "チーム管理",
     text:
-      "IGL・ATK・SUPの3選手を確認できます。選手をタップすると、能力や武器の状態を詳しく見られます。",
+      "IGL・ATK・SUPの3人がチームの主役であります！選手を選んで能力を確認するであります！",
   }),
   train: Object.freeze({
     title: "トレーニング",
     text:
-      "3選手それぞれに練習内容を設定します。大会週は練習できませんので、スケジュールも一緒にご確認ください。",
+      "3人の練習を決めたら1週間進めるであります！獲得したポイントは能力アップで振り分けるであります！",
   }),
   ability: Object.freeze({
     title: "プレイヤー強化",
     text:
-      "能力・武器・スキル・特殊能力を選手ごとに強化できます。必要ポイントや次の効果も表示されます。",
+      "貯めたポイントで能力を伸ばすであります！必要ポイントと強化後の数値を確認するであります！",
   }),
   collection: Object.freeze({
     title: "コレクション",
     text:
-      "カード、バッジ、獲得したトロフィーを確認できます。パックを所持している時は、こちらから開封できます。",
+      "カードやバッジを集めるとチームを支えるボーナスになるであります！",
   }),
   shop: Object.freeze({
     title: "MOB SHOP",
     text:
-      "いらっしゃいませ。アイテム、カードパック、武器スキンをご用意しています。必要なものをゆっくりお選びください。",
+      "カードパックと武器スキンをご用意しているであります！",
   }),
   coach: Object.freeze({
-    title: "コーチ",
+    title: "作戦研究",
     text:
-      "コーチの成長と作戦会議を管理できます。作戦は大会前に増やしておくと選択肢が広がります。",
+      "練習の累計回数が作戦研究に役立つであります！新しい作戦で大会に挑むであります！",
   }),
   scout: Object.freeze({
     title: "スカウト",
     text:
-      "こちらではコーチをスカウトできます。企業ランクが上がると、候補や利用できる機能が増えていきます。",
+      "チームの育成を応援するであります！",
   }),
   schedule: Object.freeze({
     title: "大会スケジュール",
     text:
-      "MOB BRのプロリーグとデンデンカップを確認できます。現在、カジュアル大会はデンデンカップだけを表示しています。",
+      "次の大会を確認するであります！出場予定の週は大会に集中するであります！",
   }),
   room: Object.freeze({
     title: "MOB ROOM",
     text:
-      "集めたカードやバッジを飾れる企業ルームです。企業ランクが上がると新しい部屋も解放できます。",
+      "集めたカードやバッジを飾れる企業ルームであります！",
   }),
   cooking: Object.freeze({
     title: "MOB DINING",
     text:
-      "モブホワイトが毎週3種類の定食をご用意します。選手は1人につき週1回食事でき、能力ポイントを獲得できます。",
+      "モブホワイトの定食で能力ポイントを獲得できるであります！選手1人につき週1回であります！",
   }),
   news: Object.freeze({
     title: "NEWS",
     text:
-      "終了した大会の結果を新聞形式で確認できます。出場できなかった大会の結果もこちらへ掲載されます。",
+      "大会の結果を振り返るであります！活躍した選手と次の課題を探すであります！",
   }),
 });
 
@@ -291,7 +248,7 @@ const ROUTE_META = Object.freeze({
   },
   [ROUTES.shop]: {
     title: "SHOP",
-    description: "アイテム・カードパック・武器スキン",
+    description: "カードパック・武器スキン",
     backgroundClass: "screen--shop",
     icon: "menu/mobshopt.png",
   },
@@ -314,8 +271,8 @@ const ROUTE_META = Object.freeze({
     icon: "icon/white.png",
   },
   [ROUTES.coach]: {
-    title: "COACH",
-    description: "コーチ管理と作戦会議",
+    title: "作戦研究",
+    description: "練習の経験から新しい作戦を獲得",
     backgroundClass: "screen--team",
     icon: "menu/coach.png",
   },
@@ -333,7 +290,7 @@ const ROUTE_META = Object.freeze({
   },
   [ROUTES.equipment]: {
     title: "EQUIPMENT",
-    description: "武器・スキン・持ち込みバッグ",
+    description: "武器・スキン",
     backgroundClass: "screen--team",
     icon: "menu/eq.png",
   },
@@ -386,9 +343,7 @@ const FACILITY_MENUS = Object.freeze({
     { route: ROUTES.ability, name: "SKILL", note: "スキルを強化", icon: "icon/skillup.png" },
     { route: ROUTES.specialAbility, name: "SPECIAL", note: "特殊能力", icon: "icon/sp.png" },
     { route: ROUTES.collection, name: "COLLECTION", note: "カード・バッジ", icon: "menu/COL.png" },
-    { route: ROUTES.coach, name: "COACH", note: "作戦会議", icon: "menu/coach.png" },
-    { route: ROUTES.scout, name: "SCOUT", note: "コーチ獲得", icon: "menu/scout.png" },
-    { route: ROUTES.items, name: "ITEMS", note: "所持品", icon: "menu/item.png" },
+    { route: ROUTES.coach, name: "作戦研究", note: "練習の経験を作戦に", icon: "icon/sak.png" },
     { route: ROUTES.record, name: "RECORD", note: "通算記録", icon: "menu/record.png" },
     { route: ROUTES.news, name: "NEWS", note: "大会新聞", icon: "icon/news.png" },
     { route: ROUTES.schedule, name: "SCHEDULE", note: "大会予定", icon: "menu/sc.png" },
@@ -965,6 +920,7 @@ function homeTemplate(snapshot, currentRoute) {
       ${topStatusTemplate(snapshot)}
       <div class="page-content home-facility-only ${tournamentWeek.hasTournament ? "has-tournament-notice" : ""}">
         <nav class="home-quick-actions" aria-label="HOMEショートカット">
+          <button type="button" data-action="navigate" data-route="ability"><img src="icon/ab.png" alt=""><span>能力アップ</span></button>
           <button
             type="button"
             data-action="navigate"
@@ -1668,6 +1624,7 @@ function wizardTemplate(stepIndex, data, errorMessage = "") {
 }
 
 function normaliseRoute(route) {
+  if (route === ROUTES.scout || route === ROUTES.items) return ROUTES.home;
   if (route === ROUTES.equipment) {
     return ROUTES.ability;
   }
@@ -2905,7 +2862,7 @@ export function createMainApp({
         rows.push(`
           <article class="weekly-event-result-row ${entry.amount < 0 ? "is-down" : "is-up"}">
             <img src="${escapeAttribute(assetPath("icon/ab.png"))}" alt="">
-            <div><span>${escapeHtml(subject)}</span><strong>全能力ポイント ${sign}${formatNumber(entry.amount)}</strong><small>POWER / TECH / MENTAL / SHOOT</small></div>
+            <div><span>${escapeHtml(subject)}</span><strong>全能力ポイント ${sign}${formatNumber(entry.amount)}</strong><small>筋力 / 技術 / 精神 / 射撃</small></div>
           </article>
         `);
         continue;
@@ -3132,10 +3089,12 @@ export function createMainApp({
     try {
       await openAlert({
         title: pending.monthChanged
-          ? "NEW MONTH / NEW WEEK"
-          : "NEW WEEK START",
+          ? "新しい月の始まり"
+          : "新しい1週間",
         body: `
           <section class="employee-week-greeting">
+            <div class="week-focus"><span>次の目標</span><strong>${escapeHtml(nextTournamentText(snapshot))}</strong><p>練習でポイントを貯める → 能力アップで強化する → 大会で成果を試す</p></div>
+            ${weeklyGrowthSummary(snapshot)}
             ${
               pending.monthChanged
                 ? `
@@ -3146,7 +3105,7 @@ export function createMainApp({
                     >
                     <span>MONTH ${String(pending.gameDate.month).padStart(2, "0")}</span>
                     <strong>${pending.gameDate.year}年 ${pending.gameDate.month}月</strong>
-                    <small>月初画像は後から同名ファイルへ差し替えできます</small>
+
                   </div>
                 `
                 : ""
@@ -3209,7 +3168,7 @@ export function createMainApp({
             }
           </section>
         `,
-        buttonLabel: "今週を始める",
+        buttonLabel: lastWeekTraining(snapshot) ? "イベントを確認して能力アップへ" : "今週を始める",
       });
 
       stateManager.transact(
@@ -3257,6 +3216,7 @@ export function createMainApp({
     } catch (error) {
       console.error("Weekly event recovery failed after week start.", error);
     }
+    if (lastWeekTraining(snapshot)) navigate(ROUTES.ability);
     return true;
   }
 
@@ -3720,7 +3680,7 @@ export function createMainApp({
           title:
             "プロリーグ参戦",
           text:
-            `${snapshot.playerTeam.teamName}として本日からプロリーグ参戦です！最初はたくさん負けてもいいので、経験を積みましょう！`,
+            `${snapshot.playerTeam.teamName}としてプロリーグ参戦であります！まずは練習で力をつけるであります！`,
         },
       );
       await showPinkGuide(
@@ -3729,7 +3689,7 @@ export function createMainApp({
           title:
             "デンデンカップ",
           text:
-            "デンデンカップはプロではないチームがたくさん出場します。腕試しをしてレベルアップしていきましょう！",
+            "デンデンカップは腕試しの大会であります！育てた3人の力を試すであります！",
         },
       );
       await showPinkGuideForRoute(

@@ -12,19 +12,19 @@ import {
   characterValueToRank,
   weaponValueToRank,
   getCompanyRankData,
-} from "../../data/game-data.js?v=56";
+} from "../../data/game-data.js?v=69";
 import {
   calculateMaxHp,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=56";
+} from "../../data/battle-config.js?v=69";
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=56";
+} from "../../data/motivation-data.js?v=69";
 import {
   WEAPON_SKINS,
   getWeaponSkin,
-} from "../../data/shop-data.js";
+} from "../../data/shop-data.js?v=69";
 import {
   PLAYER_STAT_DEFINITIONS,
   WEAPON_STAT_DEFINITIONS,
@@ -34,13 +34,13 @@ import {
   getStatUpgradeCost,
   getWeaponStatDefinition,
   getWeaponUpgradeCost,
-} from "../../data/ability-data.js?v=56";
+} from "../../data/ability-data.js?v=69";
 
 import {
   getSpecialAbilitiesForRole,
   getSpecialAbility,
   getSpecialAbilityStage,
-} from "../../data/special-ability-50-data.js?v=56";
+} from "../../data/special-ability-50-data.js?v=69";
 
 export const TEAM_FEATURE_VERSION = "mobbr-team-feature-1.5.0";
 
@@ -51,10 +51,10 @@ const ROLE_ICONS = Object.freeze({
 });
 
 const POINT_LABELS = Object.freeze({
-  power: "POWER",
-  tech: "TECH",
-  mental: "MENTAL",
-  shoot: "SHOOT",
+  power: "筋力",
+  tech: "技術",
+  mental: "精神",
+  shoot: "射撃",
 });
 
 export const SKILL_MAX_LEVEL = 5;

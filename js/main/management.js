@@ -1,3 +1,5 @@
+import { CONSUMABLES_ENABLED, strategyResearchPoints } from "../../data/feature-policy.js?v=69";
+import { renderTrainingPlan, trainingGainText } from "./training-view.js?v=69";
 /**
  * MOB BR company-management feature.
  *
@@ -7,23 +9,23 @@
 
 import {
   assetPath,
-} from "../assets.js";
+} from "../assets.js?v=69";
 import {
   TRAINING_POINT_IDS,
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=56";
+} from "../../data/game-data.js?v=69";
 import {
   isCasualTournamentType,
   resolveCpuTeamMaster,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=56";
+} from "../../data/circuit-data.js?v=69";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
   calculateWeeklyTraining,
-} from "../../data/training-data.js";
+} from "../../data/training-data.js?v=69";
 import {
   BADGE_PACKS,
   CARD_PACKS,
@@ -35,21 +37,17 @@ import {
   getItem,
   getWeaponSkin,
   isCardPackUnlocked,
-} from "../../data/shop-data.js";
+} from "../../data/shop-data.js?v=69";
 import {
-  COACH_RULES,
   STRATEGY_MEETING_RULES,
-  calculateCoachTeamPoints,
-  getCoachRankData,
   getStrategyMeetingProbabilities,
-  nextCoachRank,
-} from "../../data/coach-data.js";
+} from "../../data/coach-data.js?v=69";
 import {
   STRATEGIES,
   STRATEGY_RANKS,
   getStrategiesByRank,
   getStrategy,
-} from "../../data/strategy-data.js";
+} from "../../data/strategy-data.js?v=69";
 import {
   BADGE_COLLECTION,
   CARD_COLLECTION,
@@ -63,7 +61,7 @@ import {
   getCollectionCompletion,
   getCollectionEntry,
   getRoomMaster,
-} from "../../data/collection-data.js";
+} from "../../data/collection-data.js?v=69";
 import {
   advanceWeeksToDraft,
   applyResourceDeltaToDraft,
@@ -72,7 +70,7 @@ import {
   purchaseDiningSetMealToDraft,
   serveDiningMealToDraft,
   settleDiningMealsToDraft,
-} from "./state.js?v=60";
+} from "./state.js?v=69";
 import {
   COOKING_RULES,
   COOKING_SCREEN_ASSETS,
@@ -89,10 +87,10 @@ import {
   getRecipeCandidates,
   isCookingJobReady,
   startCookingJobToDraft,
-} from "../../data/cooking-data.js?v=56";
+} from "../../data/cooking-data.js?v=69";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=56";
+} from "./tournament-bridge.js?v=69";
 import {
   DINING_EATING_SPEECHES,
   DINING_HUNGRY_SPEECHES,
@@ -100,7 +98,7 @@ import {
   diningWeekKey,
   getDiningMasterSpeech,
   getWeeklyDiningSets,
-} from "../../data/dining-data.js?v=56";
+} from "../../data/dining-data.js?v=69";
 
 export const MANAGEMENT_FEATURE_VERSION =
   "mobbr-management-feature-3.0.4";
@@ -313,10 +311,9 @@ function foodInventoryCount(
 }
 
 const SHOP_CATEGORY_DEFINITIONS = Object.freeze([
-  { id: "item", label: "アイテム", icon: "icon/item.png", dialogue: "大会用アイテムです。必要な数をまとめて購入できます。" },
-  { id: "card", label: "カード", icon: "icon/card.png", dialogue: "カードパックです。解放済み商品を複数まとめて購入できます。" },
-  { id: "skin", label: "スキン", icon: "menu/gacha.png", dialogue: "武器スキンです。未所持スキンだけが抽選対象です。" },
-  { id: "good", label: "GOOD", icon: "icon/bagi.png", dialogue: "バッジパックなどの大会記念品です。大会報酬で入手できます。" },
+  { id: "card", label: "カード", icon: "icon/card.png", dialogue: "カードパックであります！解放済みの商品を選べるであります！" },
+  { id: "skin", label: "スキン", icon: "menu/gacha.png", dialogue: "武器スキンであります！未所持のスキンだけが抽選対象であります！" },
+  { id: "good", label: "GOOD", icon: "icon/bagi.png", dialogue: "大会記念品であります！大会の報酬で入手できるであります！" },
 ]);
 
 function latestHistory(snapshot, types, year = snapshot.gameDate.year) {
@@ -651,6 +648,7 @@ export function executeTrainingToDraft(
     }
   }
   draft.records.trainingCompleted += 1;
+  draft.records.lastTraining = { gameDate: deepClone(draft.gameDate), members: deepClone(result.memberResults) };
 
   for (const detail of tournamentWeek.details) {
     const event = detail.event;
@@ -740,6 +738,7 @@ export function purchaseConsumableToDraft(
 ) {
   assertDraft(draft);
   ensureManagementStateToDraft(draft);
+  if (!CONSUMABLES_ENABLED) throw new RangeError("大会用消耗品は休止中です。");
   const item = getItem(itemId);
   if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
     throw new RangeError("購入数は1～99にしてください。");
@@ -1148,7 +1147,7 @@ export function performStrategyMeetingToDraft(
   assertRandom(random);
   subtractPrice(draft, STRATEGY_MEETING_RULES.cost);
 
-  const totalCoachPoints = calculateCoachTeamPoints(draft.coaches);
+  const totalCoachPoints = strategyResearchPoints(draft);
   const probabilities =
     getStrategyMeetingProbabilities(totalCoachPoints);
   const selectedRank = chooseStrategyRank(
@@ -1162,23 +1161,8 @@ export function performStrategyMeetingToDraft(
   draft.inventory.strategies[strategy.id] =
     previousQuantity + 1;
 
-  const coachResults = draft.coaches.map((coach) => {
-    const rankData = getCoachRankData(coach.rank);
-    const success =
-      !rankData.isMax &&
-      random() < rankData.rankUpChance;
-    const previousRank = coach.rank;
-    if (success) {
-      coach.rank = nextCoachRank(coach.rank).rank;
-    }
-    return {
-      coachId: coach.coachId,
-      previousRank,
-      currentRank: coach.rank,
-      success,
-      chance: rankData.rankUpChance,
-    };
-  });
+  const coachResults = []; // Legacy result field; coaches no longer participate.
+
   draft.records.strategyMeetings += 1;
 
   return {
@@ -1194,43 +1178,8 @@ export function performStrategyMeetingToDraft(
   };
 }
 
-export function hireCoachToDraft(draft, candidate) {
-  assertDraft(draft);
-  ensureManagementStateToDraft(draft);
-  if (
-    draft.company.rankIndex <
-    COACH_RULES.scoutUnlockCompanyRankIndex
-  ) {
-    throw new RangeError("コーチスカウトは企業ランクF5で解放されます。");
-  }
-  if (draft.coaches.length >= COACH_RULES.maximumCoachCount) {
-    throw new RangeError("コーチ在籍数が上限に達しています。");
-  }
-  if (!candidate || typeof candidate !== "object") {
-    throw new TypeError("コーチ候補データが必要です。");
-  }
-  for (const field of ["coachId", "name", "image", "rank", "price"]) {
-    if (candidate[field] === undefined || candidate[field] === null) {
-      throw new RangeError(`コーチ候補の${field}が未設定です。`);
-    }
-  }
-  if (
-    draft.coaches.some(
-      (coach) => coach.coachId === candidate.coachId,
-    )
-  ) {
-    throw new RangeError("このコーチはすでに在籍しています。");
-  }
-  getCoachRankData(candidate.rank);
-  subtractPrice(draft, candidate.price);
-  draft.coaches.push({
-    coachId: candidate.coachId,
-    name: candidate.name,
-    image: candidate.image,
-    rank: candidate.rank,
-    source: "scout",
-  });
-  return deepClone(draft.coaches.at(-1));
+export function hireCoachToDraft() {
+  throw new RangeError("コーチシステムは終了しました。");
 }
 
 function getRoomDisplayItem(snapshot, itemRef) {
@@ -1866,112 +1815,12 @@ function packOpeningPresentation(result) {
 }
 
 export function renderTrainingManagement(snapshot) {
-  const badgeBonusRate =
-    snapshot.collectionBonuses?.trainingPointRate ??
-    0;
-  const totalBonusRate =
-    badgeBonusRate;
-  const tournamentWeek = getTournamentWeekStatus(snapshot);
-  const notice = tournamentWeek.hasTournament
-    ? `<section class="training-tournament-notice ${tournamentWeek.trainingBlocked ? "is-blocked" : "is-observer"}">
-        <strong>${tournamentWeek.trainingBlocked ? "TOURNAMENT WEEK" : "TOURNAMENT NOTICE"}</strong>
-        <p>${tournamentWeek.details.map((detail) =>
-          detail.participationRequired
-            ? `${detail.event.stageName}へ出場予定です。この週はトレーニングできません。`
-            : String(detail.event.tournamentType).startsWith("casual_")
-              ? `${detail.event.stageName}が開催されます。参加は任意です。`
-              : `${detail.event.stageName}が開催されます。`
-        ).join(" ")}</p>
-      </section>`
-    : "";
-
-  for (const player of snapshot.playerTeam.members) {
-    MANAGEMENT_VIEW_STATE.trainingSelections[player.playerId] ??=
-      TRAINING_PROGRAMS[0].id;
-  }
-
-  return `
-    ${notice}
-    <section class="management-summary training-summary">
-      <div class="training-bonus-ledger">
-        <span>バッジ <strong>+${(badgeBonusRate * 100).toFixed(1)}%</strong></span>
-        <span class="is-total">バッジ補正合計 <strong>+${(totalBonusRate * 100).toFixed(1)}%</strong></span>
-      </div>
-      <span>各選手のアイコンから練習を選択。食堂の定食は、食べた選手へ能力ポイントを直接加算します。</span>
-    </section>
-    <form class="training-assignment-form training-stage training-stage--icons" data-form="training">
-      ${snapshot.playerTeam.members.map((player, playerIndex) => {
-        const selectedId = MANAGEMENT_VIEW_STATE.trainingSelections[player.playerId];
-        const selected = TRAINING_PROGRAMS.find((program) => program.id === selectedId) ?? TRAINING_PROGRAMS[0];
-        const pointPool = snapshot.playerTrainingPoints?.[player.playerId] ?? snapshot.trainingPoints;
-        return `
-          <section
-            class="training-player-station"
-            style="--training-index:${playerIndex}"
-            data-training-station="${escapeAttribute(player.playerId)}"
-          >
-            <header>
-              <img class="player-portrait" data-role="${escapeAttribute(player.role)}" src="${escapeAttribute(player.image)}" alt="">
-              <div>
-                <span>${escapeHtml(player.role)}</span>
-                <strong>${escapeHtml(player.name)}</strong>
-                <div class="training-current-points" aria-label="現在の能力ポイント">
-                  <span><b>P</b>${formatNumber(pointPool.power)}</span>
-                  <span><b>T</b>${formatNumber(pointPool.tech)}</span>
-                  <span><b>M</b>${formatNumber(pointPool.mental)}</span>
-                  <span><b>S</b>${formatNumber(pointPool.shoot)}</span>
-                </div>
-              </div>
-              <div
-                class="training-player-station__selected"
-                data-training-selected-preview
-              >
-                <span>SELECTED</span>
-                <img
-                  data-training-selected-preview-image
-                  src="${escapeAttribute(selected.image)}"
-                  alt="${escapeAttribute(selected.name)}"
-                >
-                <strong data-training-selected-preview-name>${escapeHtml(selected.name)}</strong>
-              </div>
-            </header>
-            <input type="hidden" data-training-player="${escapeAttribute(player.playerId)}" value="${escapeAttribute(selected.id)}">
-            <div class="training-program-icon-grid" role="radiogroup" aria-label="${escapeAttribute(player.name)}のトレーニング">
-              ${TRAINING_PROGRAMS.map((program) => `
-                <button
-                  type="button"
-                  class="training-program-icon ${program.id === selected.id ? "is-selected" : ""}"
-                  data-action="select-training-program"
-                  data-player-id="${escapeAttribute(player.playerId)}"
-                  data-program-id="${escapeAttribute(program.id)}"
-                  aria-pressed="${program.id === selected.id ? "true" : "false"}"
-                  ${tournamentWeek.trainingBlocked ? "disabled" : ""}
-                >
-                  <img src="${escapeAttribute(program.image)}" alt="">
-                  <strong>${escapeHtml(program.name)}</strong>
-                  <div class="training-program-points" aria-label="獲得ポイント">
-                    <span><b>P</b>${program.points.power}</span>
-                    <span><b>T</b>${program.points.tech}</span>
-                    <span><b>M</b>${program.points.mental}</span>
-                    <span><b>S</b>${program.points.shoot}</span>
-                  </div>
-                </button>
-              `).join("")}
-            </div>
-          </section>
-        `;
-      }).join("")}
-      <button type="button" class="primary-button training-start-button" data-action="execute-training" ${tournamentWeek.trainingBlocked ? "disabled" : ""}>
-        <span>${tournamentWeek.trainingBlocked ? "TOURNAMENT WEEK" : "TRAINING START"}</span>
-        <small>${tournamentWeek.trainingBlocked ? "大会終了後に実行できます" : "選択した内容で1週間進める"}</small>
-      </button>
-    </form>
-  `;
+  return renderTrainingPlan(snapshot, MANAGEMENT_VIEW_STATE.trainingSelections, getTournamentWeekStatus(snapshot));
 }
 
 export function renderShopManagement(snapshot) {
   const unlockProgress = getCardPackUnlockProgress(snapshot);
-  const category = MANAGEMENT_VIEW_STATE.shopCategory;
+  const category = MANAGEMENT_VIEW_STATE.shopCategory === "item" ? "card" : MANAGEMENT_VIEW_STATE.shopCategory;
   const categoryDefinition = SHOP_CATEGORY_DEFINITIONS.find(
     (entry) => entry.id === category,
   );
@@ -2118,7 +1967,7 @@ export function renderShopManagement(snapshot) {
           <img src="icon/pink.png" alt="モブピンク">
           <div>
             <span>モブピンク</span>
-            <p>${escapeHtml(categoryDefinition?.dialogue ?? "いらっしゃいませ。商品棚をご案内します。")}</p>
+            <p>${escapeHtml(categoryDefinition?.dialogue ?? "いらっしゃいませであります！商品をご案内するであります！")}</p>
           </div>
         </section>
       </header>
@@ -2189,42 +2038,22 @@ export function renderItemBagManagement(snapshot) {
 
 export function renderCoachManagement(snapshot) {
   const totalPoints =
-    calculateCoachTeamPoints(snapshot.coaches);
+    strategyResearchPoints(snapshot);
   const probabilities =
     getStrategyMeetingProbabilities(totalPoints);
   const rankIcon = (rank) =>
     `icon/tak${rank.toLowerCase()}.png`;
 
   return `
-    <section class="coach-command-center">
-      <div class="coach-command-center__core">
-        <span>TACTICAL STAFF</span>
-        <strong>COACH PT ${formatNumber(totalPoints)}</strong>
-        <small>在籍 ${snapshot.coaches.length} / ${COACH_RULES.maximumCoachCount}</small>
-      </div>
-      <div class="coach-orbit">
-        ${snapshot.coaches.map((coach, index) => {
-          const rankData =
-            getCoachRankData(coach.rank);
-          return `
-            <article class="coach-orbit__member" style="--coach-index:${index}">
-              <img src="${escapeAttribute(coach.image)}" alt="">
-              <span>${escapeHtml(coach.rank)}</span>
-              <strong>${escapeHtml(coach.name ?? "初期コーチ")}</strong>
-              <small>${rankData.points} PT</small>
-            </article>
-          `;
-        }).join("")}
-      </div>
-    </section>
+    <section class="research-progress"><span>チームの作戦研究</span><strong>練習累計 ${snapshot.records.trainingCompleted ?? 0}週</strong><p>1週間の練習で研究値が10増加。チームの経験に応じて高ランク作戦の抽選率が上がります。</p><small>研究値 ${totalPoints} / 1460</small></section>
 
     <section class="content-panel strategy-meeting-panel strategy-meeting-panel--console">
       <header>
-        <img src="menu/coach.png" alt="">
+        <img src="icon/sak.png" alt="">
         <div>
           <span>TACTICAL BRIEFING</span>
-          <h2>作戦会議</h2>
-          <p>コーチPTで高ランク作戦の抽選率が上昇します。</p>
+          <h2>作戦研究</h2>
+          <p>練習の積み重ねが、新しい作戦の発見につながります。</p>
         </div>
       </header>
       <div class="strategy-probabilities">
@@ -2245,7 +2074,7 @@ export function renderCoachManagement(snapshot) {
           class="primary-button"
           data-action="strategy-meeting"
         >
-          作戦会議を行う
+          作戦研究を行う
         </button>
       </div>
     </section>
@@ -2291,30 +2120,8 @@ export function renderCoachManagement(snapshot) {
   `;
 }
 
-export function renderScoutManagement(snapshot) {
-  const unlocked =
-    snapshot.company.rankIndex >=
-    COACH_RULES.scoutUnlockCompanyRankIndex;
-  return `
-    <section class="content-panel placeholder-panel">
-      <img class="placeholder-panel__icon" src="menu/scout.png" alt="">
-      <h1 class="placeholder-panel__title">COACH SCOUT</h1>
-      <p class="placeholder-panel__text">
-        ${
-          unlocked
-            ? "企業ランク条件は達成済みです。"
-            : `企業ランクF5で解放されます。現在 ${escapeHtml(snapshot.company.rank)}`
-        }
-      </p>
-      <p class="placeholder-panel__text">
-        追加コーチの名前・画像・雇用価格・初期ランクは仕様未確定のため、
-        候補データを捏造せず未登録としています。
-      </p>
-      <p class="placeholder-panel__text">
-        スカウト対象はコーチのみで、選手スカウトはありません。
-      </p>
-    </section>
-  `;
+export function renderScoutManagement() {
+  return '<p>コーチシステムは終了しました。</p>';
 }
 
 export function getCardPackCollectionStats(
@@ -4027,7 +3834,7 @@ export function renderRecordManagement(snapshot) {
       <article><span>大会出場</span><strong>${formatNumber(snapshot.records.tournamentsEntered)}</strong></article>
       <article><span>大会優勝</span><strong>${formatNumber(snapshot.records.tournamentWins)}</strong></article>
       <article><span>TRAINING</span><strong>${formatNumber(snapshot.records.trainingCompleted ?? 0)}</strong></article>
-      <article><span>作戦会議</span><strong>${formatNumber(snapshot.records.strategyMeetings ?? 0)}</strong></article>
+      <article><span>作戦研究</span><strong>${formatNumber(snapshot.records.strategyMeetings ?? 0)}</strong></article>
       <article><span>総KILL</span><strong>${formatNumber(snapshot.records.totalKills)}</strong></article>
       <article><span>総DAMAGE</span><strong>${formatNumber(snapshot.records.totalDamage)}</strong></article>
     </section>
@@ -4109,32 +3916,11 @@ function japaneseTournamentNewsSubtitle(entry) {
   return "MOB BR 大会速報";
 }
 
-function newsMobPinkComment(
-  entry,
-) {
-  if (
-    entry.status ===
-      "cpu_simulated" ||
-    !Number.isInteger(
-      entry.finalPlace,
-    )
-  ) {
-    const champion =
-      entry.rankings?.[0]
-        ?.teamName ??
-      "優勝チーム";
-    return `今回は観戦結果をまとめました。${champion}が最上位です。CPU順位は通常ランクを中心に、少しだけ当日の調子と運を加えて計算しています。`;
-  }
-  if (entry.finalPlace === 1) {
-    return "優勝おめでとうございます！順位ポイントとKPの両方を積み上げた、とても素晴らしい大会でした。";
-  }
-  if (entry.finalPlace <= 3) {
-    return `表彰台入りおめでとうございます！${entry.finalPlace}位という結果は、次の大会にもつながる大きな成果です。`;
-  }
-  if (entry.finalPlace <= 10) {
-    return `TOP10入りです。良かった個人成績や獲得ポイントを確認して、次の育成へ活かしていきましょう。`;
-  }
-  return "大会お疲れさまでした。個人成績とMATCHごとの結果を見ると、次に伸ばしたい部分が見つけやすいですよ。";
+function newsMobPinkComment(entry) {
+  if (!Number.isInteger(entry.finalPlace)) return '今週の大会結果であります！ライバルの活躍も研究するであります！';
+  if (entry.finalPlace === 1) return '優勝おめでとうであります！練習の成果が実ったであります！';
+  if (entry.finalPlace <= 3) return '表彰台入りであります！次は頂点を目指すであります！';
+  return '大会お疲れさまであります！個人成績から次に伸ばしたい能力を探すであります！';
 }
 
 function newsTrainingPoints(
@@ -4145,10 +3931,10 @@ function newsTrainingPoints(
     {};
   return `
     <div class="news-reward-points">
-      <span>POWER <strong>+${formatNumber(points.power ?? 0)}</strong></span>
-      <span>TECH <strong>+${formatNumber(points.tech ?? 0)}</strong></span>
-      <span>MENTAL <strong>+${formatNumber(points.mental ?? 0)}</strong></span>
-      <span>SHOOT <strong>+${formatNumber(points.shoot ?? 0)}</strong></span>
+      <span>筋力 <strong>+${formatNumber(points.power ?? 0)}</strong></span>
+      <span>技術 <strong>+${formatNumber(points.tech ?? 0)}</strong></span>
+      <span>精神 <strong>+${formatNumber(points.mental ?? 0)}</strong></span>
+      <span>射撃 <strong>+${formatNumber(points.shoot ?? 0)}</strong></span>
     </div>
   `;
 }
@@ -4752,6 +4538,8 @@ export function createManagementController({
         program.name;
     }
 
+    const gainPreview = station.querySelector('[data-training-gain-preview]');
+    if (gainPreview) gainPreview.textContent = trainingGainText(programId, stateManager.getSnapshot().collectionBonuses?.trainingPointRate ?? 0);
     for (const button of station.querySelectorAll(
       '[data-action="select-training-program"]',
     )) {
@@ -5210,6 +4998,7 @@ export function createManagementController({
     assignments,
     memberResults,
   ) {
+    if (snapshot.settings?.reducedMotion) return;
     const overlay =
       document.createElement("section");
     overlay.className =
@@ -5258,10 +5047,10 @@ export function createManagementController({
               <strong>${escapeHtml(player.name)}</strong>
               <span>${escapeHtml(program.name)}</span>
               <small>
-                P+${result.gain.power}
-                T+${result.gain.tech}
-                M+${result.gain.mental}
-                S+${result.gain.shoot}
+                筋力 +${result.gain.power}
+                技術 +${result.gain.tech}
+                精神 +${result.gain.mental}
+                射撃 +${result.gain.shoot}
               </small>
             </article>
           `;
@@ -5317,156 +5106,13 @@ export function createManagementController({
     overlay.remove();
   }
 
-  async function playStrategyMeetingCinematic(
-    result,
-    snapshot,
-  ) {
-    const strategy =
-      getStrategy(result.strategyId);
-    const successfulCoaches =
-      new Set(
-        result.coachResults
-          .filter((coach) => coach.success)
-          .map((coach) => coach.coachId),
-      );
-    const overlay =
-      document.createElement("section");
-    overlay.className =
-      "strategy-meeting-cinematic";
-    overlay.innerHTML = `
-      <div
-        class="strategy-meeting-cinematic__grid"
-        aria-hidden="true"
-      ></div>
-      <span>TACTICAL BRIEFING</span>
-      <h2>STRATEGY MEETING</h2>
-
-      <section class="strategy-meeting-cinematic__table">
-        <div class="strategy-meeting-cinematic__rank-ring">
-          ${STRATEGY_RANKS.map((rank, index) => `
-            <i
-              style="--rank-index:${index}"
-              data-rank="${escapeAttribute(rank)}"
-            >
-              <img
-                src="${escapeAttribute(`icon/tak${rank.toLowerCase()}.png`)}"
-                alt=""
-              >
-            </i>
-          `).join("")}
-        </div>
-        <div class="strategy-meeting-cinematic__center">
-          <img src="menu/coach.png" alt="">
-          <strong>ANALYZING</strong>
-        </div>
-        <div class="strategy-meeting-cinematic__coaches">
-          ${snapshot.coaches.map((coach, index) => `
-            <article
-              class="${successfulCoaches.has(coach.coachId) ? "is-rank-up" : ""}"
-              style="--coach-index:${index}"
-            >
-              <img src="${escapeAttribute(coach.image)}" alt="">
-              <span>${escapeHtml(coach.rank)}</span>
-              <strong>${escapeHtml(coach.name ?? "COACH")}</strong>
-            </article>
-          `).join("")}
-        </div>
-      </section>
-
-      <article class="strategy-meeting-cinematic__result">
-        ${
-          result.coachResults.some(
-            (coach) =>
-              coach.success,
-          )
-            ? `
-              <img
-                class="strategy-meeting-cinematic__rank-up-icon"
-                src="icon/rankup.png"
-                alt=""
-              >
-            `
-            : ""
-        }
-        <div
-          class="strategy-meeting-cinematic__flare"
-          aria-hidden="true"
-        ></div>
-        <img
-          class="strategy-meeting-cinematic__rank"
-          src="${escapeAttribute(`icon/tak${result.selectedRank.toLowerCase()}.png`)}"
-          alt=""
-        >
-        <img
-          class="strategy-meeting-cinematic__strategy"
-          src="${escapeAttribute(strategy.icon)}"
-          alt=""
-        >
-        <span>${escapeHtml(result.selectedRank)} RANK / ${escapeHtml(result.acquisitionType)}</span>
-        <strong>${escapeHtml(result.strategyName)}</strong>
-        <small>
-          COACH RANK UP
-          ${result.coachResults.filter((coach) => coach.success).length}
-          / ${result.coachResults.length}
-        </small>
-      </article>
-      ${
-        result.coachResults.some(
-          (coach) =>
-            coach.success,
-        )
-          ? `
-            <button
-              type="button"
-              class="strategy-meeting-cinematic__next"
-              data-coach-rank-next
-            >
-              NEXT
-            </button>
-          `
-          : ""
-      }
-    `;
-
+  async function playStrategyMeetingCinematic(result, snapshot) {
+    if (snapshot.settings?.reducedMotion) return;
+    const overlay = document.createElement('section');
+    overlay.className = 'strategy-meeting-cinematic is-briefing';
+    overlay.innerHTML = '<span>作戦研究</span><h2>新しい戦い方を発見</h2><article class="strategy-meeting-cinematic__result"><strong>' + escapeHtml(result.strategyName) + '</strong><span>' + escapeHtml(result.selectedRank) + ' RANK</span></article>';
     root.append(overlay);
-    requestAnimationFrame(() =>
-      overlay.classList.add(
-        "is-briefing",
-      ),
-    );
-    await wait(950);
-    overlay.classList.add(
-      "is-reveal",
-    );
-    if (
-      result.coachResults.some(
-        (coach) =>
-          coach.success,
-      )
-    ) {
-      await new Promise(
-        (resolve) => {
-          overlay
-            .querySelector(
-              "[data-coach-rank-next]",
-            )
-            ?.addEventListener(
-              "click",
-              resolve,
-              {
-                once: true,
-              },
-            );
-        },
-      );
-    } else {
-      await wait(1300);
-    }
-    overlay.classList.add(
-      "is-exit",
-    );
-    await wait(300);
-    overlay.remove();
+    try { await wait(250); overlay.classList.add('is-reveal'); await wait(800); } finally { overlay.remove(); }
   }
 
   async function handleAction(actionElement) {
@@ -6083,22 +5729,22 @@ export function createManagementController({
               <img class="training-result-member__program" src="${escapeAttribute(program.image)}" alt="">
               <strong>${escapeHtml(player.name)}</strong>
               <span>${escapeHtml(program.name)}</span>
-              <small>P+${memberResult.gain.power} T+${memberResult.gain.tech} M+${memberResult.gain.mental} S+${memberResult.gain.shoot}</small>
+              <small>筋力 +${memberResult.gain.power} / 技術 +${memberResult.gain.tech} / 精神 +${memberResult.gain.mental} / 射撃 +${memberResult.gain.shoot}</small>
             </article>`;
         }).join("");
 
         await openAlert({
-          title: "TRAINING COMPLETE",
+          title: "今週の練習成果",
           body: `
             <section class="training-result-show training-result-show--complete">
-              <span>ABILITY POINT GET</span>
+              <span>能力ポイントを獲得</span><p>貯めたポイントは「能力アップ」で振り分けると、試合の能力値に反映されます。</p>
               <h3>${escapeHtml(formatManagementGameDate(beforeTrainingDate))}</h3>
               <div class="training-result-members">${memberRows}</div>
               <div class="training-result-total">
-                <span>POWER <strong>+${formatNumber(total.power)}</strong></span>
-                <span>TECH <strong>+${formatNumber(total.tech)}</strong></span>
-                <span>MENTAL <strong>+${formatNumber(total.mental)}</strong></span>
-                <span>SHOOT <strong>+${formatNumber(total.shoot)}</strong></span>
+                <span>筋力 <strong>+${formatNumber(total.power)}</strong></span>
+                <span>技術 <strong>+${formatNumber(total.tech)}</strong></span>
+                <span>精神 <strong>+${formatNumber(total.mental)}</strong></span>
+                <span>射撃 <strong>+${formatNumber(total.shoot)}</strong></span>
               </div>
               <small>バッジ +${(tx.result.badgeBonusRate * 100).toFixed(1)}% / 合計 +${(tx.result.totalTrainingBonusRate * 100).toFixed(1)}%</small>
             </section>
@@ -6424,7 +6070,7 @@ export function createManagementController({
 
     if (action === "strategy-meeting") {
       if (!(await openConfirm({
-        title: "作戦会議を行いますか？",
+        title: "作戦研究を行いますか？",
         body: "<p>10,000 COIN・10 DIAMOND・1 RUBYを消費します。</p>",
         confirmLabel: "会議を行う",
       }))) return true;
@@ -6439,10 +6085,10 @@ export function createManagementController({
         );
         await openAlert({
           title: `${result.selectedRank} RANK STRATEGY`,
-          body: `<section class="strategy-meeting-show"><div class="strategy-meeting-show__board"><span>TACTICAL BRIEFING</span><strong>${escapeHtml(result.strategyName)}</strong><small>${escapeHtml(result.selectedRank)} RANK / ${escapeHtml(result.acquisitionType)} / 所持 ${result.quantity}</small></div><div class="strategy-meeting-show__board"><span>COACH REVIEW</span><strong>${result.coachResults.filter((coach) => coach.success).length} / ${result.coachResults.length} RANK UP</strong><small>会議内容を各コーチの成長判定へ反映しました</small></div></section>`,
+          body: `<section class="strategy-meeting-show"><div class="strategy-meeting-show__board"><span>TACTICAL BRIEFING</span><strong>${escapeHtml(result.strategyName)}</strong><small>${escapeHtml(result.selectedRank)} RANK / ${escapeHtml(result.acquisitionType)} / 所持 ${result.quantity}</small></div><div class="strategy-meeting-show__board"><span>研究の成果</span><strong>作戦を1つ獲得</strong><small>大会の作戦選択で使用できます</small></div></section>`,
         });
         renderPreservingScroll();
-      } catch (error) { await showError("作戦会議を実行できません", error); }
+      } catch (error) { await showError("作戦研究を実行できません", error); }
       return true;
     }
 
