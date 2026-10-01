@@ -1,7 +1,7 @@
-import {diamondPrice} from "../../data/simple-growth.js?v=76";
-import { presentTeamDebut } from './team-debut.js?v=76';
-import { presentPracticeReport } from "./practice-report.js?v=76";
-import { nextTournamentText, weeklyGrowthSummary, lastWeekTraining } from "./training-view.js?v=76";
+import {diamondPrice} from "../../data/simple-growth.js?v=77";
+import { presentTeamDebut } from './team-debut.js?v=77';
+import { presentPracticeReport } from "./practice-report.js?v=77";
+import { nextTournamentText, weeklyGrowthSummary, lastWeekTraining } from "./training-view.js?v=77";
 /**
  * MOB BR main-screen application shell.
  *
@@ -19,10 +19,10 @@ import {
   assetPath,
   detectAssetPrefix,
   installAssetFallbacks,
-} from "../assets.js?v=76";
+} from "../assets.js?v=77";
 import {
   fitPortraits,
-} from "../portrait-fit.js?v=76";
+} from "../portrait-fit.js?v=77";
 import {
   SaveError,
   SaveNotFoundError,
@@ -32,7 +32,7 @@ import {
   grantEmployeeCookingPointsToDraft,
   queueWeeklyEventToDraft,
   resolveWeeklyEventToDraft,
-} from "./state.js?v=76";
+} from "./state.js?v=77";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -56,38 +56,38 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=76";
+} from "./team.js?v=77";
 import {
   getSpecialAbility,
-} from "../../data/special-ability-50-data.js?v=76";
+} from "../../data/special-ability-50-data.js?v=77";
 import {
   getCompanyRankData,
-} from "../../data/game-data.js?v=76";
+} from "../../data/game-data.js?v=77";
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=76";
+} from "../../data/motivation-data.js?v=77";
 import {
   getRoomMaster,
-} from "../../data/collection-data.js?v=76";
+} from "../../data/collection-data.js?v=77";
 import {
   EMPLOYEE_RULES,
   getEmployeeRankData,
   getTotalEmployeeHpBonus,
-} from "../../data/employee-data.js?v=76";
+} from "../../data/employee-data.js?v=77";
 import {
   formatWeeklyEventText,
   getWeeklyEvent,
-} from "../../data/weekly-event-data.js?v=76";
+} from "../../data/weekly-event-data.js?v=77";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=76";
+} from "./management.js?v=77";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=76";
+} from "./tournament-bridge.js?v=77";
 
 export const APP_VERSION = "mobbr-main-app-4.1.2";
 

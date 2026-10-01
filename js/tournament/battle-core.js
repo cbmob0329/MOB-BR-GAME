@@ -1,4 +1,5 @@
-import {autoItem} from "../../data/auto-items.js?v=76";
+import {autoItem} from "../../data/auto-items.js?v=77";
+import {initializeArena,advanceArena} from './arena-space.js?v=77';
 /**
  * MOB BR deterministic 3v3 battle engine.
  *
@@ -7,15 +8,15 @@ import {autoItem} from "../../data/auto-items.js?v=76";
  * finished result into the tournament runtime through one transaction draft.
  */
 
-import { resolveBattleOrder } from './match-experience.js?v=76';
+import { resolveBattleOrder } from './match-experience.js?v=77';
 import {
   BATTLE_END_TIE_BREAKERS,
   BATTLE_TIMING,
   STATE_RULES,
-} from "../../data/battle-config.js?v=76";
+} from "../../data/battle-config.js?v=77";
 import {
   calculateChecksum,
-} from "../main/state.js?v=76";
+} from "../main/state.js?v=77";
 import {
   BATTLE_ACTIONS_VERSION,
   appendBattleEvent,
@@ -28,7 +29,7 @@ import {
   prepareParticipantSpecialAfterBattle,
   addOrRefreshEffect,
   updateParticipantTimers,
-} from "./battle-actions.js?v=76";
+} from "./battle-actions.js?v=77";
 
 export const BATTLE_CORE_VERSION =
   "mobbr-battle-core-1.7.0";
@@ -823,7 +824,7 @@ export function tickBattle(battle) {
     );
   }
 
-  if (draft.liveControls) applyAutomaticEquipment(draft);
+  if (draft.liveControls) { applyAutomaticEquipment(draft); advanceArena(draft); }
 
   const turnOrder = participants
     .filter(
@@ -1381,6 +1382,7 @@ export function validateBattleState(battle) {
     }
   }
 
+  if (battle.arena && Object.values(battle.participants).some(p=>!p.arena || !Number.isFinite(p.arena.x) || !Number.isFinite(p.arena.y))) throw new Error('Invalid arena position.');
   const expectedChecksum =
     calculateBattleChecksum(battle);
   if (
@@ -1404,12 +1406,19 @@ export function validateBattleState(battle) {
 
 // Live battles use the same deterministic engine; only skill requests arrive from UI.
 export function beginLiveBattleToDraft(draft) {
-  if(draft.activeBattle || draft.lastBattleResult) return;
+  if(draft.lastBattleResult) return;
+  if(draft.activeBattle){draft.activeBattle.liveControls??={autoSkills:Boolean(draft.matchExperience?.autoSkills),requests:{},items:[]};initializeArena(draft.activeBattle);draft.activeBattle.checksum=calculateBattleChecksum(draft.activeBattle);return;}
   consumeStrategyForBattle(draft,draft.playerTeamId);
   consumeStrategyForBattle(draft,draft.currentOpponentId);
   const battle=deepClone(createBattleFromTournamentRuntime(draft));
   battle.liveControls={autoSkills:draft.matchExperience?.autoSkills ?? Boolean(draft.matchExperience?.autoAdvance),requests:{},items:[]};
+  initializeArena(battle);
   const own=getTeamParticipants(battle,battle.leftTeamId);
+  if(draft.expeditionBonus && !draft.expeditionBonus.used){
+    const route=draft.expeditionBonus.routeId;
+    for(const actor of own)addOrRefreshEffect(actor,{code:'expedition_'+route,sourcePlayerId:actor.playerId,remainingSeconds:battle.durationSeconds,damageReduction:route==='recovery'?.08:0,damageMultiplier:route==='supply'?1.12:1,accuracyModifier:route==='recon'?.08:0,stats:route==='recon'?{agility:12}:{}});
+    draft.expeditionBonus.used=true;
+  }
   for(const actor of Object.values(battle.participants)) for(const skill of actor.skills) {
     // Everyone begins with a partial charge so the opening offers a decision.
     actor.skillCharge[skill.skillId]=Math.max(actor.skillCharge[skill.skillId]??0,skill.baseCt*0.6);

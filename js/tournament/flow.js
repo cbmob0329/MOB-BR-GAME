@@ -1,6 +1,7 @@
-import {createLiveBattleController} from "./live-battle.js?v=76";
-import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=76";
-import { AUTO_PHASE_ACTIONS, BATTLE_ORDERS, renderTournamentDirector } from './match-experience.js?v=76';
+import {selectExpeditionRouteToDraft,recommendedRoute} from './expedition.js?v=77';
+import {createLiveBattleController} from "./live-battle.js?v=77";
+import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=77";
+import { AUTO_PHASE_ACTIONS, BATTLE_ORDERS, renderTournamentDirector } from './match-experience.js?v=77';
 /**
  * MOB BR tournament presentation flow.
  *
@@ -12,25 +13,25 @@ import {
   assetPath,
   detectAssetPrefix,
   installAssetFallbacks,
-} from "../assets.js?v=76";
+} from "../assets.js?v=77";
 import {
   motivationDisplay,
-} from "../../data/motivation-data.js?v=76";
+} from "../../data/motivation-data.js?v=77";
 import {
   TOURNAMENT_PHASES,
   createTournamentRuntimeManager,
-} from "./runtime.js?v=76";
+} from "./runtime.js?v=77";
 import {
   executeCurrentBattleToDraft,
-} from "./battle-core.js?v=76";
+} from "./battle-core.js?v=77";
 import {
   getItem,
-} from "../../data/shop-data.js?v=76";
+} from "../../data/shop-data.js?v=77";
 import {
   balanceTournamentPortraits,
   createBattlePlaybackController,
   renderBattleOutcomeScreen,
-} from "./battle-ui.js?v=76";
+} from "./battle-ui.js?v=77";
 import {
   EXPLORATION_PAGES,
   beginExplorationToDraft,
@@ -52,7 +53,7 @@ import {
   useInventoryItemToDraft,
   useMobSlotToDraft,
   useRespawnTurntableToDraft,
-} from "./exploration.js?v=76";
+} from "./exploration.js?v=77";
 import {
   advanceAwardToDraft,
   finalizeCurrentMatchToDraft,
@@ -68,13 +69,13 @@ import {
   renderReturningResultScreen,
   renderTournamentResultScreen,
   writePreparedResultToStorage,
-} from "./results.js?v=76";
+} from "./results.js?v=77";
 
 import {
   applyMatchPlanToDraft,
   circuitSectionLabel,
   isPlayerMatch,
-} from "./circuit.js?v=76";
+} from "./circuit.js?v=77";
 
 import {
   fastForwardMatchToChampionToDraft,
@@ -84,7 +85,7 @@ import {
   getRoundTarget,
   isPlayerActive,
   resolveRoundEncounterToDraft,
-} from "./round.js?v=76";
+} from "./round.js?v=77";
 
 export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-3.7.0";
 
@@ -698,7 +699,7 @@ function encounterPreviewTemplate(runtime) {
                     : `DAMAGE ${opponentWear.damagedCount}`
                 }
               </strong>
-              <small>探索なしの連戦で、相手にも前戦の消耗が残っています。</small>
+              <small>相手にも前戦の消耗が残っています。</small>
             </aside>
           `
           : ""
@@ -1807,36 +1808,7 @@ export function createTournamentFlowController({
       case "INITIAL_EXPLORATION":
       case "ROUND_EXPLORATION":
         root.innerHTML = renderExplorationScreen(runtime);
-        explorationSwipeCleanup = installExplorationSwipe(root, {
-          onPageChange: (direction) => {
-            try {
-              const snapshot = runtimeManager.getSnapshot();
-              const currentIndex = EXPLORATION_PAGES.indexOf(
-                snapshot.explorationRuntime.currentPage,
-              );
-              const nextIndex = Math.max(
-                0,
-                Math.min(
-                  EXPLORATION_PAGES.length - 1,
-                  currentIndex + direction,
-                ),
-              );
-              if (nextIndex !== currentIndex) {
-                runtimeManager.update(
-                  "exploration_page_swiped",
-                  (draft) =>
-                    setExplorationPageToDraft(
-                      draft,
-                      EXPLORATION_PAGES[nextIndex],
-                    ),
-                );
-                render();
-              }
-            } catch (error) {
-              handleRuntimeError(error);
-            }
-          },
-        });
+        explorationSwipeCleanup = null; /* Exploration now uses explicit route cards. */
         break;
       case "MATCH_START":
         root.innerHTML = matchStartTemplate(runtime);
@@ -1997,7 +1969,7 @@ export function createTournamentFlowController({
           const next = root.querySelector(`[data-action="${AUTO_PHASE_ACTIONS[runtime.phase]}"]`) ??
             (runtime.phase === 'MATCH_RESULT' ? root.querySelector('[data-action="match-result-total"]') : null);
           if (next && !next.disabled) next.click();
-          else if (runtime.phase.includes('EXPLORATION')) root.querySelector('[data-action="facility-respawn"]:not(:disabled)')?.click();
+          else if (runtime.phase.includes('EXPLORATION')) root.querySelector(`[data-action="expedition-route"][data-route-id="${recommendedRoute(runtime)}"]:not(:disabled)`)?.click();
         }, runtime.phase === 'STRATEGY_SELECT' ? 6500 : 4000);
       }
     }
@@ -2494,6 +2466,10 @@ export function createTournamentFlowController({
           );
           render();
           return;
+        }
+        if(action === 'expedition-route') {
+          runtimeManager.update('expedition_route_selected',d=>selectExpeditionRouteToDraft(d,actionElement.dataset.routeId));
+          runtimeManager.checkpoint('expedition_route_selected');render();return;
         }
         if (action === "exploration-complete") {
           const phase = runtimeManager.getSnapshot().phase;

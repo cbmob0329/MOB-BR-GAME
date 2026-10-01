@@ -1,19 +1,21 @@
-import {beginLiveBattleToDraft,updateLiveBattleToDraft} from './battle-core.js?v=76';
-import {getUsableReadySkills,skillEffectiveCt} from './battle-actions.js?v=76';
-import {assetPath} from '../assets.js?v=76';
-import {autoItem} from '../../data/auto-items.js?v=76';
+import {arenaMarkup,createArenaPainter} from './arena-view.js?v=77';
+import {beginLiveBattleToDraft,updateLiveBattleToDraft} from './battle-core.js?v=77';
+import {getUsableReadySkills,skillEffectiveCt} from './battle-actions.js?v=77';
+import {assetPath} from '../assets.js?v=77';
+import {autoItem} from '../../data/auto-items.js?v=77';
 const esc=v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 export function liveBattleMarkup(runtime){
  const battle=runtime.activeBattle, players=Object.values(battle.participants),own=players.filter(p=>p.teamId===battle.leftTeamId),enemy=players.filter(p=>p.teamId!==battle.leftTeamId);
- const card=p=>`<article class="live-fighter" data-live-player="${esc(p.playerId)}"><img src="${esc(assetPath(p.image))}" alt=""><div><span>${esc(p.role)}</span><h3>${esc(p.name)}</h3><div class="live-hp"><i></i></div><strong data-hp></strong><small data-state></small></div><b data-hit aria-hidden="true"></b></article>`;
- return `<main class="live-battle" style="--arena-image:url('${esc(new URL(assetPath(runtime.map.image),globalThis.location?.href ?? 'http://localhost/').href)}')"><header class="live-battle__header"><div><span>${esc(runtime.entryData.tournament.stageName??'MOB BR')}</span><h1>第${runtime.match}試合 <small>ROUND ${runtime.round}</small></h1></div><strong data-live-clock></strong><button type="button" data-live-pause>一時停止</button></header><section class="live-score"><strong data-live-allies></strong><span>VS</span><strong data-live-enemies></strong></section><div class="live-arena"><section class="live-squad"><h2>${esc(battle.teamNames[battle.leftTeamId])}</h2>${own.map(card).join('')}</section><section class="live-squad live-squad--enemy"><h2>${esc(battle.teamNames[battle.rightTeamId])}</h2>${enemy.map(card).join('')}</section></div><div class="live-callout" role="status" aria-live="polite"><span data-live-event>交戦開始。通常攻撃は自動です。</span></div><section class="live-controls"><header><div><h2>スキルをタップして発動</h2><p>光ったら準備完了。回復・蘇生は対象がいる時に使えます。</p></div><button type="button" data-live-auto aria-pressed="false">スキル AUTO OFF</button></header><div class="live-skill-grid">${own.map(p=>`<article><h3>${esc(p.name)}</h3>${p.skills.map(s=>`<button type="button" data-live-skill="${esc(s.skillId)}" data-live-actor="${esc(p.playerId)}"><span>${esc(s.name)}</span><strong>準備中</strong><i></i></button>`).join('')}<p class="live-equipment" data-live-item="${esc(p.playerId)}"></p></article>`).join('')}</div><footer><span>通常攻撃・アイテムは自動</span><button type="button" data-live-speed>速度 1倍</button><button type="button" data-live-finish>オートで最後まで</button></footer></section></main>`;
+ return `<main class="live-battle" style="--arena-image:url('${esc(new URL(assetPath(runtime.map.image),globalThis.location?.href ?? 'http://localhost/').href)}')"><header class="live-battle__header"><div><span>${esc(runtime.entryData.tournament.stageName??'MOB BR')}</span><h1>第${runtime.match}試合 <small>ROUND ${runtime.round}</small></h1></div><strong data-live-clock></strong><button type="button" data-live-pause>一時停止</button></header><section class="live-score"><strong data-live-allies></strong><span>VS</span><strong data-live-enemies></strong></section><div class="live-arena">${arenaMarkup(battle)}</div><div class="live-callout" role="status" aria-live="polite"><span data-live-event>交戦開始。通常攻撃は自動です。</span></div><section class="live-controls"><header><div><h2>スキルをタップして発動</h2><p>光ったら準備完了。回復・蘇生は対象がいる時に使えます。</p></div><button type="button" data-live-auto aria-pressed="false">スキル AUTO OFF</button></header><div class="live-skill-grid">${own.map(p=>`<article><h3>${esc(p.name)}</h3>${p.skills.map(s=>`<button type="button" data-live-skill="${esc(s.skillId)}" data-live-actor="${esc(p.playerId)}"><span>${esc(s.name)}</span><strong>準備中</strong><i></i></button>`).join('')}<p class="live-equipment" data-live-item="${esc(p.playerId)}"></p></article>`).join('')}</div><footer><span>通常攻撃・アイテムは自動</span><button type="button" data-live-speed>速度 1倍</button><button type="button" data-live-finish>オートで最後まで</button></footer><details class="arena-guide"><summary>能力とアリーナのしくみ</summary><p>スタミナ：HP / フィジカル：威力・防御 / エイム：命中<br>アジリティ：移動・回避 / テクニック：射撃の安定<br>マインド：防御・行動の安定 / サポート：回復・支援</p><p>攻撃役は接近、支援役は後方へ。低HP・リロード中は退避します。遮蔽物越しは命中と威力が低下します。</p></details></section></main>`;
 }
 export function createLiveBattleController({root,runtimeManager,onComplete,onError}) {
- let timer=null,paused=false,destroyed=false,speed=1,lastEvent='',previousHp=new Map();
+ let timer=null,paused=false,destroyed=false,speed=1,lastEvent='',previousHp=new Map(),paintArena=null;
  const snapshot=()=>runtimeManager.getSnapshot();
  function checkpoint(){if(!destroyed)runtimeManager.checkpoint('live_battle_progress');}
  function draw(){
   const runtime=snapshot(),b=runtime.activeBattle;if(!b)return;
+  root.querySelector('.live-battle').dataset.paused=String(paused);
+  root.querySelector('.live-battle').dataset.reducedMotion=String(runtime.entryData.settings.reducedMotion);
   const all=Object.values(b.participants),own=all.filter(p=>p.teamId===b.leftTeamId),enemy=all.filter(p=>p.teamId!==b.leftTeamId);
   root.querySelector('[data-live-clock]').textContent=`残り ${Math.max(0,(b.durationSeconds-b.elapsedSeconds)*2).toFixed(1)}秒`;
   root.querySelector('[data-live-allies]').textContent=`味方 ${own.filter(p=>p.combatState==='alive').length}人`;
@@ -36,6 +38,7 @@ export function createLiveBattleController({root,runtimeManager,onComplete,onErr
    const item=b.liveControls.items.find(i=>i.playerId===p.playerId),el=[...root.querySelectorAll('[data-live-item]')].find(e=>e.dataset.liveItem===p.playerId);
    el.textContent=item?`${autoItem(item.itemId).name} · ${item.used?'使用済み':'自動待機'}`:'アイテム未装備';
   }
+  paintArena?.(b);
   const event=[...b.events].reverse().find(e=>['skill_cutin','auto_item','down','confirmed_kill','heal'].includes(e.type));
   if(event&&event.eventId!==lastEvent){lastEvent=event.eventId;const actor=b.participants[event.actorPlayerId]?.name??'',target=b.participants[event.targetPlayerId]?.name??'';root.querySelector('[data-live-event]').textContent=event.type==='auto_item'?`${actor}：${event.itemName}を自動使用！`:event.type==='skill_cutin'?`${actor}：${event.skillName}！`:event.type==='heal'?`${target} HP +${event.amount}`:`${target||actor}が${event.type==='down'?'ダウン':'戦闘不能'}！`;}
  }
@@ -51,6 +54,6 @@ export function createLiveBattleController({root,runtimeManager,onComplete,onErr
  }
  function visibility(){if(document.hidden){paused=true;checkpoint();draw();}}
  function destroy(){destroyed=true;clearInterval(timer);root.removeEventListener('click',click);globalThis.removeEventListener('pagehide',checkpoint);document.removeEventListener('visibilitychange',visibility);}
- return {start(){try{paused=Boolean(snapshot().activeBattle);runtimeManager.update('live_battle_started',beginLiveBattleToDraft);root.innerHTML=liveBattleMarkup(snapshot());root.addEventListener('click',click);globalThis.addEventListener('pagehide',checkpoint);document.addEventListener('visibilitychange',visibility);checkpoint();draw();schedule();}catch(e){destroy();onError(e);}},destroy};
+ return {start(){try{paused=Boolean(snapshot().activeBattle);runtimeManager.update('live_battle_started',beginLiveBattleToDraft);root.innerHTML=liveBattleMarkup(snapshot());paintArena=createArenaPainter(root,snapshot().entryData.settings.reducedMotion);root.addEventListener('click',click);globalThis.addEventListener('pagehide',checkpoint);document.addEventListener('visibilitychange',visibility);checkpoint();draw();schedule();}catch(e){destroy();onError(e);}},destroy};
 }
 

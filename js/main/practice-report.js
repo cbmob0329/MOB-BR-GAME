@@ -1,5 +1,5 @@
-import { TRAINING_PROGRAMS } from '../../data/training-data.js?v=76';
-import { POINT_NAMES, lastWeekTraining, nextTournamentText } from './training-view.js?v=76';
+import { TRAINING_PROGRAMS } from '../../data/training-data.js?v=77';
+import { POINT_NAMES, lastWeekTraining, nextTournamentText } from './training-view.js?v=77';
 
 const escape = value => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 const dateText = date => `${date.year}年 ${date.month}月 第${date.week}週`;

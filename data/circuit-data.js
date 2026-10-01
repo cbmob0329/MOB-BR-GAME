@@ -8,14 +8,14 @@
 import {
   getChampionshipPoints,
   rankToCharacterValue,
-} from "./game-data.js?v=76";
+} from "./game-data.js?v=77";
 import {
   DENDEN_CPU_TEAMS,
   LOCAL_CPU_TEAMS,
   NATIONAL_CPU_TEAMS,
   getCpuLeagueForTeamId,
   getWorldCpuTeamsForYear,
-} from "./cpu-league-registry.js?v=76";
+} from "./cpu-league-registry.js?v=77";
 
 export const CIRCUIT_DATA_VERSION = "mobbr-circuit-data-1.5.0";
 

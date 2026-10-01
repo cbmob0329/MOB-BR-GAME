@@ -1,3 +1,4 @@
+import {arenaShot,arenaDistance} from './arena-space.js?v=77';
 /**
  * MOB BR deterministic battle actions.
  *
@@ -25,12 +26,12 @@ import {
   calculateSkillCt,
   isAssistEligible,
   resolveWeaponBattleValue,
-} from "../../data/battle-config.js?v=76";
+} from "../../data/battle-config.js?v=77";
 import {
   STAT_IDS,
   clamp,
   rankToCharacterValue,
-} from "../../data/game-data.js?v=76";
+} from "../../data/game-data.js?v=77";
 import {
   adjustDebuffForSpecialAbility,
   applyNextBattleSpecialEffects,
@@ -49,7 +50,7 @@ import {
   normalizeUniqueSkill,
   recordSpecialAttackOutcome,
   refreshSpecialDynamicEffects,
-} from "./special-abilities.js?v=76";
+} from "./special-abilities.js?v=77";
 
 export const BATTLE_ACTIONS_VERSION =
   "mobbr-battle-actions-2.3.0";
@@ -196,6 +197,7 @@ export function appendBattleEvent(
     time: roundTime(battle.elapsedSeconds),
     tick: battle.tickCount,
     ...deepClone(detail),
+    ...(battle.arena && detail.actorPlayerId ? {arenaFrom:deepClone(battle.participants[detail.actorPlayerId]?.arena??null),arenaTo:deepClone(battle.participants[detail.targetPlayerId]?.arena??null)} : {}),
   };
   battle.events.push(event);
   return event;
@@ -832,6 +834,16 @@ export function selectAttackTarget(
     return null;
   }
 
+  if (battle.arena) {
+    const score=t=>arenaDistance(actor,t)+(arenaShot(battle,actor,t).blocked?12:0)+t.hp/t.maxHp*8;
+    const target=[...candidates].sort((a,b)=>score(a)-score(b)||a.playerId.localeCompare(b.playerId))[0];
+    const distance=arenaDistance(actor,target);
+    actor.currentDistance=distance<25?'close':distance<48?'mid':'far';
+    actor.arena.targetId=target.playerId;
+    actor.arena.facing=Math.atan2(target.arena.y-actor.arena.y,target.arena.x-actor.arena.x)*180/Math.PI;
+    return target;
+  }
+
   return weightedChoice(
     battle,
     candidates.map((target) => {
@@ -1051,7 +1063,7 @@ export function applyBattleDamage(
     );
   }
   // Both teams share this pace adjustment, leaving time to choose a skill.
-  if (battle.liveControls) damage = Math.round(damage * 0.55);
+  if (battle.liveControls) damage = Math.round(damage * 0.55 * arenaShot(battle,actor,target).damage);
   if (target.combatState === "dead") {
     return {
       applied: false,
@@ -1429,7 +1441,7 @@ export function performNormalAttack(
                 temporaryModifier:
                   getTemporaryAccuracyModifier(actor) +
                   (actor.playerMasteryAccuracy ?? 0) +
-                  special.accuracyModifier -
+                  special.accuracyModifier + arenaShot(battle,actor,target).accuracy -
                   recoilPenalty +
                   battleLuckAccuracy(battle),
               })
@@ -2031,7 +2043,7 @@ function executeSingleAttackSkill(
           getTemporaryAccuracyModifier(actor) +
           (actor.playerMasteryAccuracy ?? 0) +
           0.03 +
-          special.accuracyModifier +
+          special.accuracyModifier + arenaShot(battle,actor,target).accuracy +
           battleLuckAccuracy(battle),
       });
   const hit =
@@ -2178,7 +2190,7 @@ function executeSmokeLauncher(
         temporaryModifier:
           getTemporaryAccuracyModifier(actor) +
           (actor.playerMasteryAccuracy ?? 0) +
-          special.accuracyModifier +
+          special.accuracyModifier + arenaShot(battle,actor,target).accuracy +
           battleLuckAccuracy(battle),
       });
     const hit =

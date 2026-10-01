@@ -1,15 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createNewGameState, serializeSaveState, deserializeSaveState, validateSaveState } from '../js/main/state.js?v=76';
-import { executeTrainingToDraft, performStrategyMeetingToDraft, purchaseConsumableToDraft, getTournamentWeekStatus, renderTrainingManagement } from '../js/main/management.js?v=76';
-import { advanceGameWeek, getTournamentEventsForDate } from '../data/game-data.js?v=76';
-import { createTournamentEntryData } from '../js/main/tournament-bridge.js?v=76';
-import { createTournamentRuntime } from '../js/tournament/runtime.js?v=76';
-import { beginExplorationToDraft, renderExplorationScreen, completeExplorationToDraft, useInventoryItemToDraft, selectSearchCandidateToDraft, useRespawnTurntableToDraft } from '../js/tournament/exploration.js?v=76';
-import { trainingGainText, nextTournamentText, weeklyGrowthSummary, lastWeekTraining } from '../js/main/training-view.js?v=76';
-import { WEEKLY_EVENTS } from '../data/weekly-event-data.js?v=76';
-import { createBattleFromTournamentRuntime, runBattleToCompletion, applyBattleResultToTournamentRuntime } from '../js/tournament/battle-core.js?v=76';
-import { createBattleReplayModel, applyBattleReplayEvent, renderBattleReplayScreen, battlePresentationHold } from '../js/tournament/battle-ui.js?v=76';
+import { createNewGameState, serializeSaveState, deserializeSaveState, validateSaveState } from '../js/main/state.js?v=77';
+import { executeTrainingToDraft, performStrategyMeetingToDraft, purchaseConsumableToDraft, getTournamentWeekStatus, renderTrainingManagement } from '../js/main/management.js?v=77';
+import { advanceGameWeek, getTournamentEventsForDate } from '../data/game-data.js?v=77';
+import { createTournamentEntryData } from '../js/main/tournament-bridge.js?v=77';
+import { createTournamentRuntime } from '../js/tournament/runtime.js?v=77';
+import { beginExplorationToDraft, renderExplorationScreen, completeExplorationToDraft, useInventoryItemToDraft, selectSearchCandidateToDraft, useRespawnTurntableToDraft } from '../js/tournament/exploration.js?v=77';
+import { trainingGainText, nextTournamentText, weeklyGrowthSummary, lastWeekTraining } from '../js/main/training-view.js?v=77';
+import { WEEKLY_EVENTS } from '../data/weekly-event-data.js?v=77';
+import { createBattleFromTournamentRuntime, runBattleToCompletion, applyBattleResultToTournamentRuntime } from '../js/tournament/battle-core.js?v=77';
+import { createBattleReplayModel, applyBattleReplayEvent, renderBattleReplayScreen, battlePresentationHold } from '../js/tournament/battle-ui.js?v=77';
 import { writeFileSync } from 'node:fs';
 
 function fresh() {
@@ -82,14 +82,14 @@ function tournament() {
   return {state,entry,runtime:structuredClone(createTournamentRuntime(entry))};
 }
 
-test('tournament carries automatic equipment and facility exploration needs no item clicks',()=>{
+test('tournament carries automatic equipment and exploration offers route choices',()=>{
   const {entry,runtime}=tournament();
   assert.equal(entry.carryItems[0].itemId,'scope');assert.ok(entry.carryItems.slice(1).every(i=>i===null));
   beginExplorationToDraft(runtime,{exploreIndex:1});
   const html=renderExplorationScreen(runtime);
   assert.doesNotMatch(html,/data-action="exploration-item-open"/);
-  assert.match(html,/エリア施設/);
-  assert.doesNotMatch(html,/data-action="exploration-complete"\s+disabled/);
+  assert.match(html,/救護ルート/);
+  assert.match(html,/data-action="exploration-complete"\s+disabled/);
   completeExplorationToDraft(runtime);
   assert.equal(runtime.explorationRuntime.completedKeys.length,1);
 });

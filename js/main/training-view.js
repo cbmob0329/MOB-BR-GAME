@@ -1,6 +1,6 @@
-import {TRAINING_COURSES,trainingReward} from "../../data/simple-growth.js?v=76";
-import { TRAINING_PROGRAMS, calculateTrainingGain } from '../../data/training-data.js?v=76';
-import { advanceGameWeek, getTournamentEventsForDate } from '../../data/game-data.js?v=76';
+import {TRAINING_COURSES,trainingReward} from "../../data/simple-growth.js?v=77";
+import { TRAINING_PROGRAMS, calculateTrainingGain } from '../../data/training-data.js?v=77';
+import { advanceGameWeek, getTournamentEventsForDate } from '../../data/game-data.js?v=77';
 
 export const POINT_NAMES = Object.freeze({ power: '筋力', tech: '技術', mental: '精神', shoot: '射撃' });
 const esc = (value) => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');

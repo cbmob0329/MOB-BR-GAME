@@ -1,5 +1,5 @@
-import {autoItem} from "../../data/auto-items.js?v=76";
-import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=76";
+import {autoItem} from "../../data/auto-items.js?v=77";
+import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=77";
 /**
  * MOB BR main/tournament transfer contract.
  *
@@ -20,7 +20,7 @@ import {
   getPlacementPoints,
   getTournamentEventsForDate,
   isChampionshipYear,
-} from "../../data/game-data.js?v=76";
+} from "../../data/game-data.js?v=77";
 import {
   CASUAL_TOURNAMENT_RULES,
   FORMAL_CIRCUIT_RULES,
@@ -34,41 +34,41 @@ import {
   selectTeamIds,
   sourcePoolForTeamId,
   teamSeed,
-} from "../../data/circuit-data.js?v=76";
+} from "../../data/circuit-data.js?v=77";
 import {
   DENDEN_CPU_TEAMS,
   LOCAL_CPU_TEAMS,
   NATIONAL_CPU_TEAMS,
   getWorldCpuTeamsForYear,
-} from "../../data/cpu-league-registry.js?v=76";
+} from "../../data/cpu-league-registry.js?v=77";
 import {
   BATTLE_CONFIG_VERSION,
-} from "../../data/battle-config.js?v=76";
+} from "../../data/battle-config.js?v=77";
 import {
   CONSUMABLE_ITEMS,
   ITEM_MASTER_VERSION,
   getItem,
-} from "../../data/shop-data.js?v=76";
+} from "../../data/shop-data.js?v=77";
 import {
   getCasualCup,
-} from "../../data/casual-data.js?v=76";
+} from "../../data/casual-data.js?v=77";
 import {
   STRATEGIES,
   STRATEGY_MASTER_VERSION,
-} from "../../data/strategy-data.js?v=76";
+} from "../../data/strategy-data.js?v=77";
 import {
   DuplicateTournamentResultError,
   STORAGE_KEYS,
   calculateChecksum,
-} from "./state.js?v=76";
+} from "./state.js?v=77";
 import {
   applyMotivationToStats,
   normalizeMotivationRecord,
-} from "../../data/motivation-data.js?v=76";
+} from "../../data/motivation-data.js?v=77";
 import {
   EMPLOYEE_DATA_VERSION,
   getTotalEmployeeHpBonus,
-} from "../../data/employee-data.js?v=76";
+} from "../../data/employee-data.js?v=77";
 
 export const TOURNAMENT_BRIDGE_VERSION = "mobbr-tournament-bridge-2.7.0";
 export const TOURNAMENT_ENTRY_SCHEMA_VERSION =

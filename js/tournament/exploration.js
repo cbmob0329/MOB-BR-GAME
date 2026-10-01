@@ -1,5 +1,6 @@
-import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=76";
-import { renderOrderPanel } from './match-experience.js?v=76';
+import {renderExpedition} from './expedition.js?v=77';
+import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=77";
+import { renderOrderPanel } from './match-experience.js?v=77';
 /**
  * MOB BR tournament exploration, bag, facilities, and strategy selection.
  *
@@ -8,20 +9,20 @@ import { renderOrderPanel } from './match-experience.js?v=76';
  * runtime transaction draft; the main save is never touched directly.
  */
 
-import { assetPath } from "../assets.js?v=76";
+import { assetPath } from "../assets.js?v=77";
 import {
   CONSUMABLE_ITEMS,
   ITEM_MASTER_VERSION,
   getItem,
-} from "../../data/shop-data.js?v=76";
+} from "../../data/shop-data.js?v=77";
 import {
   STRATEGIES,
   STRATEGY_RANKS,
   STRATEGY_RULES,
-} from "../../data/strategy-data.js?v=76";
+} from "../../data/strategy-data.js?v=77";
 import {
   getPlayableRoundCount,
-} from "./round.js?v=76";
+} from "./round.js?v=77";
 
 export const EXPLORATION_VERSION =
   "mobbr-tournament-exploration-1.9.1";
@@ -1805,6 +1806,10 @@ function backpackFullTemplate(runtime) {
 }
 
 export function renderExplorationScreen(runtime) {
+  return renderExpedition(runtime);
+}
+
+function renderLegacyExplorationScreen(runtime) {
   const key =
     runtime.explorationRuntime.currentExploreKey;
   const choice =

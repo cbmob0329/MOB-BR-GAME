@@ -1,8 +1,8 @@
-import {AUTO_ITEMS,autoItem} from "../../data/auto-items.js?v=76";
-import {renderAutoEquipment,saveAutoEquipment} from "./auto-equipment.js?v=76";
-import { TRAINING_COURSES, trainingReward } from "../../data/simple-growth.js?v=76";
-import { CONSUMABLES_ENABLED, strategyResearchPoints } from "../../data/feature-policy.js?v=76";
-import { renderTrainingPlan, trainingGainText } from "./training-view.js?v=76";
+import {AUTO_ITEMS,autoItem} from "../../data/auto-items.js?v=77";
+import {renderAutoEquipment,saveAutoEquipment} from "./auto-equipment.js?v=77";
+import { TRAINING_COURSES, trainingReward } from "../../data/simple-growth.js?v=77";
+import { CONSUMABLES_ENABLED, strategyResearchPoints } from "../../data/feature-policy.js?v=77";
+import { renderTrainingPlan, trainingGainText } from "./training-view.js?v=77";
 /**
  * MOB BR company-management feature.
  *
@@ -12,23 +12,23 @@ import { renderTrainingPlan, trainingGainText } from "./training-view.js?v=76";
 
 import {
   assetPath,
-} from "../assets.js?v=76";
+} from "../assets.js?v=77";
 import {
   TRAINING_POINT_IDS,
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=76";
+} from "../../data/game-data.js?v=77";
 import {
   isCasualTournamentType,
   resolveCpuTeamMaster,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=76";
+} from "../../data/circuit-data.js?v=77";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
   calculateWeeklyTraining,
-} from "../../data/training-data.js?v=76";
+} from "../../data/training-data.js?v=77";
 import {
   BADGE_PACKS,
   CARD_PACKS,
@@ -40,17 +40,17 @@ import {
   getItem,
   getWeaponSkin,
   isCardPackUnlocked,
-} from "../../data/shop-data.js?v=76";
+} from "../../data/shop-data.js?v=77";
 import {
   STRATEGY_MEETING_RULES,
   getStrategyMeetingProbabilities,
-} from "../../data/coach-data.js?v=76";
+} from "../../data/coach-data.js?v=77";
 import {
   STRATEGIES,
   STRATEGY_RANKS,
   getStrategiesByRank,
   getStrategy,
-} from "../../data/strategy-data.js?v=76";
+} from "../../data/strategy-data.js?v=77";
 import {
   BADGE_COLLECTION,
   CARD_COLLECTION,
@@ -64,7 +64,7 @@ import {
   getCollectionCompletion,
   getCollectionEntry,
   getRoomMaster,
-} from "../../data/collection-data.js?v=76";
+} from "../../data/collection-data.js?v=77";
 import {
   advanceWeeksToDraft,
   applyResourceDeltaToDraft,
@@ -73,7 +73,7 @@ import {
   purchaseDiningSetMealToDraft,
   serveDiningMealToDraft,
   settleDiningMealsToDraft,
-} from "./state.js?v=76";
+} from "./state.js?v=77";
 import {
   COOKING_RULES,
   COOKING_SCREEN_ASSETS,
@@ -90,10 +90,10 @@ import {
   getRecipeCandidates,
   isCookingJobReady,
   startCookingJobToDraft,
-} from "../../data/cooking-data.js?v=76";
+} from "../../data/cooking-data.js?v=77";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=76";
+} from "./tournament-bridge.js?v=77";
 import {
   DINING_EATING_SPEECHES,
   DINING_HUNGRY_SPEECHES,
@@ -101,7 +101,7 @@ import {
   diningWeekKey,
   getDiningMasterSpeech,
   getWeeklyDiningSets,
-} from "../../data/dining-data.js?v=76";
+} from "../../data/dining-data.js?v=77";
 
 export const MANAGEMENT_FEATURE_VERSION =
   "mobbr-management-feature-3.0.4";

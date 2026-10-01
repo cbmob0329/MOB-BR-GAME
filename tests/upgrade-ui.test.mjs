@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createNewGameState} from '../js/main/state.js?v=76';
-import {calculatePlayerStatUpgradePlan,applyPlayerStatUpgradePlanToDraft,calculateWeaponUpgradePlan,applyWeaponUpgradePlanToDraft,renderAbilityUpSection,renderEquipmentSection} from '../js/main/team.js?v=76';
+import {createNewGameState} from '../js/main/state.js?v=77';
+import {calculatePlayerStatUpgradePlan,applyPlayerStatUpgradePlanToDraft,calculateWeaponUpgradePlan,applyWeaponUpgradePlanToDraft,renderAbilityUpSection,renderEquipmentSection} from '../js/main/team.js?v=77';
 
 function fixture(){
   const state=structuredClone(createNewGameState({companyBaseName:'UI検証',playerNames:{IGL:'指揮',ATK:'攻撃',SUP:'支援'}}));

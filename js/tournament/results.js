@@ -7,34 +7,34 @@
  * validates the signed TournamentResultData.
  */
 
-import { assetPath } from "../assets.js?v=76";
-import { renderTournamentEpilogue } from './match-experience.js?v=76';
+import { assetPath } from "../assets.js?v=77";
+import { renderTournamentEpilogue } from './match-experience.js?v=77';
 import {
   getChampionshipPoints,
   getPlacementPoints,
-} from "../../data/game-data.js?v=76";
+} from "../../data/game-data.js?v=77";
 import {
   STRATEGY_RULES,
-} from "../../data/strategy-data.js?v=76";
+} from "../../data/strategy-data.js?v=77";
 import {
   FORMAL_CIRCUIT_RULES,
   isCasualTournamentType,
-} from "../../data/circuit-data.js?v=76";
+} from "../../data/circuit-data.js?v=77";
 import {
   createCasualTrophy,
-} from "../../data/casual-data.js?v=76";
+} from "../../data/casual-data.js?v=77";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=76";
+} from "./circuit.js?v=77";
 import {
   getPlayableRoundCount,
-} from "./round.js?v=76";
+} from "./round.js?v=77";
 import {
   finalizeTournamentResultData,
   resolvePlacementRewards,
   writeTournamentResultToStorage,
-} from "../main/tournament-bridge.js?v=76";
+} from "../main/tournament-bridge.js?v=77";
 
 export const RESULTS_VERSION =
   "mobbr-tournament-results-2.7.0";
