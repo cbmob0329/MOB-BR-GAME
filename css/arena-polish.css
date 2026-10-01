@@ -1,0 +1,95 @@
+/* Final layout layer: short labels, stable cards, restrained arena lighting. */
+body.pw-ui #app .page-content .simple-training .training-plan__intro{padding:18px!important;border-radius:16px!important;background:linear-gradient(120deg,#091e32ee,#123a4bee),repeating-linear-gradient(110deg,transparent 0 28px,#52dbff22 29px 30px)!important;overflow:visible!important}
+body.pw-ui #app .page-content .simple-training .training-plan__intro h2{display:table;margin:14px auto 20px!important;padding:14px 22px!important;font-size:clamp(16px,2.5vw,28px)!important;line-height:1.3!important;white-space:nowrap!important;border:2px solid #72efff;border-radius:10px;box-shadow:0 0 9px #40deff,0 0 24px #2edbff55,inset 0 0 18px #40deff22,0 9px 15px #0008;text-shadow:0 0 10px #68ecff,0 3px 3px #000;animation:arena-float 3.6s ease-in-out infinite}
+body.pw-ui #app .page-content .training-plan__schedule{padding:12px 16px!important;border-left:5px solid #ffce53!important;background:#ffe49a!important;color:#183246!important;font-size:clamp(14px,2vw,19px)!important;font-weight:900!important;border-radius:8px;line-height:1.5!important;margin:12px 0 0!important}
+body.pw-ui #app .page-content .training-plan__intro>p:not(.training-plan__schedule){font-size:13px!important;line-height:1.5!important;margin:6px 0!important}
+body.pw-ui #app .growth-wallet{padding:12px 16px!important;gap:10px!important;flex-wrap:nowrap!important}
+body.pw-ui #app .growth-wallet>span{display:flex;align-items:center;gap:10px;white-space:nowrap;font-size:13px!important;min-width:0}
+body.pw-ui #app .growth-wallet strong{margin:0!important;font-size:22px!important}
+body.pw-ui #app .growth-wallet button{flex:0 0 auto;white-space:nowrap!important;font-size:13px!important;padding:8px 12px!important}
+body.pw-ui #app .team-point-chip,body.pw-ui #app .upgrade-resource-chip{white-space:nowrap!important;min-width:max-content!important}
+body.pw-ui #app .simple-course-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important}
+body.pw-ui #app .page-content .simple-course{aspect-ratio:1;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:8px!important;text-align:center!important;padding:14px 6px!important;min-width:0!important;min-height:0!important;border-radius:14px!important;overflow:visible!important}
+body.pw-ui #app .simple-course img{width:clamp(30px,6vw,70px)!important;height:clamp(30px,6vw,70px)!important;object-fit:contain}
+body.pw-ui #app .simple-course h3{font-size:clamp(11px,1.8vw,22px)!important;line-height:1.3!important;white-space:nowrap!important;margin:0!important;letter-spacing:-.04em}
+body.pw-ui #app .page-content .simple-course>strong{font-size:clamp(13px,2vw,24px)!important;line-height:1.2!important;white-space:nowrap}
+body.pw-ui #app .simple-course small{font-size:clamp(10px,1.4vw,14px)!important;line-height:1.3!important;white-space:nowrap}
+body.pw-ui #app .simple-course[aria-pressed=true]:after{content:'✓';top:5px;right:5px;font-size:12px;padding:0 4px;line-height:18px}
+body.pw-ui #app .training-milestone{padding:12px 16px!important;line-height:1.5!important;font-size:14px!important}
+body.pw-ui #app .training-milestone p{font-size:12px!important}
+body.pw-ui #app .training-plan__footer p{font-size:14px!important;line-height:1.6!important}
+/* The dialogue spans the modal, instead of being squeezed beside the speaker. */
+#modalRoot .weekly-event-stage__scene{display:flex!important;flex-wrap:wrap!important;gap:8px!important;position:relative!important;padding:16px!important}
+#modalRoot .weekly-event-stage__speaker{position:absolute!important;left:24px!important;top:16px!important;width:90px!important}
+#modalRoot .weekly-event-stage__speaker img{width:90px!important;height:120px!important}
+#modalRoot .weekly-event-stage__dialogue{width:100%!important;min-width:0!important;overflow:visible!important}
+#modalRoot .weekly-event-target{min-height:120px!important;margin:0 0 8px 110px!important;grid-template-columns:85px 1fr!important}
+#modalRoot .weekly-event-target img{width:85px!important;height:120px!important}
+#modalRoot .weekly-event-speech{width:100%!important;padding:14px 16px!important;box-sizing:border-box}
+#modalRoot .weekly-event-speech p{font-size:clamp(14px,2vw,16px)!important;line-height:1.65!important;white-space:normal!important;overflow-wrap:break-word!important;word-break:normal!important;margin:6px 0!important}
+/* Cards use a responsive grid and intrinsic height; names and icons remain visible. */
+body.pw-ui #app .page-content:has([data-live-section=special]){background:linear-gradient(135deg,#bed8e9e8,#e3f2fae8),url('../back/training-metal.png') center/cover!important}
+body.pw-ui #app .special-ability-list--generation50{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))!important;gap:12px!important;height:auto!important;max-height:none!important;overflow:visible!important;padding:8px 0 24px!important}
+body.pw-ui #app .special-ability-card--generation50{height:auto!important;min-height:185px!important;grid-template-rows:72px auto auto auto!important;padding:12px 8px!important;gap:5px!important;overflow:visible!important;align-content:start!important}
+body.pw-ui #app .special-ability-card__image{width:100%!important;height:72px!important;position:static!important;display:block!important;overflow:visible!important}
+body.pw-ui #app .special-ability-card__image img{width:100%!important;height:72px!important;object-fit:contain!important;transform:none!important}
+body.pw-ui #app .special-ability-card__id{display:none!important}
+body.pw-ui #app .special-ability-card--generation50>strong{font-size:14px!important;line-height:1.45!important;white-space:normal!important;overflow:visible!important;max-height:none!important;display:block!important;-webkit-line-clamp:unset!important}
+body.pw-ui #app .special-ability-card--generation50>:is(em,small){font-size:12px!important;line-height:1.4!important;height:auto!important;white-space:normal!important}
+/* Result arena: light beams, expanding rings, and staggered victory jumps. */
+.diamond-report{position:relative;isolation:isolate;overflow:hidden!important;background:radial-gradient(ellipse at 50% 35%,#164e70,#081a2d 75%)!important;color:#f0fbff!important}
+.diamond-report:before,.progression-presentation--special:before{content:'';position:absolute;inset:-60%;z-index:-1;pointer-events:none;background:repeating-conic-gradient(from 15deg,transparent 0 28deg,#42dfff18 29deg 31deg,transparent 32deg 60deg);animation:arena-rays 24s linear infinite}
+.diamond-report .practice-report__header,.diamond-report .practice-report__content,.diamond-report .practice-report__footer{background:transparent!important;color:#edfaff!important;position:relative}
+.diamond-report :is(h1,p,strong){color:inherit!important}
+.diamond-report .practice-report__header{padding:22px 20px 8px!important}.diamond-report .practice-report__header h1{font-size:clamp(22px,4vw,34px)!important;text-shadow:0 0 18px #61dfff77}
+.diamond-report .practice-report__content{padding:12px 22px!important}
+.diamond-report .diamond-reward{position:relative;padding:16px!important;background:#082c43e8!important;color:#b9faff!important;border:1px solid #59d7f7;box-shadow:0 0 24px #30baff44,inset 0 0 24px #46dbff22;animation:arena-pop .5s ease-out both}
+.diamond-report .diamond-reward:after{content:'';position:absolute;inset:5%;border:2px solid #78eaff;border-radius:30%;pointer-events:none;animation:arena-ring 1.8s ease-out 2}
+.diamond-report .diamond-reward strong{font-size:clamp(44px,8vw,64px)!important;text-shadow:0 0 18px #5ceaff}.diamond-report .diamond-reward img{width:42px;height:42px}.diamond-report .diamond-reward p{font-size:16px;margin:6px}
+.diamond-report .training-team-lineup{gap:14px;margin:18px 0 10px}.diamond-report .training-team-lineup>div{position:relative;min-width:0;flex:1;max-width:130px}
+.diamond-report .training-team-lineup img{width:100%;height:110px;animation:arena-jump 1.2s ease-in-out calc(var(--member-index)*.14s) 3;filter:drop-shadow(0 8px 9px #34d7ff88)}
+.diamond-report .training-team-lineup>div:after{content:'';position:absolute;bottom:24px;left:15%;right:15%;height:10px;background:#59ddff66;border:1px solid #8defff;border-radius:50%;z-index:-1;box-shadow:0 0 15px #38dfff}
+.diamond-report .practice-report__footer{padding:12px 20px 20px!important}.diamond-report .practice-report__footer p{margin:0 0 8px;font-size:13px}
+.progression-presentation--special{isolation:isolate;background:radial-gradient(ellipse at center,#153d62,#061426 75%)!important;overflow:auto!important}
+.progression-presentation--special .progression-presentation__glow{border:2px solid #75efff;box-shadow:0 0 35px #59dfff,inset 0 0 35px #59dfff;border-radius:50%;animation:arena-ring 2s ease-out infinite}
+.progression-presentation--special .progression-presentation__entries{border:1px solid #69dfff;border-radius:16px;padding:16px;box-shadow:0 0 30px #44cfff55;background:#071c30e8;animation:arena-pop .6s ease-out both}
+@keyframes arena-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes arena-jump{0%,55%,100%{transform:translateY(0) scale(1)}18%{transform:translateY(3px) scale(1.04,.96)}35%{transform:translateY(-22px) scale(.98,1.03)}48%{transform:translateY(0) scale(1.03,.97)}}
+@keyframes arena-pop{from{opacity:0;transform:scale(.82)}to{opacity:1;transform:scale(1)}}
+@keyframes arena-ring{from{opacity:.8;transform:scale(.7)}to{opacity:0;transform:scale(1.3)}}
+@keyframes arena-rays{to{transform:rotate(360deg)}}
+@media(max-width:640px){body.pw-ui #app .page-content .simple-training .training-plan__intro{padding:12px!important}body.pw-ui #app .page-content .simple-training .training-plan__intro h2{padding:12px 9px!important;font-size:clamp(14px,4.2vw,21px)!important}body.pw-ui #app .simple-course-grid{gap:6px!important}body.pw-ui #app .page-content .simple-course{padding:10px 2px!important;gap:4px!important;border-width:2px!important}body.pw-ui #app .growth-wallet{padding:10px!important}body.pw-ui #app .growth-wallet>span{gap:5px}body.pw-ui #app .growth-wallet strong{font-size:20px!important}body.pw-ui #app .special-ability-list--generation50{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important}body.pw-ui #app .special-ability-card--generation50{min-height:174px!important}#modalRoot .weekly-event-stage__speaker{left:20px!important;width:75px!important}#modalRoot .weekly-event-target{margin-left:88px!important;grid-template-columns:70px 1fr!important}#modalRoot .weekly-event-target img{width:70px!important}#modalRoot .weekly-event-target strong{font-size:15px!important}.diamond-report .practice-report__content{padding:10px 16px!important}.diamond-report .training-team-lineup img{height:90px}}
+@media(prefers-reduced-motion:reduce){.diamond-report *,.diamond-report:before,.progression-presentation--special:before,.progression-presentation--special *,body.pw-ui #app .page-content .simple-training .training-plan__intro h2{animation:none!important}}
+body.pw-ui #app .page-content .simple-training .training-plan__intro p.training-plan__schedule{color:#183246!important;font-weight:900!important;text-shadow:none!important}
+body.pw-ui #app .management-app-content--train{padding:0!important;background:transparent!important}
+body.pw-ui #app .management-command-bar--train{min-height:0!important;padding:10px 14px!important;margin-bottom:12px!important}
+body.pw-ui #app .management-command-bar--train :is(span,p,em){display:none!important}
+body.pw-ui #app .management-command-bar--train h1{font-size:20px!important;margin:0!important}
+body.pw-ui #app .management-command-bar--train>img{height:36px!important;width:36px!important}
+#modalRoot .ability-detail-modal--generation50{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box;overflow:visible!important}
+#modalRoot .ability-detail-modal__visual{height:100px!important;min-height:0!important;width:100%!important}
+#modalRoot .ability-detail-modal__visual img{height:100px!important;width:100%!important;object-fit:contain!important}
+#modalRoot .ability-detail-modal--generation50 h3{font-size:20px!important;line-height:1.4!important}
+#modalRoot .ability-detail-modal--generation50 p{font-size:14px!important;line-height:1.65!important;white-space:normal!important}
+body.pw-ui #app .page-content .development-tabs{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:5px!important}
+body.pw-ui #app .page-content .development-tabs button{padding:6px 2px!important;min-width:0!important}
+body.pw-ui #app .page-content .development-tabs strong{font-size:clamp(10px,3vw,14px)!important;white-space:nowrap!important;line-height:1.3!important}
+body.pw-ui #app .team-point-grid{display:flex!important;padding:0!important;background:transparent!important;margin:8px 0!important}
+body.pw-ui #app .team-point-chip{display:flex!important;align-items:center!important;gap:12px!important;padding:10px 14px!important;width:100%!important;font-size:13px!important}
+body.pw-ui #app .team-point-chip strong{font-size:22px!important}
+body.pw-ui #app .special-ability-guide{padding:10px!important;font-size:12px!important;line-height:1.5!important;margin:8px 0!important}
+.practice-dialog:has(.diamond-report){background:#081a2d!important}
+.progression-presentation--special .progression-presentation__next{min-height:48px!important;margin-top:20px!important;background:#a7f3ff!important;color:#083249!important;border:1px solid #6ee5ff!important;border-radius:10px!important;box-shadow:0 0 20px #41ceff55}
+body.pw-ui #app .page-content .simple-training{width:100%!important;box-sizing:border-box!important;justify-self:stretch!important}
+@media(max-width:640px){body.pw-ui #app .simple-course h3{font-size:12px!important}body.pw-ui #app .simple-course small{font-size:11px!important}body.pw-ui #app .page-content .simple-course>strong{font-size:15px!important}}
+.progression-presentation--special{overflow:hidden!important;padding:24px 16px!important;box-sizing:border-box!important;width:100vw!important;height:100dvh!important}
+.progression-presentation--special>h2{font-size:28px!important;line-height:1.4!important}
+.progression-presentation--special>.progression-presentation__subject{font-size:16px!important;line-height:1.5!important}
+.progression-presentation--special .progression-presentation__entries{width:100%!important;max-width:600px!important;box-sizing:border-box!important;padding:12px!important}
+.progression-presentation--special .progression-presentation__entries article{display:flex!important;gap:12px!important;align-items:center!important;padding:14px!important;min-width:0!important}
+.progression-presentation--special .progression-presentation__entries article>img{width:76px!important;height:76px!important;object-fit:contain!important;flex:none!important}
+.progression-presentation--special .progression-presentation__entries article>div{min-width:0!important}
+.progression-presentation--special .progression-presentation__entries article span{font-size:18px!important;line-height:1.5!important;white-space:normal!important;color:#d9faff!important}
+.progression-presentation--special .progression-presentation__entries article strong{font-size:16px!important;line-height:1.6!important;white-space:normal!important;color:#fff!important}
+.progression-presentation--special .progression-presentation__entries article small{font-size:12px!important;line-height:1.6!important;white-space:normal!important;color:#c8e6f5!important}
+@media(max-width:640px){body.pw-ui #app .page-content .simple-training .training-plan__intro h2{margin:10px auto 14px!important}body.pw-ui #app :is(.growth-wallet,.training-milestone){margin:10px 0!important}body.pw-ui #app .training-milestone{padding:10px 14px!important}}

@@ -10,7 +10,7 @@ import {
   STAT_IDS,
   TRAINING_POINT_IDS,
   characterValueToRank,
-} from "./game-data.js?v=75";
+} from "./game-data.js?v=76";
 
 export const ABILITY_DATA_VERSION = "mobbr-ability-data-1.1.0";
 export const SPECIAL_ABILITY_MASTER_VERSION =
@@ -5626,7 +5626,7 @@ export function getWeaponUpgradeCost(currentRank) {
   if (!entry) {
     throw new RangeError(`Unknown weapon rank: ${currentRank}`);
   }
-  return entry;
+  return { ...entry, coin: 0, ruby: 0, diamond: Math.max(4, Math.ceil(entry.coin / 2500)) };
 }
 
 export function getSpecialAbility(abilityKey) {

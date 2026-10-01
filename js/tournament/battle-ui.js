@@ -1,5 +1,5 @@
-import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=75";
-import { renderBattleStory } from './match-experience.js?v=75';
+import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=76";
+import { renderBattleStory } from './match-experience.js?v=76';
 /**
  * MOB BR battle presentation and event playback.
  *
@@ -7,20 +7,20 @@ import { renderBattleStory } from './match-experience.js?v=75';
  * the serialized event stream without changing combat calculations.
  */
 
-import { assetPath } from "../assets.js?v=75";
+import { assetPath } from "../assets.js?v=76";
 import {
   fitPortraits,
-} from "../portrait-fit.js?v=75";
+} from "../portrait-fit.js?v=76";
 import {
   motivationDisplay,
-} from "../../data/motivation-data.js?v=75";
+} from "../../data/motivation-data.js?v=76";
 import {
   COMMENTATOR,
   COMMENTARY_VERSION,
   createBattleOutcomeCommentary,
   createCommentaryContext,
   createCommentaryDirector,
-} from "./commentary.js?v=75";
+} from "./commentary.js?v=76";
 
 export const BATTLE_UI_VERSION = "mobbr-battle-ui-2.9.0";
 export const BATTLE_REPLAY_SCHEMA_VERSION =

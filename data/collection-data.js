@@ -8,7 +8,7 @@
 import {
   getProReplacementTeamByLegacyId,
   RETIRED_PRO_TEAM_IDS,
-} from "./cpu-roster-47-data.js?v=75";
+} from "./cpu-roster-47-data.js?v=76";
 
 export const COLLECTION_DATA_VERSION = "mobbr-collection-data-1.2.0";
 export const COLLECTION_MASTER_VERSION = "mobbr-collection-master-1.2.0";

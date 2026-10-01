@@ -1,8 +1,8 @@
-import {AUTO_ITEMS,autoItem} from "../../data/auto-items.js?v=75";
-import {renderAutoEquipment,saveAutoEquipment} from "./auto-equipment.js?v=75";
-import { TRAINING_COURSES, trainingReward } from "../../data/simple-growth.js?v=75";
-import { CONSUMABLES_ENABLED, strategyResearchPoints } from "../../data/feature-policy.js?v=75";
-import { renderTrainingPlan, trainingGainText } from "./training-view.js?v=75";
+import {AUTO_ITEMS,autoItem} from "../../data/auto-items.js?v=76";
+import {renderAutoEquipment,saveAutoEquipment} from "./auto-equipment.js?v=76";
+import { TRAINING_COURSES, trainingReward } from "../../data/simple-growth.js?v=76";
+import { CONSUMABLES_ENABLED, strategyResearchPoints } from "../../data/feature-policy.js?v=76";
+import { renderTrainingPlan, trainingGainText } from "./training-view.js?v=76";
 /**
  * MOB BR company-management feature.
  *
@@ -12,23 +12,23 @@ import { renderTrainingPlan, trainingGainText } from "./training-view.js?v=75";
 
 import {
   assetPath,
-} from "../assets.js?v=75";
+} from "../assets.js?v=76";
 import {
   TRAINING_POINT_IDS,
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=75";
+} from "../../data/game-data.js?v=76";
 import {
   isCasualTournamentType,
   resolveCpuTeamMaster,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=75";
+} from "../../data/circuit-data.js?v=76";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
   calculateWeeklyTraining,
-} from "../../data/training-data.js?v=75";
+} from "../../data/training-data.js?v=76";
 import {
   BADGE_PACKS,
   CARD_PACKS,
@@ -40,17 +40,17 @@ import {
   getItem,
   getWeaponSkin,
   isCardPackUnlocked,
-} from "../../data/shop-data.js?v=75";
+} from "../../data/shop-data.js?v=76";
 import {
   STRATEGY_MEETING_RULES,
   getStrategyMeetingProbabilities,
-} from "../../data/coach-data.js?v=75";
+} from "../../data/coach-data.js?v=76";
 import {
   STRATEGIES,
   STRATEGY_RANKS,
   getStrategiesByRank,
   getStrategy,
-} from "../../data/strategy-data.js?v=75";
+} from "../../data/strategy-data.js?v=76";
 import {
   BADGE_COLLECTION,
   CARD_COLLECTION,
@@ -64,7 +64,7 @@ import {
   getCollectionCompletion,
   getCollectionEntry,
   getRoomMaster,
-} from "../../data/collection-data.js?v=75";
+} from "../../data/collection-data.js?v=76";
 import {
   advanceWeeksToDraft,
   applyResourceDeltaToDraft,
@@ -73,7 +73,7 @@ import {
   purchaseDiningSetMealToDraft,
   serveDiningMealToDraft,
   settleDiningMealsToDraft,
-} from "./state.js?v=75";
+} from "./state.js?v=76";
 import {
   COOKING_RULES,
   COOKING_SCREEN_ASSETS,
@@ -90,10 +90,10 @@ import {
   getRecipeCandidates,
   isCookingJobReady,
   startCookingJobToDraft,
-} from "../../data/cooking-data.js?v=75";
+} from "../../data/cooking-data.js?v=76";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=75";
+} from "./tournament-bridge.js?v=76";
 import {
   DINING_EATING_SPEECHES,
   DINING_HUNGRY_SPEECHES,
@@ -101,7 +101,7 @@ import {
   diningWeekKey,
   getDiningMasterSpeech,
   getWeeklyDiningSets,
-} from "../../data/dining-data.js?v=75";
+} from "../../data/dining-data.js?v=76";
 
 export const MANAGEMENT_FEATURE_VERSION =
   "mobbr-management-feature-3.0.4";
@@ -5546,7 +5546,19 @@ export function createManagementController({
       const id=actionElement.dataset.programId;
       if (!TRAINING_COURSES.some(c=>c.id===id)) return true;
       for(const player of stateManager.getSnapshot().playerTeam.members) MANAGEMENT_VIEW_STATE.trainingSelections[player.playerId]=id;
-      renderPreservingScroll();
+      const snapshot=stateManager.getSnapshot();
+      const host=root.querySelector('.simple-training');
+      if(host){
+        const template=document.createElement('template');
+        template.innerHTML=renderTrainingPlan(snapshot,MANAGEMENT_VIEW_STATE.trainingSelections,getTournamentWeekStatus(snapshot));
+        host.querySelectorAll('.simple-course').forEach(button=>{
+          const selected=button.dataset.programId===id;
+          button.classList.toggle('is-selected',selected);
+          button.setAttribute('aria-pressed',String(selected));
+        });
+        host.querySelectorAll('[data-training-player]').forEach(input=>input.value=id);
+        host.querySelector('.training-plan__footer').replaceWith(template.content.querySelector('.training-plan__footer'));
+      }
       return true;
     }
     if (action === "select-training-program") {

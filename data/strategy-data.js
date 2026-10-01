@@ -6,7 +6,7 @@
  * quantities. D rank strategies are unlimited. C through SS are consumed from persistent inventory when tournament results are imported.
  */
 
-import { STAT_IDS } from "./game-data.js?v=75";
+import { STAT_IDS } from "./game-data.js?v=76";
 
 export const STRATEGY_DATA_VERSION = "mobbr-strategy-data-1.1.0";
 export const STRATEGY_MASTER_VERSION = "mobbr-strategy-master-1.0.0";

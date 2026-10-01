@@ -1,4 +1,4 @@
-import { diamondPrice } from "../../data/simple-growth.js?v=75";
+import { diamondPrice } from "../../data/simple-growth.js?v=76";
 /**
  * MOB BR player growth and equipment feature.
  *
@@ -13,19 +13,19 @@ import {
   characterValueToRank,
   weaponValueToRank,
   getCompanyRankData,
-} from "../../data/game-data.js?v=75";
+} from "../../data/game-data.js?v=76";
 import {
   calculateMaxHp,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=75";
+} from "../../data/battle-config.js?v=76";
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=75";
+} from "../../data/motivation-data.js?v=76";
 import {
   WEAPON_SKINS,
   getWeaponSkin,
-} from "../../data/shop-data.js?v=75";
+} from "../../data/shop-data.js?v=76";
 import {
   PLAYER_STAT_DEFINITIONS,
   WEAPON_STAT_DEFINITIONS,
@@ -35,13 +35,13 @@ import {
   getStatUpgradeCost,
   getWeaponStatDefinition,
   getWeaponUpgradeCost,
-} from "../../data/ability-data.js?v=75";
+} from "../../data/ability-data.js?v=76";
 
 import {
   getSpecialAbilitiesForRole,
   getSpecialAbility,
   getSpecialAbilityStage,
-} from "../../data/special-ability-50-data.js?v=75";
+} from "../../data/special-ability-50-data.js?v=76";
 
 export const TEAM_FEATURE_VERSION = "mobbr-team-feature-1.5.0";
 
@@ -379,15 +379,8 @@ export function upgradeWeaponStatToDraft(
   if (!cost) {
     throw new RangeError("この武器能力はMOBに到達しています。");
   }
-  if (draft.resources.coin < cost.coin) {
-    throw new RangeError("COINが不足しています。");
-  }
-  if (draft.resources.ruby < cost.ruby) {
-    throw new RangeError("RUBYが不足しています。");
-  }
-
-  draft.resources.coin -= cost.coin;
-  draft.resources.ruby -= cost.ruby;
+  if (draft.resources.diamond < cost.diamond) throw new RangeError("ダイヤが不足しています。");
+  draft.resources.diamond -= cost.diamond;
 
   const currentValue = player.weapon.internalValues[weaponStatId];
   const nextValue = currentValue + 1;
@@ -401,6 +394,7 @@ export function upgradeWeaponStatToDraft(
     currentRank: cost.nextRank,
     coin: cost.coin,
     ruby: cost.ruby,
+    diamond: cost.diamond,
   };
 }
 
@@ -419,6 +413,7 @@ export function calculateWeaponUpgradePlan(
   );
   let totalCoin = 0;
   let totalRuby = 0;
+  let totalDiamond = 0;
   const rows = WEAPON_STAT_DEFINITIONS.map((definition) => {
     let projectedValue =
       player.weapon.internalValues[definition.id];
@@ -434,6 +429,7 @@ export function calculateWeaponUpgradePlan(
       if (!cost) break;
       totalCoin += cost.coin;
       totalRuby += cost.ruby;
+      totalDiamond += cost.diamond;
       projectedValue += 1;
       projectedRank = cost.nextRank;
       applied += 1;
@@ -456,13 +452,14 @@ export function calculateWeaponUpgradePlan(
     rows,
     totalCoin,
     totalRuby,
+    totalDiamond,
+    remainingDiamond: snapshot.resources.diamond-totalDiamond,
     remainingCoin:
       snapshot.resources.coin - totalCoin,
     remainingRuby:
       snapshot.resources.ruby - totalRuby,
     affordable:
-      snapshot.resources.coin >= totalCoin &&
-      snapshot.resources.ruby >= totalRuby,
+      snapshot.resources.diamond >= totalDiamond,
     hasChanges:
       Object.values(normalized).some(
         (value) => value > 0,
@@ -475,6 +472,9 @@ export function applyWeaponUpgradePlanToDraft(
   playerId,
   increments,
 ) {
+  const plan=calculateWeaponUpgradePlan(draft,playerId,increments);
+  if(!plan.affordable) throw new RangeError("ダイヤが不足しています。");
+  increments=plan.increments;
   const results = [];
   for (const definition of WEAPON_STAT_DEFINITIONS) {
     const count = Math.max(
@@ -886,7 +886,7 @@ export function learnSpecialAbilityToDraft(
   };
 }
 
-function pointPoolTemplate(snapshot) { return '<section class="team-point-grid"><div class="team-point-chip"><span>チーム共通ダイヤ</span><strong>'+formatNumber(snapshot.resources.diamond)+'</strong></div></section>'; }
+function pointPoolTemplate(snapshot) { return '<section class="team-point-grid"><div class="team-point-chip"><span>所持ダイヤ</span><strong>'+formatNumber(snapshot.resources.diamond)+'</strong></div></section>'; }
 
 export function calculatePlayerStatUpgradePlan(snapshot, playerId, increments={}) {
   const player=getPlayer(snapshot,playerId), normalized={}; let total=0;
@@ -1060,8 +1060,8 @@ function upgradeTableTemplate({kind, playerId, rows, plan}) {
       const current=weapon ? row.currentRank : characterValueToRank(row.currentValue);
       const next=weapon ? row.projectedRank : characterValueToRank(row.projectedValue);
       const cost=row.nextCost;
-      const canAdd=!!cost && !row.atMaximum && (weapon ? plan.remainingCoin >= cost.coin && plan.remainingRuby >= cost.ruby : plan.remainingDiamond >= cost.diamond);
-      const costText=!cost || row.atMaximum ? "最大まで成長" : Object.entries(cost).filter(([key,value])=>value>0 && (weapon ? ["coin","ruby"].includes(key) : key === "diamond")).map(([key,value])=>`<span>${POINT_LABELS[key] ?? ({coin:"コイン",ruby:"ルビー",diamond:"ダイヤ"})[key]} <b>${value}</b></span>`).join("");
+      const canAdd=!!cost && !row.atMaximum && (plan.remainingDiamond >= cost.diamond);
+      const costText=!cost || row.atMaximum ? "最大まで成長" : Object.entries(cost).filter(([key,value])=>value>0 && key === "diamond").map(([key,value])=>`<span>${POINT_LABELS[key] ?? ({coin:"コイン",ruby:"ルビー",diamond:"ダイヤ"})[key]} <b>${value}</b></span>`).join("");
       const attr=weapon ? "data-weapon-stat-id" : "data-stat-id";
       return `<article class="pw-stat-row ${row.increment ? "is-planned" : ""}">
         <div class="pw-stat-name"><strong>${escapeHtml(name)}</strong><small>${escapeHtml((weapon ? WEAPON_STAT_DESCRIPTIONS : PLAYER_STAT_DESCRIPTIONS)[id] ?? "")}</small></div>
@@ -1237,10 +1237,7 @@ export function renderWeaponUpgradeNodeModal(
   }
   const nextAffordable =
     row.nextCost &&
-    plan.remainingCoin >=
-      row.nextCost.coin &&
-    plan.remainingRuby >=
-      row.nextCost.ruby;
+    plan.remainingDiamond >= row.nextCost.diamond;
 
   return `
     <section class="upgrade-node-modal upgrade-node-modal--weapon">
@@ -1278,12 +1275,7 @@ export function renderWeaponUpgradeNodeModal(
           row.nextCost
             ? `
               <div class="cost-tags">
-                <span>COIN ${formatNumber(row.nextCost.coin)}</span>
-                ${
-                  row.nextCost.ruby > 0
-                    ? `<span>RUBY ${formatNumber(row.nextCost.ruby)}</span>`
-                    : ""
-                }
+                <span>ダイヤ ${formatNumber(row.nextCost.diamond)}</span>
               </div>
             `
             : `<strong>MAX</strong>`
@@ -1368,7 +1360,7 @@ export function renderAbilityUpSection(
           : ""
       }
 
-      ${upgradeResourceStripTemplate([{label:'チーム共通ダイヤ',before:formatNumber(snapshot.resources.diamond),after:formatNumber(plan.remainingDiamond),negative:plan.remainingDiamond<0}])}
+      ${upgradeResourceStripTemplate([{label:'所持ダイヤ',before:formatNumber(snapshot.resources.diamond),after:formatNumber(plan.remainingDiamond),negative:plan.remainingDiamond<0}])}
 
       <section class="pw-upgrade-console pw-upgrade-console--ability">
         <header class="pw-upgrade-console__header">
@@ -1468,40 +1460,13 @@ export function renderEquipmentSection(
           : ""
       }
 
-      ${upgradeResourceStripTemplate([
-        {
-          label: "コイン",
-          before:
-            formatNumber(
-              snapshot.resources.coin,
-            ),
-          after:
-            formatNumber(
-              plan.remainingCoin,
-            ),
-          negative:
-            plan.remainingCoin < 0,
-        },
-        {
-          label: "ルビー",
-          before:
-            formatNumber(
-              snapshot.resources.ruby,
-            ),
-          after:
-            formatNumber(
-              plan.remainingRuby,
-            ),
-          negative:
-            plan.remainingRuby < 0,
-        },
-      ])}
+      ${upgradeResourceStripTemplate([{label:'所持ダイヤ',before:formatNumber(snapshot.resources.diamond),after:formatNumber(plan.remainingDiamond),negative:plan.remainingDiamond<0}])}
 
       <section class="pw-upgrade-console pw-upgrade-console--weapon">
         <header class="pw-upgrade-console__header">
           <div>
             <span>専用武器</span>
-            <strong>コインとルビーで武器を強化</strong>
+            <strong>ダイヤで武器を強化</strong>
           </div>
           <small>
             ＋で選択 → 内容を確認 → 確定
@@ -1773,7 +1738,7 @@ export function renderSpecialAbilitySection(
                   : state.learnable
                     ? "習得可"
                     : !state.affordable
-                      ? "PT不足"
+                      ? "ダイヤ不足"
                       : "詳細";
             return `
               <button

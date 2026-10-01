@@ -1,7 +1,7 @@
-import {diamondPrice} from "../../data/simple-growth.js?v=75";
-import { presentTeamDebut } from './team-debut.js?v=75';
-import { presentPracticeReport } from "./practice-report.js?v=75";
-import { nextTournamentText, weeklyGrowthSummary, lastWeekTraining } from "./training-view.js?v=75";
+import {diamondPrice} from "../../data/simple-growth.js?v=76";
+import { presentTeamDebut } from './team-debut.js?v=76';
+import { presentPracticeReport } from "./practice-report.js?v=76";
+import { nextTournamentText, weeklyGrowthSummary, lastWeekTraining } from "./training-view.js?v=76";
 /**
  * MOB BR main-screen application shell.
  *
@@ -19,10 +19,10 @@ import {
   assetPath,
   detectAssetPrefix,
   installAssetFallbacks,
-} from "../assets.js?v=75";
+} from "../assets.js?v=76";
 import {
   fitPortraits,
-} from "../portrait-fit.js?v=75";
+} from "../portrait-fit.js?v=76";
 import {
   SaveError,
   SaveNotFoundError,
@@ -32,7 +32,7 @@ import {
   grantEmployeeCookingPointsToDraft,
   queueWeeklyEventToDraft,
   resolveWeeklyEventToDraft,
-} from "./state.js?v=75";
+} from "./state.js?v=76";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -56,38 +56,38 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=75";
+} from "./team.js?v=76";
 import {
   getSpecialAbility,
-} from "../../data/special-ability-50-data.js?v=75";
+} from "../../data/special-ability-50-data.js?v=76";
 import {
   getCompanyRankData,
-} from "../../data/game-data.js?v=75";
+} from "../../data/game-data.js?v=76";
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=75";
+} from "../../data/motivation-data.js?v=76";
 import {
   getRoomMaster,
-} from "../../data/collection-data.js?v=75";
+} from "../../data/collection-data.js?v=76";
 import {
   EMPLOYEE_RULES,
   getEmployeeRankData,
   getTotalEmployeeHpBonus,
-} from "../../data/employee-data.js?v=75";
+} from "../../data/employee-data.js?v=76";
 import {
   formatWeeklyEventText,
   getWeeklyEvent,
-} from "../../data/weekly-event-data.js?v=75";
+} from "../../data/weekly-event-data.js?v=76";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=75";
+} from "./management.js?v=76";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=75";
+} from "./tournament-bridge.js?v=76";
 
 export const APP_VERSION = "mobbr-main-app-4.1.2";
 
@@ -2258,13 +2258,16 @@ export function createMainApp({
           : ""
       }
     `;
+    if (kind === "special" && !rankUp) {
+      overlay.insertAdjacentHTML("beforeend", '<button type="button" class="progression-presentation__next" data-progression-next>確認して戻る</button>');
+    }
     root.append(overlay);
     requestAnimationFrame(() =>
       overlay.classList.add(
         "is-active",
       ),
     );
-    if (rankUp) {
+    if (rankUp || kind === "special") {
       await waitForUi(720);
       const nextButton =
         overlay.querySelector(
@@ -4284,7 +4287,7 @@ export function createMainApp({
       if (!plan.hasChanges || !plan.affordable) return;
       const confirmed = await openConfirm({
         title: "武器強化を確定しますか？",
-        body: `<p>${plan.rows.reduce((sum, row) => sum + row.increment, 0)}段階をまとめて強化します。</p><p>必要COIN ${formatNumber(plan.totalCoin)}</p>${plan.totalRuby > 0 ? `<p>必要RUBY ${formatNumber(plan.totalRuby)}</p>` : ""}`,
+        body: `<p>${plan.rows.reduce((sum, row) => sum + row.increment, 0)}段階をまとめて強化します。</p><p>必要ダイヤ ${formatNumber(plan.totalDiamond)}</p>`,
         confirmLabel: "確定する",
       });
       if (!confirmed) return;

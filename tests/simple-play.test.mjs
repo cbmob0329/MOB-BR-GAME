@@ -1,15 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createNewGameState} from '../js/main/state.js?v=75';
-import {advanceGameWeek,getTournamentEventsForDate} from '../data/game-data.js?v=75';
-import {createTournamentEntryData} from '../js/main/tournament-bridge.js?v=75';
-import {calculateTournamentRuntimeChecksum,createTournamentRuntime,createTournamentResumeData,validateTournamentResumeDataForEntry} from '../js/tournament/runtime.js?v=75';
-import {beginLiveBattleToDraft,updateLiveBattleToDraft} from '../js/tournament/battle-core.js?v=75';
-import {getUsableReadySkills,applyBattleDamage} from '../js/tournament/battle-actions.js?v=75';
-import {convertLegacyGrowthToDiamonds,trainingReward} from '../data/simple-growth.js?v=75';
-import {saveAutoEquipment} from '../js/main/auto-equipment.js?v=75';
-import {purchaseConsumableToDraft,executeTrainingToDraft} from '../js/main/management.js?v=75';
-import {calculatePlayerStatUpgradePlan,applyPlayerStatUpgradePlanToDraft} from '../js/main/team.js?v=75';
+import {createNewGameState} from '../js/main/state.js?v=76';
+import {advanceGameWeek,getTournamentEventsForDate} from '../data/game-data.js?v=76';
+import {createTournamentEntryData} from '../js/main/tournament-bridge.js?v=76';
+import {calculateTournamentRuntimeChecksum,createTournamentRuntime,createTournamentResumeData,validateTournamentResumeDataForEntry} from '../js/tournament/runtime.js?v=76';
+import {beginLiveBattleToDraft,updateLiveBattleToDraft} from '../js/tournament/battle-core.js?v=76';
+import {getUsableReadySkills,applyBattleDamage} from '../js/tournament/battle-actions.js?v=76';
+import {convertLegacyGrowthToDiamonds,trainingReward} from '../data/simple-growth.js?v=76';
+import {saveAutoEquipment} from '../js/main/auto-equipment.js?v=76';
+import {purchaseConsumableToDraft,executeTrainingToDraft} from '../js/main/management.js?v=76';
+import {calculatePlayerStatUpgradePlan,applyPlayerStatUpgradePlanToDraft} from '../js/main/team.js?v=76';
 function fresh(){return structuredClone(createNewGameState({companyBaseName:'検証',playerNames:{IGL:'ミライ',ATK:'レン',SUP:'ヒカリ'}}));}
 function fixture(){const state=fresh();state.inventory.items={pb2_gummy:1,spin_knit:1,scope:1};saveAutoEquipment(state,['pb2_gummy','spin_knit','scope']);let event;for(let i=0;i<48&&!event;i++){event=getTournamentEventsForDate(state.gameDate).find(e=>e.tournamentType==='local');if(!event)state.gameDate=structuredClone(advanceGameWeek(state.gameDate));}const entry=createTournamentEntryData(state,event),runtime=structuredClone(createTournamentRuntime(entry));runtime.match=1;runtime.round=2;runtime.currentOpponentId=runtime.teams.find(t=>t.teamId!==runtime.playerTeamId).teamId;runtime.phase='BATTLE';return {state,entry,runtime};}
 test('legacy points become shared diamonds once, without deleting inventory',()=>{const s=fresh();s.inventory.items.scope=3;s.playerTrainingPoints[s.playerTeam.members[0].playerId]={power:20,tech:20,mental:20,shoot:20};const before=s.resources.diamond;assert.equal(convertLegacyGrowthToDiamonds(s),20);assert.equal(s.resources.diamond,before+20);assert.equal(convertLegacyGrowthToDiamonds(s),0);assert.equal(s.inventory.items.scope,3);});

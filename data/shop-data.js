@@ -1,4 +1,4 @@
-import {autoItem} from "./auto-items.js?v=75";
+import {autoItem} from "./auto-items.js?v=76";
 /**
  * MOB BR shop and consumable item master data.
  *

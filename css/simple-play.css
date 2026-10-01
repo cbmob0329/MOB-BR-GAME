@@ -1,4 +1,5 @@
 /* Materials stay behind opaque, readable panels. All controls remain touch-sized. */
+/* Compact sports / sci-fi presentation. */
 body.pw-ui #app .page-content:has(.simple-training),body.pw-ui #app .page-content:has(.auto-equipment){background:#a3b3c0 url('../back/training-metal.png') center/cover!important}
 body.pw-ui #app .page-content:has(.pw-upgrade-console){background:#e6beb1 url('../back/growth-brick.png') center/cover!important}
 body.pw-ui #app .page-content .simple-training{padding:0 0 24px!important;max-width:1000px!important}

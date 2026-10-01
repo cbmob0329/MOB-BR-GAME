@@ -1,7 +1,7 @@
-import {beginLiveBattleToDraft,updateLiveBattleToDraft} from './battle-core.js?v=75';
-import {getUsableReadySkills,skillEffectiveCt} from './battle-actions.js?v=75';
-import {assetPath} from '../assets.js?v=75';
-import {autoItem} from '../../data/auto-items.js?v=75';
+import {beginLiveBattleToDraft,updateLiveBattleToDraft} from './battle-core.js?v=76';
+import {getUsableReadySkills,skillEffectiveCt} from './battle-actions.js?v=76';
+import {assetPath} from '../assets.js?v=76';
+import {autoItem} from '../../data/auto-items.js?v=76';
 const esc=v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 export function liveBattleMarkup(runtime){
  const battle=runtime.activeBattle, players=Object.values(battle.participants),own=players.filter(p=>p.teamId===battle.leftTeamId),enemy=players.filter(p=>p.teamId!==battle.leftTeamId);

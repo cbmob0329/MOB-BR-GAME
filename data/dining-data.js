@@ -8,7 +8,7 @@
 
 import {
   MOTIVATION_RULES,
-} from "./motivation-data.js?v=75";
+} from "./motivation-data.js?v=76";
 
 export const DINING_DATA_VERSION =
   "mobbr-dining-data-2.1.0";

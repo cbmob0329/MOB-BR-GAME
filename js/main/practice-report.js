@@ -1,5 +1,5 @@
-import { TRAINING_PROGRAMS } from '../../data/training-data.js?v=75';
-import { POINT_NAMES, lastWeekTraining, nextTournamentText } from './training-view.js?v=75';
+import { TRAINING_PROGRAMS } from '../../data/training-data.js?v=76';
+import { POINT_NAMES, lastWeekTraining, nextTournamentText } from './training-view.js?v=76';
 
 const escape = value => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 const dateText = date => `${date.year}年 ${date.month}月 第${date.week}週`;
@@ -34,7 +34,7 @@ export function practiceReportModel(snapshot) {
 
 export function renderPracticeReport(snapshot) {
   const record=lastWeekTraining(snapshot);
-  if(record?.currencyVersion===1) return `<div class="practice-report diamond-report"><header class="practice-report__header"><div><p>${escape(record.courseName)}</p><h1 id="practiceReportTitle" tabindex="-1">トレーニング完了！</h1><p id="practiceReportDescription">チームのダイヤが増えました。</p></div></header><div class="practice-report__content"><div class="diamond-reward"><img src="icon/daia.png" alt=""><span>獲得ダイヤ</span><strong>+${record.diamond}</strong><p>${record.diamondBefore} → ${record.diamondAfter}</p>${record.milestone?'<small>4回達成ボーナス +20 を含みます</small>':''}</div><div class="training-team-lineup">${snapshot.playerTeam.members.map(p=>`<div><img src="${escape(p.image)}" alt=""><strong>${escape(p.name)}</strong></div>`).join('')}</div><p>${escape(nextTournamentText(snapshot))}</p><p>${record.coinCost?'練習費用：コイン '+record.coinCost:'練習費用：無料'}。週ボーナスは別途受け取り済みです。</p></div><footer class="practice-report__footer"><p>好きな選手の、好きな能力へ。</p><div><button class="practice-button practice-button--secondary" data-practice-destination="home">ホームへ</button><button class="practice-button practice-button--primary" data-practice-destination="ability">ダイヤで能力アップ</button></div></footer></div>`;
+  if(record?.currencyVersion===1) return `<div class="practice-report diamond-report"><header class="practice-report__header"><div><p>${escape(record.courseName)}</p><h1 id="practiceReportTitle" tabindex="-1">トレーニング完了！</h1><p id="practiceReportDescription">練習の成果を獲得！</p></div></header><div class="practice-report__content"><div class="diamond-reward"><img src="icon/daia.png" alt=""><span>獲得ダイヤ</span><strong>+${record.diamond}</strong><p>${record.diamondBefore} → ${record.diamondAfter}</p>${record.milestone?'<small>4回達成ボーナス +20 を含みます</small>':''}</div><div class="training-team-lineup">${snapshot.playerTeam.members.map((p,i)=>`<div style="--member-index:${i}"><img src="${escape(p.image)}" alt=""><strong>${escape(p.name)}</strong></div>`).join('')}</div><p>${escape(nextTournamentText(snapshot))}</p><p>${record.coinCost?'練習費用：コイン '+record.coinCost:'練習費用：無料'}。週ボーナスは別途受け取り済みです。</p></div><footer class="practice-report__footer"><p>好きな選手の、好きな能力へ。</p><div><button class="practice-button practice-button--secondary" data-practice-destination="home">ホームへ</button><button class="practice-button practice-button--primary" data-practice-destination="ability">ダイヤで能力アップ</button></div></footer></div>`;
   const model = practiceReportModel(snapshot);
   if (!model) return '';
   return `<div class="practice-report">
