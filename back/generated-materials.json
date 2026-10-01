@@ -1,0 +1,7 @@
+{
+  "generator": "built-in image_gen",
+  "assets": [
+    {"file":"growth-brick.png","prompt":"Use case: stylized-concept. Create a single landscape 1536x1024 game UI background texture: pale faded red brick wall, softly painted cartoon pixel-art influenced material, muted dusty salmon terracotta bricks with soft warm mortar. Flat frontal surface, subtle depth, even soft lighting, low contrast suitable behind readable game interface panels. Only the continuous brick material edge to edge. Absolutely no characters, people, faces, text, letters, numbers, graffiti, logos, signs, objects or watermark."},
+    {"file":"training-metal.png","prompt":"Use case: stylized-concept. Asset: game training screen background material. Landscape 1536x1024. A front-facing steel metallic banner surface filling entire image, softly brushed silver blue gunmetal industrial panels with simple broad bevels along edges and faint rivets near corners. Stylized clean cartoon game material, subtle pixel-inspired detailing. Calm low contrast mid-light silver steel center behind UI cards, slightly darker blue gray edges. No text, no letters, no numbers, no logos, no graffiti, no characters, no people, no objects or symbols. Flat surface material, not a scene or interface mockup."}
+  ]
+}

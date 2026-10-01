@@ -1,3 +1,4 @@
+import {autoItem} from "../../data/auto-items.js?v=75";
 /**
  * MOB BR deterministic 3v3 battle engine.
  *
@@ -6,15 +7,15 @@
  * finished result into the tournament runtime through one transaction draft.
  */
 
-import { resolveBattleOrder } from './match-experience.js?v=73';
+import { resolveBattleOrder } from './match-experience.js?v=75';
 import {
   BATTLE_END_TIE_BREAKERS,
   BATTLE_TIMING,
   STATE_RULES,
-} from "../../data/battle-config.js?v=73";
+} from "../../data/battle-config.js?v=75";
 import {
   calculateChecksum,
-} from "../main/state.js?v=73";
+} from "../main/state.js?v=75";
 import {
   BATTLE_ACTIONS_VERSION,
   appendBattleEvent,
@@ -27,7 +28,7 @@ import {
   prepareParticipantSpecialAfterBattle,
   addOrRefreshEffect,
   updateParticipantTimers,
-} from "./battle-actions.js?v=73";
+} from "./battle-actions.js?v=75";
 
 export const BATTLE_CORE_VERSION =
   "mobbr-battle-core-1.7.0";
@@ -822,6 +823,8 @@ export function tickBattle(battle) {
     );
   }
 
+  if (draft.liveControls) applyAutomaticEquipment(draft);
+
   const turnOrder = participants
     .filter(
       (participant) =>
@@ -1397,4 +1400,63 @@ export function validateBattleState(battle) {
     );
   }
   return true;
+}
+
+// Live battles use the same deterministic engine; only skill requests arrive from UI.
+export function beginLiveBattleToDraft(draft) {
+  if(draft.activeBattle || draft.lastBattleResult) return;
+  consumeStrategyForBattle(draft,draft.playerTeamId);
+  consumeStrategyForBattle(draft,draft.currentOpponentId);
+  const battle=deepClone(createBattleFromTournamentRuntime(draft));
+  battle.liveControls={autoSkills:draft.matchExperience?.autoSkills ?? Boolean(draft.matchExperience?.autoAdvance),requests:{},items:[]};
+  const own=getTeamParticipants(battle,battle.leftTeamId);
+  for(const actor of Object.values(battle.participants)) for(const skill of actor.skills) {
+    // Everyone begins with a partial charge so the opening offers a decision.
+    actor.skillCharge[skill.skillId]=Math.max(actor.skillCharge[skill.skillId]??0,skill.baseCt*0.6);
+  }
+  own.forEach((p,index)=>{const slot=draft.inventory.slots[index];if(slot?.quantity>0 && autoItem(slot.itemId))battle.liveControls.items.push({playerId:p.playerId,slotIndex:index,itemId:slot.itemId,used:false});});
+  battle.checksum=calculateBattleChecksum(battle);
+  draft.activeBattle=battle;
+  draft.lastBattleLive=true;
+  draft.lastBattleCommand=deepClone(battle.command);
+}
+
+function applyAutomaticEquipment(battle) {
+  for(const entry of battle.liveControls.items) {
+    if(entry.used)continue;
+    const actor=battle.participants[entry.playerId],item=autoItem(entry.itemId);
+    if(!actor || actor.combatState!=='alive'||!item)continue;
+    if(item.autoEffect==='heal' && actor.hp/actor.maxHp>0.4)continue;
+    let amount=0;
+    if(item.autoEffect==='heal') {amount=Math.min(actor.maxHp-actor.hp,Math.round(actor.maxHp*item.rate));actor.hp+=amount;}
+    else addOrRefreshEffect(actor,{code:'auto_item_'+item.itemId,sourcePlayerId:actor.playerId,remainingSeconds:battle.durationSeconds,damageReduction:item.autoEffect==='guard'?item.rate:0,damageMultiplier:item.autoEffect==='attack'?1+item.rate:1});
+    entry.used=true;
+    appendBattleEvent(battle,'auto_item',{actorPlayerId:actor.playerId,actorTeamId:actor.teamId,itemId:item.itemId,itemName:item.name,amount,currentHp:actor.hp});
+  }
+}
+
+export function updateLiveBattleToDraft(draft,{playerId,skillId,autoSkills,tick=true}={}) {
+  if(draft.lastBattleResult)return {completed:true};
+  beginLiveBattleToDraft(draft);
+  let battle=deepClone(draft.activeBattle);
+  if(typeof autoSkills==='boolean') {battle.liveControls.autoSkills=autoSkills;draft.matchExperience??={};draft.matchExperience.autoSkills=autoSkills;}
+  if(playerId && skillId && battle.participants[playerId]?.teamId===battle.leftTeamId && !battle.liveControls.autoSkills)battle.liveControls.requests[playerId]=skillId;
+  battle.checksum=calculateBattleChecksum(battle);
+  if(tick)battle=deepClone(tickBattle(battle));
+  for(const entry of battle.liveControls.items) {
+    if(!entry.used || entry.recorded)continue;
+    const slot=draft.inventory.slots[entry.slotIndex];
+    if(slot?.itemId===entry.itemId && slot.quantity>0) {
+      slot.quantity--;slot.carryQuantity=Math.max(0,(slot.carryQuantity??1)-1);
+      draft.inventory.consumedCarryItems[entry.itemId]=(draft.inventory.consumedCarryItems[entry.itemId]??0)+1;
+      draft.inventory.totalUses++;
+      draft.inventory.useHistory.push({itemId:entry.itemId,slotIndex:entry.slotIndex,playerId:entry.playerId,match:draft.match,round:draft.round,automatic:true});
+      if(slot.quantity===0)draft.inventory.slots[entry.slotIndex]=null;
+    }
+    entry.recorded=true;
+  }
+  battle.checksum=calculateBattleChecksum(battle);
+  if(battle.status!=='running') {applyBattleResultToTournamentRuntime(draft,battle);return {completed:true};}
+  draft.activeBattle=battle;
+  return {completed:false};
 }

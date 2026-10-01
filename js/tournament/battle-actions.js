@@ -25,12 +25,12 @@ import {
   calculateSkillCt,
   isAssistEligible,
   resolveWeaponBattleValue,
-} from "../../data/battle-config.js?v=73";
+} from "../../data/battle-config.js?v=75";
 import {
   STAT_IDS,
   clamp,
   rankToCharacterValue,
-} from "../../data/game-data.js?v=73";
+} from "../../data/game-data.js?v=75";
 import {
   adjustDebuffForSpecialAbility,
   applyNextBattleSpecialEffects,
@@ -49,7 +49,7 @@ import {
   normalizeUniqueSkill,
   recordSpecialAttackOutcome,
   refreshSpecialDynamicEffects,
-} from "./special-abilities.js?v=73";
+} from "./special-abilities.js?v=75";
 
 export const BATTLE_ACTIONS_VERSION =
   "mobbr-battle-actions-2.3.0";
@@ -989,6 +989,7 @@ export function confirmDownedTarget(
 }
 
 function tryEmergencySupportRevive(battle, downedTarget) {
+  if (battle.liveControls) return null;
   const support = getTeamParticipants(battle, downedTarget.teamId, "alive")
     .find((member) =>
       member.role === "SUP" &&
@@ -1049,6 +1050,8 @@ export function applyBattleDamage(
       "Battle damage must be non-negative.",
     );
   }
+  // Both teams share this pace adjustment, leaving time to choose a skill.
+  if (battle.liveControls) damage = Math.round(damage * 0.55);
   if (target.combatState === "dead") {
     return {
       applied: false,
@@ -1057,6 +1060,10 @@ export function applyBattleDamage(
     };
   }
   if (target.combatState === "down") {
+    // Preserve a short rescue window before the next bullet can finish an ally.
+    if (battle.liveControls && battle.elapsedSeconds - (target.downedAt ?? battle.elapsedSeconds) < 1.2) {
+      return {applied:false,reason:'revive_window',actualDamage:0};
+    }
     const confirmation = confirmDownedTarget(
       battle,
       actor,
@@ -1642,7 +1649,7 @@ function lowestHpAliveAlly(battle, actor) {
     })[0] ?? null;
 }
 
-function skillEffectiveCt(actor, skill) {
+export function skillEffectiveCt(actor, skill) {
   if (
     !Number.isFinite(skill.baseCt) ||
     skill.baseCt <= 0
@@ -2678,7 +2685,7 @@ function executeRespawnField(
   actor,
   skill,
 ) {
-  if ((actor.reviveSkillUses ?? 0) >= 1) {
+  if (!battle.liveControls && (actor.reviveSkillUses ?? 0) >= 1) {
     return null;
   }
   const targets =
@@ -2886,9 +2893,10 @@ export function getUsableReadySkills(
 export function performSkillAction(
   battle,
   actor,
+  requestedSkillId = null,
 ) {
-  const skill =
-    getUsableReadySkills(battle, actor)[0];
+  const ready = getUsableReadySkills(battle, actor);
+  const skill = requestedSkillId ? ready.find(s=>s.skillId===requestedSkillId) : ready[0];
   if (!skill) {
     return {
       performed: false,
@@ -3154,7 +3162,7 @@ export function processParticipantTurn(
     };
   }
 
-  const recoveryResult =
+  const recoveryResult = battle.liveControls ? null :
     executePostReviveRecovery(
       battle,
       participant,
@@ -3166,10 +3174,10 @@ export function processParticipantTurn(
     };
   }
 
-  const skillResult = performSkillAction(
-    battle,
-    participant,
-  );
+  const manual = battle.liveControls && !battle.liveControls.autoSkills && participant.teamId === battle.leftTeamId;
+  const request = battle.liveControls?.requests?.[participant.playerId];
+  const skillResult = manual && !request ? null : performSkillAction(battle, participant, manual ? request : null);
+  if (request) delete battle.liveControls.requests[participant.playerId];
   if (skillResult?.performed) {
     return {
       actionType: "skill",

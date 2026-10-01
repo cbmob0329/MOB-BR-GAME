@@ -1,6 +1,7 @@
-import { presentTeamDebut } from './team-debut.js?v=73';
-import { presentPracticeReport } from "./practice-report.js?v=73";
-import { nextTournamentText, weeklyGrowthSummary, lastWeekTraining } from "./training-view.js?v=73";
+import {diamondPrice} from "../../data/simple-growth.js?v=75";
+import { presentTeamDebut } from './team-debut.js?v=75';
+import { presentPracticeReport } from "./practice-report.js?v=75";
+import { nextTournamentText, weeklyGrowthSummary, lastWeekTraining } from "./training-view.js?v=75";
 /**
  * MOB BR main-screen application shell.
  *
@@ -18,10 +19,10 @@ import {
   assetPath,
   detectAssetPrefix,
   installAssetFallbacks,
-} from "../assets.js?v=73";
+} from "../assets.js?v=75";
 import {
   fitPortraits,
-} from "../portrait-fit.js?v=73";
+} from "../portrait-fit.js?v=75";
 import {
   SaveError,
   SaveNotFoundError,
@@ -31,7 +32,7 @@ import {
   grantEmployeeCookingPointsToDraft,
   queueWeeklyEventToDraft,
   resolveWeeklyEventToDraft,
-} from "./state.js?v=73";
+} from "./state.js?v=75";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -55,38 +56,38 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=73";
+} from "./team.js?v=75";
 import {
   getSpecialAbility,
-} from "../../data/special-ability-50-data.js?v=73";
+} from "../../data/special-ability-50-data.js?v=75";
 import {
   getCompanyRankData,
-} from "../../data/game-data.js?v=73";
+} from "../../data/game-data.js?v=75";
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=73";
+} from "../../data/motivation-data.js?v=75";
 import {
   getRoomMaster,
-} from "../../data/collection-data.js?v=73";
+} from "../../data/collection-data.js?v=75";
 import {
   EMPLOYEE_RULES,
   getEmployeeRankData,
   getTotalEmployeeHpBonus,
-} from "../../data/employee-data.js?v=73";
+} from "../../data/employee-data.js?v=75";
 import {
   formatWeeklyEventText,
   getWeeklyEvent,
-} from "../../data/weekly-event-data.js?v=73";
+} from "../../data/weekly-event-data.js?v=75";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=73";
+} from "./management.js?v=75";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=73";
+} from "./tournament-bridge.js?v=75";
 
 export const APP_VERSION = "mobbr-main-app-4.1.2";
 
@@ -128,7 +129,7 @@ const GROWTH_STAT_LABELS = Object.freeze({
 });
 
 const WEEKLY_EMPLOYEE_MESSAGES = Object.freeze([
-  '今週も育成開始であります！練習を選び、貯めたポイントで能力を伸ばすであります！',
+  '今週も育成開始であります！練習を選び、貯めたダイヤで能力を伸ばすであります！',
   '次の大会に向けて、3人の得意分野を育てるであります！',
   '練習の成果は能力アップで発揮するであります！振り分け忘れにご注意であります！',
   '今週は誰のどの能力を伸ばすか、目標を決めるであります！',
@@ -140,7 +141,7 @@ const PINK_GUIDES = Object.freeze({
   home: Object.freeze({
     title: "MOB BRへようこそ",
     text:
-      "ここがチームの拠点であります！まずは練習でポイントを貯め、能力アップで選手を強化するであります！",
+      "ここがチームの拠点であります！まずは練習でダイヤを貯め、好きな選手を強化するであります！",
   }),
   facility: Object.freeze({
     title: "施設メニュー",
@@ -155,12 +156,12 @@ const PINK_GUIDES = Object.freeze({
   train: Object.freeze({
     title: "トレーニング",
     text:
-      "3人の練習を決めたら1週間進めるであります！獲得したポイントは能力アップで振り分けるであります！",
+      "コースを選んで1週間練習しよう！獲得したダイヤは、好きな選手の能力アップに使えるよ！",
   }),
   ability: Object.freeze({
     title: "プレイヤー強化",
     text:
-      "貯めたポイントで能力を伸ばすであります！必要ポイントと強化後の数値を確認するであります！",
+      "チーム共通のダイヤで能力を伸ばそう！必要なダイヤと強化後の数値を確認してね。",
   }),
   collection: Object.freeze({
     title: "コレクション",
@@ -170,7 +171,7 @@ const PINK_GUIDES = Object.freeze({
   shop: Object.freeze({
     title: "MOB SHOP",
     text:
-      "カードパックと武器スキンをご用意しているであります！",
+      "自動アイテム、カードパック、武器スキンが買えるよ！",
   }),
   coach: Object.freeze({
     title: "作戦研究",
@@ -195,7 +196,7 @@ const PINK_GUIDES = Object.freeze({
   cooking: Object.freeze({
     title: "食堂",
     text:
-      "モブホワイトの定食で能力ポイントを獲得できるであります！選手1人につき週1回であります！",
+      "モブホワイトの定食でダイヤを獲得できるであります！選手1人につき週1回であります！",
   }),
   news: Object.freeze({
     title: "新聞",
@@ -310,7 +311,7 @@ const ROUTE_META = Object.freeze({
   },
   [ROUTES.items]: {
     title: "ITEMS",
-    description: "所持アイテムとバッグ編成",
+    description: "選手ごとの自動アイテム装備",
     backgroundClass: "screen--sub",
     icon: "menu/item.png",
   },
@@ -389,7 +390,7 @@ const TEAM_MENU = Object.freeze([
   {
     route: ROUTES.items,
     name: "Items",
-    note: "所持アイテム",
+    note: "自動アイテムを装備",
     icon: "menu/item.png",
   },
   {
@@ -912,11 +913,11 @@ function homeTemplate(snapshot, currentRoute) {
   const tournament=getTournamentWeekStatus(snapshot);
   return `<main class="screen screen--home app-layout">${topStatusTemplate(snapshot)}
     <div class="page-content pw-home"><div class="pw-home-masthead"><figure class="pw-graffiti"><img src="back/mob-br-graffiti-pixel.png" alt="MOB BRのドット絵グラフィティ" width="1672" height="941" fetchpriority="high"></figure>
-      <section class="pw-home-banner"><div><span>育成ホーム</span><h1>${escapeHtml(snapshot.playerTeam.teamName)}</h1><p>${tournament.hasTournament ? "今週は大会！ 育てたチームの実力を試そう。" : "練習でポイントを獲得して、選手を強くしよう！"}</p></div><img src="icon/pink.png" alt="モブピンク"></section></div>
-      <div class="pw-flow"><span>① 練習でポイント獲得</span><b>›</b><span>② 能力アップ</span><b>›</b><span>③ 大会に挑戦</span></div>
+      <section class="pw-home-banner"><div><span>育成ホーム</span><h1>${escapeHtml(snapshot.playerTeam.teamName)}</h1><p>${tournament.hasTournament ? "今週は大会！ 育てたチームの実力を試そう。" : "練習でダイヤを獲得して、好きな選手を強くしよう！"}</p></div><img src="icon/pink.png" alt="モブピンク"></section></div>
+      <div class="pw-flow"><span>① 練習でダイヤ獲得</span><b>›</b><span>② 能力アップ</span><b>›</b><span>③ 大会に挑戦</span></div>
       <section class="pw-command-grid pw-primary-commands" aria-label="育成メニュー">${[
         {route:"train",icon:"menu/traning.png",note:"練習を決めて週を進める"},
-        {route:"ability",icon:"icon/ab.png",note:"ポイントで能力を伸ばす"},
+        {route:"ability",icon:"icon/ab.png",note:"ダイヤで能力を伸ばす"},
         {route:"schedule",icon:"menu/sc.png",note:tournament.hasTournament ? "今週の大会に出場" : "次の大会を確認"},
         {route:"team",icon:"menu/team.png",note:"3人の能力を確認"}
       ].map(commandCard).join("")}</section>
@@ -925,7 +926,7 @@ function homeTemplate(snapshot, currentRoute) {
       <section class="pw-command-grid" aria-label="施設・チーム運営">${[
         {route:"equipment",icon:"icon/weponup.png",note:"専用武器を強化"},
         {route:"coach",icon:"menu/team.png",note:"練習の積み重ねを力に"},
-        {route:"shop",icon:"back/homeshop.png",note:"スキンや家具を購入"},
+        {route:"shop",icon:"back/homeshop.png",note:"自動アイテムやスキンを購入"},
         {route:"cooking",icon:"back/homekit.png",note:"料理でチームを応援"},
         {route:"room",icon:"menu/room.png",note:"家具を飾って自分の部屋に"},
         {route:"collection",icon:"back/homecol.png",note:"集めたコレクションを見る"},
@@ -962,7 +963,7 @@ function teamTemplate(snapshot, currentRoute) {
           <small>選手をタップすると詳細を表示します / 従業員効果 TEAM HP +${formatNumber(employeeHpBonus(snapshot))}</small>
         </section>
 
-        <section class="pw-command-grid">${TEAM_MENU.filter(item => item.route !== ROUTES.items).map(commandCard).join("")}</section>
+        <section class="pw-command-grid">${TEAM_MENU.map(commandCard).join("")}</section>
 
         <section class="team-portrait-grid">
           ${snapshot.playerTeam.members.map((player) => `
@@ -1490,7 +1491,7 @@ function wizardTemplate(stepIndex, data, errorMessage = "") {
 }
 
 function normaliseRoute(route) {
-  if (route === ROUTES.scout || route === ROUTES.items) return ROUTES.home;
+  if (route === ROUTES.scout) return ROUTES.home;
   if (route === ROUTES.equipment) {
     return ROUTES.ability;
   }
@@ -2427,7 +2428,7 @@ export function createMainApp({
         <section class="mob-pink-guide">
           <div class="mob-pink-guide__character">
             <img src="icon/pink.png" alt="モブピンク">
-            <span>MOB PINK</span>
+
           </div>
           <div class="mob-pink-guide__speech">
             <strong>モブピンク</strong>
@@ -2961,7 +2962,7 @@ export function createMainApp({
           : "新しい1週間",
         body: `
           <section class="employee-week-greeting">
-            <div class="week-focus"><span>次の目標</span><strong>${escapeHtml(nextTournamentText(snapshot))}</strong><p>練習でポイントを貯める → 能力アップで強化する → 大会で成果を試す</p></div>
+            <div class="week-focus"><span>次の目標</span><strong>${escapeHtml(nextTournamentText(snapshot))}</strong><p>練習でダイヤを貯める → 好きな能力を強化する → 大会で成果を試す</p></div>
             ${weeklyGrowthSummary(snapshot)}
             ${
               pending.monthChanged
@@ -2981,7 +2982,7 @@ export function createMainApp({
             <div class="employee-week-greeting__staff">
               <div class="employee-pink">
                 <img src="icon/pink.png" alt="モブピンク">
-                <span>MOB PINK</span>
+
               </div>
               <div class="employee-week-greeting__speech">
                 <span>モブピンク</span>
@@ -3920,7 +3921,7 @@ export function createMainApp({
               ${Object.entries(player.stats).map(([statId, value]) => `<div><span>${escapeHtml(labels[statId] ?? statId)}</span><strong>${value}</strong></div>`).join("")}
             </div>
             <div class="player-status-modal__points">
-              <span>POWER ${formatNumber(pointPool.power)}</span><span>TECH ${formatNumber(pointPool.tech)}</span><span>MENTAL ${formatNumber(pointPool.mental)}</span><span>SHOOT ${formatNumber(pointPool.shoot)}</span>
+              <span>チーム共通ダイヤ <strong>${formatNumber(snapshot.resources.diamond)}</strong></span>
             </div>
             <section class="player-status-modal__specials">
               <header>
@@ -4573,20 +4574,7 @@ export function createMainApp({
         getSpecialAbility(
           abilityKey,
         );
-      const costRows =
-        Object.entries(
-          ability.cost,
-        )
-          .filter(
-            ([, amount]) =>
-              amount > 0,
-          )
-          .map(
-            ([pointId, amount]) =>
-              `<span>${escapeHtml(pointId.toUpperCase())} ${formatNumber(amount)}</span>`,
-          )
-          .join("") ||
-        "<span>PT 0</span>";
+      const costRows = '<span>ダイヤ '+formatNumber(diamondPrice(ability.cost))+'</span>';
       const conditionRows =
         acquisition
           .conditionState
@@ -4608,7 +4596,7 @@ export function createMainApp({
             : !acquisition.conditionState.unlocked
               ? "解放条件を満たしていません"
               : !acquisition.affordable
-                ? "トレーニングポイントが不足しています"
+                ? "ダイヤが不足しています"
                 : "LEVEL 1を習得できます";
       const body = `
         <section
@@ -4743,7 +4731,7 @@ export function createMainApp({
       const confirmed = await openConfirm({
         title: "特殊能力を習得しますか？",
         body:
-          "<p>4種類のトレーニングポイントを消費します。習得後は装備不要で常時有効です。</p>",
+          "<p>チーム共通のダイヤを消費します。習得後は装備不要で常時有効です。</p>",
         confirmLabel: "習得する",
       });
       if (!confirmed) {

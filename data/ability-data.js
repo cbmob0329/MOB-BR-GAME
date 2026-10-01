@@ -10,7 +10,7 @@ import {
   STAT_IDS,
   TRAINING_POINT_IDS,
   characterValueToRank,
-} from "./game-data.js?v=73";
+} from "./game-data.js?v=75";
 
 export const ABILITY_DATA_VERSION = "mobbr-ability-data-1.1.0";
 export const SPECIAL_ABILITY_MASTER_VERSION =

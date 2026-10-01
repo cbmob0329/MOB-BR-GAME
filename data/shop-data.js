@@ -1,3 +1,4 @@
+import {autoItem} from "./auto-items.js?v=75";
 /**
  * MOB BR shop and consumable item master data.
  *
@@ -893,7 +894,7 @@ export function getItem(itemId) {
   if (!item) {
     throw new RangeError(`Unknown item: ${itemId}`);
   }
-  return item;
+  return autoItem(itemId) ? {...item,...autoItem(itemId)} : item;
 }
 
 export function getCardPack(packId) {

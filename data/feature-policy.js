@@ -1,4 +1,4 @@
-// Retain legacy save fields while removing retired features from active play.
+// Retired manual-use/exploration items stay disabled. Automatic equipment uses auto-items.js.
 export const CONSUMABLES_ENABLED = false;
 
 export function strategyResearchPoints(snapshot) {

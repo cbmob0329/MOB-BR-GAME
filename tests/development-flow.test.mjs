@@ -1,15 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createNewGameState, serializeSaveState, deserializeSaveState, validateSaveState } from '../js/main/state.js?v=73';
-import { executeTrainingToDraft, performStrategyMeetingToDraft, purchaseConsumableToDraft, getTournamentWeekStatus, renderTrainingManagement } from '../js/main/management.js?v=73';
-import { advanceGameWeek, getTournamentEventsForDate } from '../data/game-data.js?v=73';
-import { createTournamentEntryData } from '../js/main/tournament-bridge.js?v=73';
-import { createTournamentRuntime } from '../js/tournament/runtime.js?v=73';
-import { beginExplorationToDraft, renderExplorationScreen, completeExplorationToDraft, useInventoryItemToDraft, selectSearchCandidateToDraft, useRespawnTurntableToDraft } from '../js/tournament/exploration.js?v=73';
-import { trainingGainText, nextTournamentText, weeklyGrowthSummary, lastWeekTraining } from '../js/main/training-view.js?v=73';
-import { WEEKLY_EVENTS } from '../data/weekly-event-data.js?v=73';
-import { createBattleFromTournamentRuntime, runBattleToCompletion, applyBattleResultToTournamentRuntime } from '../js/tournament/battle-core.js?v=73';
-import { createBattleReplayModel, applyBattleReplayEvent, renderBattleReplayScreen, battlePresentationHold } from '../js/tournament/battle-ui.js?v=73';
+import { createNewGameState, serializeSaveState, deserializeSaveState, validateSaveState } from '../js/main/state.js?v=75';
+import { executeTrainingToDraft, performStrategyMeetingToDraft, purchaseConsumableToDraft, getTournamentWeekStatus, renderTrainingManagement } from '../js/main/management.js?v=75';
+import { advanceGameWeek, getTournamentEventsForDate } from '../data/game-data.js?v=75';
+import { createTournamentEntryData } from '../js/main/tournament-bridge.js?v=75';
+import { createTournamentRuntime } from '../js/tournament/runtime.js?v=75';
+import { beginExplorationToDraft, renderExplorationScreen, completeExplorationToDraft, useInventoryItemToDraft, selectSearchCandidateToDraft, useRespawnTurntableToDraft } from '../js/tournament/exploration.js?v=75';
+import { trainingGainText, nextTournamentText, weeklyGrowthSummary, lastWeekTraining } from '../js/main/training-view.js?v=75';
+import { WEEKLY_EVENTS } from '../data/weekly-event-data.js?v=75';
+import { createBattleFromTournamentRuntime, runBattleToCompletion, applyBattleResultToTournamentRuntime } from '../js/tournament/battle-core.js?v=75';
+import { createBattleReplayModel, applyBattleReplayEvent, renderBattleReplayScreen, battlePresentationHold } from '../js/tournament/battle-ui.js?v=75';
 import { writeFileSync } from 'node:fs';
 
 function fresh() {
@@ -26,20 +26,20 @@ test('new and legacy saves round trip without losing retired inventory', () => {
   const restored=deserializeSaveState(serializeSaveState(state)).state;
   assert.equal(restored.inventory.items.scope,2);
   assert.equal(restored.coaches.length,1);
-  assert.throws(()=>purchaseConsumableToDraft(restored,'scope'),/休止/);
+  const coin=restored.resources.coin;purchaseConsumableToDraft(restored,'scope');assert.equal(restored.inventory.items.scope,3);assert.equal(restored.resources.coin,coin-800);
 });
 
-test('one training week awards per-player points once, persists results and opens next week',()=>{
+test('one training week awards shared diamonds, persists results and opens next week',()=>{
   const state=fresh();
   const date=state.gameDate;
   const result=executeTrainingToDraft(state,state.playerTeam.members.map(p=>({playerId:p.playerId,programId:'shooting_practice'})));
   assert.deepEqual(state.gameDate,advanceGameWeek(date));
-  for(const p of state.playerTeam.members) assert.equal(state.playerTrainingPoints[p.playerId].shoot,14);
+  for(const p of state.playerTeam.members) assert.equal(state.playerTrainingPoints[p.playerId].shoot,0);
   assert.equal(state.records.trainingCompleted,1);
   assert.equal(state.records.lastTraining.members.length,3);
   assert.ok(state.ui.pendingWeekStart);
-  assert.equal(result.total.shoot,42);
-  assert.match(weeklyGrowthSummary(state),/射撃 \+14/);
+  assert.equal(result.diamond,45);assert.equal(state.records.lastTraining.diamondAfter-state.records.lastTraining.diamondBefore,45);
+  assert.match(weeklyGrowthSummary(state),/ダイヤ \+45/);
   assert.deepEqual(deserializeSaveState(serializeSaveState(state)).state.records.lastTraining,state.records.lastTraining);
   state.gameDate=structuredClone(advanceGameWeek(state.gameDate));
   assert.equal(lastWeekTraining(state),null);
@@ -63,7 +63,7 @@ test('training preview uses actual badge-adjusted gains and full labels',()=>{
   const state=fresh();
   state.collectionBonuses.trainingPointRate=0.5;
   const html=renderTrainingManagement(state);
-  assert.match(html,/射撃 \+21/);
+  assert.match(html,/ダイヤ \+67/);
   assert.match(html,/能力アップ/);
   assert.match(nextTournamentText(state),/あと\d+週|今週開催/);
 });
@@ -82,9 +82,9 @@ function tournament() {
   return {state,entry,runtime:structuredClone(createTournamentRuntime(entry))};
 }
 
-test('tournament ignores legacy carry bag and facility exploration can finish without searching',()=>{
+test('tournament carries automatic equipment and facility exploration needs no item clicks',()=>{
   const {entry,runtime}=tournament();
-  assert.ok(entry.carryItems.every(i=>i===null));
+  assert.equal(entry.carryItems[0].itemId,'scope');assert.ok(entry.carryItems.slice(1).every(i=>i===null));
   beginExplorationToDraft(runtime,{exploreIndex:1});
   const html=renderExplorationScreen(runtime);
   assert.doesNotMatch(html,/data-action="exploration-item-open"/);

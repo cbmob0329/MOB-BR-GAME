@@ -3,8 +3,8 @@ const esc = value => String(value ?? '').replaceAll('&','&amp;').replaceAll('<',
 export function renderTeamDebut(snapshot,step=0) {
   const scenes=[
     {label:'TEAM FOUNDED',title:'ここから、3人の物語。',lines:['今日から、このチームで頂点を目指すであります！','まずは3人の名前を、覚えてほしいであります。']},
-    {label:'GROW TOGETHER',title:'練習で、勝てるチームへ。',lines:['練習すると、選手ごとの能力ポイントが増えるであります。','「能力アップ」で振り分けて、3人の得意を伸ばすであります！']},
-    {label:'READY FOR THE LEAGUE',title:'準備ができたら、大会へ。',lines:['試合はオートで見守っても、自分で指示を出しても楽しめるであります！','最初の目標はデンデンカップ。まずは、1週間の練習から始めるであります！']},
+    {label:'GROW TOGETHER',title:'練習で、勝てるチームへ。',lines:['練習すると、チーム共通のダイヤが手に入るよ。','好きな選手の、好きな能力を伸ばしてね！']},
+    {label:'READY FOR THE LEAGUE',title:'準備ができたら、大会へ。',lines:['通常攻撃は自動。光ったスキルをタップして、勝負を動かそう！','最初の目標はデンデンカップ。まずは、1週間の練習から始めるであります！']},
   ];
   const scene=scenes[Math.max(0,Math.min(2,step))];
   const bonus=snapshot.weeklyBonus?.history?.[0]?.granted ?? {};

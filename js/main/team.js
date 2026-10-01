@@ -1,3 +1,4 @@
+import { diamondPrice } from "../../data/simple-growth.js?v=75";
 /**
  * MOB BR player growth and equipment feature.
  *
@@ -12,19 +13,19 @@ import {
   characterValueToRank,
   weaponValueToRank,
   getCompanyRankData,
-} from "../../data/game-data.js?v=73";
+} from "../../data/game-data.js?v=75";
 import {
   calculateMaxHp,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=73";
+} from "../../data/battle-config.js?v=75";
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=73";
+} from "../../data/motivation-data.js?v=75";
 import {
   WEAPON_SKINS,
   getWeaponSkin,
-} from "../../data/shop-data.js?v=73";
+} from "../../data/shop-data.js?v=75";
 import {
   PLAYER_STAT_DEFINITIONS,
   WEAPON_STAT_DEFINITIONS,
@@ -34,13 +35,13 @@ import {
   getStatUpgradeCost,
   getWeaponStatDefinition,
   getWeaponUpgradeCost,
-} from "../../data/ability-data.js?v=73";
+} from "../../data/ability-data.js?v=75";
 
 import {
   getSpecialAbilitiesForRole,
   getSpecialAbility,
   getSpecialAbilityStage,
-} from "../../data/special-ability-50-data.js?v=73";
+} from "../../data/special-ability-50-data.js?v=75";
 
 export const TEAM_FEATURE_VERSION = "mobbr-team-feature-1.5.0";
 
@@ -171,7 +172,7 @@ function ensurePlayerTrainingPointPoolToDraft(draft, playerId) {
 
 function subtractPointCost(pointPool, cost) {
   if (!canAffordPointCost(pointPool, cost)) {
-    throw new RangeError("トレーニングポイントが不足しています。");
+    throw new RangeError("ダイヤが不足しています。");
   }
   for (const pointId of TRAINING_POINT_IDS) {
     pointPool[pointId] -= cost[pointId] ?? 0;
@@ -331,12 +332,9 @@ export function upgradePlayerStatToDraft(draft, playerId, statId) {
     throw new RangeError(`${definition.displayName}はMOBに到達しています。`);
   }
 
-  const pointCost = Object.fromEntries(
-    TRAINING_POINT_IDS.map((pointId) => [pointId, 0]),
-  );
-  pointCost[definition.primaryPoint] = upgradeCost.primary;
-  pointCost[definition.secondaryPoint] = upgradeCost.secondary;
-  subtractPointCost(ensurePlayerTrainingPointPoolToDraft(draft, playerId), pointCost);
+  const pointCost = {diamond:diamondPrice({primary:upgradeCost.primary,secondary:upgradeCost.secondary})};
+  if(draft.resources.diamond < pointCost.diamond) throw new RangeError('ダイヤが不足しています。');
+  draft.resources.diamond -= pointCost.diamond;
 
   const previousMaxHp = player.maxHp;
   player.stats[statId] += 1;
@@ -727,14 +725,7 @@ export function getAbilityAcquisitionState(
         playerId,
       ),
     );
-  const affordable =
-    canAffordPointCost(
-      getPlayerTrainingPointPool(
-        snapshot,
-        playerId,
-      ),
-      ability.cost,
-    );
+  const affordable = snapshot.resources.diamond >= diamondPrice(ability.cost);
   const maxed =
     currentLevel >= 2;
 
@@ -801,7 +792,7 @@ export function learnSpecialAbilityToDraft(
   }
   if (!state.affordable) {
     throw new RangeError(
-      "トレーニングポイントが不足しています。",
+      "ダイヤが不足しています。",
     );
   }
 
@@ -810,13 +801,7 @@ export function learnSpecialAbilityToDraft(
       draft,
       playerId,
     );
-  subtractPointCost(
-    ensurePlayerTrainingPointPoolToDraft(
-      draft,
-      playerId,
-    ),
-    ability.cost,
-  );
+  draft.resources.diamond -= diamondPrice(ability.cost);
 
   const entry = {
     abilityKey:
@@ -901,85 +886,21 @@ export function learnSpecialAbilityToDraft(
   };
 }
 
-function pointPoolTemplate(snapshot, playerId) {
-  return `
-    <section class="team-point-grid" aria-label="トレーニングポイント">
-      ${TRAINING_POINT_IDS.map((pointId) => `
-        <div class="team-point-chip team-point-chip--${pointId}">
-          <span>${POINT_LABELS[pointId]}</span>
-          <strong>${formatNumber(getPlayerTrainingPointPool(snapshot, playerId)[pointId])}</strong>
-        </div>
-      `).join("")}
-    </section>
-  `;
-}
+function pointPoolTemplate(snapshot) { return '<section class="team-point-grid"><div class="team-point-chip"><span>チーム共通ダイヤ</span><strong>'+formatNumber(snapshot.resources.diamond)+'</strong></div></section>'; }
 
-export function calculatePlayerStatUpgradePlan(
-  snapshot,
-  playerId,
-  increments = {},
-) {
-  const player = getPlayer(snapshot, playerId);
-  const normalized = Object.fromEntries(
-    PLAYER_STAT_DEFINITIONS.map((definition) => [
-      definition.id,
-      Math.max(0, Math.floor(increments[definition.id] ?? 0)),
-    ]),
-  );
-  const totalCost = Object.fromEntries(
-    TRAINING_POINT_IDS.map((pointId) => [pointId, 0]),
-  );
-  const rows = PLAYER_STAT_DEFINITIONS.map((definition) => {
-    const currentValue = player.stats[definition.id];
-    let projectedValue = currentValue;
-    const steps = [];
-    for (let index = 0; index < normalized[definition.id]; index += 1) {
-      const cost = getStatUpgradeCost(projectedValue);
-      if (!cost) break;
-      const pointCost = Object.fromEntries(
-        TRAINING_POINT_IDS.map((pointId) => [pointId, 0]),
-      );
-      pointCost[definition.primaryPoint] = cost.primary;
-      pointCost[definition.secondaryPoint] = cost.secondary;
-      for (const pointId of TRAINING_POINT_IDS) {
-        totalCost[pointId] += pointCost[pointId];
-      }
-      steps.push(pointCost);
-      projectedValue += 1;
-    }
-    normalized[definition.id] = steps.length;
-    const nextCostMaster = getStatUpgradeCost(projectedValue);
-    const nextCost = Object.fromEntries(
-      TRAINING_POINT_IDS.map((pointId) => [pointId, 0]),
-    );
-    if (nextCostMaster) {
-      nextCost[definition.primaryPoint] = nextCostMaster.primary;
-      nextCost[definition.secondaryPoint] = nextCostMaster.secondary;
-    }
-    return {
-      definition,
-      currentValue,
-      projectedValue,
-      increment: steps.length,
-      nextCost,
-      atMaximum: nextCostMaster === null,
-    };
+export function calculatePlayerStatUpgradePlan(snapshot, playerId, increments={}) {
+  const player=getPlayer(snapshot,playerId), normalized={}; let total=0;
+  const rows=PLAYER_STAT_DEFINITIONS.map(definition=>{
+    const currentValue=player.stats[definition.id]; let projectedValue=currentValue, count=0;
+    const requested=Number(increments[definition.id] ?? 0);
+    if(!Number.isSafeInteger(requested)||requested<0) throw new RangeError('強化回数が不正です。');
+    for(let i=0;i<requested;i++) {const c=getStatUpgradeCost(projectedValue);if(!c)break;total+=diamondPrice({primary:c.primary,secondary:c.secondary});projectedValue++;count++;}
+    normalized[definition.id]=count;
+    const c=getStatUpgradeCost(projectedValue);
+    return {definition,currentValue,projectedValue,increment:count,nextCost:c?{diamond:diamondPrice({primary:c.primary,secondary:c.secondary})}:null,atMaximum:!c};
   });
-  const remainingPoints = Object.fromEntries(
-    TRAINING_POINT_IDS.map((pointId) => [
-      pointId,
-      getPlayerTrainingPointPool(snapshot, playerId)[pointId] - totalCost[pointId],
-    ]),
-  );
-  return {
-    playerId,
-    increments: normalized,
-    totalCost,
-    remainingPoints,
-    affordable: TRAINING_POINT_IDS.every((pointId) => remainingPoints[pointId] >= 0),
-    hasChanges: Object.values(normalized).some((value) => value > 0),
-    rows,
-  };
+  const remainingDiamond=snapshot.resources.diamond-total;
+  return {playerId,increments:normalized,totalCost:{diamond:total},remainingPoints:{diamond:remainingDiamond},remainingDiamond,affordable:remainingDiamond>=0,hasChanges:Object.values(normalized).some(n=>n>0),rows};
 }
 
 export function applyPlayerStatUpgradePlanToDraft(
@@ -988,6 +909,9 @@ export function applyPlayerStatUpgradePlanToDraft(
   increments,
 ) {
   assertDraft(draft);
+  const plan=calculatePlayerStatUpgradePlan(draft,playerId,increments);
+  if(!plan.affordable) throw new RangeError('ダイヤが不足しています。');
+  increments=plan.increments;
   const results = [];
   for (const definition of PLAYER_STAT_DEFINITIONS) {
     const count = Math.max(0, Math.floor(increments?.[definition.id] ?? 0));
@@ -1085,15 +1009,7 @@ export function renderTeamDetailsSection(snapshot) {
   `;
 }
 
-function abilityCostTemplate(cost) {
-  return TRAINING_POINT_IDS
-    .filter((pointId) => cost[pointId] > 0)
-    .map(
-      (pointId) =>
-        `<span>${POINT_LABELS[pointId]} ${formatNumber(cost[pointId])}</span>`,
-    )
-    .join("");
-}
+function abilityCostTemplate(cost) { return '<span>ダイヤ '+formatNumber(cost?.diamond ?? diamondPrice(cost))+'</span>'; }
 
 
 const PLAYER_STAT_DESCRIPTIONS = Object.freeze({
@@ -1144,8 +1060,8 @@ function upgradeTableTemplate({kind, playerId, rows, plan}) {
       const current=weapon ? row.currentRank : characterValueToRank(row.currentValue);
       const next=weapon ? row.projectedRank : characterValueToRank(row.projectedValue);
       const cost=row.nextCost;
-      const canAdd=!!cost && !row.atMaximum && (weapon ? plan.remainingCoin >= cost.coin && plan.remainingRuby >= cost.ruby : TRAINING_POINT_IDS.every(key=>plan.remainingPoints[key] >= (cost[key] ?? 0)));
-      const costText=!cost || row.atMaximum ? "最大まで成長" : Object.entries(cost).filter(([key,value])=>value>0 && (weapon ? ["coin","ruby"].includes(key) : TRAINING_POINT_IDS.includes(key))).map(([key,value])=>`<span>${POINT_LABELS[key] ?? ({coin:"コイン",ruby:"ルビー"})[key]} <b>${value}</b></span>`).join("");
+      const canAdd=!!cost && !row.atMaximum && (weapon ? plan.remainingCoin >= cost.coin && plan.remainingRuby >= cost.ruby : plan.remainingDiamond >= cost.diamond);
+      const costText=!cost || row.atMaximum ? "最大まで成長" : Object.entries(cost).filter(([key,value])=>value>0 && (weapon ? ["coin","ruby"].includes(key) : key === "diamond")).map(([key,value])=>`<span>${POINT_LABELS[key] ?? ({coin:"コイン",ruby:"ルビー",diamond:"ダイヤ"})[key]} <b>${value}</b></span>`).join("");
       const attr=weapon ? "data-weapon-stat-id" : "data-stat-id";
       return `<article class="pw-stat-row ${row.increment ? "is-planned" : ""}">
         <div class="pw-stat-name"><strong>${escapeHtml(name)}</strong><small>${escapeHtml((weapon ? WEAPON_STAT_DESCRIPTIONS : PLAYER_STAT_DESCRIPTIONS)[id] ?? "")}</small></div>
@@ -1227,10 +1143,7 @@ export function renderAbilityUpgradeNodeModal(
     );
   const nextAffordable =
     !row.atMaximum &&
-    canAffordPointCost(
-      plan.remainingPoints,
-      row.nextCost,
-    );
+    plan.remainingDiamond >= row.nextCost.diamond;
 
   return `
     <section class="upgrade-node-modal upgrade-node-modal--ability">
@@ -1455,39 +1368,13 @@ export function renderAbilityUpSection(
           : ""
       }
 
-      ${upgradeResourceStripTemplate(
-        TRAINING_POINT_IDS.map(
-          (pointId) => ({
-            label:
-              POINT_LABELS[
-                pointId
-              ],
-            before:
-              formatNumber(
-                getPlayerTrainingPointPool(
-                  snapshot,
-                  playerId,
-                )[pointId],
-              ),
-            after:
-              formatNumber(
-                plan.remainingPoints[
-                  pointId
-                ],
-              ),
-            negative:
-              plan.remainingPoints[
-                pointId
-              ] < 0,
-          }),
-        ),
-      )}
+      ${upgradeResourceStripTemplate([{label:'チーム共通ダイヤ',before:formatNumber(snapshot.resources.diamond),after:formatNumber(plan.remainingDiamond),negative:plan.remainingDiamond<0}])}
 
       <section class="pw-upgrade-console pw-upgrade-console--ability">
         <header class="pw-upgrade-console__header">
           <div>
             <span>選手育成</span>
-            <strong>ポイントを使って能力アップ</strong>
+            <strong>ダイヤで好きな能力を伸ばす</strong>
           </div>
           <small>
             ＋で選択 → 内容を確認 → 確定

@@ -1,5 +1,5 @@
-import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=73";
-import { renderBattleStory } from './match-experience.js?v=73';
+import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=75";
+import { renderBattleStory } from './match-experience.js?v=75';
 /**
  * MOB BR battle presentation and event playback.
  *
@@ -7,20 +7,20 @@ import { renderBattleStory } from './match-experience.js?v=73';
  * the serialized event stream without changing combat calculations.
  */
 
-import { assetPath } from "../assets.js?v=73";
+import { assetPath } from "../assets.js?v=75";
 import {
   fitPortraits,
-} from "../portrait-fit.js?v=73";
+} from "../portrait-fit.js?v=75";
 import {
   motivationDisplay,
-} from "../../data/motivation-data.js?v=73";
+} from "../../data/motivation-data.js?v=75";
 import {
   COMMENTATOR,
   COMMENTARY_VERSION,
   createBattleOutcomeCommentary,
   createCommentaryContext,
   createCommentaryDirector,
-} from "./commentary.js?v=73";
+} from "./commentary.js?v=75";
 
 export const BATTLE_UI_VERSION = "mobbr-battle-ui-2.9.0";
 export const BATTLE_REPLAY_SCHEMA_VERSION =
@@ -1122,10 +1122,10 @@ export function renderBattleOutcomeScreen(runtime) {
         <span>${result.draw ? '引き分け' : playerWon ? '交戦に勝利' : '交戦に敗北'}</span>
         <h1>${escapeHtml(winner?.teamName ?? "両チーム")}</h1>
         <p>
-          交戦時間 ${result.elapsedSeconds.toFixed(1)}秒。
+          交戦時間 ${(result.elapsedSeconds * (runtime.lastBattleLive ? 2 : 1)).toFixed(1)}秒。
           ${result.endReason === 'time_limit' ? `時間切れのため、${({aliveCount:'生存人数',teamHpRate:'チームの残りHP割合',damageDealt:'与えたダメージ',downsGiven:'ダウン数',confirmedKills:'撃破数',battlePower:'戦力',stableRandom:'最終判定'})[result.tieBreaker] ?? '総合判定'}で決着。` : result.endReason === 'squad_wipe' ? 'チームが戦闘不能になり決着。' : '両チームが交戦を終了。'}
         </p>
-        <p>今回の指示：${escapeHtml(runtime.lastBattleCommand?.name ?? 'バランス')}。${escapeHtml(runtime.lastBattleCommand?.automatic ? runtime.lastBattleCommand.reason : 'あなたの指示で戦いました。')}</p>
+        <p>${runtime.lastBattleLive ? `スキル発動 ${(runtime.lastBattleEvents??[]).filter(e=>e.type==='skill_cutin'&&e.actorTeamId===runtime.playerTeamId).length}回 ／ 自動アイテム ${(runtime.lastBattleEvents??[]).filter(e=>e.type==='auto_item').length}回` : `今回の指示：${escapeHtml(runtime.lastBattleCommand?.name ?? 'バランス')}`}</p>
       </section>
       <section class="battle-survivor-grid">
         ${members.map((member) => `

@@ -1,5 +1,8 @@
-import { CONSUMABLES_ENABLED, strategyResearchPoints } from "../../data/feature-policy.js?v=73";
-import { renderTrainingPlan, trainingGainText } from "./training-view.js?v=73";
+import {AUTO_ITEMS,autoItem} from "../../data/auto-items.js?v=75";
+import {renderAutoEquipment,saveAutoEquipment} from "./auto-equipment.js?v=75";
+import { TRAINING_COURSES, trainingReward } from "../../data/simple-growth.js?v=75";
+import { CONSUMABLES_ENABLED, strategyResearchPoints } from "../../data/feature-policy.js?v=75";
+import { renderTrainingPlan, trainingGainText } from "./training-view.js?v=75";
 /**
  * MOB BR company-management feature.
  *
@@ -9,23 +12,23 @@ import { renderTrainingPlan, trainingGainText } from "./training-view.js?v=73";
 
 import {
   assetPath,
-} from "../assets.js?v=73";
+} from "../assets.js?v=75";
 import {
   TRAINING_POINT_IDS,
   advanceGameWeek,
   getCompanyRankData,
   getTournamentEventsForDate,
-} from "../../data/game-data.js?v=73";
+} from "../../data/game-data.js?v=75";
 import {
   isCasualTournamentType,
   resolveCpuTeamMaster,
   simulateObserverCircuitEvent,
-} from "../../data/circuit-data.js?v=73";
+} from "../../data/circuit-data.js?v=75";
 import {
   TRAINING_PROGRAMS,
   calculateBadgeTrainingBonusRate,
   calculateWeeklyTraining,
-} from "../../data/training-data.js?v=73";
+} from "../../data/training-data.js?v=75";
 import {
   BADGE_PACKS,
   CARD_PACKS,
@@ -37,17 +40,17 @@ import {
   getItem,
   getWeaponSkin,
   isCardPackUnlocked,
-} from "../../data/shop-data.js?v=73";
+} from "../../data/shop-data.js?v=75";
 import {
   STRATEGY_MEETING_RULES,
   getStrategyMeetingProbabilities,
-} from "../../data/coach-data.js?v=73";
+} from "../../data/coach-data.js?v=75";
 import {
   STRATEGIES,
   STRATEGY_RANKS,
   getStrategiesByRank,
   getStrategy,
-} from "../../data/strategy-data.js?v=73";
+} from "../../data/strategy-data.js?v=75";
 import {
   BADGE_COLLECTION,
   CARD_COLLECTION,
@@ -61,7 +64,7 @@ import {
   getCollectionCompletion,
   getCollectionEntry,
   getRoomMaster,
-} from "../../data/collection-data.js?v=73";
+} from "../../data/collection-data.js?v=75";
 import {
   advanceWeeksToDraft,
   applyResourceDeltaToDraft,
@@ -70,7 +73,7 @@ import {
   purchaseDiningSetMealToDraft,
   serveDiningMealToDraft,
   settleDiningMealsToDraft,
-} from "./state.js?v=73";
+} from "./state.js?v=75";
 import {
   COOKING_RULES,
   COOKING_SCREEN_ASSETS,
@@ -87,10 +90,10 @@ import {
   getRecipeCandidates,
   isCookingJobReady,
   startCookingJobToDraft,
-} from "../../data/cooking-data.js?v=73";
+} from "../../data/cooking-data.js?v=75";
 import {
   createChampionshipStandings,
-} from "./tournament-bridge.js?v=73";
+} from "./tournament-bridge.js?v=75";
 import {
   DINING_EATING_SPEECHES,
   DINING_HUNGRY_SPEECHES,
@@ -98,7 +101,7 @@ import {
   diningWeekKey,
   getDiningMasterSpeech,
   getWeeklyDiningSets,
-} from "../../data/dining-data.js?v=73";
+} from "../../data/dining-data.js?v=75";
 
 export const MANAGEMENT_FEATURE_VERSION =
   "mobbr-management-feature-3.0.4";
@@ -311,6 +314,7 @@ function foodInventoryCount(
 }
 
 const SHOP_CATEGORY_DEFINITIONS = Object.freeze([
+  {id:"item",label:"自動アイテム",icon:"menu/item.png",dialogue:"選手に装備しておけば、必要な時に自動で使ってくれるよ！"},
   { id: "card", label: "カード", icon: "icon/card.png", dialogue: "カードパックであります！解放済みの商品を選べるであります！" },
   { id: "skin", label: "スキン", icon: "menu/gacha.png", dialogue: "武器スキンであります！未所持のスキンだけが抽選対象であります！" },
   { id: "good", label: "GOOD", icon: "icon/bagi.png", dialogue: "大会記念品であります！大会の報酬で入手できるであります！" },
@@ -635,26 +639,23 @@ export function executeTrainingToDraft(
   // but never reference an undeclared legacy variable.
   const diningCoachBonusRate = 0;
   const totalTrainingBonusRate = badgeBonusRate;
+  if(!Array.isArray(assignments)||assignments.length!==3||new Set(assignments.map(a=>a.playerId)).size!==3||assignments.some(a=>!draft.playerTeam.members.some(p=>p.playerId===a.playerId))) throw new RangeError('チームの3人で練習してください。');
   const result = calculateWeeklyTraining(
     assignments,
     totalTrainingBonusRate,
   );
 
-  const playerPointPools = ensurePlayerTrainingPointsToDraft(draft);
-  for (const memberResult of result.memberResults) {
-    const pool = playerPointPools[memberResult.playerId];
-    for (const pointId of TRAINING_POINT_IDS) {
-      pool[pointId] += memberResult.gain[pointId];
-    }
-  }
+  const reward = trainingReward(draft, assignments[0]?.programId);
+  if (draft.resources.coin < reward.coin) throw new RangeError('コインが不足しています。');
+  const diamondBefore = draft.resources.diamond;
+  draft.resources.coin -= reward.coin;
+  draft.resources.diamond += reward.total;
   draft.records.trainingCompleted += 1;
   draft.records.lastTraining = {
-    gameDate: deepClone(draft.gameDate),
-    members: result.memberResults.map(member => ({
-      ...deepClone(member),
-      pointsBefore: Object.fromEntries(TRAINING_POINT_IDS.map(id => [id, playerPointPools[member.playerId][id] - member.gain[id]])),
-      pointsAfter: deepClone(playerPointPools[member.playerId]),
-    })),
+    gameDate: deepClone(draft.gameDate), currencyVersion:1,
+    courseName:reward.name, diamond:reward.total, diamondBefore,
+    diamondAfter:draft.resources.diamond, coinCost:reward.coin, milestone:reward.milestone,
+    members: result.memberResults.map(member=>({...deepClone(member), gain:{power:0,tech:0,mental:0,shoot:0}})),
   };
 
   for (const detail of tournamentWeek.details) {
@@ -711,6 +712,7 @@ export function executeTrainingToDraft(
     totalTrainingBonusRate,
     weekAdvance,
     trainingCompleted: draft.records.trainingCompleted,
+    diamond: reward.total, coinCost:reward.coin,
   };
 }
 
@@ -745,7 +747,7 @@ export function purchaseConsumableToDraft(
 ) {
   assertDraft(draft);
   ensureManagementStateToDraft(draft);
-  if (!CONSUMABLES_ENABLED) throw new RangeError("大会用消耗品は休止中です。");
+  if (!autoItem(itemId)) throw new RangeError("このアイテムは現在販売していません。");
   const item = getItem(itemId);
   if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
     throw new RangeError("購入数は1～99にしてください。");
@@ -1827,7 +1829,7 @@ export function renderTrainingManagement(snapshot) {
 
 export function renderShopManagement(snapshot) {
   const unlockProgress = getCardPackUnlockProgress(snapshot);
-  const category = MANAGEMENT_VIEW_STATE.shopCategory === "item" ? "card" : MANAGEMENT_VIEW_STATE.shopCategory;
+  const category = MANAGEMENT_VIEW_STATE.shopCategory ?? "item";
   const categoryDefinition = SHOP_CATEGORY_DEFINITIONS.find(
     (entry) => entry.id === category,
   );
@@ -1841,10 +1843,10 @@ export function renderShopManagement(snapshot) {
     categoryContent = `
       <section class="management-section">
         <div class="management-section__heading">
-          <h2>ITEM</h2><span>タップ後、＋／−で購入数を選択</span>
+          <h2>自動アイテム</h2><span>コインで購入 → 選手に装備 → 戦闘で自動使用</span><button class="secondary-button" data-action="navigate" data-route="items">装備する</button>
         </div>
         <div class="shop-item-grid">
-          ${CONSUMABLE_ITEMS.map((item) => shopItemTile(item, snapshot)).join("")}
+          ${AUTO_ITEMS.map((item) => shopItemTile(item, snapshot)).join("")}
         </div>
       </section>
     `;
@@ -1993,6 +1995,9 @@ export function renderShopManagement(snapshot) {
 }
 
 export function renderItemBagManagement(snapshot) {
+  return renderAutoEquipment(snapshot);
+}
+function renderLegacyItemBagManagement(snapshot) {
   const capacity = calculateBagCapacity(snapshot.company.rankIndex);
   const ownedItems = CONSUMABLE_ITEMS.filter(
     (item) => (snapshot.inventory.items[item.itemId] ?? 0) > 0,
@@ -3187,7 +3192,7 @@ function renderRestaurantMenuModal(
           <div class="restaurant-menu-modal__title">
             <span>${escapeHtml(`${snapshot.gameDate.year}年 ${snapshot.gameDate.month}月 第${snapshot.gameDate.week}週`)}</span>
             <strong>今週のセットメニュー</strong>
-            <small>どの定食でも能力ポイント4種を各+${DINING_RULES.playerPointGainPerType}</small>
+            <small>どの定食でもチーム共通ダイヤ +${DINING_RULES.playerPointGainPerType}</small>
           </div>
           <div class="restaurant-set-grid">
             ${menu.map((setMeal) => diningSetCardTemplate(setMeal, usedSetIds)).join("")}
@@ -4950,7 +4955,7 @@ export function createManagementController({
       <div class="restaurant-meal-cutin__card">
         <span>MOB DINING</span>
         <strong>${escapeHtml(result.setLabel)}の料理を美味しく食べた！</strong>
-        <small>能力ポイント POWER / TECH / MENTAL / SHOOT 各+${DINING_RULES.playerPointGainPerType}</small>
+        <small>チーム共通ダイヤ +${DINING_RULES.playerPointGainPerType}</small>
       </div>
     `;
     root.append(overlay);
@@ -5308,7 +5313,7 @@ export function createManagementController({
                 </article>
               `).join("")}
             </div>
-            <p>食事後：能力ポイント4種を各+${DINING_RULES.playerPointGainPerType} / 従業員全員へ従業員PT+${DINING_RULES.employeePointGainPerPlayerMeal}</p>
+            <p>食事後：チーム共通ダイヤ +${DINING_RULES.playerPointGainPerType} / 従業員全員へ従業員PT+${DINING_RULES.employeePointGainPerPlayerMeal}</p>
           </section>
         `,
         confirmLabel: "この定食にする",
@@ -5537,6 +5542,13 @@ export function createManagementController({
       return true;
     }
 
+    if (action === "select-team-course") {
+      const id=actionElement.dataset.programId;
+      if (!TRAINING_COURSES.some(c=>c.id===id)) return true;
+      for(const player of stateManager.getSnapshot().playerTeam.members) MANAGEMENT_VIEW_STATE.trainingSelections[player.playerId]=id;
+      renderPreservingScroll();
+      return true;
+    }
     if (action === "select-training-program") {
       const playerId = actionElement.dataset.playerId;
       const programId = actionElement.dataset.programId;
@@ -5553,6 +5565,9 @@ export function createManagementController({
       return true;
     }
 
+    if(action === 'save-auto-equipment') {
+      try {const ids=[...root.querySelectorAll('[data-auto-slot]')].map(el=>el.value);stateManager.transact('auto_equipment_saved',draft=>saveAutoEquipment(draft,ids));showToast('装備を保存しました');renderPreservingScroll();}catch(error){await showError('装備を保存できません',error);}return true;
+    }
     if (action === "select-shop-category") {
       MANAGEMENT_VIEW_STATE.shopCategory =
         actionElement.dataset.shopCategory;
@@ -5629,7 +5644,7 @@ export function createManagementController({
         }));
       if (!(await openConfirm({
         title: "1週間トレーニングしますか？",
-        body: "<p>各選手が選んだ練習を実行し、個別の能力ポイントを獲得して1週間進めます。</p>",
+        body: "<p>選んだコースでダイヤを獲得し、1週間進めます。ダイヤは好きな選手の強化に使えます。</p>",
         confirmLabel: "実行する",
       }))) return true;
       try {

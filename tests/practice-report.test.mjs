@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createNewGameState, serializeSaveState, deserializeSaveState } from '../js/main/state.js?v=73';
-import { executeTrainingToDraft } from '../js/main/management.js?v=73';
-import { advanceGameWeek } from '../data/game-data.js?v=73';
-import { practiceReportModel, renderPracticeReport } from '../js/main/practice-report.js?v=73';
+import { createNewGameState, serializeSaveState, deserializeSaveState } from '../js/main/state.js?v=75';
+import { executeTrainingToDraft } from '../js/main/management.js?v=75';
+import { advanceGameWeek } from '../data/game-data.js?v=75';
+import { practiceReportModel, renderPracticeReport } from '../js/main/practice-report.js?v=75';
 
 function trained() {
   const state = structuredClone(createNewGameState({companyBaseName:'検証',playerNames:{IGL:'指揮',ATK:'攻撃',SUP:'支援'}}));
@@ -14,17 +14,12 @@ function trained() {
   return state;
 }
 
-test('practice report preserves each player’s actual before/after balances, including after spending points', () => {
-  const state = trained();
-  const model = practiceReportModel(state);
-  for (const [index, member] of model.members.entries()) {
-    const shooting = member.points.find(point => point.id === 'shoot');
-    assert.equal(shooting.before,40+index);
-    assert.equal(shooting.gain,14);
-    assert.equal(shooting.after,54+index);
-  }
-  state.playerTrainingPoints[state.playerTeam.members[0].playerId].shoot = 0;
-  assert.deepEqual(practiceReportModel(state),model);
+test('diamond report preserves the awarded amount after diamonds are spent',()=>{
+ const state=trained(),record=structuredClone(state.records.lastTraining);
+ assert.equal(record.diamond,45);assert.equal(record.diamondAfter-record.diamondBefore,45);
+ const html=renderPracticeReport(state);assert.match(html,/獲得ダイヤ/);assert.match(html,/\+45/);
+ state.resources.diamond=0;assert.equal(renderPracticeReport(state),html);
+ assert.deepEqual(state.records.lastTraining,record);
 });
 
 test('saved pending report can be replayed without advancing a week or awarding again', () => {

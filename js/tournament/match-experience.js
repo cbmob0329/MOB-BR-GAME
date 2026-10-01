@@ -32,7 +32,7 @@ export const AUTO_PHASE_ACTIONS = Object.freeze({
 
 export function renderTournamentDirector(runtime) {
   const auto = runtime.matchExperience?.autoAdvance === true;
-  return `<aside class="tournament-director" aria-label="大会の進め方"><div><strong>${auto?'オート観戦':'手動で指揮'}</strong><span>${esc(runtime.entryData.tournament.tournamentName)} · 第${Math.max(1,runtime.match)}試合 · ROUND ${Math.max(1,runtime.round)}</span></div><p>${auto?'画面を順番に進めます。作戦は回数無制限の基本作戦を使用。':'交戦前に指示を選び、好きなタイミングで進めます。'}</p><button type="button" data-action="toggle-match-auto" aria-pressed="${auto}">${auto?'手動に切り替える':'オート観戦にする'}</button></aside>`;
+  return `<aside class="tournament-director" aria-label="大会の進め方"><div><strong>${auto?'オート観戦':'手動で指揮'}</strong><span>${esc(runtime.entryData.tournament.tournamentName)} · 第${Math.max(1,runtime.match)}試合 · ROUND ${Math.max(1,runtime.round)}</span></div><p>${auto?'大会の進行とスキル発動を自動で行います。':'通常攻撃は自動。戦闘中にスキルをタップして発動します。'}</p><button type="button" data-action="toggle-match-auto" aria-pressed="${auto}">${auto?'手動に切り替える':'オート観戦にする'}</button></aside>`;
 }
 
 export function renderBattleStory(runtime,model) {

@@ -1,4 +1,5 @@
-import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=73";
+import { convertLegacyGrowthToDiamonds } from "../../data/simple-growth.js?v=75";
+import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=75";
 /**
  * MOB BR main save-state module.
  *
@@ -20,41 +21,41 @@ import {
   getCompanyRankData,
   rankToWeaponValue,
   validateGameDate,
-} from "../../data/game-data.js?v=73";
+} from "../../data/game-data.js?v=75";
 import {
   BATTLE_CONFIG_VERSION,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=73";
+} from "../../data/battle-config.js?v=75";
 import {
   TRAINING_DATA_VERSION,
-} from "../../data/training-data.js?v=73";
+} from "../../data/training-data.js?v=75";
 import {
   SHOP_DATA_VERSION,
   ITEM_MASTER_VERSION,
   PACK_MASTER_VERSION,
   WEAPON_SKIN_MASTER_VERSION,
   getItem,
-} from "../../data/shop-data.js?v=73";
+} from "../../data/shop-data.js?v=75";
 import {
   COACH_DATA_VERSION,
   COACH_RULES,
-} from "../../data/coach-data.js?v=73";
+} from "../../data/coach-data.js?v=75";
 import {
   COLLECTION_DATA_VERSION,
   COLLECTION_MASTER_VERSION,
   RETIRED_BADGE_COLLECTION_IDS,
   RETIRED_CARD_COLLECTION_IDS,
   ROOM_MASTER_VERSION,
-} from "../../data/collection-data.js?v=73";
+} from "../../data/collection-data.js?v=75";
 import {
   CPU_ROSTER_47_DATA_VERSION,
-} from "../../data/cpu-roster-47-data.js?v=73";
+} from "../../data/cpu-roster-47-data.js?v=75";
 import {
   STRATEGY_DATA_VERSION,
   STRATEGY_MASTER_VERSION,
   STRATEGY_RULES,
   getStrategy,
-} from "../../data/strategy-data.js?v=73";
+} from "../../data/strategy-data.js?v=75";
 import {
   MOTIVATION_DATA_VERSION,
   MOTIVATION_RULES,
@@ -63,7 +64,7 @@ import {
   motivationLevelIndex,
   normalizeMotivationRecord,
   shiftMotivation,
-} from "../../data/motivation-data.js?v=73";
+} from "../../data/motivation-data.js?v=75";
 import {
   EMPLOYEE_DATA_VERSION,
   EMPLOYEE_MASTER,
@@ -76,7 +77,7 @@ import {
   getEmployeeRankData,
   getEmployeeWeeklyCoinBonusRate,
   normalizeEmployeeRecord,
-} from "../../data/employee-data.js?v=73";
+} from "../../data/employee-data.js?v=75";
 import {
   COOKING_DATA_VERSION,
   COOKING_STATE_SCHEMA_VERSION,
@@ -92,7 +93,7 @@ import {
   refreshWeeklyIngredientStockToDraft,
   validateCookingState,
   createFoodVariant,
-} from "../../data/cooking-data.js?v=73";
+} from "../../data/cooking-data.js?v=75";
 import {
   DINING_DATA_VERSION,
   DINING_RULES,
@@ -104,11 +105,11 @@ import {
   normalizeDiningState,
   refreshDiningWeekToDraft,
   validateDiningState,
-} from "../../data/dining-data.js?v=73";
+} from "../../data/dining-data.js?v=75";
 import {
   SPECIAL_ABILITY_50_VERSION,
   normalizeGeneration50SpecialAbilities,
-} from "../../data/special-ability-50-data.js?v=73";
+} from "../../data/special-ability-50-data.js?v=75";
 import {
   WEEKLY_EVENT_DATA_VERSION,
   WEEKLY_EVENT_RULES,
@@ -116,7 +117,7 @@ import {
   getWeeklyEvent,
   getWeeklyEventsByRarity,
   weightedOutcome,
-} from "../../data/weekly-event-data.js?v=73";
+} from "../../data/weekly-event-data.js?v=75";
 
 export const SAVE_SCHEMA_VERSION = "mobbr-save-3.1.0";
 export const SAVE_ENVELOPE_VERSION = "mobbr-save-envelope-1.0.0";
@@ -2255,25 +2256,11 @@ function applyWeeklyEventEffectsToDraft(draft, event, pending, effects, occurred
     if (!effect || typeof effect !== "object") continue;
 
     if (effect.type === "points") {
-      const affected = weeklyEventAffectedPlayers(draft, pending, effect.scope);
-      const amount = Math.trunc(Number(effect.amount) || 0);
-      const changedPlayers = [];
-      for (const player of affected) {
-        draft.playerTrainingPoints[player.playerId] ??= createEmptyTrainingPoints();
-        const pool = draft.playerTrainingPoints[player.playerId];
-        const before = deepClone(pool);
-        for (const pointId of TRAINING_POINT_IDS) {
-          pool[pointId] = Math.max(0, pool[pointId] + amount);
-        }
-        changedPlayers.push({
-          playerId: player.playerId,
-          playerName: player.name,
-          role: player.role,
-          before,
-          after: deepClone(pool),
-        });
-      }
-      summary.push({ type: "points", amount, scope: effect.scope, players: changedPlayers });
+      const affected=weeklyEventAffectedPlayers(draft,pending,effect.scope);
+      const delta=Math.trunc(Number(effect.amount)||0)*affected.length;
+      const before=draft.resources.diamond;
+      draft.resources.diamond=Math.max(0,before+delta);
+      summary.push({type:'resource',resourceId:'diamond',amount:draft.resources.diamond-before});
       continue;
     }
 
@@ -3963,8 +3950,10 @@ export function createGameStateManager({
 
     const migration = deserializeSaveState(serialized, { clock });
     currentState = migration.state;
+    const growthChanged = currentState.growthCurrencyVersion !== 1 || Object.values(currentState.playerTrainingPoints ?? {}).some(p => Object.values(p).some(v => v > 0));
+    convertLegacyGrowthToDiamonds(currentState);
 
-    if (migration.migrated) {
+    if (migration.migrated || growthChanged) {
       currentState.revision += 1;
       currentState.updatedAt = nowIso(clock);
       appendAuditEntry(
@@ -4026,6 +4015,7 @@ export function createGameStateManager({
 
     try {
       const result = mutator(draft);
+      convertLegacyGrowthToDiamonds(draft);
       if (
         result &&
         typeof result === "object" &&

@@ -1,5 +1,6 @@
-import { TRAINING_PROGRAMS, calculateTrainingGain } from '../../data/training-data.js?v=73';
-import { advanceGameWeek, getTournamentEventsForDate } from '../../data/game-data.js?v=73';
+import {TRAINING_COURSES,trainingReward} from "../../data/simple-growth.js?v=75";
+import { TRAINING_PROGRAMS, calculateTrainingGain } from '../../data/training-data.js?v=75';
+import { advanceGameWeek, getTournamentEventsForDate } from '../../data/game-data.js?v=75';
 
 export const POINT_NAMES = Object.freeze({ power: '筋力', tech: '技術', mental: '精神', shoot: '射撃' });
 const esc = (value) => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
@@ -38,37 +39,23 @@ export function lastWeekTraining(snapshot) {
 export function weeklyGrowthSummary(snapshot) {
   const result = lastWeekTraining(snapshot);
   if (!result) return '';
+  if(result.currencyVersion===1)return `<div class="weekly-growth"><span>先週のトレーニング</span><p><strong>${esc(result.courseName)}</strong><span>ダイヤ +${result.diamond}</span></p><small>好きな選手の強化に使えます。</small></div>`;
   return `<div class="weekly-growth"><span>先週の積み重ね</span>${result.members.map(member => {
     const player = snapshot.playerTeam.members.find(p => p.playerId === member.playerId);
     return `<p><strong>${esc(player?.name ?? '')}</strong><span>${Object.entries(member.gain).filter(([,v]) => v > 0).map(([k,v]) => `${POINT_NAMES[k]} +${v}`).join(' / ')}</span></p>`;
   }).join('')}<small>このポイントで、次の試合に向けて能力を伸ばそう。</small></div>`;
 }
 
-export function renderTrainingPlan(snapshot, selections, tournamentWeek) {
-  const bonus = snapshot.collectionBonuses?.trainingPointRate ?? 0;
-  return `<section class="training-plan">
-    <header class="training-plan__intro"><span class="training-plan__eyebrow">今週の育成</span>
-      <h2>練習で貯めて、能力を伸ばす。</h2>
-      <ol class="pw-training-steps"><li>3人の練習を選ぶ</li><li>1週間進めてポイントを獲得</li><li>能力アップで強化する</li></ol>
-      <p class="training-plan__schedule">${esc(nextTournamentText(snapshot))}</p>
-    </header>
-    ${tournamentWeek.trainingBlocked ? '<p class="training-plan__notice">今週は出場予定の大会があります。大会を終えてから次の練習へ進みましょう。</p><button class="secondary-button" data-action="navigate" data-route="schedule">大会予定へ</button>' : ''}
-    <div class="training-plan__toolbar"><span>バッジ補正 +${(bonus * 100).toFixed(1)}%（獲得予定に反映済み）</span><button class="secondary-button" data-action="navigate" data-route="ability">貯めたポイントで能力アップ</button></div>
-    <form data-form="training" class="training-plan__members">
-      ${snapshot.playerTeam.members.map(player => {
-        selections[player.playerId] ??= 'balanced_training';
-        const program = TRAINING_PROGRAMS.find(p => p.id === selections[player.playerId]) ?? TRAINING_PROGRAMS[5];
-        const pool = snapshot.playerTrainingPoints?.[player.playerId] ?? snapshot.trainingPoints;
-        return `<article class="training-plan__member" data-training-station="${esc(player.playerId)}">
-          <header><img src="${esc(player.image)}" alt=""><div><small>${esc(player.role)}</small><h3>${esc(player.name)}</h3></div></header>
-          <div class="training-plan__pool" aria-label="所持ポイント">${Object.entries(POINT_NAMES).map(([key, label]) => `<span>${label}<b>${pool[key]}</b></span>`).join('')}</div>
-          <input type="hidden" data-training-player="${esc(player.playerId)}" value="${program.id}">
-          <details class="training-plan__choices"><summary><span>今週の練習</span><strong data-training-selected-preview-name>${esc(program.name)}</strong><small>変更する ▾</small></summary>
-          <div class="training-plan__programs" role="group" aria-label="${esc(player.name)}の練習">${TRAINING_PROGRAMS.map(p => `<button type="button" data-action="select-training-program" data-player-id="${esc(player.playerId)}" data-program-id="${p.id}" aria-pressed="${p.id === program.id}" class="${p.id === program.id ? 'is-selected' : ''}" ${tournamentWeek.trainingBlocked ? 'disabled' : ''}><strong>${p.name}</strong><small>${PURPOSES[p.id]}</small><span>${trainingGainText(p.id, bonus)}</span></button>`).join('')}</div></details>
-          <p class="training-plan__gain"><span>獲得予定</span><strong data-training-gain-preview>${trainingGainText(program.id, bonus)}</strong></p>
-        </article>`;
-      }).join('')}
-      <div class="training-plan__footer"><p>練習で増えるのは能力ポイントです。能力値への振り分けは「能力アップ」で行います。</p><button type="button" class="primary-button" data-action="execute-training" ${tournamentWeek.trainingBlocked ? 'disabled' : ''}>${tournamentWeek.trainingBlocked ? '今週は大会へ' : 'この練習で1週間進める'}</button></div>
-    </form>
-  </section>`;
+export function renderTrainingPlan(snapshot,selections,tournamentWeek) {
+  const selected=TRAINING_COURSES.find(c=>c.id===selections[snapshot.playerTeam.members[0].playerId]) ?? TRAINING_COURSES[0];
+  const reward=trainingReward(snapshot,selected.id), done=snapshot.records.trainingCompleted ?? 0;
+  const blocked=tournamentWeek.trainingBlocked || snapshot.tournament.activeEntryId !== null;
+  return `<section class="training-plan simple-training">
+    <header class="training-plan__intro"><span class="training-plan__eyebrow">チームトレーニング</span><h2>ダイヤを貯めて、<br>好きな選手を強くする。</h2><p>コースを選ぶ → 1週間練習 → ダイヤで能力アップ</p><p class="training-plan__schedule">${esc(nextTournamentText(snapshot))}</p></header>
+    <div class="growth-wallet"><span>チーム共通ダイヤ <strong>${snapshot.resources.diamond.toLocaleString('ja-JP')}</strong></span><button class="secondary-button" data-action="navigate" data-route="ability">能力アップへ</button></div>
+    <div class="training-milestone"><strong>あと${4-done%4}回の練習で ダイヤ +20</strong><div>${Array.from({length:4},(_,i)=>'<i class="'+(i<done%4?'is-done':'')+'"></i>').join('')}</div><p>途中で大会に出ても、進み具合はリセットされません。</p></div>
+    ${blocked?'<p class="training-plan__notice">出場予定の大会を終えると、次の週へ進めます。</p><button class="secondary-button" data-action="navigate" data-route="schedule">大会へ</button>':''}
+    <div class="simple-course-grid">${TRAINING_COURSES.map(c=>{const r=trainingReward(snapshot,c.id);return `<button type="button" class="simple-course ${c.id===selected.id?'is-selected':''}" data-action="select-team-course" data-program-id="${c.id}" aria-pressed="${c.id===selected.id}" ${blocked?'disabled':''}><img src="${c.image}" alt=""><span>${c.tag}</span><h3>${c.name}</h3><p>${c.description}</p><strong>ダイヤ +${r.total}</strong><small>${c.coin?'コイン '+c.coin.toLocaleString('ja-JP'):'無料'} / 1週間</small></button>`}).join('')}</div>
+    <form data-form="training">${snapshot.playerTeam.members.map(p=>`<input type="hidden" data-training-player="${esc(p.playerId)}" value="${selected.id}">`).join('')}
+    <div class="training-plan__footer"><p>${reward.name}：ダイヤ +${reward.total}${reward.milestone?'（4回達成ボーナス込み）':''}<br>${reward.badge?'バッジ補正 +'+reward.badge+'を含みます。':'3人のうち、誰に使うかはあなた次第。'}</p><button type="button" class="primary-button" data-action="execute-training" ${blocked||snapshot.resources.coin<reward.coin?'disabled':''}>${blocked?'大会を終えてから練習':snapshot.resources.coin<reward.coin?'コインが不足しています':'このコースで1週間練習'}</button></div></form></section>`;
 }

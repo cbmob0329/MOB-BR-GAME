@@ -1,5 +1,6 @@
-import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=73";
-import { AUTO_PHASE_ACTIONS, BATTLE_ORDERS, renderTournamentDirector } from './match-experience.js?v=73';
+import {createLiveBattleController} from "./live-battle.js?v=75";
+import { CONSUMABLES_ENABLED } from "../../data/feature-policy.js?v=75";
+import { AUTO_PHASE_ACTIONS, BATTLE_ORDERS, renderTournamentDirector } from './match-experience.js?v=75';
 /**
  * MOB BR tournament presentation flow.
  *
@@ -11,25 +12,25 @@ import {
   assetPath,
   detectAssetPrefix,
   installAssetFallbacks,
-} from "../assets.js?v=73";
+} from "../assets.js?v=75";
 import {
   motivationDisplay,
-} from "../../data/motivation-data.js?v=73";
+} from "../../data/motivation-data.js?v=75";
 import {
   TOURNAMENT_PHASES,
   createTournamentRuntimeManager,
-} from "./runtime.js?v=73";
+} from "./runtime.js?v=75";
 import {
   executeCurrentBattleToDraft,
-} from "./battle-core.js?v=73";
+} from "./battle-core.js?v=75";
 import {
   getItem,
-} from "../../data/shop-data.js?v=73";
+} from "../../data/shop-data.js?v=75";
 import {
   balanceTournamentPortraits,
   createBattlePlaybackController,
   renderBattleOutcomeScreen,
-} from "./battle-ui.js?v=73";
+} from "./battle-ui.js?v=75";
 import {
   EXPLORATION_PAGES,
   beginExplorationToDraft,
@@ -51,7 +52,7 @@ import {
   useInventoryItemToDraft,
   useMobSlotToDraft,
   useRespawnTurntableToDraft,
-} from "./exploration.js?v=73";
+} from "./exploration.js?v=75";
 import {
   advanceAwardToDraft,
   finalizeCurrentMatchToDraft,
@@ -67,13 +68,13 @@ import {
   renderReturningResultScreen,
   renderTournamentResultScreen,
   writePreparedResultToStorage,
-} from "./results.js?v=73";
+} from "./results.js?v=75";
 
 import {
   applyMatchPlanToDraft,
   circuitSectionLabel,
   isPlayerMatch,
-} from "./circuit.js?v=73";
+} from "./circuit.js?v=75";
 
 import {
   fastForwardMatchToChampionToDraft,
@@ -83,7 +84,7 @@ import {
   getRoundTarget,
   isPlayerActive,
   resolveRoundEncounterToDraft,
-} from "./round.js?v=73";
+} from "./round.js?v=75";
 
 export const TOURNAMENT_FLOW_VERSION = "mobbr-tournament-flow-3.7.0";
 
@@ -758,10 +759,10 @@ function encounterPreviewTemplate(runtime) {
         </div>
       </section>
       <div class="tournament-bottom-area encounter-bottom-area">
-        ${commentaryTemplate(opponent ? `${runtime.entryData.playerTeam.teamName}と${opponent.teamName}が接敵！両チームの役割配置を確認して作戦を決めましょう！` : "対戦相手を確認できません。")}
+        ${commentaryTemplate(opponent ? `${runtime.entryData.playerTeam.teamName}と${opponent.teamName}が接敵！通常攻撃は自動。準備ができたスキルをタップして発動しましょう！` : "対戦相手を確認できません。")}
         <div class="tournament-actions">
           <button type="button" class="tournament-button tournament-button--secondary" data-action="suspend-return">中断保存</button>
-          <button type="button" class="tournament-button tournament-button--primary" data-action="encounter-next">作戦選択</button>
+          <button type="button" class="tournament-button tournament-button--primary" data-action="encounter-next">戦闘開始</button>
         </div>
       </div>
     </main>
@@ -776,8 +777,8 @@ function battleCountdownTemplate(runtime) {
     <main class="tournament-screen tournament-screen--countdown-lock" style="--map-background:url('${escapeAttribute(assetPath(runtime.map.image))}')">
       <img class="tournament-stage-background" src="${escapeAttribute(assetPath(runtime.map.image))}" alt="">
       <section class="countdown-lock-stage">
-        ${renderStrategyCutIn(runtime)}
-        <span>COMBAT SEQUENCE LOCKED</span>
+        <p>通常攻撃は自動。スキルはタップで発動。</p>
+        <span>チーム準備完了</span>
         <h1>BATTLE START</h1>
         <div class="countdown-sequence" aria-label="3 2 1">
           <strong>3</strong><strong>2</strong><strong>1</strong><span>BATTLE!</span>
@@ -785,7 +786,7 @@ function battleCountdownTemplate(runtime) {
         <small>カウントダウン中はスキップできません</small>
       </section>
       <div class="tournament-bottom-area countdown-lock-commentary">
-        ${commentaryTemplate(`${strategy?.name ?? "バランスを大事に"}で戦闘を開始します！3、2、1！`)}
+        ${commentaryTemplate(`チームの準備が整いました！3、2、1！`)}
       </div>
     </main>
   `;
@@ -1868,41 +1869,8 @@ export function createTournamentFlowController({
         }, runtime.entryData.settings.reducedMotion ? 600 : 3200);
         break;
       case "BATTLE":
-        if (!runtime.lastBattleResult) {
-          runtimeManager.update(
-            "deterministic_battle_completed_for_playback",
-            (draft) => executeCurrentBattleToDraft(draft),
-          );
-          render();
-          return;
-        }
-        activeBattlePlayback =
-          createBattlePlaybackController({
-            root,
-            runtime,
-            onComplete: ({ skipped }) => {
-              try {
-                runtimeManager.transition("BATTLE_OUTCOME", {
-                  reason: skipped
-                    ? "battle_playback_skipped"
-                    : "battle_playback_completed",
-                  patch: {
-                    pendingVisualId: "battle-outcome",
-                  },
-                });
-                render();
-              } catch (error) {
-                handleRuntimeError(error);
-              }
-            },
-            onError: handleRuntimeError,
-            onPlaybackRateChange: rate => runtimeManager.update('watch_speed_changed', draft => {
-              draft.matchExperience ??= {};
-              draft.matchExperience.watchRate = rate;
-            }),
-            onRequestItemUse:
-              useBattleItem,
-          });
+        if(runtime.lastBattleResult) {runtimeManager.transition('BATTLE_OUTCOME',{reason:'battle_completed'});render();return;}
+        activeBattlePlayback=createLiveBattleController({root,runtimeManager,onError:handleRuntimeError,onComplete:()=>{runtimeManager.transition('BATTLE_OUTCOME',{reason:'live_battle_completed'});render();}});
         activeBattlePlayback.start();
         break;
       case "BATTLE_OUTCOME":
@@ -2213,6 +2181,7 @@ export function createTournamentFlowController({
           runtimeManager.update('match_mode_changed', draft => {
             draft.matchExperience ??= {};
             draft.matchExperience.autoAdvance = !draft.matchExperience.autoAdvance;
+            draft.matchExperience.autoSkills = draft.matchExperience.autoAdvance;
             if (draft.matchExperience.autoAdvance) {
               draft.matchExperience.order = 'auto';
               draft.matchExperience.focus = 'auto';
@@ -2391,6 +2360,8 @@ export function createTournamentFlowController({
             reason: "encounter_confirmed",
             patch: { pendingVisualId: "strategy-select" },
           });
+          runtimeManager.update('simple_battle_ready',draft=>{draft.strategyUi.selectedId='D-01';draft.matchExperience??={};draft.matchExperience.order='balanced';draft.matchExperience.focus='auto';confirmStrategyToDraft(draft);});
+          runtimeManager.transition('BATTLE_COUNTDOWN',{reason:'simple_combat_ready'});
           render();
           return;
         }

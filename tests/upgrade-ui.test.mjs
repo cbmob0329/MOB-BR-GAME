@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createNewGameState} from '../js/main/state.js?v=73';
-import {calculatePlayerStatUpgradePlan,applyPlayerStatUpgradePlanToDraft,calculateWeaponUpgradePlan,applyWeaponUpgradePlanToDraft,renderAbilityUpSection,renderEquipmentSection} from '../js/main/team.js?v=73';
+import {createNewGameState} from '../js/main/state.js?v=75';
+import {calculatePlayerStatUpgradePlan,applyPlayerStatUpgradePlanToDraft,calculateWeaponUpgradePlan,applyWeaponUpgradePlanToDraft,renderAbilityUpSection,renderEquipmentSection} from '../js/main/team.js?v=75';
 
 function fixture(){
   const state=structuredClone(createNewGameState({companyBaseName:'UI検証',playerNames:{IGL:'指揮',ATK:'攻撃',SUP:'支援'}}));
   const id=state.playerTeam.members[0].playerId;
-  state.playerTrainingPoints[id]={power:100,tech:100,mental:100,shoot:100};
+  state.resources.diamond=100;
   return {state,id};
 }
 test('ability preview leaves save untouched and matches the confirmed cost and values',()=>{
@@ -18,11 +18,11 @@ test('ability preview leaves save untouched and matches the confirmed cost and v
   assert.match(html,/スタミナの強化を減らす/);
   assert.doesNotMatch(html,/upgrade-radial-node/);
   applyPlayerStatUpgradePlanToDraft(state,id,increments);
-  assert.deepEqual(state.playerTrainingPoints[id],plan.remainingPoints);
+  assert.equal(state.resources.diamond,plan.remainingDiamond);
   for(const row of plan.rows)assert.equal(state.playerTeam.members[0].stats[row.definition.id],row.projectedValue);
 });
 test('unaffordable ability additions are disabled; selected additions can be removed',()=>{
-  const {state,id}=fixture();state.playerTrainingPoints[id]={power:0,tech:0,mental:0,shoot:0};
+  const {state,id}=fixture();state.resources.diamond=0;
   const html=renderAbilityUpSection(state,id);
   const plus=html.match(/<button[^>]*data-action="ability-plan-plus"[^>]*>/g);
   assert.equal(plus.length,7);assert.ok(plus.every(button=>button.includes('disabled')));
