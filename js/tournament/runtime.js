@@ -9,57 +9,57 @@
 import {
   STORAGE_KEYS,
   calculateChecksum,
-} from "../main/state.js?v=77";
+} from "../main/state.js?v=78";
 import {
   TOURNAMENT_BRIDGE_VERSION,
   TOURNAMENT_ENTRY_SCHEMA_VERSION,
   TOURNAMENT_RESUME_SCHEMA_VERSION,
   readTournamentEntryFromStorage,
   validateTournamentEntryData,
-} from "../main/tournament-bridge.js?v=77";
+} from "../main/tournament-bridge.js?v=78";
 import {
   CPU_LOCAL_DATA_VERSION,
   CPU_LOCAL_MASTER_VERSION,
-} from "../../data/cpu-local-data.js?v=77";
+} from "../../data/cpu-local-data.js?v=78";
 import {
   CPU_NATIONAL_DATA_VERSION,
   CPU_NATIONAL_MASTER_VERSION,
-} from "../../data/cpu-national-data.js?v=77";
+} from "../../data/cpu-national-data.js?v=78";
 import {
   CPU_WORLD_DATA_VERSION,
   CPU_WORLD_MASTER_VERSION,
-} from "../../data/cpu-world-data.js?v=77";
+} from "../../data/cpu-world-data.js?v=78";
 import {
   LOCAL_CPU_TEAMS,
   NATIONAL_CPU_TEAMS,
   getWorldCpuTeamsForYear,
-} from "../../data/cpu-league-registry.js?v=77";
+} from "../../data/cpu-league-registry.js?v=78";
 import {
   characterValueToRank,
   rankToCharacterValue,
-} from "../../data/game-data.js?v=77";
+} from "../../data/game-data.js?v=78";
 import {
   effectiveCharacterRank,
   selectCpuMotivation,
-} from "../../data/motivation-data.js?v=77";
+} from "../../data/motivation-data.js?v=78";
 import {
   buildCpuBattleStats,
   calculateMaxHp,
   getRoleCommonSkills,
   resolveCpuRankFromRange,
   resolveCpuWeaponProfile,
-} from "../../data/battle-config.js?v=77";
+} from "../../data/battle-config.js?v=78";
 import {
   resolveCpuTeamMaster,
-} from "../../data/circuit-data.js?v=77";
+} from "../../data/circuit-data.js?v=78";
 import {
   applyMatchPlanToDraft,
   getMatchParticipantIds,
-} from "./circuit.js?v=77";
+} from "./circuit.js?v=78";
 import {
   createCpuFlavorSkills,
   createCpuFlavorWeaponName,
-} from "../../data/cpu-flavor-data.js?v=77";
+} from "../../data/cpu-flavor-data.js?v=78";
 
 export const TOURNAMENT_RUNTIME_VERSION =
   "mobbr-tournament-runtime-2.5.0";
@@ -927,7 +927,7 @@ function cpuRankRangeMidpoint(range) {
 
 function cpuTeamStrengthValue(sourceTeam) {
   const values = sourceTeam.members.map((member) =>
-    cpuRankRangeMidpoint(
+    member.editorStats ? Object.values(member.editorStats).reduce((a,b)=>a+b,0)/7 : cpuRankRangeMidpoint(
       member.normalRankRange ??
       member.hotRankRange ??
       member.slumpRankRange,
@@ -971,7 +971,7 @@ function createCpuMemberRecord(
           sourcePlayer.slumpRankRange
         );
 
-  const baseCharacterRank =
+  let baseCharacterRank =
     resolveCpuRankFromRange(
       rankRange,
       random(),
@@ -1051,6 +1051,11 @@ function createCpuMemberRecord(
     }
   }
 
+  if(sourcePlayer.editorStats){
+    Object.assign(battleStats,sourcePlayer.editorStats);
+    characterRank=characterValueToRank(Math.floor(Object.values(battleStats).reduce((a,b)=>a+b,0)/Object.keys(battleStats).length));
+    baseCharacterRank=characterRank;
+  }
   const maxHp =
     calculateMaxHp(
       battleStats.stamina,

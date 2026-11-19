@@ -1,15 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createNewGameState} from '../js/main/state.js?v=77';
-import {advanceGameWeek,getTournamentEventsForDate} from '../data/game-data.js?v=77';
-import {createTournamentEntryData,saveTournamentEntryToStorage} from '../js/main/tournament-bridge.js?v=77';
-import {createTournamentRuntime,createTournamentRuntimeManager} from '../js/tournament/runtime.js?v=77';
-import {createBattleFromTournamentRuntime,runBattleToCompletion,executeCurrentBattleToDraft} from '../js/tournament/battle-core.js?v=77';
-import {resolveBattleOrder,renderOrderPanel,renderBattleStory,AUTO_PHASE_ACTIONS} from '../js/tournament/match-experience.js?v=77';
-import {createBattleReplayModel} from '../js/tournament/battle-ui.js?v=77';
-import {renderTeamDebut} from '../js/main/team-debut.js?v=77';
-import {fastForwardMatchToChampionToDraft} from '../js/tournament/round.js?v=77';
-import {finalizeCurrentMatchToDraft,prepareTournamentResultToDraft,renderTournamentResultScreen} from '../js/tournament/results.js?v=77';
+import {createNewGameState} from '../js/main/state.js?v=78';
+import {advanceGameWeek,getTournamentEventsForDate} from '../data/game-data.js?v=78';
+import {createTournamentEntryData,saveTournamentEntryToStorage} from '../js/main/tournament-bridge.js?v=78';
+import {createTournamentRuntime,createTournamentRuntimeManager} from '../js/tournament/runtime.js?v=78';
+import {createBattleFromTournamentRuntime,runBattleToCompletion,executeCurrentBattleToDraft} from '../js/tournament/battle-core.js?v=78';
+import {resolveBattleOrder,renderOrderPanel,renderBattleStory,AUTO_PHASE_ACTIONS} from '../js/tournament/match-experience.js?v=78';
+import {createBattleReplayModel} from '../js/tournament/battle-ui.js?v=78';
+import {renderTeamDebut} from '../js/main/team-debut.js?v=78';
+import {fastForwardMatchToChampionToDraft} from '../js/tournament/round.js?v=78';
+import {finalizeCurrentMatchToDraft,prepareTournamentResultToDraft,renderTournamentResultScreen} from '../js/tournament/results.js?v=78';
 
 function fixture() {
  const state=structuredClone(createNewGameState({companyBaseName:'検証',playerNames:{IGL:'指揮',ATK:'攻撃',SUP:'支援'}}));

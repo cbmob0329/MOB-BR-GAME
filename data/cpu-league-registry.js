@@ -6,15 +6,17 @@
  */
 
 import {
-  ALL_GENERATION_47_CPU_TEAMS,
+  ALL_GENERATION_47_CPU_TEAMS as ORIGINAL_CPU_TEAMS,
   DENDEN_CPU_TEAMS as DENDEN_CPU_TEAM_MASTER,
   PRO_LOCAL_CPU_TEAMS as LOCAL_CPU_TEAM_MASTER,
   PRO_NATIONAL_CPU_TEAMS as NATIONAL_CPU_TEAM_MASTER,
   PRO_WORLD_CPU_TEAMS as WORLD_CPU_TEAM_MASTER,
-} from "./cpu-roster-47-data.js?v=77";
+} from "./cpu-roster-47-data.js?v=78";
+import {loadEditedCpuMasters} from './cpu-editor-settings.js?v=1';
+const ALL_GENERATION_47_CPU_TEAMS=loadEditedCpuMasters(ORIGINAL_CPU_TEAMS);
 import {
   CPU_TEAM_LEAGUE_OVERRIDES,
-} from "./cpu-league-overrides.js?v=77";
+} from "./cpu-league-overrides.js?v=78";
 
 export const CPU_LEAGUE_REGISTRY_VERSION =
   "mobbr-cpu-league-registry-2.0.0";

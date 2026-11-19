@@ -1,7 +1,7 @@
-import {diamondPrice} from "../../data/simple-growth.js?v=77";
-import { presentTeamDebut } from './team-debut.js?v=77';
-import { presentPracticeReport } from "./practice-report.js?v=77";
-import { nextTournamentText, weeklyGrowthSummary, lastWeekTraining } from "./training-view.js?v=77";
+import {diamondPrice} from "../../data/simple-growth.js?v=78";
+import { presentTeamDebut } from './team-debut.js?v=78';
+import { presentPracticeReport } from "./practice-report.js?v=78";
+import { nextTournamentText, weeklyGrowthSummary, lastWeekTraining } from "./training-view.js?v=78";
 /**
  * MOB BR main-screen application shell.
  *
@@ -19,10 +19,10 @@ import {
   assetPath,
   detectAssetPrefix,
   installAssetFallbacks,
-} from "../assets.js?v=77";
+} from "../assets.js?v=78";
 import {
   fitPortraits,
-} from "../portrait-fit.js?v=77";
+} from "../portrait-fit.js?v=78";
 import {
   SaveError,
   SaveNotFoundError,
@@ -32,7 +32,7 @@ import {
   grantEmployeeCookingPointsToDraft,
   queueWeeklyEventToDraft,
   resolveWeeklyEventToDraft,
-} from "./state.js?v=77";
+} from "./state.js?v=78";
 import {
   applyPlayerStatUpgradePlanToDraft,
   applyTestMaxPlayerBuildToDraft,
@@ -56,38 +56,38 @@ import {
   upgradePlayerSkillToDraft,
   upgradePlayerStatToDraft,
   upgradeWeaponStatToDraft,
-} from "./team.js?v=77";
+} from "./team.js?v=78";
 import {
   getSpecialAbility,
-} from "../../data/special-ability-50-data.js?v=77";
+} from "../../data/special-ability-50-data.js?v=78";
 import {
   getCompanyRankData,
-} from "../../data/game-data.js?v=77";
+} from "../../data/game-data.js?v=78";
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=77";
+} from "../../data/motivation-data.js?v=78";
 import {
   getRoomMaster,
-} from "../../data/collection-data.js?v=77";
+} from "../../data/collection-data.js?v=78";
 import {
   EMPLOYEE_RULES,
   getEmployeeRankData,
   getTotalEmployeeHpBonus,
-} from "../../data/employee-data.js?v=77";
+} from "../../data/employee-data.js?v=78";
 import {
   formatWeeklyEventText,
   getWeeklyEvent,
-} from "../../data/weekly-event-data.js?v=77";
+} from "../../data/weekly-event-data.js?v=78";
 import {
   createManagementController,
   getTournamentWeekStatus,
   renderManagementSection,
-} from "./management.js?v=77";
+} from "./management.js?v=78";
 import {
   createTournamentBridgeController,
   renderTournamentSchedule,
-} from "./tournament-bridge.js?v=77";
+} from "./tournament-bridge.js?v=78";
 
 export const APP_VERSION = "mobbr-main-app-4.1.2";
 
@@ -1031,6 +1031,7 @@ function settingsTemplate(snapshot, currentRoute, fromTitle = false) {
         <section class="hero-panel">
           <p class="hero-panel__label">ゲーム設定</p>
           <h1 class="hero-panel__title">設定</h1>
+          <p><a href="cpu-editor.html" style="display:inline-block;padding:12px 18px;margin:12px 0;background:#14374b;color:#eaffff;border-radius:10px;text-decoration:none;font-weight:800">CPUチームを画像付きで編集 ↗</a></p>
           <p class="placeholder-panel__text">
             設定はセーブデータがある場合だけ保存されます。
           </p>

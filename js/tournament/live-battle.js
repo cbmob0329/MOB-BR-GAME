@@ -1,8 +1,8 @@
-import {arenaMarkup,createArenaPainter} from './arena-view.js?v=77';
-import {beginLiveBattleToDraft,updateLiveBattleToDraft} from './battle-core.js?v=77';
-import {getUsableReadySkills,skillEffectiveCt} from './battle-actions.js?v=77';
-import {assetPath} from '../assets.js?v=77';
-import {autoItem} from '../../data/auto-items.js?v=77';
+import {arenaMarkup,createArenaPainter} from './arena-view.js?v=78';
+import {beginLiveBattleToDraft,updateLiveBattleToDraft} from './battle-core.js?v=78';
+import {getUsableReadySkills,skillEffectiveCt} from './battle-actions.js?v=78';
+import {assetPath} from '../assets.js?v=78';
+import {autoItem} from '../../data/auto-items.js?v=78';
 const esc=v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 export function liveBattleMarkup(runtime){
  const battle=runtime.activeBattle, players=Object.values(battle.participants),own=players.filter(p=>p.teamId===battle.leftTeamId),enemy=players.filter(p=>p.teamId!==battle.leftTeamId);

@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createNewGameState} from '../js/main/state.js?v=77';
-import {advanceGameWeek,getTournamentEventsForDate} from '../data/game-data.js?v=77';
-import {createTournamentEntryData} from '../js/main/tournament-bridge.js?v=77';
-import {createTournamentRuntime,createTournamentResumeData,calculateTournamentRuntimeChecksum,validateTournamentResumeDataForEntry} from '../js/tournament/runtime.js?v=77';
-import {beginLiveBattleToDraft,updateLiveBattleToDraft} from '../js/tournament/battle-core.js?v=77';
-import {advanceArena,initializeArena,arenaShot,arenaTraits} from '../js/tournament/arena-space.js?v=77';
-import {beginExplorationToDraft,completeExplorationToDraft} from '../js/tournament/exploration.js?v=77';
-import {selectExpeditionRouteToDraft,recommendedRoute,renderExpedition} from '../js/tournament/expedition.js?v=77';
+import {createNewGameState} from '../js/main/state.js?v=78';
+import {advanceGameWeek,getTournamentEventsForDate} from '../data/game-data.js?v=78';
+import {createTournamentEntryData} from '../js/main/tournament-bridge.js?v=78';
+import {createTournamentRuntime,createTournamentResumeData,calculateTournamentRuntimeChecksum,validateTournamentResumeDataForEntry} from '../js/tournament/runtime.js?v=78';
+import {beginLiveBattleToDraft,updateLiveBattleToDraft} from '../js/tournament/battle-core.js?v=78';
+import {advanceArena,initializeArena,arenaShot,arenaTraits} from '../js/tournament/arena-space.js?v=78';
+import {beginExplorationToDraft,completeExplorationToDraft} from '../js/tournament/exploration.js?v=78';
+import {selectExpeditionRouteToDraft,recommendedRoute,renderExpedition} from '../js/tournament/expedition.js?v=78';
 function fixture(){const s=structuredClone(createNewGameState({companyBaseName:'アリーナ',playerNames:{IGL:'指揮',ATK:'攻撃',SUP:'支援'}}));let e;for(let i=0;i<48&&!e;i++){e=getTournamentEventsForDate(s.gameDate).find(x=>x.tournamentType==='local');if(!e)s.gameDate=structuredClone(advanceGameWeek(s.gameDate));}const entry=createTournamentEntryData(s,e),r=structuredClone(createTournamentRuntime(entry));r.match=1;r.round=2;r.currentOpponentId=r.teams.find(t=>t.teamId!==r.playerTeamId).teamId;r.phase='BATTLE';return {r,entry};}
 test('arena motion is deterministic, respects the circle, and agility changes distance travelled',()=>{
  const {r}=fixture();beginLiveBattleToDraft(r);const low=structuredClone(r.activeBattle),high=structuredClone(low),id=Object.keys(low.participants)[0];low.participants[id].battleStats.agility=1;high.participants[id].battleStats.agility=100;

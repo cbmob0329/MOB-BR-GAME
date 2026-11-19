@@ -1,5 +1,5 @@
-import {autoItem} from "../../data/auto-items.js?v=77";
-import {initializeArena,advanceArena} from './arena-space.js?v=77';
+import {autoItem} from "../../data/auto-items.js?v=78";
+import {initializeArena,advanceArena} from './arena-space.js?v=78';
 /**
  * MOB BR deterministic 3v3 battle engine.
  *
@@ -8,15 +8,15 @@ import {initializeArena,advanceArena} from './arena-space.js?v=77';
  * finished result into the tournament runtime through one transaction draft.
  */
 
-import { resolveBattleOrder } from './match-experience.js?v=77';
+import { resolveBattleOrder } from './match-experience.js?v=78';
 import {
   BATTLE_END_TIE_BREAKERS,
   BATTLE_TIMING,
   STATE_RULES,
-} from "../../data/battle-config.js?v=77";
+} from "../../data/battle-config.js?v=78";
 import {
   calculateChecksum,
-} from "../main/state.js?v=77";
+} from "../main/state.js?v=78";
 import {
   BATTLE_ACTIONS_VERSION,
   appendBattleEvent,
@@ -29,7 +29,7 @@ import {
   prepareParticipantSpecialAfterBattle,
   addOrRefreshEffect,
   updateParticipantTimers,
-} from "./battle-actions.js?v=77";
+} from "./battle-actions.js?v=78";
 
 export const BATTLE_CORE_VERSION =
   "mobbr-battle-core-1.7.0";

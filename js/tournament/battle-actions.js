@@ -1,4 +1,4 @@
-import {arenaShot,arenaDistance} from './arena-space.js?v=77';
+import {arenaShot,arenaDistance} from './arena-space.js?v=78';
 /**
  * MOB BR deterministic battle actions.
  *
@@ -26,12 +26,12 @@ import {
   calculateSkillCt,
   isAssistEligible,
   resolveWeaponBattleValue,
-} from "../../data/battle-config.js?v=77";
+} from "../../data/battle-config.js?v=78";
 import {
   STAT_IDS,
   clamp,
   rankToCharacterValue,
-} from "../../data/game-data.js?v=77";
+} from "../../data/game-data.js?v=78";
 import {
   adjustDebuffForSpecialAbility,
   applyNextBattleSpecialEffects,
@@ -50,7 +50,7 @@ import {
   normalizeUniqueSkill,
   recordSpecialAttackOutcome,
   refreshSpecialDynamicEffects,
-} from "./special-abilities.js?v=77";
+} from "./special-abilities.js?v=78";
 
 export const BATTLE_ACTIONS_VERSION =
   "mobbr-battle-actions-2.3.0";

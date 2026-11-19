@@ -1,4 +1,4 @@
-import { diamondPrice } from "../../data/simple-growth.js?v=77";
+import { diamondPrice } from "../../data/simple-growth.js?v=78";
 /**
  * MOB BR player growth and equipment feature.
  *
@@ -13,19 +13,19 @@ import {
   characterValueToRank,
   weaponValueToRank,
   getCompanyRankData,
-} from "../../data/game-data.js?v=77";
+} from "../../data/game-data.js?v=78";
 import {
   calculateMaxHp,
   getRoleCommonSkills,
-} from "../../data/battle-config.js?v=77";
+} from "../../data/battle-config.js?v=78";
 import {
   effectiveCharacterRank,
   motivationDisplay,
-} from "../../data/motivation-data.js?v=77";
+} from "../../data/motivation-data.js?v=78";
 import {
   WEAPON_SKINS,
   getWeaponSkin,
-} from "../../data/shop-data.js?v=77";
+} from "../../data/shop-data.js?v=78";
 import {
   PLAYER_STAT_DEFINITIONS,
   WEAPON_STAT_DEFINITIONS,
@@ -35,13 +35,13 @@ import {
   getStatUpgradeCost,
   getWeaponStatDefinition,
   getWeaponUpgradeCost,
-} from "../../data/ability-data.js?v=77";
+} from "../../data/ability-data.js?v=78";
 
 import {
   getSpecialAbilitiesForRole,
   getSpecialAbility,
   getSpecialAbilityStage,
-} from "../../data/special-ability-50-data.js?v=77";
+} from "../../data/special-ability-50-data.js?v=78";
 
 export const TEAM_FEATURE_VERSION = "mobbr-team-feature-1.5.0";
 
